@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { ContextRow } from '@/lib/checker-context';
 import { mergeQueueRows } from '@/lib/paper-review-filter';
+import { normaliseExtra, type LibraryExtra } from '@/lib/library-views';
 import type { RawOption } from '@/lib/checker-options';
 import { checkerSaveRoute, TYPO_NEEDS_VERSION } from '@/lib/checker-save';
 
@@ -642,4 +643,15 @@ export async function snippetUrls(auditPaperId: string, questionIds: string[]): 
     if (!d.error && d.signedUrl) out.set(questionIds[i], d.signedUrl);
   });
   return out;
+}
+
+/** The Library's extra columns, one row per paper that has any: why it is
+ *  hidden, how many questions wait with students and with an admin, and
+ *  whether it is waiting in Ready to go live. Null when the server does not
+ *  have admin_library_extras() yet (20261003130000_admin_queue_library.sql),
+ *  so the Library still opens and says the extras are not available. */
+export async function adminLibraryExtras(): Promise<LibraryExtra[] | null> {
+  const { data, error } = await supabase.rpc('admin_library_extras' as never);
+  if (error) return null;
+  return rpcRows<unknown>(data).map(normaliseExtra).filter((e): e is LibraryExtra => e !== null);
 }

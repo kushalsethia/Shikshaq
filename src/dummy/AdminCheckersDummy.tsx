@@ -18,7 +18,7 @@ export default function AdminCheckersDummy() {
     >
       <span className="font-bold uppercase tracking-[0.08em]">Dummy mode, nothing is saved</span>
       <span className="text-fuchsia-200">
-        Try adding "nobody@example.com" to see the "no account" error.
+        Search "tar" or "meena" to find made-up people, or type nobody@example.com to see the "no account" message.
       </span>
       <button
         type="button"

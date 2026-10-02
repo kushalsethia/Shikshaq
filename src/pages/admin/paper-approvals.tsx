@@ -9,6 +9,8 @@ import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, t
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { cn } from '@/lib/utils';
+import { AdminPageIntro, InfoTip } from '@/components/admin/AdminHelp';
+import { TIPS, type TipKey } from '@/lib/admin-hints';
 import { displaySchool } from '@/lib/school-display';
 import { realApprovalApi } from '@/lib/admin-approval';
 import { isReady, type ApprovalApi, type ApprovalQueueRow } from '@/lib/admin-approval-shape';
@@ -38,10 +40,13 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'retro', label: 'Already live' },
 ];
 
-function Tile({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
+function Tile({ label, value, sub, tip }: { label: string; value: ReactNode; sub?: ReactNode; tip?: TipKey }) {
   return (
     <div className="rounded-2xl bg-muted px-4 py-3">
-      <p className="text-[12px] font-semibold uppercase tracking-wide text-warm-label">{label}</p>
+      <p className="flex items-center gap-1 text-[12px] font-semibold uppercase tracking-wide text-warm-label">
+        {label}
+        {tip ? <InfoTip tip={tip} label={label} /> : null}
+      </p>
       <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{value}</p>
       {sub ? <p className="mt-0.5 text-[13px] text-warm-meta">{sub}</p> : null}
     </div>
@@ -81,7 +86,7 @@ export function AdminPaperApprovalsPage({
   dummy?: boolean;
   banner?: ReactNode;
 }) {
-  usePageMeta('Paper approvals | Shikshaq Admin', 'Approve checked papers for launch on the site.');
+  usePageMeta('Ready to go live | Shikshaq Admin', 'Approve checked papers for launch on the site.');
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const signedIn = dummy ? 'admin@example.com' : user?.email ?? profile?.full_name ?? 'Signed-in admin';
@@ -119,11 +124,7 @@ export function AdminPaperApprovalsPage({
   const ready = rows.filter(isReady).length;
   const withOpen = rows.length - ready;
   const retro = rows.filter((r) => r.kind === 'retro').length;
-  const nav = buildAdminNav('paper-approvals', {
-    approvals: sectionCounts.approvals,
-    reviews: sectionCounts.reviews,
-    paperApprovals: rows.length,
-  });
+  const nav = buildAdminNav('ready', { ...sectionCounts, paperApprovals: rows.length });
 
   const shown = useMemo(
     () =>
@@ -158,12 +159,12 @@ export function AdminPaperApprovalsPage({
   if (!isAdmin) return null;
 
   const columns: AdminTableColumn[] = [
-    { key: 'paper', label: 'Paper', width: '2fr' },
-    { key: 'school', label: 'School', width: '1.5fr' },
-    { key: 'questions', label: 'Questions', width: '1.5fr' },
-    { key: 'ai', label: 'AI check', width: '1.4fr' },
-    { key: 'queued', label: 'Waiting', width: '0.9fr' },
-    { key: 'state', label: 'State', width: '1fr' },
+    { key: 'paper', label: 'Paper', width: '2fr', hint: TIPS['col.ready.paper'] },
+    { key: 'school', label: 'School', width: '1.5fr', hint: TIPS['col.school'] },
+    { key: 'questions', label: 'Questions', width: '1.5fr', hint: TIPS['col.ready.questions'] },
+    { key: 'ai', label: 'AI check', width: '1.4fr', hint: TIPS['col.ready.ai'] },
+    { key: 'queued', label: 'Waiting', width: '0.9fr', hint: TIPS['col.ready.waiting'] },
+    { key: 'state', label: 'State', width: '1fr', hint: TIPS['col.ready.state'] },
   ];
   const tableRows: AdminTableRow[] = shown.map((r) => ({
     id: r.audit_paper_id,
@@ -198,16 +199,15 @@ export function AdminPaperApprovalsPage({
       {banner}
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-        <AdminPanelHeader title="Paper approvals" meta={`${rows.length} waiting`} />
-        <p className="-mt-1 mb-3 px-[18px] text-pretty text-[14px] text-warm-secondary">
-          Papers whose checks are done wait here for an admin. Open one to read it as visitors will, fix anything, then approve it
-          for launch. A paper with open questions cannot be approved until each one is passed or set aside.
-        </p>
+        <div className="mb-3 px-[18px]">
+          <AdminPageIntro page="ready" />
+        </div>
+        <AdminPanelHeader title="Ready to go live" meta={`${rows.length} waiting`} />
         <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-4">
-          <Tile label="Waiting" value={rows.length} />
-          <Tile label="Ready to approve" value={ready} sub="no open questions" />
-          <Tile label="Has open questions" value={withOpen} sub="cannot be approved yet" />
-          <Tile label="Already live" value={retro} sub="approve after the fact" />
+          <Tile label="Waiting" value={rows.length} tip="ready.waiting" />
+          <Tile label="Ready to approve" value={ready} sub="no open questions" tip="ready.ready" />
+          <Tile label="Has open questions" value={withOpen} sub="cannot be approved yet" tip="ready.open" />
+          <Tile label="Already live" value={retro} sub="approve after the fact" tip="ready.live" />
         </div>
       </BentoPanel>
 

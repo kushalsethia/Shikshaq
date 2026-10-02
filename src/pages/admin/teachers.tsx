@@ -24,6 +24,8 @@ import { validateImageSrc } from '@/utils/imageSanitizer';
 import { invalidateTeacherCache, removeCache } from '@/utils/cache';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
+import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 
@@ -572,7 +574,8 @@ export default function AdminTeachersPage() {
   const fieldClassName = 'h-auto border border-warm-hairline bg-card focus-visible:ring-1 focus-visible:ring-ring';
   const optionLabelStyle = 'text-[13px] text-warm-prose';
 
-  const nav = buildAdminNav('teachers', { approvals: pendingApplicationsCount });
+  const sectionCounts = useAdminSectionCounts();
+  const nav = buildAdminNav('teachers', { ...sectionCounts, approvals: pendingApplicationsCount });
 
   // AD-005 columns: Name · Area · Subjects · Fee · Status · Updated. The real Shikshaqmine
   // schema has no `updated_at` (only the `created_at` join timestamp already used elsewhere
@@ -674,6 +677,7 @@ export default function AdminTeachersPage() {
   return (
     <BentoStack className="min-h-screen bg-muted">
       <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
+      <AdminPageIntroPanel page="teachers" />
 
       {/* AD-003 gives this panel literally: `px-1.5 py-[18px]`. It had been
           px-[18px], which pushed the table 18px off the panel edge and the
