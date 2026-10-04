@@ -1501,7 +1501,7 @@ export default function Index() {
                         {q.teacherName && q.teacherSlug ? (
                           <Link
                             to={`/tuition-teachers/${q.teacherSlug}`}
-                            className="flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            className="flex min-h-[44px] items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           >
                             {q.teacherImageUrl ? (
                               <img

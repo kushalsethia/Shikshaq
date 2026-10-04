@@ -163,8 +163,8 @@ const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
           </span>
         )}
 
-        <span className="mt-auto block truncate pb-3.5 pr-1 text-meta font-medium" style={{ color: palette.meta }}>
-          {paper.title} · {paper.year}
+        <span className="mt-auto block line-clamp-2 break-words pb-3.5 pr-1 text-meta font-medium" style={{ color: palette.meta }}>
+          {[paper.title, paper.year].filter((v) => v !== null && v !== undefined && String(v).trim() !== "").join(" · ")}
         </span>
       </div>
     );

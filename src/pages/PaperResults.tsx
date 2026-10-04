@@ -40,6 +40,7 @@ interface Paper {
 }
 
 const PAGE_SIZE = 24;
+const BANK_STEP = 48;
 
 const SKELETON = 'bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer';
 const FOCUS =
@@ -465,8 +466,16 @@ export default function PaperResults() {
 
   /* Bank matches lead, then the database page. Only on the first page — they
      are not part of the server's pagination. */
-  const shownPapers = page === 0 ? [...bankMatches, ...papers] : papers;
+  /* Capped, then "Show more": an unfiltered visit matches every bank paper
+     (1,500+), and mounting that many cards at once put ~31,000 nodes on a
+     phone and a 195,000px scroll. The count shown in the readout is still the
+     true total. Resets whenever the filters change what matches. */
+  const [bankShown, setBankShown] = useState(BANK_STEP);
+  useEffect(() => { setBankShown(BANK_STEP); }, [bankMatches]);
+  const bankVisible = bankMatches.slice(0, bankShown);
+  const shownPapers = page === 0 ? [...bankVisible, ...papers] : papers;
   const shownTotal = total + bankMatches.length;
+  const bankHasMore = page === 0 && bankMatches.length > bankShown;
 
   const hasMore = papers.length < total;
 
@@ -761,7 +770,15 @@ export default function PaperResults() {
                 <p className="text-meta tabular-nums text-muted-foreground">
                   Showing {shownPapers.length.toLocaleString('en-IN')} of {shownTotal.toLocaleString('en-IN')}
                 </p>
-                {hasMore ? (
+                {bankHasMore ? (
+                  <button
+                    type="button"
+                    onClick={() => setBankShown((n) => n + BANK_STEP)}
+                    className={`inline-flex min-h-[44px] items-center justify-center rounded-full bg-foreground px-6 text-[14px] font-bold text-background transition-transform duration-tap ease-tap active:scale-[0.97] ${FOCUS}`}
+                  >
+                    Show {Math.min(BANK_STEP, bankMatches.length - bankShown).toLocaleString('en-IN')} more papers
+                  </button>
+                ) : hasMore ? (
                   <div ref={infiniteScrollRef} className="flex h-12 items-center gap-2 text-[14px] font-bold text-muted-foreground" aria-hidden={!loadingMore}>
                     {loadingMore && (
                       <>
