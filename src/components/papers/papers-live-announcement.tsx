@@ -11,6 +11,7 @@ import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 import { isFooterlessPath } from '@/lib/chromeless-routes';
 
 import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
+import { claimFirstVisitPopup } from '@/lib/first-visit-popup';
 /* "Past papers are live" — a one-time announcement, not a second onboarding.
  *
  * Shown once per browser, and deliberately NOT to someone who is meeting the
@@ -70,7 +71,7 @@ export function PapersLiveAnnouncement() {
     if (!hasSeen() && hasSeenOnboarding()) {
       /* One frame late, so it never races the tour's own mount and never
          competes with first paint. */
-      const t = window.setTimeout(() => setOpen(true), 900);
+      const t = window.setTimeout(() => { if (claimFirstVisitPopup()) setOpen(true); }, 900);
       return () => window.clearTimeout(t);
     }
   }, []);

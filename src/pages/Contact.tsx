@@ -83,7 +83,7 @@ export default function Contact() {
     );
     window.location.href = `mailto:ngo.aquaterra@gmail.com?subject=${subject}&body=${body}`;
     setSent(true);
-    toast.success('Opening your email app to send this to ngo.aquaterra@gmail.com');
+    toast('Opening your email app');
   };
 
   const statement = (
@@ -190,16 +190,17 @@ export default function Contact() {
               </Field>
 
               <Button type="submit" variant="primary" size={52}>
-                Send it
+                Open my email app
                 <ArrowRight className="h-[17px] w-[17px]" aria-hidden="true" />
               </Button>
               <span className="text-[13px] leading-[1.55] text-warm-label">
-                Goes straight to the two people who run Shikshaq. No newsletter, and we never
+                This opens an email to the two people who run Shikshaq. No newsletter, and we never
                 pass your number to a teacher without asking.
               </span>
               {sent ? (
                 <p role="status" className="text-body-secondary text-brand-deep">
-                  Your email app should be open now. Send it from there and we&rsquo;ll reply.
+                  Opening your email app. Nothing is sent until you press send there. If nothing
+                  opens, write to ngo.aquaterra@gmail.com or WhatsApp us below.
                 </p>
               ) : null}
             </form>

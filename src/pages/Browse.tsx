@@ -46,6 +46,7 @@ import { DEFAULT_TITLE, DEFAULT_DESCRIPTION } from '@/lib/seo-defaults';
 import type { SubjectContent } from '@/content/subject-seo';
 import { generateSubjectPageSchemas, generateBoardPageSchemas, generateBrowsePageSchemas } from '@/utils/structuredDataGenerators';
 import { injectSchemas } from '@/utils/injectSchemas';
+import { reportLoadError } from '@/lib/load-error';
 
 
 interface Teacher {
@@ -719,6 +720,7 @@ export default function Browse({ manageSeo = true, pageContext, seo, locality }:
     };
   }, [manageSeo, seo, loading, teachers.length]);
 
+  const [subjectsRetry, setSubjectsRetry] = useState(0);
   useEffect(() => {
     async function fetchSubjects() {
       // Check cache first
@@ -729,11 +731,15 @@ export default function Browse({ manageSeo = true, pageContext, seo, locality }:
         return;
       }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('subjects')
         .select('*')
         .order('name');
-      
+
+      if (error) {
+        reportLoadError('browse.subjects', error, { what: 'the subject filter', retry: () => setSubjectsRetry((n) => n + 1) });
+        return;
+      }
       if (data) {
         // Filter out duplicates and fix misspellings
         const seen = new Set<string>();
@@ -764,7 +770,7 @@ export default function Browse({ manageSeo = true, pageContext, seo, locality }:
 
     fetchSubjects();
     // Clean up expired cache on mount
-  }, []);
+  }, [subjectsRetry]);
 
   // Sync selectedSubject with URL parameter when it changes
   useEffect(() => {

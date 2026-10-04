@@ -305,8 +305,11 @@ function TeacherCardComponent({
           if (spaceAt === -1) return displayName;
           return (
             <>
-              <span className="block truncate">{displayName.slice(0, spaceAt)}</span>
-              <span className="block truncate">{displayName.slice(spaceAt + 1)}</span>
+              {/* Never clipped: a long word ("Mukhopadhyay", "Bhojnagarwala") a few
+                  px wider than the column breaks onto an extra line instead of
+                  losing its ending. Ordinary names keep the two-line split. */}
+              <span className="block [overflow-wrap:anywhere]">{displayName.slice(0, spaceAt)}</span>
+              <span className="block [overflow-wrap:anywhere]">{displayName.slice(spaceAt + 1)}</span>
             </>
           );
         })()}

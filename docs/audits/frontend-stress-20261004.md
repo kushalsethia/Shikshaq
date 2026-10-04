@@ -49,21 +49,29 @@ Commits: see the PR.
   is refused (401, 42501). Unpublished/`needs_review` paper returns 0 rows and the page shows
   "coming soon".
 
+## Round 2 (coordinator follow-ups)
+
+| # | Item | Result |
+|---|---|---|
+| 1 | The 15 reads that ignored `error` | Shared pattern in `src/lib/load-error.ts`: `reportLoadError` (logs, one Retry toast per context per 30 s) for effects, `unwrap` for query functions. Footer x2, help topics, Browse subjects, PaperReader siblings, SelectRole, TeacherTermsAgreement, GuardianDashboard refresh, TeacherProfile (search markup only, logged not toasted) use it; Index quotes x3, SchoolPage and TeacherDashboard x2 now throw so the query reports `isError` (Index adds a Retry toast, SchoolPage's existing failed state engages). Tested in `load-error.test.ts`. |
+| 2 | Contact form | Button reads "Open my email app", status says "Opening your email app. Nothing is sent until you press send there", toast "Opening your email app". No claim of sending. |
+| 3 | Teacher-card name clip | Name lines use `overflow-wrap:anywhere` instead of a hard clip: a long word wraps instead of losing its ending. Measured at 375 on home: 48 name spans, 0 clipped. |
+| 4 | First-visit pop-ups | `src/lib/first-visit-popup.ts`: the first of tour, papers-live announcement and copyright notice to ask gets the visit's slot (tab session); the rest wait for a later visit because their own seen flag is still unset. The notice asks immediately, the tour after 250 ms, the announcement after 900 ms, so on a paper page the notice wins. Dismiss behaviour is unchanged. Verified in the browser: tour alone on first visit, nothing stacked after dismissing it. Trade-off: a first-time reader who got the tour will not see the copyright notice until their next visit. |
+| 5 | Blog en dashes | Not site copy. They are generated into `src/content/blog-stats.ts` from the bank's chapter values, so not changed here. Listed below. |
+| 6 | Re-verify | Rebuilt and checked at 375 and 1440, screenshots in this folder: `results-show-more-375.png`, `results-show-more-1440.png`, `paper-covers-375.png`, `paper-covers-1440.png`. Results page: 48 cards, 1,489 DOM nodes, "Showing 48 of 1,506", 44px button, no horizontal scroll. Covers wrap with no clipped lines and no stray separator. (The rebuild used `vite build --outDir dist-verify` because Windows refused to empty `dist/past-papers`; the prerender step was not part of this check.) |
+
+Chapter names with an en dash in the data (rename with an UPDATE to `bank_questions.chapter`,
+then `npm run generate-blog-stats`): Ancient India (Early Vedic Age, Gupta Empire, Later Vedic
+Age, Mauryan Empire), Elections (Election Commission), Medieval India (Delhi Sultanate, Mughal
+Architecture, Mughals, Mughals and Akbar, Mughals and Aurangzeb, Sher Shah, South India). Each is
+stored as "Topic, dash, Subtopic".
+
 ## Left for the owner
 
-1. **Contact form** only opens a `mailto:` and then shows "sent". On a desktop with no mail client
-   nothing happens. A real submit (table or function) would be a data/plumbing change.
-2. **"School not recorded"** is printed on many result cards (data: `bank_papers.school` empty).
-3. **Blog chapter names** such as "Medieval India – Mughals" contain en dashes (bank chapter
-   data, exempt as other people's text, but they sit in site headings).
-4. **Teacher card names** split on the first word and truncate each line (owner's recorded
-   design call): a long first word such as "Mukhopadhyay" is clipped by about 6px at 375.
-   Left alone; the full name is in the `title` attribute.
-5. **Stacked first-visit modals** on a paper page (tour, "papers are live", copyright notice)
-   arrive one after another. By design, but worth a look on a first visit from search.
-6. **Product-tour step dots** are 10px wide controls (`aria-label` "Step n of 3"). Not
-   reachable by thumb. Decorative-plus-navigation; left.
-7. Stale-redirect behaviour: `/auth` shows the hero of whatever gate you last hit for five
+1. **"School not recorded"** is printed on many result cards (data: `bank_papers.school` empty).
+2. **Blog chapter names with en dashes**: see the list above.
+3. **Product-tour step dots** are 10px wide controls. Decorative-plus-navigation; left.
+4. Stale-redirect behaviour: `/auth` shows the hero of whatever gate you last hit for five
    minutes (e.g. "Shikshaq admin"). By design (5 minute TTL), noted because it looks wrong when
    testing.
 

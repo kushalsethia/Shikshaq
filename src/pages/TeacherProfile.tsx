@@ -40,6 +40,7 @@ import {
   generateBreadcrumbSchema,
   generatePersonReviewSchema,
 } from '@/utils/structuredDataGenerators';
+import { logger } from '@/utils/logger';
 
 interface Teacher {
   id: string;
@@ -448,7 +449,7 @@ export default function TeacherProfile() {
     // Reviews: sourced from `teacher_comments` — the real, user-submitted,
     // moderated reviews — never a fabricated rating (O-02 is unresolved).
     (async () => {
-      const { data: comments } = await supabase
+      const { data: comments, error: commentsError } = await supabase
         .from('teacher_comments')
         .select('comment, approved')
         .eq('teacher_id', teacher.id)
@@ -456,6 +457,9 @@ export default function TeacherProfile() {
         .order('created_at', { ascending: false })
         .limit(20);
 
+      /* Search-engine markup only, nothing on screen depends on it, so this
+         is logged (Clarity picks it up in production) rather than toasted. */
+      if (commentsError) logger.error('TeacherProfile.reviewSchema', commentsError);
       if (cancelled) return;
 
       const reviewSchema = generatePersonReviewSchema({

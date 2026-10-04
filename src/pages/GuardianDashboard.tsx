@@ -349,11 +349,12 @@ export default function GuardianDashboard() {
       }
 
       // Refresh profile to get updated age
-      const { data: updatedProfile } = await supabase
+      const { data: updatedProfile, error: refreshError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
+      if (refreshError) toast.error('Saved, but we could not refresh your profile. Reload to see it.');
 
       if (updatedProfile) {
         setProfile(updatedProfile as Profile);

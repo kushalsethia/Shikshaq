@@ -334,11 +334,12 @@ export default function TeacherDashboard() {
     queryKey: ['teacherListingStats', teacherData?.Slug],
     queryFn: async () => {
       const slug = teacherData!.Slug!;
-      const { data: listRow } = await supabase
+      const { data: listRow, error: listError } = await supabase
         .from('teachers_list')
         .select('id')
         .eq('slug', slug)
         .maybeSingle();
+      if (listError) throw listError;
 
       if (!listRow) return { upvoteCount: null, reviewCount: null, reviews: [] as ReviewCardData[] };
 
@@ -364,10 +365,11 @@ export default function TeacherDashboard() {
 
       const profilesMap = new Map<string, { full_name: string | null; role: string | null; school_college: string | null; grade: string | null }>();
       if (userIds.length > 0) {
-        const { data: profilesData } = await supabase
+        const { data: profilesData, error: profilesError } = await supabase
           .from('public_profiles')
           .select('id, full_name, role, school_college, grade')
           .in('id', userIds);
+        if (profilesError) throw profilesError;
         (profilesData || []).forEach((p) => profilesMap.set(p.id, p));
       }
 
