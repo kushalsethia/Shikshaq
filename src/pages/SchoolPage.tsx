@@ -618,7 +618,7 @@ export default function SchoolPage() {
                             <FileText className="h-[15px] w-[15px]" style={{ color: palette.tint }} aria-hidden="true" />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[15px] font-bold tracking-[-0.02em]" style={{ color: palette.text }}>
+                            <span className="block line-clamp-2 break-words text-[15px] font-bold tracking-[-0.02em]" style={{ color: palette.text }}>
                               {paper.title}
                             </span>
                             <span className="mt-px block truncate text-[12px]" style={{ color: palette.meta }}>

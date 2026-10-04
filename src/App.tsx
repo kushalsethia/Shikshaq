@@ -170,7 +170,13 @@ const queryClient = new QueryClient({
    alone — no fetch, no lookup table, and nothing to keep in sync. */
 const PaperRoute = () => {
   const { id } = useParams<{ id: string }>();
-  return id && /^[0-9a-f]{6}$/.test(id) ? <BankPaper /> : <PaperReader />;
+  /* Only a real UUID goes to PaperReader. Anything else (a mistyped or
+     truncated link) used to reach it and fire a query Postgres rejected with
+     22P02, which the page then reported as "unable to load, refresh" -- the
+     wrong message for a link that can never work. BankPaper already shows a
+     proper "could not find that paper" with ways forward. */
+  const isUuid = !!id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  return isUuid ? <PaperReader /> : <BankPaper />;
 };
 
 // Component to redirect old /teacher/:slug routes to new /tuition-teachers/:slug

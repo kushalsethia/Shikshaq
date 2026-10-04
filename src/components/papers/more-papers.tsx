@@ -43,7 +43,7 @@ export function MorePapers({ items, currentId }: { items: MorePapersItem[]; curr
                 <FileText className="h-4 w-4 text-warm-label" aria-hidden="true" />
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-[14px] font-semibold text-foreground">{p.title}</span>
+                <span className="block line-clamp-2 break-words text-[14px] font-semibold text-foreground">{p.title}</span>
                 {p.year && <span className="block text-[13px] text-warm-label">{p.year}</span>}
               </span>
             </Link>

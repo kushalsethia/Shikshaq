@@ -315,7 +315,7 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
       const rows: Array<[string, string, string]> = [
         ['bg-whatsapp', 'Message teachers on WhatsApp', '-rotate-[1.5deg]'],
         ['bg-brand', 'Keep a shortlist of teachers', 'rotate-[1deg]'],
-        ['bg-brand-blue', papers > 0 ? `Open all ${papers} past papers` : 'Open every past paper', '-rotate-1'],
+        ['bg-brand-blue', papers > 0 ? `Open all ${papers.toLocaleString("en-IN")} past papers` : 'Open every past paper', '-rotate-1'],
       ];
       return {
         ink: BRAND_INK,

@@ -160,7 +160,7 @@ export function OnboardingModal() {
               key: 'papers',
               cls: 'absolute left-[22%] top-[46%] h-[34px] rotate-[6deg] items-center whitespace-nowrap rounded-full bg-brand-blue-subtle px-[15px] text-[14px] font-extrabold text-brand-blue-deep shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
               style: { display: 'inline-flex' } as React.CSSProperties,
-              body: `${c.papers} free papers`,
+              body: `${c.papers.toLocaleString("en-IN")} free papers`,
             },
             {
               key: 'whatsapp',

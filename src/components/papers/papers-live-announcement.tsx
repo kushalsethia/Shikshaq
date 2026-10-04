@@ -128,7 +128,7 @@ export function PapersLiveAnnouncement() {
                 genuinely Kolkata, see the coordinator's audit (~38 of 190 raw
                 values). */}
             {c?.papers
-              ? `${c.papers} real question papers, typed out with their marks and chapters.`
+              ? `${c.papers.toLocaleString("en-IN")} real question papers, typed out with their marks and chapters.`
               : 'Real question papers, typed out with their marks and chapters.'}
           </p>
         </div>
