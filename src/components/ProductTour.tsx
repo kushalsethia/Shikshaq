@@ -11,6 +11,7 @@ import { isFooterlessPath } from '@/lib/chromeless-routes';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 
 import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
+import { claimFirstVisitPopup } from '@/lib/first-visit-popup';
 /* The one onboarding.
  *
  * There were two, doing the same job in two visual languages: OnboardingModal
@@ -246,7 +247,11 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
     // Not on a work screen: a student opening the paper checker from a link
     // got the parents' marketing tour on top of it (isFooterlessPath).
     if (isFooterlessPath(window.location.pathname)) return;
-    if (!hasSeenOnboarding()) onOpenChange(true);
+    if (hasSeenOnboarding()) return;
+    /* A beat after mount, and only if no other first-visit pop-up has taken
+       this visit's slot (the paper notice claims it immediately). */
+    const t = window.setTimeout(() => { if (claimFirstVisitPopup()) onOpenChange(true); }, 250);
+    return () => window.clearTimeout(t);
   }, [onOpenChange]);
 
   React.useEffect(() => {

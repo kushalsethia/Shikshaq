@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Info } from 'lucide-react';
+import { claimFirstVisitPopup } from '@/lib/first-visit-popup';
 
 /* Owner ask: a one-time popup, shown the first time a visitor opens ANY
    paper page (BankPaper.tsx's ~193 bank papers and PaperReader.tsx's regular
@@ -36,7 +37,9 @@ export function PaperDisclaimerDialog() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!hasSeenDisclaimer()) setOpen(true);
+    /* Wins the slot on a paper page (the tour waits a beat), so the notice is
+       the one thing a first-time reader meets here. */
+    if (!hasSeenDisclaimer() && claimFirstVisitPopup()) setOpen(true);
   }, []);
 
   const dismiss = () => {
