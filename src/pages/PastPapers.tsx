@@ -792,8 +792,8 @@ export default function PastPapers() {
                       {i + 1}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15px] font-bold text-foreground">{paper.title}</span>
-                      <span className="block truncate text-meta text-warm-meta">{displaySchool(paper.school)}</span>
+                      <span className="block line-clamp-2 break-words text-[15px] font-bold text-foreground">{paper.title}</span>
+                      <span className="block line-clamp-1 text-meta text-warm-meta">{displaySchool(paper.school)}</span>
                     </span>
                     <span className="flex-none text-meta tabular-nums text-warm-meta">
                       {/* "opened", not "read" — what is recorded is that
@@ -858,7 +858,7 @@ export default function PastPapers() {
                     {label.charAt(0).toUpperCase()}
                   </IconDisc>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-bold text-foreground">{label}</span>
+                    <span className="block line-clamp-2 break-words text-[15px] font-bold text-foreground">{label}</span>
                     <span className="mt-px block text-[12px] tabular-nums text-muted-foreground">
                       {board} · {count} paper{count === 1 ? '' : 's'}
                       {otherBoardCount > 0 ? ` + ${otherBoardCount} more` : ''}

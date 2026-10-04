@@ -319,7 +319,7 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
         : ['Free to contact']
       : step.key === 'papers'
         ? c?.papers
-          ? [`${c.papers} papers`, 'Marks and chapters']
+          ? [`${c.papers.toLocaleString("en-IN")} papers`, 'Marks and chapters']
           : ['Marks and chapters']
         : ['They keep 100%', 'No commission'];
 
