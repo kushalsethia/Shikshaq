@@ -16,6 +16,7 @@ import { realApprovalApi } from '@/lib/admin-approval';
 import { isReady, type ApprovalApi, type ApprovalHistoryRow, type ApprovalQueueRow } from '@/lib/admin-approval-shape';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
+import { UpdateLivePapers } from '@/components/admin/approval/UpdateLivePapers';
 
 const DummyPaperApprovals = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminPaperApprovalsDummy')) : null;
 
@@ -226,6 +227,8 @@ export function AdminPaperApprovalsPage({
           <Tile label="Already live" value={retro} sub="approve after the fact" tip="ready.live" />
         </div>
       </BentoPanel>
+
+      {dummy ? null : <UpdateLivePapers />}
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
         <div role="tablist" aria-label="Papers to show" className="mx-[18px] mb-4 inline-flex h-11 items-center rounded-full bg-muted p-1">
