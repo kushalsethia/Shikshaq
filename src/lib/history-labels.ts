@@ -344,6 +344,7 @@ export const ACTION_LABELS: Record<string, (c: Ctx) => string> = {
   admin_retro_approve: () => 'approved the paper, which was already live',
   admin_reject: () => 'sent the paper back, not approved',
   admin_unpublish: () => 'took the paper off the site',
+  admin_update_live: () => 'updated the live paper with the reviewed changes',
   admin_republish: () => 'put the paper back on the site',
   admin_edit: (c) => (c.changes ? `changed ${c.changes}${c.on}` : `edited ${c.q}`),
   admin_revert: (c) => `restored ${c.toVersion}${c.on}`,
