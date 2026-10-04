@@ -44,6 +44,7 @@ import { bankSubjectToSite } from '@/lib/subject-vocabulary';
 import { coverPaper, coverMeta, pickVariedRecent, type CoverSourcePaper } from '@/lib/paper-cover-mapping';
 import { generateLocalBusinessSchema, generateServiceSchema } from '@/utils/structuredDataGenerators';
 import type { SearchMode } from '@/utils/searchFacets';
+import { reportLoadError } from '@/lib/load-error';
 
 /* P1-3/P1-7: neither of these renders anywhere near the top of the page --
    HomeActivitySection is section 13 (Favourites/Recently visited) and
@@ -551,7 +552,7 @@ export default function Index() {
     queryKey: ['home', 'quotes'],
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<StudentQuote[]> => {
-      const { data: comments } = await supabase
+      const { data: comments, error: commentsError } = await supabase
         /* teacher_comments_public, not the base table: `anon` no longer holds
            SELECT on teacher_comments.user_id, because that column plus an
            unfiltered public_profiles made every anonymous review
@@ -565,15 +566,17 @@ export default function Index() {
            one quote per teacher below, and with one popular teacher holding a
            dozen reviews a limit of 6 returned six cards about the same person. */
         .limit(60);
+      if (commentsError) throw commentsError;
       if (!comments || comments.length === 0) return [];
 
       const userIds = [...new Set(comments.filter((c) => !c.is_anonymous).map((c) => c.user_id))];
       const profilesMap = new Map<string, { full_name: string | null; role: string | null; school_college: string | null; grade: string | null }>();
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase
+        const { data: profiles, error: profilesError } = await supabase
           .from('public_profiles')
           .select('id, full_name, role, school_college, grade')
           .in('id', userIds);
+        if (profilesError) throw profilesError;
         (profiles || []).forEach((pr) => {
           if (pr.id) profilesMap.set(pr.id, pr);
         });
@@ -584,10 +587,11 @@ export default function Index() {
       const teacherIds = [...new Set(comments.map((c) => (c as { teacher_id?: string }).teacher_id).filter(Boolean))] as string[];
       const teacherMap = new Map<string, { name: string | null; slug: string | null; imageUrl: string | null }>();
       if (teacherIds.length > 0) {
-        const { data: tRows } = await supabase
+        const { data: tRows, error: tRowsError } = await supabase
           .from('teachers_list')
           .select('id, name, slug, image_url')
           .in('id', teacherIds);
+        if (tRowsError) throw tRowsError;
         (tRows || []).forEach((t) => {
           if (t.id) teacherMap.set(t.id, { name: t.name, slug: t.slug, imageUrl: (t as { image_url?: string | null }).image_url ?? null });
         });
@@ -637,6 +641,13 @@ export default function Index() {
       });
     },
   });
+  /* A failed quote read used to look like "no quotes yet". Say so, with a retry. */
+  const quotesRefetch = quotesQuery.refetch;
+  useEffect(() => {
+    if (quotesQuery.isError) {
+      reportLoadError('home.quotes', quotesQuery.error, { what: 'student reviews', retry: () => { void quotesRefetch(); } });
+    }
+  }, [quotesQuery.isError, quotesQuery.error, quotesRefetch]);
   const studentQuotes = quotesQuery.data ?? [];
 
   // Handoff H-023: the sentence builder moved out of Footer.tsx, "move not

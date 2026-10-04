@@ -10,6 +10,7 @@ import { invalidateUserProfileCache } from '@/utils/cache';
 import { isSafeRedirect as isValidRedirect } from '@/lib/safe-redirect';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { reportLoadError } from '@/lib/load-error';
 
 
 export default function TeacherTermsAgreement() {
@@ -57,11 +58,12 @@ export default function TeacherTermsAgreement() {
       }
 
       try {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, terms_agreement')
           .eq('id', user.id)
           .maybeSingle();
+        if (profileError) throw profileError;
 
         if (isMounted && !hasRedirectedRef.current && location.pathname === '/teacher-terms-agreement') {
           hasCheckedRef.current = true;
@@ -99,6 +101,7 @@ export default function TeacherTermsAgreement() {
         if (import.meta.env.DEV) {
           console.error('Error checking teacher status:', error);
         }
+        reportLoadError('teacher-terms.profile', error, { what: 'your account details' });
         if (isMounted) {
           setChecking(false);
           hasCheckedRef.current = true;

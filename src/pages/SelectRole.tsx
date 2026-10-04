@@ -19,6 +19,7 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 
 const FIELD_CLASS = 'flex h-[52px] w-full items-center rounded-2xl bg-muted px-4 text-base text-foreground outline-none shikshaq-role-field';
 import { isSafeRedirect as isValidRedirect } from '@/lib/safe-redirect';
+import { reportLoadError } from '@/lib/load-error';
 const LABEL_CLASS = 'mb-1 block text-[12px] font-bold uppercase tracking-[0.07em] text-warm-label';
 
 
@@ -57,11 +58,12 @@ export default function SelectRole() {
       }
 
       try {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, terms_agreement')
           .eq('id', user.id)
           .maybeSingle();
+        if (profileError) throw profileError;
 
         if (isMounted) {
           if (profile && profile.role) {
@@ -90,6 +92,7 @@ export default function SelectRole() {
         if (import.meta.env.DEV) {
           console.error('Error checking role:', error);
         }
+        reportLoadError('select-role.profile', error, { what: 'your account details' });
         if (isMounted) {
           setCheckingRole(false);
         }

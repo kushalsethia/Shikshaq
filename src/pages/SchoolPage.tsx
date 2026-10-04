@@ -90,11 +90,14 @@ export default function SchoolPage() {
          published papers and compare derived slugs. At this scale that is one
          query; past a few thousand papers this wants a generated column and an
          index rather than a client-side filter. */
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('papers')
         .select('id, title, school, subject, class, board, year')
         .eq('is_published', true)
         .order('year', { ascending: false });
+      /* Throw, so the query reports isError and the page's own failed/retry
+         state can engage, instead of an empty school. */
+      if (error) throw error;
 
       const rows = (data || []).filter((p) => schoolSlug(p.school) === slug);
       return {

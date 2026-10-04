@@ -16,6 +16,7 @@ import { PaperDisclaimerDialog } from '@/components/papers/paper-disclaimer-dial
 import { MorePapers } from '@/components/papers/more-papers';
 import { generateBreadcrumbSchema } from '@/utils/structuredDataGenerators';
 import { injectSchemas } from '@/utils/injectSchemas';
+import { reportLoadError } from '@/lib/load-error';
 
 // No file_url here: papers.file_url is no longer anon-selectable at all
 // (column-level REVOKE, migration 20260909000003_gate_paper_file_url.sql).
@@ -168,7 +169,7 @@ export default function PaperReader() {
     if (!paper) { setSiblings([]); return; }
     let cancelled = false;
     async function fetchSiblings() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('papers')
         .select('id,title,year')
         .eq('is_published', true)
@@ -178,6 +179,7 @@ export default function PaperReader() {
         .order('year', { ascending: false })
         .order('title', { ascending: true })
         .limit(50);
+      if (!cancelled && error) reportLoadError('paper.siblings', error, { what: 'the other papers in this set' });
       if (!cancelled && data) setSiblings(data as SiblingPaper[]);
     }
     fetchSiblings();

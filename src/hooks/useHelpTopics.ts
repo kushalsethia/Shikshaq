@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
+import { reportLoadError } from '@/lib/load-error';
 
 export interface HelpTopic {
   title: string;
@@ -27,22 +28,28 @@ const FALLBACK_TOPICS: HelpTopic[] = [
  *  same live guides rather than a second hardcoded copy). */
 export function useHelpTopics(): HelpTopic[] {
   const [topics, setTopics] = useState<HelpTopic[]>(FALLBACK_TOPICS);
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
     async function fetchTopics() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('page_content')
         .select('heading, full_content')
         .eq('page_type', 'help_topic')
         .eq('is_active', true)
         .order('display_order', { ascending: true });
 
+      if (error) {
+        /* The saved guides stay on screen; say that the live ones did not load. */
+        reportLoadError('help.topics', error, { what: 'the latest guides', retry: () => setRetryTick((n) => n + 1) });
+        return;
+      }
       if (data && data.length > 0) {
         setTopics(data.map((row) => ({ title: row.heading, body: row.full_content })));
       }
     }
     fetchTopics();
-  }, []);
+  }, [retryTick]);
 
   return topics;
 }

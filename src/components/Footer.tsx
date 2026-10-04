@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { BLOG_FOOTER_LINKS, BLOG_PATH } from '@/content/blog-nav';
 
 import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
+import { reportLoadError } from '@/lib/load-error';
 type FooterLink = { to: string; label: string };
 
 const BOARD_FOOTER_LINKS: FooterLink[] = [
@@ -388,7 +389,7 @@ export function Footer({ expandedContent, seamFill = 'background' }: FooterProps
         if (!data || data.length === 0) {
           if (subjectSlug && boardSlug) {
             // Try subject-only fallback
-            const { data: subjectData } = await supabase
+            const { data: subjectData, error: subjectError } = await supabase
               .from('page_content')
               .select('*')
               .eq('is_active', true)
@@ -397,6 +398,7 @@ export function Footer({ expandedContent, seamFill = 'background' }: FooterProps
               .order('display_order', { ascending: true })
               .limit(1);
 
+            if (subjectError) reportLoadError('footer.subject', subjectError, { what: 'the page text' });
             if (subjectData && subjectData.length > 0) {
               const content = subjectData[0] as PageContent;
               setPageContent(content);
@@ -406,7 +408,7 @@ export function Footer({ expandedContent, seamFill = 'background' }: FooterProps
           }
 
           // Fallback to general content
-          const { data: generalData } = await supabase
+          const { data: generalData, error: generalError } = await supabase
             .from('page_content')
             .select('*')
             .eq('is_active', true)
@@ -416,6 +418,7 @@ export function Footer({ expandedContent, seamFill = 'background' }: FooterProps
             .order('display_order', { ascending: true })
             .limit(1);
 
+          if (generalError) reportLoadError('footer.general', generalError, { what: 'the page text' });
           if (generalData && generalData.length > 0) {
             const content = generalData[0] as PageContent;
             setPageContent(content);
