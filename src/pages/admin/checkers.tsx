@@ -13,6 +13,7 @@ import { Search, UserPlus } from 'lucide-react';
 import { realCheckerAdminApi, type CheckerAdminApi, type CheckerAdminRow } from '@/lib/checker-admin-api';
 import type { UserSearchRow } from '@/lib/checker-api';
 import { AdminPageIntro, InfoTip } from '@/components/admin/AdminHelp';
+import { AddStudentGuide } from '@/components/admin/AddStudentGuide';
 import { TIPS } from '@/lib/admin-hints';
 import { looksLikeEmail } from '@/lib/email-shape';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
@@ -138,7 +139,7 @@ export function AdminCheckersPage({
     } catch (error) {
       const message =
         error instanceof Error && /no account|not found/i.test(error.message)
-          ? 'No Shikshaq account has that email yet. They need to sign up first.'
+          ? 'No Shikshaq account has that email yet. They may not have signed up, or they used a different email.'
           : 'Could not add that checker. Check the email and try again.';
       setAddError(message);
       if (import.meta.env.DEV) console.error('Error adding checker:', error);
@@ -227,6 +228,7 @@ export function AdminCheckersPage({
         <div className="mb-3 px-[18px]">
           <AdminPageIntro page="checkers" />
         </div>
+        <AddStudentGuide />
         <AdminPanelHeader title="Paper checkers" meta={`${rows.length} ${rows.length === 1 ? 'checker' : 'checkers'}`} />
 
         <div className="mb-4 px-[18px]">

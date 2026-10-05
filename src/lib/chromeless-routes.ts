@@ -31,7 +31,7 @@ export function isChromelessPath(pathname: string): boolean {
  *  2026-09-28: "remove the footer and the bottom shikshaq plug from that
  *  page"): its action buttons sit at the bottom, and the floating nav pill
  *  covered them on phones. */
-const FOOTERLESS_ROUTES = ['/checker'];
+const FOOTERLESS_ROUTES = ['/checker', '/checker/practice'];
 
 export function isFooterlessPath(pathname: string): boolean {
   const p = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
