@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AdminPipelinePage } from '@/pages/admin/pipeline';
 import { createFakePipelineApi } from '@/dummy/pipeline-fake-api';
+import { createFakePaperRegistryApi } from '@/dummy/paper-registry-fake-api';
 import { setDummyMode } from '@/lib/dummy-mode';
 
 /* /admin/pipeline in dummy mode (D75): the real page against made-up
@@ -9,6 +10,11 @@ import { setDummyMode } from '@/lib/dummy-mode';
 
 export default function AdminPipelineDummy() {
   const [api] = useState(createFakePipelineApi);
+  // ?registry=empty or ?registry=error reaches the other two panel states.
+  const [registryApi] = useState(() => {
+    const m = new URLSearchParams(window.location.search).get('registry');
+    return createFakePaperRegistryApi(m === 'empty' || m === 'error' ? m : 'full');
+  });
 
   const banner = (
     <div
@@ -30,5 +36,5 @@ export default function AdminPipelineDummy() {
     </div>
   );
 
-  return <AdminPipelinePage api={api} dummy banner={banner} />;
+  return <AdminPipelinePage api={api} registryApi={registryApi} dummy banner={banner} />;
 }
