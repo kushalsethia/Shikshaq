@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
@@ -62,6 +62,17 @@ import { isForeignChangeToOpenQuestion } from '@/lib/paper-review-realtime';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 import { DebugId } from '@/components/DebugId';
+import { useIsAdminBadge } from '@/hooks/useIsAdminBadge';
+import { ActionButton } from '@/components/checker/CheckerButtons';
+import { CHIP, actionToneClass } from '@/lib/checker-button-styles';
+import { CheckerWalkthrough } from '@/components/checker/CheckerWalkthrough';
+import {
+  CHECKER_HELP_PATH,
+  CHECKER_PRACTICE_PATH,
+  CHECKER_TOUR_PARAM,
+  hasSeenWalkthrough,
+  markWalkthroughSeen,
+} from '@/lib/checker-onboarding';
 
 /* The paper checker (Kid Mode) -- D8/D9/D11/D15/D16/D21: built INTO the
    Shikshaq site, in Shikshaq's own bento design language, reachable only by
@@ -521,9 +532,36 @@ export function CheckerPage({
     setSplitAt(codePointOffset(el.value, el.selectionStart));
   }
 
+  /* First-visit walkthrough. It only starts once the real question is on
+     screen and the subject picker is out of the way, so it never delays or
+     covers the load. Shown once per account per browser; `?tour=1` (from
+     Help) replays it. */
+  // The same cached admin check the top bar uses (no extra request).
+  const isAdmin = useIsAdminBadge();
+  const [tourOpen, setTourOpen] = useState(false);
+  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tourUserId = dummy ? 'dummy' : (user?.id ?? '');
+  useEffect(() => {
+    if (tourOpen || !question || !tourUserId || prefsPromptOpen || allowed !== true || prefs === undefined) return;
+    if (searchParams.get(CHECKER_TOUR_PARAM) === '1') {
+      setTourOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete(CHECKER_TOUR_PARAM);
+      setSearchParams(next, { replace: true });
+      return;
+    }
+    if (!hasSeenWalkthrough(tourUserId)) setTourOpen(true);
+  }, [tourOpen, question, tourUserId, prefsPromptOpen, allowed, prefs, searchParams, setSearchParams]);
+
+  function closeTour() {
+    setTourOpen(false);
+    if (tourUserId) markWalkthroughSeen(tourUserId);
+  }
+
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (prefsPromptOpen || submitting) return;
+      if (prefsPromptOpen || submitting || tourOpen || helpMenuOpen) return;
       if (helpOpen) {
         if (e.key === 'Escape') setHelpOpen(false);
         return;
@@ -555,7 +593,7 @@ export function CheckerPage({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, helpOpen, submitting, prefsPromptOpen, question?.id, canPass, splitOffered]);
+  }, [mode, helpOpen, submitting, prefsPromptOpen, tourOpen, helpMenuOpen, question?.id, canPass, splitOffered]);
 
   if ((!dummy && authLoading) || allowed === null) {
     return (
@@ -611,6 +649,11 @@ export function CheckerPage({
             ) : null}
           </h1>
           <div className="flex flex-wrap items-center gap-2">
+            {isAdmin ? (
+              <Link to="/admin" className={cn(CHIP, 'bg-muted text-warm-secondary')}>
+                Back to admin
+              </Link>
+            ) : null}
             <span
               className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold tabular-nums text-warm-secondary"
               aria-label={`Checked today ${statsQuery.data?.today_count ?? 0}, in total ${statsQuery.data?.total_count ?? 0}`}
@@ -622,6 +665,9 @@ export function CheckerPage({
             </Chip>
             <Chip onClick={openPrefs} tone="muted">
               My subjects
+            </Chip>
+            <Chip onClick={() => setHelpMenuOpen(true)} tone="brand">
+              Help
             </Chip>
           </div>
         </div>
@@ -731,7 +777,7 @@ export function CheckerPage({
                   {picturePlan?.mayMissParts && cropShown ? (
                     <p className="mb-2 text-[13px] leading-snug text-warm-secondary">{PICTURE_MAY_MISS_PARTS}</p>
                   ) : null}
-                  <div className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-2xl bg-white p-2 lg:max-h-[60vh]">
+                  <div data-tour="picture" className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-2xl bg-white p-2 lg:max-h-[60vh]">
                     {cropShown === undefined ? (
                       <div className="h-40 animate-pulse rounded-[14px] bg-muted" aria-label="Loading the picture" />
                     ) : (
@@ -766,7 +812,7 @@ export function CheckerPage({
                 </button>
               ) : null}
               {pagePlan && pageOpen && pageShown !== null ? (
-                <div className="flex min-w-0 flex-col">
+                <div data-tour={hasCrop ? undefined : 'picture'} className="flex min-w-0 flex-col">
                   <p className="mb-1 text-[12px] text-warm-meta">{PAGE_HEADING}</p>
                   {pageShown === undefined ? (
                     <div className="h-72 animate-pulse rounded-2xl bg-muted" aria-label="Loading the printed page" />
@@ -915,7 +961,7 @@ export function CheckerPage({
                   <SplitPreview body={bodyDraft} at={splitAt} />
                 </div>
               ) : blank && !lost ? null : (
-                <div className="rounded-2xl bg-muted p-4">
+                <div data-tour="question" className="rounded-2xl bg-muted p-4">
                   {lost ? <p className="mb-2 text-[12px] font-semibold text-warm-meta">{LOST_TEXT_HEADING}</p> : null}
                   <MathText text={bodyDraft} className="break-words text-[16px] leading-relaxed text-foreground" />
                   <OptionList options={question.options} />
@@ -979,6 +1025,7 @@ export function CheckerPage({
             ) : (
               <>
                 <ActionButton
+                  tourId="pass"
                   tone={blank && !lost && mode === 'check' ? 'muted' : 'mint'}
                   onClick={doPass}
                   disabled={submitting || !canPass || marksInvalid}
@@ -994,7 +1041,7 @@ export function CheckerPage({
                         : 'Looks right'}
                 </ActionButton>
                 {mode === 'check' ? (
-                  <ActionButton tone="dark" onClick={() => setMode('fix')} disabled={submitting}>
+                  <ActionButton tourId="fix" tone="dark" onClick={() => setMode('fix')} disabled={submitting}>
                     Fix it
                   </ActionButton>
                 ) : (
@@ -1002,10 +1049,10 @@ export function CheckerPage({
                     Cancel
                   </ActionButton>
                 )}
-                <ActionButton tone="brand" onClick={() => setHelpOpen(true)} disabled={submitting}>
+                <ActionButton tourId="help" tone="brand" onClick={() => setHelpOpen(true)} disabled={submitting}>
                   Ask for help
                 </ActionButton>
-                <ActionButton tone="muted" onClick={doSkip} disabled={submitting}>
+                <ActionButton tourId="skip" tone="muted" onClick={doSkip} disabled={submitting}>
                   Show me another paper
                 </ActionButton>
               </>
@@ -1077,6 +1124,46 @@ export function CheckerPage({
             </ActionButton>
           </div>
         </Modal>
+      ) : null}
+
+      {helpMenuOpen ? (
+        <Modal onClose={() => setHelpMenuOpen(false)} labelledBy="checker-helpmenu-title">
+          <h2 id="checker-helpmenu-title" className="mb-1 text-[16px] font-bold text-foreground">
+            Help for checkers
+          </h2>
+          <p className="mb-3 text-[13px] text-warm-secondary">Nothing here changes any question.</p>
+          <div className="flex flex-col gap-2">
+            <ActionButton
+              tone="mint"
+              onClick={() => {
+                setHelpMenuOpen(false);
+                setTourOpen(true);
+              }}
+              disabled={!question}
+            >
+              Show me around again
+            </ActionButton>
+            <Link to={CHECKER_PRACTICE_PATH} className={actionToneClass('brand') + ' text-center'}>
+              Practice round
+            </Link>
+            <Link to={CHECKER_HELP_PATH} className={actionToneClass('muted') + ' text-center'}>
+              Rules and shortcuts
+            </Link>
+            <ActionButton tone="muted" onClick={() => setHelpMenuOpen(false)}>
+              Close
+            </ActionButton>
+          </div>
+        </Modal>
+      ) : null}
+
+      {tourOpen && question ? (
+        <CheckerWalkthrough
+          onClose={closeTour}
+          onPractice={() => {
+            closeTour();
+            navigate(CHECKER_PRACTICE_PATH);
+          }}
+        />
       ) : null}
 
       {helpOpen && question ? (
@@ -1329,9 +1416,6 @@ function CheckingTag() {
   );
 }
 
-const CHIP =
-  'tap-44 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand';
-
 function Chip({
   onClick,
   pressed,
@@ -1390,38 +1474,6 @@ function FacetChip({
     >
       {label}
       {choice.waiting !== null ? <span className="ml-1 tabular-nums opacity-70">{choice.waiting}</span> : null}
-    </button>
-  );
-}
-
-function ActionButton({
-  tone,
-  onClick,
-  disabled,
-  children,
-}: {
-  tone: 'mint' | 'dark' | 'brand' | 'muted';
-  onClick: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  const toneClass = {
-    mint: 'bg-mint text-foreground',
-    dark: 'bg-panel text-background',
-    brand: 'bg-brand text-foreground',
-    muted: 'bg-muted text-warm-secondary',
-  }[tone];
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'tap-44 rounded-full px-4 py-2.5 text-[15px] sm:px-5 sm:py-3 font-bold transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:opacity-50 disabled:active:scale-100',
-        toneClass,
-      )}
-    >
-      {children}
     </button>
   );
 }

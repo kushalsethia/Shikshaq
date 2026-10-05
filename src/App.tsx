@@ -92,6 +92,10 @@ const AdminCheckerLogPerson = lazy(() => import("./pages/admin/checker-log-perso
    open (see is_paper_checker(), checked client-side inside the page
    itself); lazy like every other secondary route. */
 const Checker = lazy(() => import("./pages/Checker"));
+/* Checker onboarding: the optional practice round and the help page. Neither
+   needs a sign-in (nothing secret, nothing saved); /checker keeps its guard. */
+const CheckerPractice = lazy(() => import("./pages/CheckerPractice"));
+const CheckerHelp = lazy(() => import("./pages/CheckerHelp"));
 /* LikedTeachers / MyTeachers are NOT lazy-imported here any more. Their two
    routes redirect into /account (see the O-05 note below) and neither
    component was rendered, but the `lazy()` calls still made Vite emit a chunk
@@ -394,6 +398,8 @@ const App = () => (
               <Route path="/admin/checker-log" element={<AdminCheckerLog />} />
               <Route path="/admin/checker-log/:actorKey" element={<AdminCheckerLogPerson />} />
               <Route path="/checker" element={<Checker />} />
+              <Route path="/checker/practice" element={<CheckerPractice />} />
+              <Route path="/checker/help" element={<CheckerHelp />} />
               {/* Legacy admin URLs redirect into the console (pages.md §15). */}
               <Route path="/admin/applications" element={<Navigate to="/admin/approvals" replace />} />
               <Route path="/admin/recommendations" element={<Navigate to="/admin/reviews" replace />} />
