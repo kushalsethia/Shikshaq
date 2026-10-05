@@ -1898,7 +1898,7 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
         "unspecifiedMarks": 15
       },
       {
-        "name": "Medieval India – Mughals",
+        "name": "Medieval India: Mughals",
         "slug": "medieval-india-mughals",
         "questions": 296,
         "marks": 790,
@@ -2288,7 +2288,7 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
         "unspecifiedMarks": 1
       },
       {
-        "name": "Medieval India – Delhi Sultanate",
+        "name": "Medieval India: Delhi Sultanate",
         "slug": "medieval-india-delhi-sultanate",
         "questions": 215,
         "marks": 516.5,
@@ -2420,7 +2420,7 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
         "unspecifiedMarks": 2
       },
       {
-        "name": "Medieval India – South India",
+        "name": "Medieval India: South India",
         "slug": "medieval-india-south-india",
         "questions": 143,
         "marks": 392,
@@ -2556,7 +2556,7 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
         "unspecifiedMarks": 1
       },
       {
-        "name": "Ancient India – Mauryan Empire",
+        "name": "Ancient India: Mauryan Empire",
         "slug": "ancient-india-mauryan-empire",
         "questions": 137,
         "marks": 362,
@@ -2960,7 +2960,7 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
         "unspecifiedMarks": 0
       },
       {
-        "name": "Medieval India – Mughals – Akbar",
+        "name": "Medieval India: Mughals, Akbar",
         "slug": "medieval-india-mughals-akbar",
         "questions": 69,
         "marks": 217,
@@ -3034,7 +3034,7 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
         "unspecifiedMarks": 0
       },
       {
-        "name": "Ancient India – Early Vedic Age",
+        "name": "Ancient India: Early Vedic Age",
         "slug": "ancient-india-early-vedic-age",
         "questions": 53,
         "marks": 152,
@@ -3088,7 +3088,7 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
         "unspecifiedMarks": 2
       },
       {
-        "name": "Elections – Election Commission",
+        "name": "Elections: Election Commission",
         "slug": "elections-election-commission",
         "questions": 46,
         "marks": 151,
@@ -3154,7 +3154,7 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
         "unspecifiedMarks": 0
       },
       {
-        "name": "Ancient India – Gupta Empire",
+        "name": "Ancient India: Gupta Empire",
         "slug": "ancient-india-gupta-empire",
         "questions": 46,
         "marks": 129,
@@ -3208,7 +3208,7 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
         "unspecifiedMarks": 0
       },
       {
-        "name": "Ancient India – Later Vedic Age",
+        "name": "Ancient India: Later Vedic Age",
         "slug": "ancient-india-later-vedic-age",
         "questions": 34,
         "marks": 100,
@@ -3366,7 +3366,7 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
         "unspecifiedMarks": 0
       },
       {
-        "name": "Medieval India – Sher Shah",
+        "name": "Medieval India: Sher Shah",
         "slug": "medieval-india-sher-shah",
         "questions": 23,
         "marks": 76,
@@ -3416,7 +3416,7 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
         "unspecifiedMarks": 0
       },
       {
-        "name": "Medieval India – Mughal Architecture",
+        "name": "Medieval India: Mughal Architecture",
         "slug": "medieval-india-mughal-architecture",
         "questions": 31,
         "marks": 69,
@@ -3630,7 +3630,7 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
         "unspecifiedMarks": 0
       },
       {
-        "name": "Medieval India – Mughals – Aurangzeb",
+        "name": "Medieval India: Mughals, Aurangzeb",
         "slug": "medieval-india-mughals-aurangzeb",
         "questions": 18,
         "marks": 43,
