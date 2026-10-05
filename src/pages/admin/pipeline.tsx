@@ -18,6 +18,9 @@ import {
   type PipelineStats,
 } from '@/lib/pipeline-stats';
 import { realPipelineApi } from '@/lib/pipeline-api';
+import { PaperRegistryPanel } from '@/components/admin/PaperRegistryPanel';
+import { realPaperRegistryApi } from '@/lib/paper-registry-api';
+import type { PaperRegistryApi } from '@/lib/paper-registry';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 
@@ -96,10 +99,13 @@ function DayBars({ points, field, label, barClass }: {
 
 export function AdminPipelinePage({
   api = realPipelineApi,
+  registryApi = realPaperRegistryApi,
   dummy = false,
   banner,
 }: {
   api?: PipelineApi;
+  /** The paper registry (processed / not processed); a fake in dummy mode. */
+  registryApi?: PaperRegistryApi;
   /** Dummy mode (D75): no sign-in, no real admin check, a fake API. */
   dummy?: boolean;
   banner?: ReactNode;
@@ -222,6 +228,8 @@ export function AdminPipelinePage({
       <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
       <AdminPageIntroPanel page="pipeline" />
       {banner}
+
+      <PaperRegistryPanel api={registryApi} />
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
         <AdminPanelHeader title="Papers library"

@@ -40,7 +40,7 @@ export const DUMMY_PAGES: { path: string; label: string }[] = [
   { path: '/admin/checkers', label: 'Admin: checkers (dummy)' },
   { path: '/admin/team', label: 'Admin: team (dummy)' },
   { path: '/admin/activity', label: 'Admin: activity (dummy)' },
-  { path: '/admin/pipeline', label: 'Admin: pipeline (dummy)' },
+  { path: '/admin/pipeline', label: 'Admin: pipeline and paper list (dummy)' },
   { path: '/admin/paper-approvals', label: 'Admin: ready to go live (dummy)' },
   { path: '/admin/checker-log', label: 'Admin: checker log (dummy)' },
 ];
