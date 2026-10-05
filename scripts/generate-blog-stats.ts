@@ -32,6 +32,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { chapterNameNoDashes } from './chapter-name';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -217,7 +218,9 @@ function main() {
       .map(([, e]) => {
         // The most common raw spelling among this key's variants wins.
         const name = [...e.nameVariants.entries()].sort((a, b) => b[1] - a[1])[0][0];
-        return { name, slug: slugify(name), e };
+        // Slug from the ORIGINAL name so existing URLs never move; the
+        // displayed name has its dashes removed.
+        return { name: chapterNameNoDashes(name), slug: slugify(name), e };
       })
       .map(({ name, slug, e }) => ({
         name,
