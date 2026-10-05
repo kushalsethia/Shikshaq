@@ -32,6 +32,15 @@ export interface AdminNavItem {
   active: boolean;
 }
 
+/** Where a group tab goes: its first page that lives inside the admin. A page
+ *  such as the Student queue (/checker) sits outside the admin shell, so a group
+ *  tab that led there would drop the admin out of the menu altogether. */
+export const isAdminPath = (path: string): boolean => path === '/admin' || path.startsWith('/admin/');
+export function groupLandingPath(nav: AdminNavItem[], group: AdminGroupKey): string {
+  const inGroup = nav.filter((n) => n.group === group);
+  return (inGroup.find((n) => isAdminPath(n.path)) ?? inGroup[0])?.path ?? '/admin';
+}
+
 export interface AdminHeaderProps {
   nav: AdminNavItem[];
   /** Signed-in staff email, shown top-right next to the avatar disc. */
@@ -84,19 +93,18 @@ export function AdminHeader({ nav, signedInEmail, className }: AdminHeaderProps)
       </div>
 
       <nav aria-label="Admin sections" className="mt-4">
-        <ul className="flex items-center gap-1.5 overflow-x-auto" aria-label="Groups">
+        <ul className="flex flex-wrap items-center gap-1.5" aria-label="Groups">
           {ADMIN_GROUPS.map((g) => {
-            const first = nav.find((n) => n.group === g.key);
             const on = g.key === activeGroup;
             const n = groupCount(g.key);
             return (
               <li key={g.key} className="shrink-0">
                 <Link
-                  to={first?.path ?? '/admin'}
+                  to={groupLandingPath(nav, g.key)}
                   aria-current={on ? 'true' : undefined}
                   title={g.blurb}
                   className={cn(
-                    'inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full px-4 text-[14px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:h-10',
+                    'inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full px-3.5 text-[14px] sm:px-4 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                     on ? 'bg-panel font-bold text-background' : 'bg-muted font-semibold text-warm-secondary hover:bg-warm-hairline',
                   )}
                 >
@@ -106,13 +114,13 @@ export function AdminHeader({ nav, signedInEmail, className }: AdminHeaderProps)
               </li>
             );
           })}
-          <li className="ml-auto shrink-0">
+          <li className="shrink-0 sm:ml-auto">
             <button
               type="button"
               aria-expanded={mapOpen}
               aria-controls="admin-map"
               onClick={() => setMapOpen((v) => !v)}
-              className="inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] font-semibold text-brand-blue transition-colors duration-150 hover:bg-brand-blue-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-10"
+              className="inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] font-semibold text-brand-blue transition-colors duration-150 hover:bg-brand-blue-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <MapIcon className="h-4 w-4" aria-hidden />
               Map of the admin
@@ -120,15 +128,15 @@ export function AdminHeader({ nav, signedInEmail, className }: AdminHeaderProps)
           </li>
         </ul>
 
-        <ul className="mt-2 flex items-center gap-1.5 overflow-x-auto" aria-label={`${activeCopy?.label ?? ''} pages`}>
+        <ul className="mt-2 flex flex-wrap items-center gap-1.5" aria-label={`${activeCopy?.label ?? ''} pages`}>
           {pagesOfActive.map((item) => (
             <li key={item.key} className="shrink-0">
               <Link
                 to={item.path}
                 aria-current={item.active ? 'page' : undefined}
-                title={item.short}
+                title={isAdminPath(item.path) ? item.short : `${item.short} (opens outside the admin)`}
                 className={cn(
-                  'inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full px-4 text-[14px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:h-10',
+                  'inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full px-3.5 text-[14px] sm:px-4 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   item.active
                     ? 'bg-brand-blue-subtle font-bold text-foreground shadow-[inset_0_0_0_1.5px_hsl(var(--foreground))]'
                     : 'bg-muted font-semibold text-warm-secondary hover:bg-warm-hairline',

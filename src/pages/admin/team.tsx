@@ -221,9 +221,9 @@ export function AdminTeamPage({
         </div>
 
         <div className="mb-6 flex flex-wrap items-end gap-2 px-[18px]">
-          <label className="flex flex-col gap-1">
+          <label className="flex min-w-0 max-w-full flex-col gap-1">
             <span className="text-[12px] font-semibold text-warm-secondary">Look up a question by id</span>
-            <div className="flex gap-1.5">
+            <div className="flex max-w-full gap-1.5">
               <input
                 value={questionQuery}
                 onChange={(e) => setQuestionQuery(e.target.value)}
@@ -235,7 +235,7 @@ export function AdminTeamPage({
                 }}
                 placeholder="question id"
                 aria-label="Question id"
-                className="h-11 w-[320px] rounded-full bg-muted px-4 font-mono text-[13px] text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="h-11 w-[320px] min-w-0 max-w-full flex-1 rounded-full bg-muted px-4 font-mono text-[13px] text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-brand"
               />
               <button
                 type="button"

@@ -15,6 +15,8 @@ import {
   doneWords,
   normalisePending,
   normaliseResult,
+  normaliseOpenQuestion,
+  solveHref,
   realLiveUpdateApi,
   updateErrorWords,
   type LivePendingRow,
@@ -158,5 +160,56 @@ describe('copy has no em or en dashes', () => {
     for (const f of ['src/lib/admin-live-update.ts', 'src/components/admin/approval/UpdateLivePapers.tsx']) {
       expect(readFileSync(f, 'utf8'), f).not.toMatch(/[–—]/);
     }
+  });
+});
+
+describe('open questions list', () => {
+  it('names the RPC and sends only the paper id', async () => {
+    expect(LIVE_UPDATE_RPC.openQuestions).toBe('admin_live_paper_open_questions');
+    (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      data: [{ audit_question_id: 'q1', display_number: '4(b)', review_bucket: 'kid', flag_reasons: ['marks_mismatch'], flag_detail: null }],
+      error: null,
+    });
+    const list = await realLiveUpdateApi.openQuestions('p2');
+    expect(supabase.rpc).toHaveBeenLastCalledWith('admin_live_paper_open_questions', { p_audit_paper_id: 'p2' });
+    expect(list).toHaveLength(1);
+    expect(list[0].label).toBe('4(b)');
+    expect(list[0].where).toBe('Student queue');
+    expect(list[0].reasons[0]).toMatch(/marks/i);
+  });
+
+  it('puts every non-student row in the Admin queue and survives missing fields', () => {
+    const q = normaliseOpenQuestion({ audit_question_id: 'q2', review_bucket: 'admin', number_path: '7', flag_reasons: null }, 0);
+    expect(q?.where).toBe('Admin queue');
+    expect(q?.label).toBe('7');
+    expect(q?.reasons.length).toBe(1);
+    expect(normaliseOpenQuestion({}, 0)).toBeNull();
+  });
+
+  it('Solve links to that question on the paper review page', () => {
+    expect(solveHref('p2', 'q9')).toBe('/admin/paper-approvals/p2#q-q9');
+  });
+
+  it('the badge is a button that lists each question with a Solve link', () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <UpdateLivePapersView
+          rows={[BLOCKED]}
+          state="idle"
+          expandedId="p2"
+          openList={[{ id: 'q1', label: '3(a)', where: 'Admin queue', reasons: ['The marks may not match the paper.'] }]}
+          onAsk={() => {}}
+          onCancel={() => {}}
+          onConfirm={() => {}}
+          onRetry={() => {}}
+        />
+      </MemoryRouter>,
+    );
+    const t = text(html);
+    expect(html).toContain('aria-expanded="true"');
+    expect(t).toContain('Question 3(a)');
+    expect(t).toContain('Waits in: Admin queue');
+    expect(html).toContain('href="/admin/paper-approvals/p2#q-q1"');
+    expect(html).toContain('disabled=""');
   });
 });

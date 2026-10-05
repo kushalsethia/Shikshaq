@@ -17,6 +17,7 @@ import { isReady, type ApprovalApi, type ApprovalHistoryRow, type ApprovalQueueR
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 import { UpdateLivePapers } from '@/components/admin/approval/UpdateLivePapers';
+import type { LiveUpdateApi } from '@/lib/admin-live-update';
 
 const DummyPaperApprovals = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminPaperApprovalsDummy')) : null;
 
@@ -82,10 +83,13 @@ export function AdminPaperApprovalsPage({
   api = realApprovalApi,
   dummy = false,
   banner,
+  liveApi,
 }: {
   api?: ApprovalApi;
   dummy?: boolean;
   banner?: ReactNode;
+  /** Dummy mode only: a fake "Update live paper" API. */
+  liveApi?: LiveUpdateApi;
 }) {
   usePageMeta('Ready to go live | Shikshaq Admin', 'Approve checked papers for launch on the site.');
   const navigate = useNavigate();
@@ -228,7 +232,7 @@ export function AdminPaperApprovalsPage({
         </div>
       </BentoPanel>
 
-      {dummy ? null : <UpdateLivePapers />}
+      {dummy && !liveApi ? null : <UpdateLivePapers api={liveApi} />}
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
         <div role="tablist" aria-label="Papers to show" className="mx-[18px] mb-4 inline-flex h-11 items-center rounded-full bg-muted p-1">

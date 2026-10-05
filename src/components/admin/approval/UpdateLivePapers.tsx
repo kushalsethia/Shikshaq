@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { adminPrimaryBtnStyle, adminSecondaryBtnStyle, adminToast } from '@/components/AdminConsole';
 import { BentoPanel } from '@/components/layout/PageContainer';
 import { AdminStatusPill } from '@/pages/admin/AdminTable';
@@ -9,9 +11,11 @@ import {
   confirmWords,
   doneWords,
   realLiveUpdateApi,
+  solveHref,
   updateErrorWords,
   type LiveUpdateApi,
   type LivePendingRow,
+  type OpenQuestion,
 } from '@/lib/admin-live-update';
 
 /* Live papers whose reviewed changes have not reached the site yet, each with
@@ -34,6 +38,9 @@ export function UpdateLivePapersView({
   confirmingId = null,
   busyId = null,
   errorFor = null,
+  expandedId = null,
+  openList = null,
+  onToggleOpen = () => {},
   onAsk,
   onCancel,
   onConfirm,
@@ -44,6 +51,10 @@ export function UpdateLivePapersView({
   confirmingId?: string | null;
   busyId?: string | null;
   errorFor?: { id: string; message: string } | null;
+  /** The paper whose open questions are listed, and that list ('loading', 'error' or the rows). */
+  expandedId?: string | null;
+  openList?: OpenQuestion[] | 'loading' | 'error' | null;
+  onToggleOpen?: (id: string) => void;
   onAsk: (id: string) => void;
   onCancel: () => void;
   onConfirm: (id: string) => void;
@@ -93,7 +104,20 @@ export function UpdateLivePapersView({
                   </div>
                   <div className="flex items-center gap-2">
                     {open ? (
-                      <AdminStatusPill status="paused" label={`${open} open`} />
+                      <button
+                        type="button"
+                        onClick={() => onToggleOpen(r.audit_paper_id)}
+                        aria-expanded={expandedId === r.audit_paper_id}
+                        aria-controls={`open-q-${r.audit_paper_id}`}
+                        aria-label={`${expandedId === r.audit_paper_id ? 'Hide' : 'Show'} the ${open} open ${open === 1 ? 'question' : 'questions'}`}
+                        className="tap-44 inline-flex items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <AdminStatusPill status="paused" label={`${open} open`} />
+                        <ChevronDown
+                          className={cn('ml-1 h-4 w-4 text-warm-secondary transition-transform duration-150', expandedId === r.audit_paper_id && 'rotate-180')}
+                          aria-hidden
+                        />
+                      </button>
                     ) : (
                       <AdminStatusPill status="pending" label="Ready" />
                     )}
@@ -114,6 +138,47 @@ export function UpdateLivePapersView({
                   <p className="mt-2 text-[13px] text-warm-secondary">
                     {open === 1 ? '1 question is' : `${open} questions are`} still open. Pass or set aside each one first.
                   </p>
+                ) : null}
+                {expandedId === r.audit_paper_id ? (
+                  <div id={`open-q-${r.audit_paper_id}`} className="mt-3 rounded-xl bg-card px-4 py-3" data-testid="open-questions">
+                    {openList === 'loading' || openList === null ? (
+                      <p role="status" className="text-[13px] text-warm-meta">Loading the open questions...</p>
+                    ) : openList === 'error' ? (
+                      <div role="alert">
+                        <p className="text-[13px] text-foreground">The list did not load. Check your internet and try again.</p>
+                        <button type="button" onClick={() => onToggleOpen(r.audit_paper_id)} className="tap-44 text-sm font-semibold text-brand-blue">
+                          Close
+                        </button>
+                      </div>
+                    ) : openList.length === 0 ? (
+                      <p className="text-[13px] text-warm-secondary">Nothing is open any more. Refresh the page to update the button.</p>
+                    ) : (
+                      <ul className="divide-y divide-border">
+                        {openList.map((q) => (
+                          <li key={q.id} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 py-3 first:pt-0 last:pb-0">
+                            <div className="min-w-0 flex-1 basis-56">
+                              <p className="text-[14px] font-semibold text-foreground">
+                                Question <span className="tabular-nums">{q.label}</span>
+                                <span className="ml-2 text-[12px] font-semibold text-warm-label">Waits in: {q.where}</span>
+                              </p>
+                              <ul className="mt-1 space-y-0.5 text-[13px] text-warm-secondary">
+                                {q.reasons.slice(0, 3).map((w) => (
+                                  <li key={w}>{w}</li>
+                                ))}
+                              </ul>
+                            </div>
+                            <Link
+                              to={solveHref(r.audit_paper_id, q.id)}
+                              aria-label={`Solve question ${q.label}`}
+                              className={cn(adminSecondaryBtnStyle, 'shrink-0')}
+                            >
+                              Solve
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 ) : null}
                 {asking ? (
                   <div className="mt-3 rounded-xl bg-card px-4 py-3">
@@ -153,6 +218,24 @@ export function UpdateLivePapers({ api = realLiveUpdateApi, onChanged }: { api?:
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorFor, setErrorFor] = useState<{ id: string; message: string } | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [openList, setOpenList] = useState<OpenQuestion[] | 'loading' | 'error' | null>(null);
+
+  function toggleOpen(id: string) {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(id);
+    setOpenList('loading');
+    api
+      .openQuestions(id)
+      .then((list) => setOpenList(list))
+      .catch((e) => {
+        if (import.meta.env.DEV) console.error('live paper open questions', e);
+        setOpenList('error');
+      });
+  }
 
   const load = useCallback(async () => {
     setState('loading');
@@ -192,6 +275,9 @@ export function UpdateLivePapers({ api = realLiveUpdateApi, onChanged }: { api?:
       confirmingId={confirmingId}
       busyId={busyId}
       errorFor={errorFor}
+      expandedId={expandedId}
+      openList={openList}
+      onToggleOpen={toggleOpen}
       onAsk={(id) => {
         setErrorFor(null);
         setConfirmingId(id);

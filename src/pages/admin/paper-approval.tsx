@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -166,6 +166,17 @@ export function AdminPaperApprovalPage({
     if (isAdmin) void load();
     else if (!checkingAdmin) setLoading(false);
   }, [isAdmin, checkingAdmin, load]);
+
+  /* A link like #q-<id> (the Solve button on Ready to go live) points at a card
+     that only exists after the paper loads, so the browser cannot scroll there
+     itself. Do it once the rows are drawn. */
+  const { hash } = useLocation();
+  const loadedForHash = Boolean(review) && !loading;
+  useEffect(() => {
+    if (!loadedForHash || !hash.startsWith('#q-')) return;
+    const el = document.getElementById(hash.slice(1));
+    if (el) el.scrollIntoView({ block: 'center' });
+  }, [loadedForHash, hash]);
 
   const rows = useMemo(() => review?.rows ?? [], [review]);
   const depths = useMemo(() => depthMap(rows), [rows]);
