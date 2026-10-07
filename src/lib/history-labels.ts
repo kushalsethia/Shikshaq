@@ -388,6 +388,7 @@ export const ACTION_LABELS: Record<string, (c: Ctx) => string> = {
   hod_set_aside: (c) => `set ${c.q} aside`,
   hod_assign_paper: () => 'gave a paper to a verifier',
   hod_unassign: () => 'took a paper back from a verifier',
+  auto_return_idle: () => 'took a paper back automatically after 7 days with nothing done on it',
   hod_set_verifier_profile: () => 'saved the grade, school and board of a verifier',
   hod_set_preferred_subjects: () => 'set the preferred subjects of a verifier',
   verifier_request_subjects: () => 'asked for preferred subjects',

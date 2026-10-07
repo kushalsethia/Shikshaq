@@ -74,6 +74,7 @@ export function VerifyScreen({
   userId,
   userName,
   onExit,
+  onList,
 }: {
   api: CheckerApi;
   scope: string;
@@ -83,6 +84,8 @@ export function VerifyScreen({
   userName?: string | null;
   /** Back to the paper's list of questions. */
   onExit: () => void;
+  /** Back to the list of all my papers (the finished screen's button says so). */
+  onList?: () => void;
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -165,22 +168,21 @@ export function VerifyScreen({
   // crop the page is the only picture, so it is shown straight away. The page
   // image is not even requested until it is wanted.
   const [showPage, setShowPage] = useState(false);
-  const pageWanted = pagePath !== '' && (showPage || viewPath === '');
   const picturePlanKey = question && !contextQuery.isLoading ? `${question.id}|${viewPath}` : '';
-  const pagePlanKey = question && !contextQuery.isLoading && pageWanted ? `${question.id}|${pagePath}` : '';
   // undefined = still looking, null = none (or it failed to load).
   const pictureUrl = useSignedUrl(api, picturePlanKey, viewPath);
   const [pictureFailed, setPictureFailed] = useState<string>('');
-  const pageUrl = useSignedUrl(api, pagePlanKey, pagePath);
-  const [pageFailed, setPageFailed] = useState<string>('');
   const cropShown = pictureUrl && pictureFailed !== picturePlanKey ? pictureUrl : pictureUrl === undefined ? undefined : null;
-  const pageShown = pageUrl && pageFailed !== pagePlanKey ? pageUrl : pageUrl === undefined ? undefined : null;
   // While a picture is still loading, sentences assume it will arrive when
   // one is planned.
   const hasCrop = cropShown === undefined ? viewPath !== '' : Boolean(cropShown);
-  const hasPage = pageShown === undefined ? pagePath !== '' : Boolean(pageShown);
   // A crop that failed to load leaves the page as the picture: show it.
-  const pageOpen = pageWanted || (pagePath !== '' && !hasCrop);
+  const pageOpen = pagePath !== '' && (showPage || !hasCrop);
+  const pagePlanKey = question && !contextQuery.isLoading && pageOpen ? `${question.id}|${pagePath}` : '';
+  const pageUrl = useSignedUrl(api, pagePlanKey, pagePath);
+  const [pageFailed, setPageFailed] = useState<string>('');
+  const pageShown = pageUrl && pageFailed !== pagePlanKey ? pageUrl : pageUrl === undefined ? undefined : null;
+  const hasPage = pageShown === undefined ? pagePath !== '' : Boolean(pageShown);
   const hasPicture = hasCrop || hasPage;
   const whatToCheckLine = question
     ? whatToCheck(question.flag_reasons, question.flag_detail, { hasPicture })
@@ -355,10 +357,10 @@ export function VerifyScreen({
             // refused (40001) instead of silently overwriting it.
             { version: question.version, printedTypo: typo, typoNote: typo ? typoNote : null },
           ),
-        typo ? 'Saved with the typo corrected. Here is the next one.' : 'Saved. Here is the next one.',
+        typo ? 'Saved with the typo corrected.' : 'Saved.',
       );
     } else {
-      await run(() => api.passQuestion(question.id, question.version), 'Marked as right. Here is the next one.');
+      await run(() => api.passQuestion(question.id, question.version), 'Marked as right.');
     }
   }
 
@@ -372,12 +374,12 @@ export function VerifyScreen({
     await run(async () => {
       await api.askForHelp(question.id, reason.trim() || 'Not sure how to fix this');
       setHelpOpen(false);
-    }, 'Sent to your HOD. Here is the next one.');
+    }, 'Sent to your HOD.');
   }
 
   async function doSkip() {
     if (!question || submitting) return;
-    await run(() => api.skipQuestion(question.id), 'Skipped. It will come back to you after a day.');
+    await run(() => api.skipQuestion(question.id), 'Skipped. It comes back at the end of this paper.');
   }
 
   function cancelEdit() {
@@ -553,10 +555,9 @@ export function VerifyScreen({
           <div className="flex flex-col items-center gap-3 py-16 text-center" data-testid="paper-finished">
             <p className="text-balance text-xl font-bold text-foreground">Paper finished</p>
             <p className="max-w-md text-pretty text-[14px] text-warm-secondary">
-              You have been through every question you can settle on {currentPaperLabel}. Anything you sent to the HOD stays with them, and anything you skipped
-              comes back after a day.
+              You have been through every question you can settle on {currentPaperLabel}. Anything you sent to the HOD stays with them.
             </p>
-            <ActionButton tone="mint" onClick={onExit}>
+            <ActionButton tone="mint" onClick={onList ?? onExit}>
               Back to my papers
             </ActionButton>
           </div>
@@ -789,7 +790,7 @@ export function VerifyScreen({
                 </div>
               ) : null}
 
-              {picturePlanKey && !hasPicture && pictureUrl !== undefined && pageUrl !== undefined ? (
+              {picturePlanKey && !hasPicture && pictureUrl !== undefined && (pagePath === '' || pageUrl !== undefined) ? (
                 // No crop and no page matched this question, or both failed
                 // to load: show the whole paper as a page-flip, never a dead end.
                 <div className="flex min-w-0 flex-col" data-tour="picture">

@@ -142,7 +142,7 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
 }
 
 export function AiTrustTab({ api, scope, canSwitchTrust: canSwitch }: { api: HodApi; scope: string; canSwitchTrust: boolean }) {
-  const q = useQuery({ queryKey: AI_TRUST_KEY(scope), queryFn: () => api.aiTrust(), staleTime: 15_000 });
+  const q = useQuery({ queryKey: AI_TRUST_KEY(scope), queryFn: () => api.aiTrust(), staleTime: 15_000, refetchOnMount: true });
   return (
     <div>
       <p className="mb-4 rounded-2xl bg-brand-subtle px-4 py-3 text-[14px] leading-snug text-foreground" data-testid="trust-explainer">

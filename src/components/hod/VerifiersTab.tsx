@@ -210,8 +210,8 @@ function ProfileRow({ p, api, scope }: { p: HodVerifierProfile; api: HodApi; sco
 }
 
 export function VerifiersTab({ api, scope }: { api: HodApi; scope: string }) {
-  const teamQ = useQuery({ queryKey: TEAM_KEY(scope), queryFn: () => api.team(), staleTime: 15_000 });
-  const profilesQ = useQuery({ queryKey: PROFILES_KEY(scope), queryFn: () => api.profiles(), staleTime: 15_000 });
+  const teamQ = useQuery({ queryKey: TEAM_KEY(scope), queryFn: () => api.team(), staleTime: 15_000, refetchOnMount: true });
+  const profilesQ = useQuery({ queryKey: PROFILES_KEY(scope), queryFn: () => api.profiles(), staleTime: 15_000, refetchOnMount: true });
 
   if (teamQ.isLoading || profilesQ.isLoading) return <ListSkeleton label="Loading verifiers" />;
   if (teamQ.isError) return <LoadError what="The verifiers" onRetry={() => void teamQ.refetch()} />;

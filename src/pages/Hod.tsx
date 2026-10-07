@@ -114,6 +114,7 @@ export function HodPage({
     queryFn: () => api.escalations(),
     enabled: allowed === true,
     staleTime: 15_000,
+    refetchOnMount: true,
   });
   const waiting = escalationsQ.data?.length ?? 0;
 

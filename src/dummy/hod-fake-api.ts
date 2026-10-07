@@ -122,7 +122,7 @@ export function createFakeHodApi(): FakeHodApi {
     const kinds = [
       { action: 'checker_pass', role: 'checker', note: null },
       { action: 'checker_fix', role: 'checker', note: null },
-      { action: 'checker_ask_for_help', role: 'checker', note: 'The words are scrambled' },
+      { action: 'checker_ask_help', role: 'checker', note: 'The words are scrambled' },
       { action: 'hod_assign_paper', role: 'hod', note: null },
       { action: 'hod_send_back', role: 'hod', note: 'Look again at the second line' },
       { action: 'hod_set_verifier_profile', role: 'hod', note: null },
@@ -381,10 +381,10 @@ export function createFakeHodApi(): FakeHodApi {
     async distribute() {
       let given = 0;
       for (const paper of [...unassigned]) {
-        // A paper whose class is not known is never handed out automatically.
-        if (!paper.cls) continue;
+        // A paper whose class is not known is handed out as Class 12 (20261007140000).
+        const cls = paper.cls ?? 'XII';
         const candidates = checkers
-          .filter((c) => c.active && !cannotTake(c.user_id, paper.cls))
+          .filter((c) => c.active && !cannotTake(c.user_id, cls))
           .sort((a, b) => assignments.filter((x) => x.user_id === a.user_id).length - assignments.filter((x) => x.user_id === b.user_id).length);
         const pick = candidates[0];
         if (!pick) continue;
@@ -468,14 +468,16 @@ export function createFakeHodApi(): FakeHodApi {
       escalations = escalations.filter((x) => x !== e);
       log.push(`fix ${id} ${JSON.stringify(patch)}`);
     },
-    async sendBack(id, note) {
+    async sendBack(id, noteText) {
       escalations = escalations.filter((x) => x.id !== id);
-      log.push(`send back ${id} ${note}`);
+      log.push(`send back ${id} ${noteText}`);
+      note('hod_send_back', null);
     },
     async setAside(id, reason) {
       if (!reason.trim()) throw pgError('Say why it is being set aside');
       escalations = escalations.filter((x) => x.id !== id);
       log.push(`set aside ${id} ${reason}`);
+      note('hod_set_aside', null);
     },
     async pictureUrl(path) {
       return dummyPageDataUrl(path) ?? dummyPictureDataUrl(path);
@@ -503,6 +505,7 @@ export function createFakeHodApi(): FakeHodApi {
         }
       }
       log.push(`trust ${level}/${decision} ${trusted}`);
+      note('admin_set_ai_trust', null);
     },
   };
   return api;

@@ -4,7 +4,8 @@
  * page runs unchanged; nothing here touches Supabase.
  *
  * It copies the server's rules that the page depends on: kid questions in
- * order, a skipped question does not come back, subject/class picks filter
+ * order, a skipped question comes back at the end of its paper (the old
+ * one-queue nextQuestion still hides it), subject/class picks filter
  * exactly, a split counts characters (code points) like Postgres left(),
  * refuses 0 or the end, and a blank question cannot be passed. `simulate`
  * lets the preview force the failure states a real checker hits.
@@ -63,6 +64,9 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export function createFakeCheckerApi(): FakeCheckerApi {
   let queue: CheckerQuestion[] = dummyQuestions();
   let skipped = new Set<string>();
+  /** When each question was last skipped, so skipped ones come back earliest first. */
+  const skipOrder = new Map<string, number>();
+  let skipClock = 0;
   let prefs: { subjects: string[] | null; classes: string[] | null; chosen: boolean } = {
     subjects: null,
     classes: null,
@@ -112,7 +116,8 @@ export function createFakeCheckerApi(): FakeCheckerApi {
       queue = dummyQuestions();
       seedPapers();
       skipped = new Set();
-      prefs = { subjects: null, classes: null, chosen: false };
+      skipOrder.clear();
+      prefs ={ subjects: null, classes: null, chosen: false };
       today = 0;
       total = 41;
       api.simulate = 'none';
@@ -230,6 +235,7 @@ export function createFakeCheckerApi(): FakeCheckerApi {
       await gateSave();
       find(id);
       skipped.add(id);
+      skipOrder.set(id, ++skipClock);
     },
 
     async myPapers(): Promise<MyPaper[]> {
@@ -239,7 +245,8 @@ export function createFakeCheckerApi(): FakeCheckerApi {
         const mine = allQuestions.filter((q) => paperOf.get(q.id) === k);
         const withHod = mine.filter((q) => outcome.get(q.id) === 'with_hod').length;
         const doneCount = mine.filter((q) => outcome.get(q.id) === 'done').length;
-        const open = queue.filter((q) => paperOf.get(q.id) === k && !skipped.has(q.id) && servable(q)).length;
+        // Skipped questions still count: the verifier has to come back to them.
+        const open = queue.filter((q) => paperOf.get(q.id) === k && servable(q)).length;
         return {
           assignment_id: i + 1,
           paper_id: meta.id,
@@ -250,7 +257,9 @@ export function createFakeCheckerApi(): FakeCheckerApi {
           year: meta.year,
           given_by_hod: meta.givenByHod,
           assigned_at: `2026-10-0${i + 5}T09:00:00Z`,
-          total: mine.length,
+          // Only the questions that are the verifier's to settle (the real
+          // total leaves out the ones marked "not for verifiers").
+          total: mine.filter((q) => outcome.has(q.id) || servable(q)).length,
           done: doneCount,
           remaining: open,
           with_hod: withHod,
@@ -293,7 +302,11 @@ export function createFakeCheckerApi(): FakeCheckerApi {
         const blank = queue.find((q) => isBlankBody(q.body) && paperOf.get(q.id) === key);
         if (blank) return decorate({ ...blank });
       }
-      const next = queue.find((q) => paperOf.get(q.id) === key && !skipped.has(q.id) && servable(q));
+      // Like 20261007140000: skipped questions come last, the earliest skipped first.
+      const open = queue.filter((q) => paperOf.get(q.id) === key && servable(q));
+      const next =
+        open.find((q) => !skipped.has(q.id)) ??
+        [...open].sort((a, b) => (skipOrder.get(a.id) ?? 0) - (skipOrder.get(b.id) ?? 0))[0];
       return next ? decorate(next) : null;
     },
 

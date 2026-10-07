@@ -32,19 +32,21 @@ export function historyText(r: HistoryRow): string {
       /* fall through */
     }
   }
-  return r.meaning ?? r.action.replace(/_/g, ' ');
+  // Never the code in words ("hod unassign"): an unknown code reads as a plain change.
+  return r.meaning ?? 'made a change';
 }
 
 export function HistoryTab({ api, scope }: { api: HodApi; scope: string }) {
   const [actor, setActor] = useState('');
   const [role, setRole] = useState('');
-  const teamQ = useQuery({ queryKey: TEAM_KEY(scope), queryFn: () => api.team(), staleTime: 15_000 });
+  const teamQ = useQuery({ queryKey: TEAM_KEY(scope), queryFn: () => api.team(), staleTime: 15_000, refetchOnMount: true });
   const q = useInfiniteQuery({
     queryKey: ['hod', scope, 'history', actor, role],
     queryFn: ({ pageParam }) => api.history({ actor: actor || null, role: role || null, before: pageParam ?? null, limit: HISTORY_PAGE }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => (last.length >= HISTORY_PAGE ? last[last.length - 1].at : undefined),
     staleTime: 0,
+    refetchOnMount: true,
   });
 
   const rowsAll = q.data?.pages.flat() ?? [];

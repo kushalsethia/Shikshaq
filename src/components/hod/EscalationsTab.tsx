@@ -221,7 +221,7 @@ function EscalationCard({ e, api, onDone }: { e: HodEscalation; api: HodApi; onD
 
 export function EscalationsTab({ api, scope }: { api: HodApi; scope: string }) {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ESCALATIONS_KEY(scope), queryFn: () => api.escalations(), staleTime: 0 });
+  const q = useQuery({ queryKey: ESCALATIONS_KEY(scope), queryFn: () => api.escalations(), staleTime: 0, refetchOnMount: true });
   if (q.isLoading) return <ListSkeleton label="Loading escalated questions" />;
   if (q.isError) return <LoadError what="The escalated questions" onRetry={() => void q.refetch()} />;
   const list = q.data ?? [];

@@ -175,6 +175,7 @@ export function CheckerPage({
             userId={user?.id}
             userName={profile?.full_name}
             onExit={() => open(paperId)}
+            onList={toList}
           />
         ) : paperId ? (
           <PaperOverview api={api} scope={scope} paperId={paperId} onBack={toList} onStart={() => verify(paperId)} />
@@ -223,6 +224,7 @@ function PaperList({
     queryKey: ['verifier-papers', scope],
     queryFn: api.myPapers,
     staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   if (papersQuery.isLoading) return <CheckerSkeleton />;
@@ -439,11 +441,14 @@ function PaperOverview({
   onBack: () => void;
   onStart: () => void;
 }) {
-  const papersQuery = useQuery({ queryKey: ['verifier-papers', scope], queryFn: api.myPapers, staleTime: 0 });
+  // The app default is refetchOnMount: false, which showed the counts and the
+  // states from before the verifier's last session. Always ask again.
+  const papersQuery = useQuery({ queryKey: ['verifier-papers', scope], queryFn: api.myPapers, staleTime: 0, refetchOnMount: 'always' });
   const questionsQuery = useQuery({
     queryKey: ['verifier-paper-questions', scope, paperId],
     queryFn: () => api.paperQuestions(paperId),
     staleTime: 0,
+    refetchOnMount: 'always',
   });
   const paper = papersQuery.data?.find((p) => p.paper_id === paperId) ?? null;
   const list = questionsQuery.data ?? [];

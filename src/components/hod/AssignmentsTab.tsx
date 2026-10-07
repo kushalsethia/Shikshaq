@@ -13,8 +13,8 @@ import { groupByVerifier, memberName, type HodApi, type HodAssignment, type HodT
    one verifier. The server refuses a move that breaks its rules (a paper above
    the verifier's grade, details missing or expired); its reason is shown as
    written. "Give out papers now" runs the automatic hand-out straight away.
-   Papers whose class is unknown are never handed out automatically, so they
-   stay in the list below until an HOD gives them to someone. */
+   Papers whose class is unknown are handed out as Class 12; papers left
+   untouched for 7 days come back to the list below (20261007140000). */
 
 export const ASSIGNMENTS_KEY = (scope: string) => ['hod', scope, 'assignments'] as const;
 export const UNASSIGNED_KEY = (scope: string) => ['hod', scope, 'unassigned'] as const;
@@ -71,9 +71,9 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   const [busy, setBusy] = useState(false);
   /** The server's reason for the last refusal, kept on screen (a toast is gone too fast to read). */
   const [refusal, setRefusal] = useState<string | null>(null);
-  const assignmentsQ = useQuery({ queryKey: ASSIGNMENTS_KEY(scope), queryFn: () => api.assignments(), staleTime: 10_000 });
-  const unassignedQ = useQuery({ queryKey: UNASSIGNED_KEY(scope), queryFn: () => api.unassignedPapers(200), staleTime: 10_000 });
-  const teamQ = useQuery({ queryKey: TEAM_KEY(scope), queryFn: () => api.team(), staleTime: 15_000 });
+  const assignmentsQ = useQuery({ queryKey: ASSIGNMENTS_KEY(scope), queryFn: () => api.assignments(), staleTime: 10_000, refetchOnMount: true });
+  const unassignedQ = useQuery({ queryKey: UNASSIGNED_KEY(scope), queryFn: () => api.unassignedPapers(200), staleTime: 10_000, refetchOnMount: true });
+  const teamQ = useQuery({ queryKey: TEAM_KEY(scope), queryFn: () => api.team(), staleTime: 15_000, refetchOnMount: true });
 
   const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
   const verifiers = (teamQ.data ?? []).filter((m) => m.active);
@@ -202,8 +202,8 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
           </button>
         </div>
         <p className="mb-2 text-[13px] text-warm-secondary">
-          Papers go to verifiers automatically, a whole paper to one verifier and never above their grade. A paper whose class is not known is never given out
-          automatically; give it to someone here.
+          Papers go to verifiers automatically, a whole paper to one verifier and never above their grade. A paper whose class is not known goes only to Class 12
+          verifiers. A paper with nothing done on it for 7 days comes back here by itself.
         </p>
         {unassignedQ.isError ? (
           <LoadError what="The list of free papers" onRetry={() => void unassignedQ.refetch()} />
