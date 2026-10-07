@@ -127,7 +127,7 @@ export function VerifyScreen({
   });
   const question = questionQuery.data ?? null;
 
-  // Where the verifier is in this paper: "Question 4 of 12". The paper's row
+  // Where the verifier is in this paper: "3 of 12 done". The paper's row
   // is shared with the list, and the old answer stays on screen while the new
   // one loads so the bar does not flicker between questions.
   const papersQuery = useQuery({
@@ -137,7 +137,11 @@ export function VerifyScreen({
     placeholderData: keepPreviousData,
   });
   const paperRow = papersQuery.data?.find((p) => p.paper_id === paperId) ?? null;
-  const progress = paperRow ? paperProgress({ done_count: paperRow.done, remaining_count: paperRow.remaining }) : null;
+  const progress = paperRow ? paperProgress({ done_count: paperRow.done, remaining_count: paperRow.remaining, total_count: paperRow.total }) : null;
+  // Skip sends a question to the end of the paper (20261007140000). On the
+  // last one left it would come straight back, so Skip is off and the screen
+  // says to ask the HOD instead.
+  const lastOne = paperRow != null && paperRow.remaining <= 1;
   if (question) labelRef.current = paperLabel(paperRow ?? question);
   const currentPaperLabel = question ? paperLabel(paperRow ?? question) : labelRef.current;
 
@@ -378,8 +382,8 @@ export function VerifyScreen({
   }
 
   async function doSkip() {
-    if (!question || submitting) return;
-    await run(() => api.skipQuestion(question.id), 'Skipped. It comes back at the end of this paper.');
+    if (!question || submitting || lastOne) return;
+    await run(() => api.skipQuestion(question.id),'Skipped. It comes back at the end of this paper.');
   }
 
   function cancelEdit() {
@@ -851,9 +855,14 @@ export function VerifyScreen({
                 <ActionButton tourId="help" tone="brand" onClick={() => setHelpOpen(true)} disabled={submitting}>
                   Ask the HOD
                 </ActionButton>
-                <ActionButton tourId="skip" tone="muted" onClick={doSkip} disabled={submitting}>
+                <ActionButton tourId="skip" tone="muted" onClick={doSkip} disabled={submitting || lastOne}>
                   Skip this question
                 </ActionButton>
+                {lastOne && mode === 'check' ? (
+                  <p className="basis-full text-[12px] text-warm-meta" data-testid="last-one-note">
+                    This is the last question left on this paper. If you cannot judge it, ask the HOD.
+                  </p>
+                ) : null}
               </>
             )}
             <p className="ml-auto hidden text-[12px] text-warm-meta lg:block">

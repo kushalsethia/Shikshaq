@@ -3,29 +3,40 @@ import { normaliseAssignment, paperLabel, paperProgress } from '@/lib/checker-pr
 import { clampPageIndex, normalisePaperPages, pageLabel, positionLabel, startPageIndex } from '@/lib/paper-pages';
 
 describe('paper progress', () => {
-  it('says "Question 4 of 12" after three done and nine left', () => {
+  it('says "3 of 12 done" after three done and nine left', () => {
     const p = paperProgress({ done_count: 3, remaining_count: 9 });
-    expect(p.label).toBe('Question 4 of 12');
+    expect(p.label).toBe('3 of 12 done');
     expect(p.position).toBe(4);
     expect(p.total).toBe(12);
     expect(p.percent).toBe(25);
   });
 
-  it('starts at question 1 of the total with an empty bar', () => {
+  it('starts at 0 done with an empty bar', () => {
     const p = paperProgress({ done_count: 0, remaining_count: 12 });
-    expect(p.label).toBe('Question 1 of 12');
+    expect(p.label).toBe('0 of 12 done');
     expect(p.percent).toBe(0);
   });
 
-  it('never reports a position past the total, and never a total of zero', () => {
-    expect(paperProgress({ done_count: 5, remaining_count: 0 }).label).toBe('Question 5 of 5');
-    expect(paperProgress({ done_count: 0, remaining_count: 0 }).label).toBe('Question 1 of 1');
-    expect(paperProgress({ done_count: -2, remaining_count: -1 }).label).toBe('Question 1 of 1');
+  it('never reports more done than the total, and never a total of zero', () => {
+    expect(paperProgress({ done_count: 5, remaining_count: 0 }).label).toBe('5 of 5 done');
+    expect(paperProgress({ done_count: 0, remaining_count: 0 }).label).toBe('0 of 1 done');
+    expect(paperProgress({ done_count: -2, remaining_count: -1 }).label).toBe('0 of 1 done');
   });
 
-  it('is on the last question when one is left', () => {
+  it('does not move when a question is skipped (it stays to do)', () => {
+    expect(paperProgress({ done_count: 0, remaining_count: 5 }).label).toBe('0 of 5 done');
+  });
+
+  it('matches the paper card when questions went to the HOD', () => {
+    // Card: 4 done, 0 left, 1 with the HOD, total 5.
+    const p = paperProgress({ done_count: 4, remaining_count: 0, total_count: 5 });
+    expect(p.label).toBe('4 of 5 done');
+    expect(p.percent).toBe(80);
+  });
+
+  it('is nearly full when one is left', () => {
     const p = paperProgress({ done_count: 11, remaining_count: 1 });
-    expect(p.label).toBe('Question 12 of 12');
+    expect(p.label).toBe('11 of 12 done');
     expect(p.percent).toBe(92);
   });
 });

@@ -61,14 +61,21 @@ export interface PaperProgress {
   label: string;
 }
 
-/** "Question 4 of 12": the total is done + remaining, the position is done + 1. */
-export function paperProgress(a: Pick<MyAssignment, 'done_count' | 'remaining_count'>): PaperProgress {
+/**
+ * "3 of 12 done", the same words as the paper's card in the list. Not
+ * "Question 4 of 12": a skipped question goes to the end of the paper
+ * (20261007140000), so the question on screen is not always done + 1. The
+ * total is the card's total when given (it counts questions sent to the HOD
+ * too), else done + remaining.
+ */
+export function paperProgress(a: Pick<MyAssignment, 'done_count' | 'remaining_count'> & { total_count?: number }): PaperProgress {
   const done = Math.max(0, Math.floor(a.done_count));
   const remaining = Math.max(0, Math.floor(a.remaining_count));
-  const total = Math.max(done + remaining, 1);
+  const given = typeof a.total_count === 'number' && Number.isFinite(a.total_count) ? Math.floor(a.total_count) : 0;
+  const total = Math.max(done + remaining, given, 1);
   const position = Math.min(done + 1, total);
   const percent = Math.round((Math.min(done, total) / total) * 100);
-  return { position, total, percent, label: `Question ${position} of ${total}` };
+  return { position, total, percent, label: `${Math.min(done, total)} of ${total} done` };
 }
 
 /** "Mathematics, Class X, Sample School, 2025", leaving out what is not known. */

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { EmptyNote, ListSkeleton, LoadError, Tile, ago } from '@/components/hod/HodShared';
@@ -97,13 +97,20 @@ function AnalyticsTable({ team }: { team: HodTeamMember[] }) {
 function ProfileRow({ p, api, scope }: { p: HodVerifierProfile; api: HodApi; scope: string }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [subjects, setSubjects] = useState(p.preferred_subjects.join(', '));
+  const saved = p.preferred_subjects.join(', ');
+  const [subjects, setSubjects] = useState(saved);
+  // Show what was saved: the server stores the papers' own spelling
+  // ("maths" saves as "Mathematics", 20261007170000).
+  useEffect(() => setSubjects(saved), [saved]);
   const [busy, setBusy] = useState(false);
+  /** The server's reason, kept on screen: "No papers in Astrology. Subjects with papers: ..." is too long for a toast. */
+  const [refusal, setRefusal] = useState<string | null>(null);
   const flag = profileFlag(p);
   const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
 
   async function run(fn: () => Promise<unknown>, ok: string) {
     setBusy(true);
+    setRefusal(null);
     try {
       await fn();
       toast.success(ok);
@@ -111,7 +118,7 @@ function ProfileRow({ p, api, scope }: { p: HodVerifierProfile; api: HodApi; sco
       return true;
     } catch (err) {
       const raw = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : '';
-      toast.error(raw || 'That did not work. Try again.');
+      setRefusal(raw || 'That did not work. Try again.');
       return false;
     } finally {
       setBusy(false);
@@ -183,6 +190,11 @@ function ProfileRow({ p, api, scope }: { p: HodVerifierProfile; api: HodApi; sco
             Save subjects
           </button>
         </div>
+        {refusal ? (
+          <p role="alert" className="mt-2 rounded-xl bg-destructive/10 px-3 py-2 text-[13px] text-destructive" data-testid="profile-refusal">
+            {refusal}
+          </p>
+        ) : null}
         {p.requested_subjects.length > 0 ? (
           <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-brand-subtle px-3 py-2" data-testid="subject-request">
             <span className="text-foreground">

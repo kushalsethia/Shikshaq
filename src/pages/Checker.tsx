@@ -13,6 +13,8 @@ import { useIsHodBadge } from '@/hooks/useIsHodBadge';
 import { ActionButton } from '@/components/checker/CheckerButtons';
 import { CheckerSkeleton, Chip, Modal } from '@/components/checker/CheckerBits';
 import { VerifyScreen } from '@/components/checker/VerifyScreen';
+import { MathText } from '@/components/papers/math-text';
+import { isBlankBody } from '@/lib/checker-body';
 import { CHIP, actionToneClass } from '@/lib/checker-button-styles';
 import { CHECKER_HELP_PATH, CHECKER_PRACTICE_PATH } from '@/lib/checker-onboarding';
 import { GIVEN_BY_HOD, paperLabel } from '@/lib/checker-progress';
@@ -497,8 +499,15 @@ function PaperOverview({
                 {q.page ? <span className="text-warm-secondary">Page {q.page}</span> : null}
                 <span className={cn('rounded-full px-2 py-0.5', STATE_STYLE[q.state])}>{QUESTION_STATE_LABEL[q.state]}</span>
               </div>
-              {/* The words exactly as stored, never cleaned. */}
-              <p className="line-clamp-3 whitespace-pre-wrap break-words text-[14px] text-foreground">{q.body}</p>
+              {/* The words exactly as stored, never cleaned; maths drawn the
+                  same way as on the verifying screen. */}
+              {isBlankBody(q.body) ? (
+                <p className="text-[14px] italic text-warm-secondary">No words were read for this question. You will compare it with the page.</p>
+              ) : (
+                <div className="line-clamp-3 break-words">
+                  <MathText text={q.body ?? ''} className="text-[14px] text-foreground" />
+                </div>
+              )}
             </li>
           ))}
         </ol>

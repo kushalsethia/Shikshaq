@@ -29,6 +29,7 @@ export function PaperPageFlip({
   pictureUrl,
   questionPage,
   className,
+  title = WHOLE_PAPER_TITLE,
 }: {
   paperId: string;
   loadPages: (paperId: string) => Promise<PaperPage[]>;
@@ -36,6 +37,8 @@ export function PaperPageFlip({
   /** The question's own page number when it is known, to open there. */
   questionPage?: number | null;
   className?: string;
+  /** Heading above the pages; the default says no page matched. */
+  title?: string;
 }) {
   const [pages, setPages] = useState<PaperPage[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -109,7 +112,7 @@ export function PaperPageFlip({
   return (
     <div className={box} data-testid="paper-page-flip">
       <div className="rounded-2xl bg-brand-subtle px-3 py-2">
-        <p className="text-[14px] font-semibold leading-snug text-foreground">{WHOLE_PAPER_TITLE}</p>
+        <p className="text-[14px] font-semibold leading-snug text-foreground">{title}</p>
         <p className="mt-0.5 text-[13px] leading-snug text-warm-secondary">{WHOLE_PAPER_NOTE}</p>
       </div>
       <div className="flex items-center justify-between gap-2" role="group" aria-label="Flip through the pages">

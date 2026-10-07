@@ -194,7 +194,11 @@ export function Chatbot() {
       clearTimeout(idleTimer);
     };
   }, []);
-  const launcherVisible = (scrolledPastFold || isOpen) && !hasFloatingCta;
+  // The verifier and HOD screens have their own action bar at the bottom; on a
+  // phone the launcher sat on top of "Ask the HOD" (7 Oct check). Work tools,
+  // not a place to ask about tutors: no launcher there.
+  const onWorkTool = /^\/(checker|hod)(\/|$)/.test(location.pathname);
+  const launcherVisible = (scrolledPastFold || isOpen) && !hasFloatingCta && !onWorkTool;
   // Keep the panel mounted briefly on close so it can play a subtle exit
   // instead of vanishing the instant the close button is tapped.
   const panelPresence = useExitPresence(isOpen, 180);

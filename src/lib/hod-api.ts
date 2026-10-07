@@ -208,6 +208,34 @@ export interface HodVerifierProfile {
   requested_at: string | null;
 }
 
+/**
+ * A paper's class as a grade, the same reading as public.class_grade
+ * (20261007160000): upper-case, drop GRADE/CLASS/STD/TH/ST/ND/RD and
+ * anything not a letter or digit, then 1-12 or I-XII. Unknown -> null.
+ */
+export function classGrade(cls: string | null | undefined): number | null {
+  const s = (cls ?? '').toUpperCase().replace(/(GRADE|CLASS|STD|TH|ST|ND|RD|[^A-Z0-9])/g, '');
+  if (/^[0-9]{1,2}$/.test(s)) {
+    const n = Number(s);
+    return n >= 1 && n <= 12 ? n : null;
+  }
+  const i = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].indexOf(s);
+  return i >= 0 ? i + 1 : null;
+}
+
+/**
+ * Why the server would refuse to give this paper to this verifier, before
+ * the HOD presses the button (verifier_can_take). null = allowed. A paper
+ * whose class is unknown is the HOD's call, so only details are checked.
+ */
+export function pickBlock(profile: HodVerifierProfile | undefined, paperClass: string | null | undefined): string | null {
+  if (!profile || profile.missing || profile.grade == null) return 'no grade yet';
+  if (profile.expired) return 'details expired';
+  const need = classGrade(paperClass);
+  if (need != null && need > profile.grade) return 'paper above their class';
+  return null;
+}
+
 export function normaliseVerifierProfile(raw: unknown): HodVerifierProfile | null {
   const r = obj(raw);
   const id = str(r.user_id);

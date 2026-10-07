@@ -66,6 +66,12 @@ export function QuestionPicture({
   className?: string;
 }) {
   const [state, setState] = useState<{ path: string; url: string | null } | null>(null);
+  // The HOD can always open the whole paper: escalations are often "the
+  // picture is of a different question", so the crop alone cannot settle them.
+  const [whole, setWhole] = useState(false);
+  useEffect(() => {
+    setWhole(false);
+  }, [path, paperId]);
   useEffect(() => {
     if (!path) return;
     let cancelled = false;
@@ -88,9 +94,29 @@ export function QuestionPicture({
     // The stored picture is gone: fall back to the whole paper rather than nothing.
     return <PaperPageFlip paperId={paperId} loadPages={api.paperPages} pictureUrl={api.pictureUrl} questionPage={page} className={className} />;
   }
+  const toggle = (
+    <button
+      type="button"
+      onClick={() => setWhole((w) => !w)}
+      className="tap-44 self-start rounded-full bg-muted px-3.5 py-1.5 text-[13px] font-semibold text-foreground"
+    >
+      {whole ? "Back to this question's picture" : 'See the whole paper'}
+    </button>
+  );
+  if (whole) {
+    return (
+      <div className={cn('flex min-w-0 flex-col gap-2', className)}>
+        <PaperPageFlip paperId={paperId} loadPages={api.paperPages} pictureUrl={api.pictureUrl} questionPage={page} title="The whole paper" />
+        {toggle}
+      </div>
+    );
+  }
   return (
-    <div className={cn('max-h-[56vh] w-full overflow-auto rounded-2xl bg-white p-2', className)}>
-      <img src={state.url} alt={page ? `Page ${page} of the printed paper, where this question is` : 'The printed question'} className="mx-auto block h-auto max-w-full" />
+    <div className={cn('flex min-w-0 flex-col gap-2', className)}>
+      <div className="max-h-[56vh] w-full overflow-auto rounded-2xl bg-white p-2">
+        <img src={state.url} alt={page ? `Page ${page} of the printed paper, where this question is` : 'The printed question'} className="mx-auto block h-auto max-w-full" />
+      </div>
+      {toggle}
     </div>
   );
 }

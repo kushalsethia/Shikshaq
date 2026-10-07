@@ -2,11 +2,20 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { EmptyNote, ListSkeleton, LoadError, ago } from '@/components/hod/HodShared';
-import { TEAM_KEY } from '@/components/hod/VerifiersTab';
+import { PROFILES_KEY, TEAM_KEY } from '@/components/hod/VerifiersTab';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { actionToneClass } from '@/lib/checker-button-styles';
 import { paperLabel } from '@/lib/checker-progress';
-import { groupByVerifier, memberName, type HodApi, type HodAssignment, type HodTeamMember, type UnassignedPaper } from '@/lib/hod-api';
+import {
+  groupByVerifier,
+  memberName,
+  pickBlock,
+  type HodApi,
+  type HodAssignment,
+  type HodTeamMember,
+  type HodVerifierProfile,
+  type UnassignedPaper,
+} from '@/lib/hod-api';
 
 /* "Assignments": which paper each verifier holds, with Move and Unassign, and
    the papers nobody holds with an Assign to control. A whole paper goes to
@@ -26,12 +35,17 @@ function PickVerifier({
   options,
   busy,
   onPick,
+  paperClass,
+  profileOf,
 }: {
   label: string;
   buttonLabel: string;
   options: HodTeamMember[];
   busy: boolean;
   onPick: (userId: string) => void;
+  /** The paper's class, so verifiers below it are shown but cannot be picked. */
+  paperClass: string | null;
+  profileOf: (userId: string) => HodVerifierProfile | undefined;
 }) {
   const [value, setValue] = useState('');
   return (
@@ -44,11 +58,20 @@ function PickVerifier({
         className="min-h-10 max-w-[14rem] rounded-full bg-card px-3 text-[13px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
       >
         <option value="">{label}</option>
-        {options.map((m) => (
-          <option key={m.user_id} value={m.user_id}>
-            {memberName(m)}
-          </option>
-        ))}
+        {options.map((m) => {
+          const p = profileOf(m.user_id);
+          const block = pickBlock(p, paperClass);
+          const grade = p?.grade != null ? `Class ${p.grade}` : null;
+          return (
+            // The server refuses these anyway (verifier_can_take); greyed out
+            // with the reason, so the HOD sees why before pressing.
+            <option key={m.user_id} value={m.user_id} disabled={block !== null}>
+              {memberName(m)}
+              {grade ? ` (${grade})` : ''}
+              {block ? `, ${block}` : ''}
+            </option>
+          );
+        })}
       </select>
       <button
         type="button"
@@ -74,6 +97,16 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   const assignmentsQ = useQuery({ queryKey: ASSIGNMENTS_KEY(scope), queryFn: () => api.assignments(), staleTime: 10_000, refetchOnMount: true });
   const unassignedQ = useQuery({ queryKey: UNASSIGNED_KEY(scope), queryFn: () => api.unassignedPapers(200), staleTime: 10_000, refetchOnMount: true });
   const teamQ = useQuery({ queryKey: TEAM_KEY(scope), queryFn: () => api.team(), staleTime: 15_000, refetchOnMount: true });
+  const profilesQ = useQuery({ queryKey: PROFILES_KEY(scope), queryFn: () => api.profiles(), staleTime: 15_000, refetchOnMount: true });
+  const profileOf = (id: string) => (profilesQ.data ?? []).find((p) => p.user_id === id);
+  /** Why someone holds nothing, when it is not just "nothing to give out". */
+  const whyIdle = (id: string): string | null => {
+    const p = profileOf(id);
+    if (!profilesQ.data) return null;
+    if (!p || p.missing || p.grade == null) return 'No grade, school and board yet, so no papers are given to them. Add them on Verifiers.';
+    if (p.expired) return 'Their details have expired, so no new papers are given to them. Update them on Verifiers.';
+    return null;
+  };
 
   const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
   const verifiers = (teamQ.data ?? []).filter((m) => m.active);
@@ -131,6 +164,8 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
             buttonLabel="Move"
             busy={busy}
             options={verifiers.filter((m) => m.user_id !== a.user_id)}
+            paperClass={a.cls}
+            profileOf={profileOf}
             onPick={(uid) => void act(() => api.assignPaper(a.paper_id, uid), () => `Moved to ${nameOf(uid)}.`)}
           />
           <button type="button" disabled={busy} onClick={() => void unassign(a)} className={actionToneClass('muted')}>
@@ -176,6 +211,11 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
                 <p className="text-[15px] font-bold text-foreground">
                   {memberName(m)} <span className="ml-2 text-[12px] font-normal text-warm-meta">no papers yet</span>
                 </p>
+                {whyIdle(m.user_id) ? (
+                  <p className="mt-0.5 text-[13px] text-warm-secondary" data-testid="idle-reason">
+                    {whyIdle(m.user_id)}
+                  </p>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -225,6 +265,8 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
                   buttonLabel="Assign"
                   busy={busy}
                   options={verifiers}
+                  paperClass={p.cls}
+                  profileOf={profileOf}
                   onPick={(uid) => void act(() => api.assignPaper(p.paper_id, uid), () => `Given to ${nameOf(uid)}.`)}
                 />
               </li>
