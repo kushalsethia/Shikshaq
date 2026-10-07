@@ -49,13 +49,18 @@ export function markWalkthroughSeen(userId: string): void {
 
 export interface WalkthroughStep {
   /** Matches `data-tour="..."` on the real element in Checker.tsx. */
-  target: 'picture' | 'question' | 'pass' | 'fix' | 'help' | 'skip';
+  target: 'paper' | 'picture' | 'question' | 'pass' | 'fix' | 'help' | 'skip';
   title: string;
   body: string;
 }
 
 /** The labels in these steps are the live button labels on the checker. */
 export const WALKTHROUGH_STEPS: WalkthroughStep[] = [
+  {
+    target: 'paper',
+    title: 'This is your paper',
+    body: 'You get one paper at a time. The bar shows how far through it you are. When it is finished the next paper comes by itself.',
+  },
   {
     target: 'picture',
     title: 'This is the printed page',
@@ -78,13 +83,13 @@ export const WALKTHROUGH_STEPS: WalkthroughStep[] = [
   },
   {
     target: 'help',
-    title: 'Ask for help',
-    body: 'Not sure? Press this instead of guessing. Someone who knows more will look. It never holds up your other questions.',
+    title: 'Ask the HOD',
+    body: 'Not sure? Press this instead of guessing. Your HOD will look at it, and you carry on with the rest of your paper.',
   },
   {
     target: 'skip',
-    title: 'Show me another paper',
-    body: 'Press this if the picture is too blurry to read. It will not come back to you for a day, and you get a new one.',
+    title: 'Skip this question',
+    body: 'Press this if you cannot decide, for example the picture is too blurry. It will not come back to you for a day, and you move to the next question.',
   },
 ];
 
@@ -109,12 +114,12 @@ export const CHECKER_RULES: CheckerRule[] = [
     body: `Normally leave it as printed. If it is a misprinted letter, number or symbol, open Fix it and tick "${TYPO_CHECKBOX_LABEL}". ${TYPO_RULE_NOTE}`,
   },
   {
-    title: 'Not sure? Ask for help, do not guess',
-    body: 'A wrong guess is worse than a question. If the words are scrambled, there are no words, or the picture shows a different question, press Ask for help.',
+    title: 'Not sure? Ask the HOD, do not guess',
+    body: 'A wrong guess is worse than a question. If the words are scrambled, there are no words, or the picture shows a different question, press Ask the HOD.',
   },
   {
     title: 'If you cannot read the picture, skip it',
-    body: 'Press Show me another paper. Never fill in words you cannot see.',
+    body: 'Press Skip this question, or Hand this paper back if the whole paper is unreadable. Never fill in words you cannot see.',
   },
   {
     title: 'Two questions in one box',
@@ -128,8 +133,8 @@ export const ACTION_LABELS: Record<CheckerAction, string> = {
   pass: 'Looks right',
   fix: 'Fix it',
   split: 'Split here',
-  help: 'Ask for help',
-  skip: 'Show me another paper',
+  help: 'Ask the HOD',
+  skip: 'Skip this question',
 };
 
 /** One row per action, in the order the shortcuts file lists them, with the
@@ -157,3 +162,18 @@ export function addStudentSteps(origin: string): string[] {
 
 export const NO_ACCOUNT_EXPLAINED =
   'If it says no account has that email, either the student has not signed up yet, or they signed up with a different email than the one you typed. Ask them which email they used.';
+
+/* ---- the HODs section on /admin/checkers ------------------------------- */
+
+export const HOD_PATH = '/hod';
+
+export function addHodSteps(origin: string): string[] {
+  return [
+    'The person signs up on the Shikshaq site with their own email address, the same way a student does.',
+    'Search for them below by name or email and press Make HOD. One HOD leads every verifier.',
+    `Send them the link to ${origin}${HOD_PATH}. It shows the questions verifiers sent up, how each verifier is doing, and who holds which paper.`,
+  ];
+}
+
+export const HOD_NOTE =
+  'An HOD does not need to be a checker. Removing an HOD only takes away the HOD view; their earlier decisions stay. Admins can always open the HOD view.';

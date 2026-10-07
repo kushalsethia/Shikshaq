@@ -24,7 +24,7 @@ describe('checkerErrorAdvice', () => {
 
   it('explains a refused blank pass', () => {
     const a = checkerErrorAdvice({ code: '22023', message: 'This question has no words; it cannot be passed' });
-    expect(a.message).toMatch(/Ask for help/);
+    expect(a.message).toMatch(/Ask the HOD/);
   });
 
   it('falls back to the internet message for a network failure', () => {

@@ -19,6 +19,7 @@ const SIMULATIONS: { value: DummySimulation; label: string }[] = [
   { value: 'offline', label: 'Offline' },
   { value: 'slow', label: 'Slow network' },
   { value: 'blank', label: 'Serve a blank question (old server)' },
+  { value: 'nopages', label: 'Paper has no page pictures' },
 ];
 
 export default function CheckerDummy() {

@@ -2,8 +2,8 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  FileText, Heart, Shield, GraduationCap, Users,
-  MessageSquare, ThumbsUp, ClipboardList, BookMarked, CheckSquare, type LucideIcon,
+  Heart, Shield, GraduationCap, Users,
+  BookMarked, CheckSquare, ClipboardList, type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -16,6 +16,8 @@ import { logger } from "@/utils/logger";
 import { useExitPresence } from "@/hooks/useExitPresence";
 import { useIsAdminBadge } from "@/hooks/useIsAdminBadge";
 import { useIsCheckerBadge } from "@/hooks/useIsCheckerBadge";
+import { useIsHodBadge } from "@/hooks/useIsHodBadge";
+import { roleLinks } from "@/lib/role-home";
 import {
   BROWSE_PATH,
   getDashboardLink,
@@ -68,6 +70,10 @@ export function TopBar({ className }: { className?: string }) {
      useIsAdminBadge for the measurement. */
   const isAdmin = useIsAdminBadge();
   const isChecker = useIsCheckerBadge();
+  const isHod = useIsHodBadge();
+  // One link per staff role (My work, HOD view, Admin), not a list of admin pages: the admin menu itself holds those.
+  const staffLinks = roleLinks({ isAdmin, isHod, isChecker });
+  const STAFF_ICON = { 'my-work': CheckSquare, hod: ClipboardList, admin: Shield } as const;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuPresence = useExitPresence(menuOpen);
   const initial = (user?.email?.charAt(0) || "?").toUpperCase();
@@ -200,21 +206,10 @@ export function TopBar({ className }: { className?: string }) {
                       {role === "student" && (
                         <TopBarMenuLink to="/my-teachers" icon={BookMarked} label="My teachers" onClick={() => setMenuOpen(false)} />
                       )}
-                      {isChecker && (
-                        <TopBarMenuLink to="/checker" icon={CheckSquare} label="Check papers" onClick={() => setMenuOpen(false)} />
-                      )}
-                      {isAdmin && (
-                        <>
-                          <hr className="border-border" />
-                          <TopBarMenuLink to="/admin/recommendations" icon={Shield} label="Recommendations" onClick={() => setMenuOpen(false)} />
-                          <TopBarMenuLink to="/admin/comments" icon={MessageSquare} label="Comments" onClick={() => setMenuOpen(false)} />
-                          <TopBarMenuLink to="/admin/upvotes" icon={ThumbsUp} label="Upvotes" onClick={() => setMenuOpen(false)} />
-                          <TopBarMenuLink to="/admin/feedback" icon={MessageSquare} label="Feedback" onClick={() => setMenuOpen(false)} />
-                          <TopBarMenuLink to="/admin/teachers" icon={GraduationCap} label="Teachers" onClick={() => setMenuOpen(false)} />
-                          <TopBarMenuLink to="/admin/applications" icon={ClipboardList} label="Applications" onClick={() => setMenuOpen(false)} />
-                          <TopBarMenuLink to="/admin/papers" icon={FileText} label="Past papers" onClick={() => setMenuOpen(false)} />
-                        </>
-                      )}
+                      {staffLinks.length > 0 && <hr className="border-border" />}
+                      {staffLinks.map((l) => (
+                        <TopBarMenuLink key={l.key} to={l.to} icon={STAFF_ICON[l.key]} label={l.label} onClick={() => setMenuOpen(false)} />
+                      ))}
                       <hr className="border-border" />
                       <button
                         onClick={async () => {

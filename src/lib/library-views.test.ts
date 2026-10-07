@@ -53,7 +53,7 @@ describe('admin nav', () => {
     vi.stubGlobal('sessionStorage', { getItem: () => null, setItem: () => undefined, removeItem: () => undefined });
     const { buildAdminNav } = await import('@/pages/admin/shell');
     const nav = buildAdminNav('admin-queue', { adminQueue: 657, paperApprovals: 0 });
-    expect(new Set(nav.map((n) => n.group))).toEqual(new Set(['papers', 'checking', 'teachers', 'site']));
+    expect(new Set(nav.map((n) => n.group))).toEqual(new Set(['papers', 'checking', 'teachers', 'more']));
     expect(nav.filter((n) => n.active).map((n) => n.key)).toEqual(['admin-queue']);
     expect(nav.find((n) => n.key === 'admin-queue')?.count).toBe(657);
     expect(nav.find((n) => n.key === 'ready')?.count).toBe(0);

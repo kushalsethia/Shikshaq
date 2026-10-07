@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   HelpCircle, MessageCircleQuestion, Menu, Shield, User,
-  FileText, BookOpen, School, type LucideIcon,
+  FileText, BookOpen, School, CheckSquare, ClipboardList, type LucideIcon,
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -13,6 +13,8 @@ import { openProductTour } from '@/components/ProductTour';
 import { logger } from '@/utils/logger';
 import { useSearchExpanded } from '@/hooks/useSearchExpanded';
 import { useIsAdminBadge } from '@/hooks/useIsAdminBadge';
+import { useIsCheckerBadge } from '@/hooks/useIsCheckerBadge';
+import { useIsHodBadge } from '@/hooks/useIsHodBadge';
 import { useSiteCounts } from '@/hooks/useSiteCounts';
 import {
   Sheet, SheetClose, SheetContent, SheetGrabHandle, SheetTitle,
@@ -136,6 +138,8 @@ export function Navbar() {
      same request -- see useIsAdminBadge for the measurement. One shared
      react-query key now serves both. */
   const isAdmin = useIsAdminBadge();
+  const isChecker = useIsCheckerBadge();
+  const isHod = useIsHodBadge();
   const userRole = (profile?.role as UserRole) || null;
   const dashboardLink = getDashboardLink(userRole);
   const { teachersCount, papersCount, papersReadCount } = useNavMenuCounts(menuOpen, user?.id);
@@ -334,7 +338,9 @@ export function Navbar() {
                 <SheetMenuRow to="/subjects" icon={BookOpen} label="Subjects" hairline />
                 <SheetMenuRow to="/schools" icon={School} label="Schools" hairline />
                 <SheetMenuRow to="/faq" icon={MessageCircleQuestion} label="FAQ" hairline />
-                <SheetMenuRow to="/more" icon={HelpCircle} label="Help" hairline={isAdmin} />
+                <SheetMenuRow to="/more" icon={HelpCircle} label="Help" hairline={isChecker || isHod || isAdmin} />
+                {isChecker && <SheetMenuRow to="/checker" icon={CheckSquare} label="My work" hairline={isHod || isAdmin} />}
+                {isHod && <SheetMenuRow to="/hod" icon={ClipboardList} label="HOD view" hairline={isAdmin} />}
                 {isAdmin && <SheetMenuRow to="/admin" icon={Shield} label="Admin" />}
               </div>
 

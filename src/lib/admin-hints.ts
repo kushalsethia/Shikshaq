@@ -14,6 +14,7 @@ export type AdminPageKey =
   | 'admin-queue'
   | 'checker-log'
   | 'checkers'
+  | 'hod'
   | 'applications'
   | 'teachers'
   | 'reviews'
@@ -23,7 +24,7 @@ export type AdminPageKey =
   | 'pipeline'
   | 'audit';
 
-export type AdminGroupKey = 'papers' | 'checking' | 'teachers' | 'site';
+export type AdminGroupKey = 'papers' | 'checking' | 'teachers' | 'more';
 
 export interface AdminGroupCopy {
   key: AdminGroupKey;
@@ -33,30 +34,32 @@ export interface AdminGroupCopy {
   pages: AdminPageKey[];
 }
 
+/* The menu holds the pages used day to day. Everything else is under More,
+   so there are four tabs, not a wall of fifteen. */
 export const ADMIN_GROUPS: AdminGroupCopy[] = [
   {
     key: 'papers',
     label: 'Papers',
-    blurb: 'The past papers on the site: what is live, what is waiting to go live, and papers sent in by students.',
-    pages: ['library', 'ready', 'submissions'],
+    blurb: 'The past papers on the site: what is live, what is waiting to go live, and where every paper is in the checking.',
+    pages: ['library', 'ready', 'pipeline'],
   },
   {
     key: 'checking',
     label: 'Checking',
     blurb: 'The people and queues that check every question before visitors see it.',
-    pages: ['student-queue', 'admin-queue', 'checker-log', 'checkers'],
+    pages: ['hod', 'admin-queue', 'checkers'],
   },
   {
     key: 'teachers',
     label: 'Teachers',
-    blurb: 'Teachers who want to join, teachers already on the site, and what parents say about them.',
-    pages: ['applications', 'teachers', 'reviews'],
+    blurb: 'Teachers who want to join, and teachers already on the site.',
+    pages: ['applications', 'teachers'],
   },
   {
-    key: 'site',
-    label: 'Site',
-    blurb: 'How the site is doing, feedback from visitors, who has admin access, and a record of every change.',
-    pages: ['activity', 'feedback', 'team', 'pipeline', 'audit'],
+    key: 'more',
+    label: 'More',
+    blurb: 'Less used pages: reviews, feedback, who did what, site activity, who has admin access and the audit log.',
+    pages: ['reviews', 'submissions', 'checker-log', 'student-queue', 'activity', 'feedback', 'team', 'audit'],
   },
 ];
 
@@ -157,15 +160,32 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
   },
   checkers: {
     key: 'checkers',
-    label: 'Checkers',
+    label: 'Verifiers',
     path: '/admin/checkers',
-    short: 'Who is allowed to check papers. Search for a person and add them here.',
+    short: 'Who is allowed to verify papers. Search for a person, add them, then fill in their details.',
     purpose:
-      'The list of people allowed to open the checking screen. To add someone, search by their name or email: they must have signed up on Shikshaq first. Removing someone stops their access but keeps everything they already checked.',
-    flow: 'Search, press Add next to the right person, and they can check papers straight away.',
+      'The list of verifiers: people allowed to open the verifying screen. To add someone, search by their name or email: they must have signed up on Shikshaq first. Right after you add them, fill in their grade, school and board. Papers are only given to a verifier once those are filled in, and never above their grade. Removing someone stops their access but keeps everything they already verified. The HODs section lower down says who leads the verifiers.',
+    flow: 'Search, press Add next to the right person, then fill in their details. Papers are given to them automatically.',
     buttons: [
-      { label: 'Add', does: 'Lets that person open the checking screen. They need to reload the site once.' },
-      { label: 'Remove', does: 'Stops them opening the checking screen. Their earlier work stays.' },
+      { label: 'Add', does: 'Lets that person open the verifying screen. They need to reload the site once. You are asked for their details straight after.' },
+      { label: 'Details', does: 'Opens the form for their name, grade, school, board and the date the details are valid until.' },
+      { label: 'Remove', does: 'Stops them opening the verifying screen. Their earlier work stays.' },
+    ],
+  },
+  hod: {
+    key: 'hod',
+    label: 'HOD view',
+    path: '/hod',
+    short: 'What verifiers sent up, how each person is doing, and which paper each one holds.',
+    purpose:
+      'The Head of Department screen. It shows the questions verifiers asked about, how each verifier is getting on, and who holds which paper. Papers can be given to a verifier, moved or taken back from here. Admins can use it too.',
+    flow: 'Start with Escalated to me, then look at the team, then give out any papers nobody has.',
+    buttons: [
+      { label: 'Pass', does: 'Says the question is right as it is.' },
+      { label: 'Fix', does: 'Lets you change the words, number or marks, then settles the question.' },
+      { label: 'Send back', does: 'Returns the question to the verifiers with a note.' },
+      { label: 'Set aside', does: 'Takes the question out of the checking for good. You must say why.' },
+      { label: 'Assign to', does: 'Gives a paper nobody holds to one verifier.' },
     ],
   },
   applications: {

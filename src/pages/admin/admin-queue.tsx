@@ -9,6 +9,7 @@ import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, t
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { AdminPageIntro } from '@/components/admin/AdminHelp';
+import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
 import { ReviewQuestionCard } from '@/components/admin/approval/ReviewQuestionCard';
 import { cn } from '@/lib/utils';
 import { displaySchool } from '@/lib/school-display';
@@ -28,13 +29,18 @@ const DummyAdminQueue = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminQueueDum
 
 type Tab = 'waiting' | 'help';
 
-function PagePicture({ q, api }: { q: QueueQuestion; api: AdminQueueApi }) {
+function PagePicture({ q, api, auditPaperId }: { q: QueueQuestion; api: AdminQueueApi; auditPaperId: string }) {
   const [url, setUrl] = useState<string | null>(null);
   const [state, setState] = useState<'idle' | 'loading' | 'missing'>('idle');
   const path = q.snippet_path ?? q.page_path;
-  if (!path) {
-    return <p className="mb-2 text-[13px] text-warm-secondary">There is no picture of this page on file. Judge it from the words alone.</p>;
-  }
+  // No page matched this question (or its picture is gone): show the whole
+  // paper as a page-flip instead of asking for a judgement from the words alone.
+  const wholePaper = (
+    <div className="mb-2">
+      <PaperPageFlip paperId={auditPaperId} loadPages={api.paperPages} pictureUrl={api.pictureUrl} questionPage={q.page} />
+    </div>
+  );
+  if (!path || state === 'missing') return wholePaper;
   async function show() {
     setState('loading');
     const u = await api.pictureUrl(path as string);
@@ -62,7 +68,6 @@ function PagePicture({ q, api }: { q: QueueQuestion; api: AdminQueueApi }) {
           {state === 'loading' ? 'Loading the picture...' : q.page ? `Show page ${q.page} as printed` : 'Show the printed question'}
         </button>
       )}
-      {state === 'missing' ? <p role="status" className="mt-1 text-[13px] text-warm-secondary">The picture could not be loaded. Judge it from the words alone.</p> : null}
     </div>
   );
 }
@@ -93,7 +98,7 @@ function PaperQuestions({ auditPaperId, api, onChanged }: { auditPaperId: string
     <div className="space-y-3">
       {data.map((q) => (
         <div key={q.row.id}>
-          <PagePicture q={q} api={api} />
+          <PagePicture q={q} api={api} auditPaperId={auditPaperId} />
           <ul>
             <ReviewQuestionCard
               row={q.row}

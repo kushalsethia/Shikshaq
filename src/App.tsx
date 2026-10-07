@@ -96,6 +96,8 @@ const Checker = lazy(() => import("./pages/Checker"));
    needs a sign-in (nothing secret, nothing saved); /checker keeps its guard. */
 const CheckerPractice = lazy(() => import("./pages/CheckerPractice"));
 const CheckerHelp = lazy(() => import("./pages/CheckerHelp"));
+/* The Head of Department view: escalations, team, assignments, AI trust. */
+const Hod = lazy(() => import("./pages/Hod"));
 /* LikedTeachers / MyTeachers are NOT lazy-imported here any more. Their two
    routes redirect into /account (see the O-05 note below) and neither
    component was rendered, but the `lazy()` calls still made Vite emit a chunk
@@ -400,6 +402,7 @@ const App = () => (
               <Route path="/checker" element={<Checker />} />
               <Route path="/checker/practice" element={<CheckerPractice />} />
               <Route path="/checker/help" element={<CheckerHelp />} />
+              <Route path="/hod" element={<Hod />} />
               {/* Legacy admin URLs redirect into the console (pages.md §15). */}
               <Route path="/admin/applications" element={<Navigate to="/admin/approvals" replace />} />
               <Route path="/admin/recommendations" element={<Navigate to="/admin/reviews" replace />} />

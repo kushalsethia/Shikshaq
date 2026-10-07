@@ -311,7 +311,9 @@ export function dummyContext(questionId: string): ContextRow[] {
 
 /** A made-up whole A4 page (595 x 842), for the whole-page fallback preview. */
 export function dummyPageDataUrl(path: string): string | null {
-  if (path !== `pages/${DUMMY_PAPER}/3.jpg`) return null;
+  const generic = /^pages\/([^/]+)\/(\d+)\.jpg$/.exec(path);
+  if (!generic) return null;
+  if (path !== `pages/${DUMMY_PAPER}/3.jpg`) return dummyGenericPage(Number(generic[2]));
   const rows: [number, string][] = [
     [70, 'Section B'],
     [110, '5. Find the mean of the first five prime numbers.                    [2]'],
@@ -343,5 +345,25 @@ export function dummyPictureDataUrl(path: string): string | null {
     .map((l, i) => `<text x="16" y="${34 + i * 26}" font-family="Times New Roman, serif" font-size="17" fill="#222" xml:space="preserve">${esc(l)}</text>`)
     .join('');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#fbfaf6"/>${text}</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+/** A made-up page N of any made-up paper, for the whole-paper page-flip preview. */
+function dummyGenericPage(n: number): string {
+  const lines = [
+    `Made-up printed page ${n}`,
+    `${n * 3 - 2}. State two properties of a rectangle.                              [2]`,
+    `${n * 3 - 1}. Find the value of x if 3x + 4 = 19.                              [2]`,
+    `${n * 3}. Name the process by which plants make food.                     [1]`,
+  ];
+  const text = lines
+    .map(
+      (l, i) =>
+        `<text x="48" y="${70 + i * 46}" font-family="Times New Roman, serif" font-size="15" fill="#1c1c1c" xml:space="preserve">${l
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')}</text>`,
+    )
+    .join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="595" height="842" viewBox="0 0 595 842"><rect width="100%" height="100%" fill="#fbfaf6"/><rect x="24" y="24" width="547" height="794" fill="none" stroke="#bbb"/>${text}<text x="48" y="800" font-family="serif" font-size="13" fill="#666">Page ${n}</text></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }

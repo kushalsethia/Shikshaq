@@ -4,6 +4,16 @@ import { mergeQueueRows } from '@/lib/paper-review-filter';
 import { normaliseExtra, type LibraryExtra } from '@/lib/library-views';
 import type { RawOption } from '@/lib/checker-options';
 import { checkerSaveRoute, TYPO_NEEDS_VERSION } from '@/lib/checker-save';
+import { normaliseAssignment, type MyAssignment } from '@/lib/checker-progress';
+import {
+  normaliseMyPapers,
+  normalisePaperQuestions,
+  normaliseProfile,
+  type MyPaper,
+  type PaperQuestion,
+  type VerifierProfile,
+} from '@/lib/verifier-papers';
+import { normalisePaperPages, type PaperPage } from '@/lib/paper-pages';
 
 /**
  * Client wrapper for the paper-checker (Kid Mode) and paper-admin RPCs added
@@ -46,6 +56,11 @@ export interface CheckerQuestion {
   /** audit_questions.version, the one the checker is looking at
    *  (20261002090000). Absent until that migration is applied. */
   version?: number | null;
+  /** From verifier_next_in_paper (20261007130000): the page the question sits on
+   *  and the storage paths of its page picture and crop, when there are any. */
+  page?: number | null;
+  page_path?: string | null;
+  snippet_path?: string | null;
 }
 
 /** audit_questions.source (jsonb). The pipeline writes more keys than the
@@ -272,6 +287,67 @@ export function checkerPictureUrl(path: string): Promise<string | null> {
     .catch(() => null);
 }
 
+/** The verifier's papers, with progress (verifier_my_papers). It hands out
+ *  papers first when the verifier has none, so an empty list means nothing is
+ *  available for them yet. */
+export async function verifierMyPapers(): Promise<MyPaper[]> {
+  const { data, error } = await supabase.rpc('verifier_my_papers' as never);
+  if (error) throw error;
+  return normaliseMyPapers(data);
+}
+
+/** Every question of one paper the caller holds, with a state each (verifier_paper_questions). */
+export async function verifierPaperQuestions(paperId: string): Promise<PaperQuestion[]> {
+  const { data, error } = await supabase.rpc('verifier_paper_questions' as never, { p_paper_id: paperId } as never);
+  if (error) throw error;
+  return normalisePaperQuestions(data);
+}
+
+/** "Start verifying": the next question of one paper, leased for 10 minutes
+ *  (verifier_next_in_paper). Null when nothing is left in it. */
+export async function verifierNextInPaper(paperId: string): Promise<CheckerQuestion | null> {
+  const { data, error } = await supabase.rpc('verifier_next_in_paper' as never, { p_paper_id: paperId } as never);
+  if (error) throw error;
+  return rpcRow<CheckerQuestion>(data);
+}
+
+/** The verifier's own details, read only (verifier_my_profile). */
+export async function verifierMyProfile(): Promise<VerifierProfile | null> {
+  const { data, error } = await supabase.rpc('verifier_my_profile' as never);
+  if (error) throw error;
+  return normaliseProfile(data);
+}
+
+/** Ask the HOD for preferred subjects (verifier_request_subjects). Only an HOD can set them. */
+export async function verifierRequestSubjects(subjects: string[]): Promise<void> {
+  const { error } = await supabase.rpc('verifier_request_subjects' as never, { p_subjects: subjects } as never);
+  if (error) throw error;
+}
+
+/** The caller's current paper and how far through it they are
+ *  (checker_my_assignment, 20261007100000). Null when nothing is assigned;
+ *  call checkerNextQuestion first, because that is what assigns. */
+export async function checkerMyAssignment(): Promise<MyAssignment | null> {
+  const { data, error } = await supabase.rpc('checker_my_assignment' as never);
+  if (error) throw error;
+  return normaliseAssignment(data);
+}
+
+/** Hand the current paper back (checker_return_paper). */
+export async function checkerReturnPaper(reason: string): Promise<void> {
+  const { error } = await supabase.rpc('checker_return_paper' as never, { p_reason: reason } as never);
+  if (error) throw error;
+}
+
+/** Every page picture of a paper, in page order (paper_page_pictures,
+ *  20261007110000): an HOD or admin for any paper, a checker for a paper they
+ *  hold. Throws on a refusal or failure; an empty list means no pictures. */
+export async function paperPagePictures(auditPaperId: string): Promise<PaperPage[]> {
+  const { data, error } = await supabase.rpc('paper_page_pictures' as never, { p_audit_paper_id: auditPaperId } as never);
+  if (error) throw error;
+  return normalisePaperPages(data);
+}
+
 /**
  * Everything the checker page calls, as one object, so the page can run
  * against the real RPCs or, in dummy mode (test builds only, see
@@ -293,6 +369,14 @@ export interface CheckerApi {
   questionContext: typeof checkerQuestionContext;
   queueFacets: typeof checkerQueueFacets;
   pictureUrl: typeof checkerPictureUrl;
+  myPapers: typeof verifierMyPapers;
+  paperQuestions: typeof verifierPaperQuestions;
+  nextInPaper: typeof verifierNextInPaper;
+  myProfile: typeof verifierMyProfile;
+  requestSubjects: typeof verifierRequestSubjects;
+  myAssignment: typeof checkerMyAssignment;
+  returnPaper: typeof checkerReturnPaper;
+  paperPages: typeof paperPagePictures;
 }
 
 export const realCheckerApi: CheckerApi = {
@@ -311,6 +395,14 @@ export const realCheckerApi: CheckerApi = {
   questionContext: checkerQuestionContext,
   queueFacets: checkerQueueFacets,
   pictureUrl: checkerPictureUrl,
+  myPapers: verifierMyPapers,
+  paperQuestions: verifierPaperQuestions,
+  nextInPaper: verifierNextInPaper,
+  myProfile: verifierMyProfile,
+  requestSubjects: verifierRequestSubjects,
+  myAssignment: checkerMyAssignment,
+  returnPaper: checkerReturnPaper,
+  paperPages: paperPagePictures,
 };
 
 // ---------------------------------------------------------------------------

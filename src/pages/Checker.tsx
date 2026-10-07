@@ -1,99 +1,52 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
-import { MathText } from '@/components/papers/math-text';
-import { BodyEditor } from '@/components/checker/BodyEditor';
-import { OptionList } from '@/components/checker/OptionList';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { cn } from '@/lib/utils';
 import { realCheckerApi, type CheckerApi } from '@/lib/checker-api';
-import { whatToCheck, needsSplit, NO_PICTURE_TITLE, NO_PICTURE_NOTE } from '@/lib/checker-kid-reasons';
-import { englishContext, passageHeading } from '@/lib/checker-english';
-import {
-  assembleQuestionContext,
-  contextHeading,
-  partLabel,
-  type QuestionContext,
-} from '@/lib/checker-context';
-import {
-  planCheckerPicture,
-  pictureHeading,
-  PICTURE_MAY_MISS_PARTS,
-  type PicturePlan,
-} from '@/lib/checker-pictures';
-import { planVerifiedPage, PAGE_HEADING, type PagePlan } from '@/lib/checker-page';
-import { describeLanes, unmappedCodes } from '@/lib/checker-lanes';
-import {
-  lostTextSuggestion,
-  LOST_TEXT_CONFIRM,
-  LOST_TEXT_HEADING,
-  LOST_TEXT_NOTE,
-  LOST_TEXT_TITLE,
-} from '@/lib/checker-lost-text';
-import {
-  typoSaveProblem,
-  TYPO_CHECKBOX_LABEL,
-  TYPO_RULE_TITLE,
-  TYPO_RULE_NOTE,
-  TYPO_NOTE_LABEL,
-  TYPO_NOTE_MAX,
-} from '@/lib/checker-save';
-import { DebugFacts } from '@/components/admin/DebugFacts';
-import { PageImageViewer } from '@/components/checker/PageImageViewer';
-import { matchCheckerKeyboardEvent, shortcutHint } from '@/lib/checker-shortcuts';
-import {
-  isBlankBody,
-  looksGarbled,
-  codePointOffset,
-  splitHalves,
-  canSplitAt,
-  bigEdit,
-  stripLeadingNumberPrefix,
-  FIX_RULE_TITLE,
-  FIX_RULE_NOTE,
-  BIG_EDIT_WARNING,
-} from '@/lib/checker-body';
-import { checkerErrorAdvice, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE } from '@/lib/checker-errors';
-import { facetChoices, keepOffered, waitingFor, classLabel, shouldAskForPreferences, type FacetChoice } from '@/lib/checker-facets';
-import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewChannel';
-import { isForeignChangeToOpenQuestion } from '@/lib/paper-review-realtime';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
-import { DebugId } from '@/components/DebugId';
 import { useIsAdminBadge } from '@/hooks/useIsAdminBadge';
+import { useIsHodBadge } from '@/hooks/useIsHodBadge';
 import { ActionButton } from '@/components/checker/CheckerButtons';
+import { CheckerSkeleton, Chip, Modal } from '@/components/checker/CheckerBits';
+import { VerifyScreen } from '@/components/checker/VerifyScreen';
+import { MathText } from '@/components/papers/math-text';
+import { isBlankBody } from '@/lib/checker-body';
 import { CHIP, actionToneClass } from '@/lib/checker-button-styles';
-import { CheckerWalkthrough } from '@/components/checker/CheckerWalkthrough';
+import { CHECKER_HELP_PATH, CHECKER_PRACTICE_PATH } from '@/lib/checker-onboarding';
+import { GIVEN_BY_HOD, paperLabel } from '@/lib/checker-progress';
 import {
-  CHECKER_HELP_PATH,
-  CHECKER_PRACTICE_PATH,
-  CHECKER_TOUR_PARAM,
-  hasSeenWalkthrough,
-  markWalkthroughSeen,
-} from '@/lib/checker-onboarding';
+  formatGrade,
+  formatValidUntil,
+  normaliseProfile,
+  PAPER_LIMIT_NOTE,
+  paperCardProgress,
+  parseSubjectList,
+  profileNotice,
+  profileStatus,
+  QUESTION_STATE_LABEL,
+  questionLabel,
+  sortPapers,
+  stateSummary,
+  type PaperQuestionState,
+} from '@/lib/verifier-papers';
 
-/* The paper checker (Kid Mode) -- D8/D9/D11/D15/D16/D21: built INTO the
-   Shikshaq site, in Shikshaq's own bento design language, reachable only by
-   an account an admin has granted the "Paper checker" permission. One
-   question at a time, across every live paper waiting to be cleared, next to
-   a snippet of the printed page. Ported from the standalone auditor's
-   KidCheck.tsx (UnlimitedOCR/auditor/web/src/pages/kid/KidCheck.tsx) --
-   reusing its flow and shortcut logic, not its visual design (D11: "not a
-   separate designed thing").
+/* My papers: the verifier's home (Kid Mode). Three views, chosen by the URL:
 
-   D16/D21: escalating never turns a paper red -- it hands the question to
-   Sonnet first, then an admin, while the checker moves on to the next one.
-   The pipeline-plan Step 2 rename ("Can't fix") and owner Round 6 rename
-   back to "Ask for help" (00 Owner Brief and Answers.md: "the owner calls
-   the third one Ask for help") both supersede D16/D21's button LABEL only:
-   same askForHelp/escalate RPC underneath, the owner's own word on top.
+     /checker                       the verifier's papers, with progress
+     /checker?paper=<id>            one paper: all of its questions, then Start verifying
+     /checker?paper=<id>&verify=1   one question at a time, question left, picture right
 
-   D75: in a test build (VITE_PREVIEW_TOOLS) with dummy mode on, the same
-   page runs against an in-memory fake of the checker API, with no sign-in
-   and no Supabase. `DummyChecker` is null in every other build, so the fake
-   and its fixtures are compiled out of the live bundle. */
+   Reachable only by an account an admin or HOD has set up as a verifier. Papers
+   are handed out automatically (a whole paper to one verifier, never above their
+   grade); a verifier does not pick subjects or classes, an HOD does.
+
+   In a test build (VITE_PREVIEW_TOOLS) with dummy mode on, the same page runs
+   against an in-memory fake, with no sign-in and no Supabase. `DummyChecker` is
+   null in every other build, so the fake is compiled out of the live bundle. */
 
 const DummyChecker = PREVIEW_TOOLS ? lazy(() => import('@/dummy/CheckerDummy')) : null;
 
@@ -108,18 +61,6 @@ export default function Checker() {
   return <CheckerPage api={realCheckerApi} />;
 }
 
-type Mode = 'check' | 'fix' | 'split';
-
-/** How often the empty queue asks for new questions (no reload needed). */
-const QUEUE_POLL_MS = 15_000;
-
-const HELP_REASONS = [
-  'I cannot read the words',
-  'The words are scrambled',
-  'There is no question here',
-  'The picture is of a different question',
-];
-
 export function CheckerPage({
   api,
   dummy = false,
@@ -130,11 +71,16 @@ export function CheckerPage({
   dummy?: boolean;
   banner?: React.ReactNode;
 }) {
-  usePageMeta('Paper checker | Shikshaq', 'Check one question at a time against the printed paper.');
+  usePageMeta('My papers | Shikshaq', 'Verify one question at a time against the printed paper.');
   const { user, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const scope = dummy ? 'dummy' : 'live';
+  const [params, setParams] = useSearchParams();
+  const paperId = params.get('paper');
+  const verifying = params.get('verify') === '1';
+  const isAdmin = useIsAdminBadge();
+  const isHod = useIsHodBadge();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [allowed, setAllowed] = useState<boolean | null>(null);
   useEffect(() => {
@@ -146,459 +92,30 @@ export function CheckerPage({
       }
     }
     let cancelled = false;
-    api.isPaperChecker().then((ok) => {
-      if (!cancelled) setAllowed(ok);
-    });
+    api
+      .isPaperChecker()
+      .then((ok) => {
+        if (!cancelled) setAllowed(ok);
+      })
+      .catch(() => {
+        if (!cancelled) setAllowed(false);
+      });
     return () => {
       cancelled = true;
     };
   }, [user, authLoading, navigate, api, dummy]);
 
-  // D41: first-use subject/class picker. `undefined` = not checked yet,
-  // otherwise the saved picks (empty lists = everything).
-  const [prefs, setPrefs] = useState<{ subjects: string[]; classes: string[] } | undefined>(undefined);
-  const [prefsPromptOpen, setPrefsPromptOpen] = useState(false);
-  const [prefsDraftSubjects, setPrefsDraftSubjects] = useState<string[]>([]);
-  const [prefsDraftClasses, setPrefsDraftClasses] = useState<string[]>([]);
-  const [prefsSaving, setPrefsSaving] = useState(false);
-  const [prefsError, setPrefsError] = useState<string | null>(null);
-
-  const facetsQuery = useQuery({
-    queryKey: ['checker-queue-facets', scope],
-    queryFn: api.queueFacets,
-    enabled: allowed === true,
-    staleTime: 60 * 1000,
-  });
-  const choices = facetChoices(facetsQuery.data);
-  const facetsKnown = Boolean(facetsQuery.data);
-
-  useEffect(() => {
-    if (allowed !== true) return;
-    let cancelled = false;
-    api
-      .getPreferences()
-      .then((p) => {
-        if (cancelled) return;
-        const saved = { subjects: p.subjects ?? [], classes: p.classes ?? [] };
-        setPrefs(saved);
-        if (shouldAskForPreferences(p)) {
-          setPrefsDraftSubjects([]);
-          setPrefsDraftClasses([]);
-          setPrefsPromptOpen(true);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setPrefs({ subjects: [], classes: [] });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [allowed, api]);
-
-  function openPrefs() {
-    setPrefsError(null);
-    setPrefsDraftSubjects(keepOffered(prefs?.subjects ?? [], facetsKnown ? choices.subjects : null));
-    setPrefsDraftClasses(keepOffered(prefs?.classes ?? [], facetsKnown ? choices.classes : null));
-    setPrefsPromptOpen(true);
-  }
-
-  async function savePrefs(subjects = prefsDraftSubjects, classes = prefsDraftClasses) {
-    setPrefsSaving(true);
-    setPrefsError(null);
-    try {
-      await api.setPreferences(subjects, classes);
-      setPrefs({ subjects, classes });
-      setPrefsPromptOpen(false);
-      refresh();
-    } catch {
-      setPrefsError('Could not save your choice. Check your internet and try again.');
-    } finally {
-      setPrefsSaving(false);
-    }
-  }
-
-  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-
-  /* Speed (pipeline-plan Step 2, #5): checker_next_question LEASES the row
-     it returns to whoever fetches it. That rules out fetching a real "next"
-     question ahead of time while the current one is still on screen -- it
-     would start a second 10-minute clock on a question nobody is reading
-     yet, and could hand it to another checker's queue in the meantime for
-     nothing if this one gets Skipped instead of finished. So this stays
-     "fetch after pass": one lease per question actually shown, requested
-     the moment an action resolves (`refresh()` below), never earlier.
-
-     What IS safe, and is what makes the transition feel instant rather than
-     "fetch after pass" reading as a visible reload: React Query does not
-     clear `data` on a background refetch of the SAME query key (only on the
-     very first load, before any question has ever arrived, is there no
-     previous question to show). So the questions after the first swap in
-     directly once the new row lands, with no full-panel skeleton between
-     them -- the old question's text and picture just stay put, buttons
-     disabled by `submitting`, until the next one replaces them. The picture
-     panel's own brief pulse (its signed URL is a second, sequential fetch,
-     started only once the new question's row is known) is the one part of
-     the transition that still visibly loads, and staying sequential there
-     is deliberate too: fetching a picture URL speculatively for a row nobody
-     has been leased yet would be a picture for a question this checker may
-     never see. */
-  const questionQuery = useQuery({
-    queryKey: ['checker-next-question', scope],
-    queryFn: api.nextQuestion,
-    enabled: allowed === true,
-    retry: 1,
-    // The app-wide defaults (staleTime 5 min, refetchOnMount false, gcTime
-    // 10 min) would show a question from cache on coming back to this page,
-    // after its 10-minute lease may have run out. Always ask the server, and
-    // keep nothing once the page is left.
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: false,
-    // New questions appear without a reload: while NOTHING is open, ask again
-    // every 15 seconds (only while the tab is visible). Never while a
-    // question is open: asking leases a question, and an idle open question
-    // must not have its lease renewed behind the student's back.
-    refetchInterval: (query) => (query.state.data ? false : QUEUE_POLL_MS),
-  });
-  const question = questionQuery.data ?? null;
-  // Lost text: no words, but the AI transcribed the page (checker-lost-text.ts).
-  const lost = question ? lostTextSuggestion(question.body, question.flag_detail) : null;
-
   const statsQuery = useQuery({
     queryKey: ['checker-my-stats', scope],
     queryFn: api.myStats,
     enabled: allowed === true,
+    staleTime: 30 * 1000,
   });
-
-  const leaderboardQuery = useQuery({
-    queryKey: ['checker-leaderboard', scope],
-    queryFn: api.leaderboard,
-    enabled: allowed === true && leaderboardOpen,
-  });
-
-  // W11: the whole question a sub-part belongs to (empty for a standalone
-  // question, and also empty if the RPC is not deployed yet).
-  const contextQuery = useQuery({
-    queryKey: ['checker-question-context', scope, question?.id],
-    queryFn: () => api.questionContext(question!.id),
-    enabled: allowed === true && Boolean(question?.id),
-    staleTime: 5 * 60 * 1000,
-  });
-  const context: QuestionContext | null = question ? assembleQuestionContext(contextQuery.data, question.id) : null;
-
-  // The one picture of the printed paper (checker-pictures.ts). Null plan =
-  // no trustworthy crop, so no signed URL is asked for. Owner, 2026-09-28:
-  // never a tap-to-show button, never a doubtful crop.
-  const picturePlan: PicturePlan | null =
-    question && !contextQuery.isLoading ? planCheckerPicture(question, context) : null;
-  // The verified whole page, beside every question that has one, crop or not
-  // (owner round 24, checker-page.ts). Null when the page is not verified.
-  const pagePlan: PagePlan | null = question && !contextQuery.isLoading ? planVerifiedPage(question) : null;
-  const viewPath = picturePlan?.path ?? '';
-  const pagePath = pagePlan?.path ?? '';
-  // Crop first; the whole page only after a tap (owner 2026-10-03). With no
-  // crop the page is the only picture, so it is shown straight away. The page
-  // image is not even requested until it is wanted.
-  const [showPage, setShowPage] = useState(false);
-  const pageWanted = pagePath !== '' && (showPage || viewPath === '');
-  const picturePlanKey = question && !contextQuery.isLoading ? `${question.id}|${viewPath}` : '';
-  const pagePlanKey = question && !contextQuery.isLoading && pageWanted ? `${question.id}|${pagePath}` : '';
-  // undefined = still looking, null = none (or it failed to load).
-  const pictureUrl = useSignedUrl(api, picturePlanKey, viewPath);
-  const [pictureFailed, setPictureFailed] = useState<string>('');
-  const pageUrl = useSignedUrl(api, pagePlanKey, pagePath);
-  const [pageFailed, setPageFailed] = useState<string>('');
-  const cropShown = pictureUrl && pictureFailed !== picturePlanKey ? pictureUrl : pictureUrl === undefined ? undefined : null;
-  const pageShown = pageUrl && pageFailed !== pagePlanKey ? pageUrl : pageUrl === undefined ? undefined : null;
-  // While a picture is still loading, sentences assume it will arrive when
-  // one is planned.
-  const hasCrop = cropShown === undefined ? viewPath !== '' : Boolean(cropShown);
-  const hasPage = pageShown === undefined ? pagePath !== '' : Boolean(pageShown);
-  // A crop that failed to load leaves the page as the picture: show it.
-  const pageOpen = pageWanted || (pagePath !== '' && !hasCrop);
-  const hasPicture = hasCrop || hasPage;
-  const whatToCheckLine = question
-    ? whatToCheck(question.flag_reasons, question.flag_detail, { hasPicture })
-    : { line: null, detail: null };
-  // Every flag has a lane in plain English (checker-lanes.ts). Without a
-  // picture the older picture-aware sentences are used instead.
-  const laneSummary = question ? describeLanes(question.flag_reasons, question.flag_detail) : null;
-  useEffect(() => {
-    const missing = unmappedCodes(question?.flag_reasons);
-    if (missing.length) console.warn('[checker] flag codes with no lane:', missing.join(', '));
-  }, [question?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  // W14: English questions carry their passage and set text in `source`.
-  const english = question ? englishContext(question.source) : null;
-
-  const [mode, setMode] = useState<Mode>('check');
-  const [bodyDraft, setBodyDraft] = useState('');
-  const [numberDraft, setNumberDraft] = useState('');
-  const [marksDraft, setMarksDraft] = useState('');
-  const [splitAt, setSplitAt] = useState<number | null>(null);
-  const [printedTypo, setPrintedTypo] = useState(false);
-  const [typoNote, setTypoNote] = useState('');
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [helpReason, setHelpReason] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // A message that survives moving to the next question (an error that made
-  // the page move on, or "Saved").
-  const [notice, setNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
-
-  useEffect(() => {
-    if (question) {
-      setMode('check');
-      setBodyDraft(lost ?? question.body ?? '');
-      setNumberDraft(question.display_number ?? '');
-      setMarksDraft(question.marks != null ? String(question.marks) : '');
-      setShowPage(false);
-      setSplitAt(null);
-      setPrintedTypo(false);
-      setTypoNote('');
-      setHelpOpen(false);
-      setHelpReason('');
-      setError(null);
-    }
-    // Keyed on the fetch, not only the id: after a split the first half
-    // comes back with the SAME id and a shorter body, and keying on the id
-    // alone left the old, whole text in the split box (a second split then
-    // failed as "stale").
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [question?.id, question?.body, questionQuery.dataUpdatedAt]);
-
-  useEffect(() => {
-    if (!notice) return;
-    const t = setTimeout(() => setNotice(null), notice.tone === 'ok' ? 2500 : 8000);
-    return () => clearTimeout(t);
-  }, [notice]);
-
-  // W13 realtime: show as online, keep my counters and the leaderboard
-  // current, and move on if someone else changes the question I have open.
-  const refreshCounters = useLiveRefresh(() => {
-    qc.invalidateQueries({ queryKey: ['checker-my-stats', scope] });
-    qc.invalidateQueries({ queryKey: ['checker-leaderboard', scope] });
-    qc.invalidateQueries({ queryKey: ['checker-queue-facets', scope] });
-  });
-  usePaperReviewChannel({
-    enabled: allowed === true && !dummy,
-    userId: user?.id,
-    fullName: profile?.full_name,
-    onActivity: (event) => {
-      refreshCounters();
-      if (!submitting && isForeignChangeToOpenQuestion(event, question?.id, user?.id)) {
-        setNotice({
-          text:
-            event.action === 'reclassify'
-              ? 'A check moved that question to an admin, so here is the next one.'
-              : 'Someone else just changed that question, so here is the next one.',
-          tone: 'warn',
-        });
-        qc.invalidateQueries({ queryKey: ['checker-next-question', scope] });
-      } else if (!question && !submitting) {
-        // Nothing open: any activity may mean new questions are waiting.
-        qc.invalidateQueries({ queryKey: ['checker-next-question', scope] });
-      }
-    },
-  });
-
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ['checker-next-question', scope] });
-    qc.invalidateQueries({ queryKey: ['checker-my-stats', scope] });
-    qc.invalidateQueries({ queryKey: ['checker-leaderboard', scope] });
-    qc.invalidateQueries({ queryKey: ['checker-queue-facets', scope] });
-  };
-
-  const blank = question ? isBlankBody(question.body) : false;
-  const garbled = question ? looksGarbled(question.body, question.subject).garbled : false;
-  const splitOffered = question ? needsSplit(question.flag_reasons) && !blank : false;
-  const edited = question
-    ? bodyDraft !== (question.body ?? '') ||
-      numberDraft !== (question.display_number ?? '') ||
-      marksDraft !== (question.marks != null ? String(question.marks) : '')
-    : false;
-  // An empty question can never be "right" as it is; only after the checker
-  // typed its words in from the picture.
-  const canPass = question ? !isBlankBody(bodyDraft) : false;
-  const marksInvalid = marksDraft.trim() !== '' && !(Number.isFinite(Number(marksDraft)) && Number(marksDraft) >= 0);
-  const showBigEditWarning = mode === 'fix' && question ? bigEdit(question.body ?? '', bodyDraft) : false;
-
-  async function run(action: () => Promise<unknown>, okText: string) {
-    setSubmitting(true);
-    setError(null);
-    try {
-      await action();
-      setNotice({ text: okText, tone: 'ok' });
-      refresh();
-    } catch (err) {
-      const advice = checkerErrorAdvice(err);
-      if (advice.moveOn) {
-        setNotice({ text: advice.message, tone: 'warn' });
-        refresh();
-      } else {
-        setError(advice.message);
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function doPass() {
-    if (!question || submitting) return;
-    if (!canPass) {
-      setError('This question has no words, so it cannot be marked as right. Press Ask for help.');
-      return;
-    }
-    if (marksInvalid) {
-      setError('Marks must be a number, like 2 or 0.5.');
-      return;
-    }
-    if (mode === 'fix' || edited) {
-      const savedNumber = numberDraft.trim() || null;
-      // Owner: "the number lives in the number box only". A leading-prefix
-      // removal ONLY -- never a rewrite of the rest of the text -- so a
-      // body that still repeats its own number ("15. Solve for x...") is
-      // not saved with the number twice. Logged because it silently changes
-      // what gets stored, even though it is always the same removal a
-      // checker could have made by hand.
-      const { stripped, removed } = stripLeadingNumberPrefix(bodyDraft, savedNumber);
-      if (removed) {
-        console.info('[checker] stripped repeated leading number on save', {
-          questionId: question.id,
-          displayNumber: savedNumber,
-          removed,
-        });
-      }
-      const finalBody = stripped;
-      const bodyChanged = finalBody !== (question.body ?? '');
-      const typo = mode === 'fix' && printedTypo;
-      const typoProblem = typoSaveProblem(typo, bodyChanged);
-      if (typoProblem) {
-        setError(typoProblem);
-        return;
-      }
-      await run(
-        () =>
-          api.fixQuestion(
-            question.id,
-            {
-              // Unchanged text is not sent at all (null keeps the stored body),
-              // so fixing only the marks can never rewrite the words.
-              body: bodyChanged ? finalBody : null,
-              display_number: savedNumber,
-              marks: marksDraft.trim() === '' ? null : Number(marksDraft),
-            },
-            // The version this checker saw: a save over a newer version is
-            // refused (40001) instead of silently overwriting it.
-            { version: question.version, printedTypo: typo, typoNote: typo ? typoNote : null },
-          ),
-        typo ? 'Saved with the typo corrected. Here is the next one.' : 'Saved. Here is the next one.',
-      );
-    } else {
-      await run(() => api.passQuestion(question.id, question.version), 'Marked as right. Here is the next one.');
-    }
-  }
-
-  async function doSplit() {
-    if (!question || submitting || !canSplitAt(bodyDraft, splitAt)) return;
-    await run(() => api.splitQuestion(question.id, bodyDraft, splitAt!), 'Split into two. Both will be checked again.');
-  }
-
-  async function doAskForHelp(reason: string) {
-    if (!question || submitting) return;
-    await run(async () => {
-      await api.askForHelp(question.id, reason.trim() || 'Not sure how to fix this');
-      setHelpOpen(false);
-    }, 'Sent for help. Here is the next one.');
-  }
-
-  async function doSkip() {
-    if (!question || submitting) return;
-    await run(() => api.skipQuestion(question.id), 'Skipped. It will not come back to you for a day.');
-  }
-
-  function cancelEdit() {
-    if (!question) return;
-    setBodyDraft(lost ?? question.body ?? '');
-    setNumberDraft(question.display_number ?? '');
-    setMarksDraft(question.marks != null ? String(question.marks) : '');
-    setSplitAt(null);
-    setPrintedTypo(false);
-    setTypoNote('');
-    setMode('check');
-  }
-
-  function onSplitCaret(el: HTMLTextAreaElement) {
-    setSplitAt(codePointOffset(el.value, el.selectionStart));
-  }
-
-  /* First-visit walkthrough. It only starts once the real question is on
-     screen and the subject picker is out of the way, so it never delays or
-     covers the load. Shown once per account per browser; `?tour=1` (from
-     Help) replays it. */
-  // The same cached admin check the top bar uses (no extra request).
-  const isAdmin = useIsAdminBadge();
-  const [tourOpen, setTourOpen] = useState(false);
-  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tourUserId = dummy ? 'dummy' : (user?.id ?? '');
-  useEffect(() => {
-    if (tourOpen || !question || !tourUserId || prefsPromptOpen || allowed !== true || prefs === undefined) return;
-    if (searchParams.get(CHECKER_TOUR_PARAM) === '1') {
-      setTourOpen(true);
-      const next = new URLSearchParams(searchParams);
-      next.delete(CHECKER_TOUR_PARAM);
-      setSearchParams(next, { replace: true });
-      return;
-    }
-    if (!hasSeenWalkthrough(tourUserId)) setTourOpen(true);
-  }, [tourOpen, question, tourUserId, prefsPromptOpen, allowed, prefs, searchParams, setSearchParams]);
-
-  function closeTour() {
-    setTourOpen(false);
-    if (tourUserId) markWalkthroughSeen(tourUserId);
-  }
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (prefsPromptOpen || submitting || tourOpen || helpMenuOpen) return;
-      if (helpOpen) {
-        if (e.key === 'Escape') setHelpOpen(false);
-        return;
-      }
-      if (e.key === 'Escape' && mode !== 'check') {
-        e.preventDefault();
-        cancelEdit();
-        return;
-      }
-      const action = matchCheckerKeyboardEvent(e);
-      if (!action || !question || mode !== 'check') return;
-      if (action === 'pass' && canPass) {
-        e.preventDefault();
-        void doPass();
-      } else if (action === 'fix') {
-        e.preventDefault();
-        setMode('fix');
-      } else if (action === 'split' && splitOffered) {
-        e.preventDefault();
-        setMode('split');
-      } else if (action === 'help') {
-        e.preventDefault();
-        setHelpOpen(true);
-      } else if (action === 'skip') {
-        e.preventDefault();
-        void doSkip();
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, helpOpen, submitting, prefsPromptOpen, tourOpen, helpMenuOpen, question?.id, canPass, splitOffered]);
 
   if ((!dummy && authLoading) || allowed === null) {
     return (
       <BentoStack className="min-h-screen bg-muted">
-        <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-4xl">
+        <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-5xl">
           {banner}
           <CheckerSkeleton />
         </BentoPanel>
@@ -610,602 +127,80 @@ export function CheckerPage({
     return (
       <BentoStack className="min-h-screen bg-muted">
         <BentoPanel fill="card" edge="top" className="mx-auto max-w-lg py-24 text-center">
-          <h1 className="text-balance text-xl font-bold text-foreground">You are not a paper checker yet</h1>
-          <p className="mt-2 text-[14px] text-warm-secondary">
-            Ask an admin to turn on the paper checker permission for your account.
-          </p>
+          <h1 className="text-balance text-xl font-bold text-foreground">You are not a verifier yet</h1>
+          <p className="mt-2 text-[14px] text-warm-secondary">Ask an admin or an HOD to add your account as a verifier.</p>
         </BentoPanel>
       </BentoStack>
     );
   }
 
-  const filtered = Boolean(prefs && (prefs.subjects.length > 0 || prefs.classes.length > 0));
-  const filterSummary = prefs
-    ? [...prefs.subjects, ...prefs.classes.map((c) => `Class ${c}`)].join(', ')
-    : '';
-  const draftWaiting = waitingFor(facetsQuery.data, prefsDraftSubjects, prefsDraftClasses);
+  const open = (id: string) => setParams({ paper: id });
+  const verify = (id: string) => setParams({ paper: id, verify: '1' });
+  const toList = () => setParams({});
 
   return (
     <BentoStack className="min-h-screen bg-muted">
-      <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-4xl">
+      <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-5xl">
         {banner}
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-lg font-bold text-foreground">
-            Paper checker
-            {question ? (
-              <span className="ml-2 inline-flex gap-1 align-middle">
-                <DebugId label="question" value={question.id} />
-                <DebugId label="paper" value={question.paper_id} />
-                <DebugFacts
-                  facts={{
-                    version: question.version,
-                    flags: question.flag_reasons,
-                    page: typeof question.source?.page === 'number' ? question.source.page : null,
-                    'page verified': typeof question.source?.page_verified === 'boolean' ? question.source.page_verified : null,
-                    align: typeof question.source?.align_score === 'number' ? question.source.align_score : null,
-                  }}
-                />
-              </span>
-            ) : null}
-          </h1>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-lg font-bold text-foreground">My papers</h1>
           <div className="flex flex-wrap items-center gap-2">
             {isAdmin ? (
               <Link to="/admin" className={cn(CHIP, 'bg-muted text-warm-secondary')}>
                 Back to admin
               </Link>
             ) : null}
+            {isHod ? (
+              <Link to="/hod" className={cn(CHIP, 'bg-muted text-warm-secondary')}>
+                HOD view
+              </Link>
+            ) : null}
             <span
               className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold tabular-nums text-warm-secondary"
-              aria-label={`Checked today ${statsQuery.data?.today_count ?? 0}, in total ${statsQuery.data?.total_count ?? 0}`}
+              aria-label={`Verified today ${statsQuery.data?.today_count ?? 0}, in total ${statsQuery.data?.total_count ?? 0}`}
             >
               Today {statsQuery.data?.today_count ?? 0} · Total {statsQuery.data?.total_count ?? 0}
             </span>
-            <Chip onClick={() => setLeaderboardOpen((v) => !v)} pressed={leaderboardOpen} tone="brand">
-              Leaderboard
-            </Chip>
-            <Chip onClick={openPrefs} tone="muted">
-              My subjects
-            </Chip>
-            <Chip onClick={() => setHelpMenuOpen(true)} tone="brand">
-              Help
+            <Chip onClick={() => setMenuOpen(true)} tone="brand">
+              Menu
             </Chip>
           </div>
         </div>
 
-        {filtered ? (
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-[13px] text-warm-secondary">
-            <span>
-              Showing only: <span className="font-semibold text-foreground">{filterSummary}</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => void savePrefs([], [])}
-              className="tap-44 rounded-full px-2 font-semibold text-foreground underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              Show every subject
-            </button>
-          </div>
-        ) : null}
-
-        {leaderboardOpen && (
-          <div className="mb-3 rounded-2xl bg-muted p-3">
-            <p className="mb-2 text-[13px] font-semibold text-foreground">This week's top checkers</p>
-            {leaderboardQuery.isLoading ? (
-              <p className="text-[13px] text-warm-secondary">Loading...</p>
-            ) : leaderboardQuery.isError ? (
-              <p className="text-[13px] text-warm-secondary">Could not load the leaderboard. Try again in a moment.</p>
-            ) : !leaderboardQuery.data || leaderboardQuery.data.length === 0 ? (
-              <p className="text-[13px] text-warm-secondary">No one has checked a question this week yet.</p>
-            ) : (
-              <ol className="space-y-1 text-[13px] text-warm-secondary">
-                {leaderboardQuery.data.map((row) => (
-                  <li key={`${row.rank}-${row.first_name}`} className="flex justify-between">
-                    <span>
-                      {row.rank}. {row.first_name}
-                    </span>
-                    <span className="font-semibold tabular-nums text-foreground">{row.weekly_count}</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
-        )}
-
-        <div aria-live="polite">
-          {notice ? (
-            <div
-              role="status"
-              // Floats over the page instead of pushing the question down
-              // (no layout shift on every save).
-              className={cn(
-                'fixed left-1/2 top-24 z-40 w-[min(92vw,28rem)] -translate-x-1/2 rounded-2xl px-4 py-3 text-center text-[14px] font-semibold text-foreground shadow-lg animate-in fade-in-0 duration-200',
-                notice.tone === 'ok' ? 'bg-mint' : 'bg-brand-subtle',
-              )}
-            >
-              {notice.text}
-            </div>
-          ) : null}
-          {error ? (
-            <div role="alert" className="mb-3 rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
-              {error}
-            </div>
-          ) : null}
-        </div>
-
-        {questionQuery.isLoading ? (
-          <CheckerSkeleton />
-        ) : questionQuery.isError ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <p className="text-lg font-semibold text-foreground">{LOAD_FAILED_TITLE}</p>
-            <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
-            <ActionButton tone="mint" onClick={() => void questionQuery.refetch()}>
-              Try again
-            </ActionButton>
-          </div>
-        ) : !question ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <p className="text-balance text-lg font-semibold text-foreground">
-              {filtered ? 'Nothing left in your subjects' : 'All done for now'}
-            </p>
-            <p className="max-w-md text-pretty text-[14px] text-warm-secondary">
-              {filtered
-                ? 'No questions are waiting for the subjects and classes you picked. Show every subject to keep going.'
-                : 'No questions are waiting to be checked right now. Anything you skipped comes back to you after a day.'}
-            </p>
-            <div className="mt-2 flex flex-wrap justify-center gap-2">
-              {filtered ? (
-                <ActionButton tone="mint" onClick={() => void savePrefs([], [])}>
-                  Show every subject
-                </ActionButton>
-              ) : null}
-              <ActionButton tone={filtered ? 'muted' : 'mint'} onClick={refresh}>
-                Check again
-              </ActionButton>
-            </div>
-          </div>
+        {paperId && verifying ? (
+          <VerifyScreen
+            key={paperId}
+            api={api}
+            scope={scope}
+            dummy={dummy}
+            paperId={paperId}
+            userId={user?.id}
+            userName={profile?.full_name}
+            onExit={() => open(paperId)}
+            onList={toList}
+          />
+        ) : paperId ? (
+          <PaperOverview api={api} scope={scope} paperId={paperId} onBack={toList} onStart={() => verify(paperId)} />
         ) : (
-          // Desktop: crop top-left, the verified page under it, the question on
-          // the right. Phone (one column): crop, then the question, then the
-          // page, so the words to check are not pushed below a whole A4 page.
-          // With no crop the page is the only picture and comes first.
-          <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-2 lg:grid-rows-[auto_1fr]">
-            {/* Left top: the printed question (crop). */}
-            <div className="flex min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-1">
-              {viewPath && cropShown !== null ? (
-                <div className="flex min-w-0 flex-col">
-                  <p className="mb-1 text-[12px] text-warm-meta">{pictureHeading(cropShown ? picturePlan : null)}</p>
-                  {picturePlan?.mayMissParts && cropShown ? (
-                    <p className="mb-2 text-[13px] leading-snug text-warm-secondary">{PICTURE_MAY_MISS_PARTS}</p>
-                  ) : null}
-                  <div data-tour="picture" className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-2xl bg-white p-2 lg:max-h-[60vh]">
-                    {cropShown === undefined ? (
-                      <div className="h-40 animate-pulse rounded-[14px] bg-muted" aria-label="Loading the picture" />
-                    ) : (
-                      // Natural size, never stretched past it: a small crop blown
-                      // up to the panel width turned into a few giant blurry words.
-                      <img
-                        key={cropShown}
-                        src={cropShown}
-                        alt={picturePlan && picturePlan.kind !== 'own' ? 'the printed whole question' : 'the printed question'}
-                        onError={() => setPictureFailed(picturePlanKey)}
-                        className="mx-auto block h-auto max-w-full shrink-0"
-                      />
-                    )}
-                  </div>
-                </div>
-              ) : null}
-
-              {!picturePlanKey ? (
-                <div className="h-40 animate-pulse rounded-2xl bg-muted" aria-label="Loading the picture" />
-              ) : null}
-
-              {/* The whole verified page: behind a tap when there is a crop,
-                  straight away when the page is the only picture. */}
-              {pagePlan && viewPath !== '' && hasCrop ? (
-                <button
-                  type="button"
-                  aria-expanded={showPage}
-                  onClick={() => setShowPage((v) => !v)}
-                  className="tap-44 self-start rounded-full bg-brand-subtle px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                >
-                  {showPage ? 'Hide the whole page' : 'See the whole page'}
-                </button>
-              ) : null}
-              {pagePlan && pageOpen && pageShown !== null ? (
-                <div data-tour={hasCrop ? undefined : 'picture'} className="flex min-w-0 flex-col">
-                  <p className="mb-1 text-[12px] text-warm-meta">{PAGE_HEADING}</p>
-                  {pageShown === undefined ? (
-                    <div className="h-72 animate-pulse rounded-2xl bg-muted" aria-label="Loading the printed page" />
-                  ) : (
-                    <PageImageViewer
-                      src={pageShown}
-                      alt={`the whole printed page ${pagePlan.page}, as scanned`}
-                      note={pagePlan.note}
-                      onError={() => setPageFailed(pagePlanKey)}
-                    />
-                  )}
-                </div>
-              ) : null}
-
-              {picturePlanKey && !hasPicture && pictureUrl !== undefined && pageUrl !== undefined ? (
-                // D65 + W11: no trustworthy crop and no verified page, or both
-                // failed to load. The question is still checkable.
-                <div className="flex min-w-0 flex-col">
-                  <p className="mb-1 text-[12px] text-warm-meta">{pictureHeading(null)}</p>
-                  <div className="rounded-2xl bg-white p-6 text-center">
-                    <p className="text-[14px] font-semibold text-foreground">{NO_PICTURE_TITLE}</p>
-                    <p className="mt-1 text-[13px] text-warm-secondary">{NO_PICTURE_NOTE}</p>
-                  </div>
-                </div>
-              ) : null}
-              {(question.school || question.subject) && (
-                <p className="mt-1 text-[12px] text-warm-meta">
-                  {[question.school ?? 'School not known', question.subject, question.cls ? `Class ${question.cls}` : null, question.year]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </p>
-              )}
-            </div>
-
-            {/* Right: the question + actions */}
-            <div className="flex min-w-0 flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1">
-              {lost ? (
-                <Callout tone="warn" title={LOST_TEXT_TITLE}>
-                  {LOST_TEXT_NOTE}
-                </Callout>
-              ) : blank ? (
-                <Callout tone="warn" title="There are no words to check here">
-                  The computer read this question together with another one, so its words are not on this row. Press Ask
-                  for help and an admin will sort it out.
-                </Callout>
-              ) : garbled ? (
-                <Callout tone="warn" title="These words look scrambled">
-                  Do not try to retype them. Press Ask for help and an admin will fix it from the paper.
-                </Callout>
-              ) : null}
-
-              {hasPicture && laneSummary && (laneSummary.blocks.length > 0 || laneSummary.unmapped.length > 0) ? (
-                <LaneCard summary={laneSummary} />
-              ) : whatToCheckLine.line ? (
-                <div className="mb-3 rounded-2xl bg-brand-subtle p-3">
-                  <p className="mb-1 text-[13px] font-semibold text-foreground">What to check</p>
-                  <p className="text-[14px] leading-snug text-foreground">{whatToCheckLine.line}</p>
-                  {whatToCheckLine.detail ? (
-                    <p className="mt-1 text-[12px] text-warm-secondary">
-                      What the computer noticed: {whatToCheckLine.detail}
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {context ? <WholeQuestion context={context} /> : null}
-
-              {/* W14: the passage an English question is about. */}
-              {english?.passage ? (
-                <div className="mb-2 rounded-2xl bg-muted px-4 py-3">
-                  <p className="mb-1 text-[12px] font-semibold text-warm-meta">{passageHeading(english.passage.kind)}</p>
-                  <div className="max-h-[40vh] overflow-y-auto">
-                    <MathText text={english.passage.text} className="text-[14px] leading-relaxed text-foreground" />
-                  </div>
-                </div>
-              ) : null}
-              {english?.setText ? <p className="mb-2 text-[12px] text-warm-secondary">From: {english.setText}</p> : null}
-
-              {question.instructions ? (
-                <div className="mb-2 rounded-2xl bg-muted px-4 py-2">
-                  <MathText text={question.instructions} className="text-[14px] italic leading-relaxed text-warm-secondary" />
-                </div>
-              ) : null}
-
-              {context ? <p className="mb-1 text-[13px] font-semibold text-foreground">The part you are checking</p> : null}
-
-              {mode === 'fix' ? (
-                <div>
-                  <div className="mb-2 rounded-2xl bg-brand-subtle px-3 py-2">
-                    <p className="text-[13px] font-semibold text-foreground">
-                      {printedTypo ? TYPO_RULE_TITLE : FIX_RULE_TITLE}
-                    </p>
-                    <p className="text-[13px] leading-snug text-warm-secondary">
-                      {printedTypo ? TYPO_RULE_NOTE : FIX_RULE_NOTE}
-                    </p>
-                  </div>
-                  <BodyEditor value={bodyDraft} onChange={setBodyDraft} disabled={submitting} />
-                  {/* Owner round 24: a student may correct a typo printed on
-                      the paper. Off by default; the printed version is kept
-                      in version history and an admin can put it back. */}
-                  <label className="tap-44 mt-2 flex cursor-pointer items-start gap-2.5 rounded-2xl bg-muted px-3 py-2.5 text-[14px] text-foreground">
-                    <input
-                      type="checkbox"
-                      checked={printedTypo}
-                      onChange={(e) => setPrintedTypo(e.target.checked)}
-                      disabled={submitting}
-                      className="mt-0.5 h-5 w-5 shrink-0 accent-brand-blue"
-                    />
-                    <span className="leading-snug">{TYPO_CHECKBOX_LABEL}</span>
-                  </label>
-                  {printedTypo ? (
-                    <label className="mt-2 flex flex-col gap-1 text-[13px] font-medium text-warm-secondary">
-                      {TYPO_NOTE_LABEL}
-                      <input
-                        value={typoNote}
-                        maxLength={TYPO_NOTE_MAX}
-                        onChange={(e) => setTypoNote(e.target.value)}
-                        disabled={submitting}
-                        placeholder="e.g. the paper printed 'teh' for 'the'"
-                        className="min-h-[44px] rounded-xl bg-muted px-3 py-2 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                      />
-                    </label>
-                  ) : null}
-                  <OptionList options={question.options} />
-                  {showBigEditWarning ? (
-                    <p role="status" className="mt-1 text-[13px] leading-snug text-destructive">
-                      {BIG_EDIT_WARNING}
-                    </p>
-                  ) : null}
-                </div>
-              ) : mode === 'split' ? (
-                <div>
-                  <p className="mb-2 text-[13px] text-warm-secondary">
-                    Tap right before where the second question starts, then press Split here.
-                  </p>
-                  <textarea
-                    readOnly
-                    value={bodyDraft}
-                    onClick={(e) => onSplitCaret(e.currentTarget)}
-                    onKeyUp={(e) => onSplitCaret(e.currentTarget)}
-                    onSelect={(e) => onSplitCaret(e.currentTarget)}
-                    rows={8}
-                    aria-label="Tap where the second question starts"
-                    className="w-full rounded-2xl bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                  />
-                  <SplitPreview body={bodyDraft} at={splitAt} />
-                </div>
-              ) : blank && !lost ? null : (
-                <div data-tour="question" className="rounded-2xl bg-muted p-4">
-                  {lost ? <p className="mb-2 text-[12px] font-semibold text-warm-meta">{LOST_TEXT_HEADING}</p> : null}
-                  <MathText text={bodyDraft} className="break-words text-[16px] leading-relaxed text-foreground" />
-                  <OptionList options={question.options} />
-                </div>
-              )}
-
-              {mode === 'check' && splitOffered && (
-                <button
-                  type="button"
-                  onClick={() => setMode('split')}
-                  className="tap-44 mt-2 self-start rounded-full bg-brand-subtle px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                >
-                  Split here, these look like two questions
-                </button>
-              )}
-
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-[13px] font-medium text-warm-secondary">
-                  Question number
-                  <input
-                    value={numberDraft}
-                    onChange={(e) => setNumberDraft(e.target.value)}
-                    disabled={mode !== 'fix'}
-                    placeholder={mode === 'fix' ? 'e.g. 5' : 'none'}
-                    className="min-h-[40px] w-24 rounded-xl bg-muted px-3 py-1 text-center text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-70"
-                  />
-                </label>
-                <label className="flex items-center gap-2 text-[13px] font-medium text-warm-secondary">
-                  Marks
-                  <input
-                    inputMode="decimal"
-                    value={marksDraft}
-                    onChange={(e) => setMarksDraft(e.target.value)}
-                    disabled={mode !== 'fix'}
-                    placeholder={mode === 'fix' ? 'e.g. 2' : 'none'}
-                    aria-invalid={marksInvalid || undefined}
-                    className={cn(
-                      'min-h-[40px] w-20 rounded-xl bg-muted px-3 py-1 text-center text-[14px] tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-70',
-                      marksInvalid && 'ring-2 ring-destructive',
-                    )}
-                  />
-                </label>
-              </div>
-            </div>
-          </div>
+          <PaperList api={api} scope={scope} onOpen={open} onStart={verify} />
         )}
-
-        {/* Action footer: sticky on a phone so the buttons stay under the
-            thumb while a long passage scrolls. */}
-        {question && !questionQuery.isError ? (
-          <div className="sticky bottom-0 z-10 -mx-1 mt-5 flex flex-wrap items-center gap-2.5 border-t border-warm-hairline bg-card px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-4">
-            {mode === 'split' ? (
-              <>
-                <ActionButton tone="mint" onClick={doSplit} disabled={!canSplitAt(bodyDraft, splitAt) || submitting}>
-                  {submitting ? 'Saving...' : 'Split here'}
-                </ActionButton>
-                <ActionButton tone="muted" onClick={cancelEdit} disabled={submitting}>
-                  Cancel
-                </ActionButton>
-              </>
-            ) : (
-              <>
-                <ActionButton
-                  tourId="pass"
-                  tone={blank && !lost && mode === 'check' ? 'muted' : 'mint'}
-                  onClick={doPass}
-                  disabled={submitting || !canPass || marksInvalid}
-                >
-                  {submitting
-                    ? 'Saving...'
-                    : mode === 'fix'
-                      ? edited
-                        ? 'Save, now it matches'
-                        : 'Looks right'
-                      : lost
-                        ? LOST_TEXT_CONFIRM
-                        : 'Looks right'}
-                </ActionButton>
-                {mode === 'check' ? (
-                  <ActionButton tourId="fix" tone="dark" onClick={() => setMode('fix')} disabled={submitting}>
-                    Fix it
-                  </ActionButton>
-                ) : (
-                  <ActionButton tone="muted" onClick={cancelEdit} disabled={submitting}>
-                    Cancel
-                  </ActionButton>
-                )}
-                <ActionButton tourId="help" tone="brand" onClick={() => setHelpOpen(true)} disabled={submitting}>
-                  Ask for help
-                </ActionButton>
-                <ActionButton tourId="skip" tone="muted" onClick={doSkip} disabled={submitting}>
-                  Show me another paper
-                </ActionButton>
-              </>
-            )}
-            <p className="ml-auto hidden text-[12px] text-warm-meta lg:block">
-              {mode === 'check' ? shortcutHint({ canSplit: splitOffered, canPass }) : 'Esc cancels'}
-            </p>
-          </div>
-        ) : null}
       </BentoPanel>
 
-      {prefsPromptOpen ? (
-        <Modal onClose={() => setPrefsPromptOpen(false)} labelledBy="checker-prefs-title">
-          <h2 id="checker-prefs-title" className="mb-2 text-[16px] font-bold text-foreground">
-            Which papers do you want to check?
-          </h2>
-          <p className="mb-3 text-[13px] text-warm-secondary">
-            Pick as many subjects and classes as you like, or All to see every paper. You can change this any time from
-            My subjects.
-          </p>
-          <p className="mb-1 text-[13px] font-semibold text-foreground">Subjects</p>
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            <AllChip active={prefsDraftSubjects.length === 0} onClick={() => setPrefsDraftSubjects([])} />
-            {choices.subjects.map((s) => (
-              <FacetChip
-                key={s.value}
-                choice={s}
-                label={s.value}
-                active={prefsDraftSubjects.includes(s.value)}
-                onClick={() =>
-                  setPrefsDraftSubjects((prev) =>
-                    prev.includes(s.value) ? prev.filter((x) => x !== s.value) : [...prev, s.value],
-                  )
-                }
-              />
-            ))}
-          </div>
-          <p className="mb-1 text-[13px] font-semibold text-foreground">Classes</p>
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            <AllChip active={prefsDraftClasses.length === 0} onClick={() => setPrefsDraftClasses([])} />
-            {choices.classes.map((c) => (
-              <FacetChip
-                key={c.value}
-                choice={c}
-                label={classLabel(c.value)}
-                active={prefsDraftClasses.includes(c.value)}
-                onClick={() =>
-                  setPrefsDraftClasses((prev) =>
-                    prev.includes(c.value) ? prev.filter((x) => x !== c.value) : [...prev, c.value],
-                  )
-                }
-              />
-            ))}
-          </div>
-          {draftWaiting !== null ? (
-            <p className="mb-3 text-[13px] tabular-nums text-warm-secondary">
-              {draftWaiting === 0
-                ? 'Nothing is waiting for that choice right now.'
-                : `${draftWaiting} ${draftWaiting === 1 ? 'question is' : 'questions are'} waiting for that choice.`}
-            </p>
-          ) : null}
-          {prefsError ? <p className="mb-2 text-[13px] text-destructive">{prefsError}</p> : null}
-          <div className="flex gap-2">
-            <ActionButton tone="mint" onClick={() => void savePrefs()} disabled={prefsSaving}>
-              {prefsSaving ? 'Saving...' : 'Save'}
-            </ActionButton>
-            <ActionButton tone="muted" onClick={() => setPrefsPromptOpen(false)} disabled={prefsSaving}>
-              Not now
-            </ActionButton>
-          </div>
-        </Modal>
-      ) : null}
-
-      {helpMenuOpen ? (
-        <Modal onClose={() => setHelpMenuOpen(false)} labelledBy="checker-helpmenu-title">
-          <h2 id="checker-helpmenu-title" className="mb-1 text-[16px] font-bold text-foreground">
-            Help for checkers
+      {menuOpen ? (
+        <Modal onClose={() => setMenuOpen(false)} labelledBy="checker-menu-title">
+          <h2 id="checker-menu-title" className="mb-1 text-[16px] font-bold text-foreground">
+            Menu
           </h2>
           <p className="mb-3 text-[13px] text-warm-secondary">Nothing here changes any question.</p>
           <div className="flex flex-col gap-2">
-            <ActionButton
-              tone="mint"
-              onClick={() => {
-                setHelpMenuOpen(false);
-                setTourOpen(true);
-              }}
-              disabled={!question}
-            >
-              Show me around again
-            </ActionButton>
             <Link to={CHECKER_PRACTICE_PATH} className={actionToneClass('brand') + ' text-center'}>
               Practice round
             </Link>
             <Link to={CHECKER_HELP_PATH} className={actionToneClass('muted') + ' text-center'}>
               Rules and shortcuts
             </Link>
-            <ActionButton tone="muted" onClick={() => setHelpMenuOpen(false)}>
+            <ActionButton tone="muted" onClick={() => setMenuOpen(false)}>
               Close
-            </ActionButton>
-          </div>
-        </Modal>
-      ) : null}
-
-      {tourOpen && question ? (
-        <CheckerWalkthrough
-          onClose={closeTour}
-          onPractice={() => {
-            closeTour();
-            navigate(CHECKER_PRACTICE_PATH);
-          }}
-        />
-      ) : null}
-
-      {helpOpen && question ? (
-        <Modal onClose={() => setHelpOpen(false)} labelledBy="checker-help-title">
-          <h2 id="checker-help-title" className="mb-2 text-[16px] font-bold text-foreground">
-            What do you need help with?
-          </h2>
-          <p className="mb-3 text-[13px] text-warm-secondary">
-            Someone who knows more will take a look. This does not hold up the rest of the paper.
-          </p>
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {HELP_REASONS.map((r) => (
-              <button
-                key={r}
-                type="button"
-                aria-pressed={helpReason === r}
-                onClick={() => setHelpReason(r)}
-                className={cn(
-                  'tap-44 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
-                  helpReason === r ? 'bg-brand text-foreground' : 'bg-muted text-warm-secondary',
-                )}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-          <textarea
-            autoFocus
-            value={helpReason}
-            onChange={(e) => setHelpReason(e.target.value)}
-            placeholder="Or say it in your own words"
-            rows={3}
-            aria-label="What can't you fix"
-            className="w-full rounded-xl bg-muted p-3 text-[16px] outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          />
-          {error ? <p className="mt-2 text-[13px] text-destructive">{error}</p> : null}
-          <div className="mt-3 flex gap-2">
-            <ActionButton tone="brand" onClick={() => void doAskForHelp(helpReason)} disabled={submitting}>
-              {submitting ? 'Sending...' : 'Send'}
-            </ActionButton>
-            <ActionButton tone="muted" onClick={() => setHelpOpen(false)} disabled={submitting}>
-              Cancel
             </ActionButton>
           </div>
         </Modal>
@@ -1214,266 +209,309 @@ export function CheckerPage({
   );
 }
 
-/**
- * A short-lived signed URL for one object, re-asked whenever `key` changes.
- * undefined = still looking (or nothing to look for yet), null = no object or
- * it failed. One per picture: the crop and the page load side by side.
- */
-function useSignedUrl(api: CheckerApi, key: string, path: string): string | null | undefined {
-  const [state, setState] = useState<{ key: string; url: string | null } | null>(null);
-  useEffect(() => {
-    if (!key) return;
-    if (!path) {
-      setState({ key, url: null });
-      return;
-    }
-    let cancelled = false;
-    api.pictureUrl(path).then((url) => {
-      if (!cancelled) setState({ key, url });
-    });
-    return () => {
-      cancelled = true;
-    };
-    // `path` is part of `key`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, api]);
-  if (!key || !state || state.key !== key) return undefined;
-  return state.url;
-}
+/* ------------------------------------------------------------------ the list */
 
-/**
- * "What to check": one block per lane the question is in (checker-lanes.ts),
- * in plain English. Lanes a student is asked to settle come first; lanes
- * that ask nothing of a student (a label, a possible repeat) are one muted
- * line. A flag with no lane still shows its fallback sentence.
- */
-function LaneCard({ summary }: { summary: ReturnType<typeof describeLanes> }) {
-  const asked = summary.blocks.filter((b) => b.asked);
-  const quiet = summary.blocks.filter((b) => !b.asked);
-  if (asked.length === 0 && summary.unmapped.length === 0 && quiet.length === 0) return null;
-  return (
-    <div className="mb-3 rounded-2xl bg-brand-subtle p-3" data-testid="lane-card">
-      <p className="mb-1 text-[13px] font-semibold text-foreground">What to check</p>
-      <ul className="flex flex-col gap-2">
-        {asked.map((b) => (
-          <li key={b.lane.id} data-lane={b.lane.id}>
-            <p className="text-[14px] font-semibold leading-snug text-foreground">{b.lane.name}</p>
-            <p className="text-[14px] leading-snug text-foreground">{b.lane.what_to_do}</p>
-            {b.detail ? <p className="mt-0.5 text-[12px] text-warm-secondary">What the computer noticed: {b.detail}</p> : null}
-          </li>
-        ))}
-        {summary.unmapped.map((u) => (
-          <li key={u.code}>
-            <p className="text-[14px] leading-snug text-foreground">{u.sentence}</p>
-          </li>
-        ))}
-      </ul>
-      {quiet.length > 0 ? (
-        <p className="mt-2 text-[12px] leading-snug text-warm-secondary">
-          Not for you to settle: {quiet.map((b) => b.lane.name.toLowerCase()).join(', ')}. Someone else sorts that out.
-        </p>
-      ) : null}
-      {summary.note ? <p className="mt-1 text-[12px] text-warm-secondary">What the computer noticed: {summary.note}</p> : null}
-    </div>
-  );
-}
+function PaperList({
+  api,
+  scope,
+  onOpen,
+  onStart,
+}: {
+  api: CheckerApi;
+  scope: string;
+  onOpen: (id: string) => void;
+  onStart: (id: string) => void;
+}) {
+  const papersQuery = useQuery({
+    queryKey: ['verifier-papers', scope],
+    queryFn: api.myPapers,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
 
-/* Shaped like what it replaces: a picture box and a question box. */
-function CheckerSkeleton() {
-  return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-label="Loading the next question" role="status">
-      <div className="h-48 animate-pulse rounded-2xl bg-muted lg:h-72" />
-      <div className="flex flex-col gap-3">
-        <div className="h-16 animate-pulse rounded-2xl bg-muted" />
-        <div className="h-32 animate-pulse rounded-2xl bg-muted" />
-      </div>
-    </div>
-  );
-}
-
-function Callout({ tone, title, children }: { tone: 'warn'; title: string; children: React.ReactNode }) {
-  return (
-    <div role="note" className={cn('mb-3 rounded-2xl p-3', tone === 'warn' && 'bg-destructive/10')}>
-      <p className="text-[14px] font-semibold text-foreground">{title}</p>
-      <p className="mt-0.5 text-[13px] leading-snug text-warm-secondary">{children}</p>
-    </div>
-  );
-}
-
-/* What the two halves will be, before the checker commits to a split. */
-function SplitPreview({ body, at }: { body: string; at: number | null }) {
-  if (at === null) {
-    return <p className="mt-2 text-[13px] text-warm-meta">Nothing chosen yet.</p>;
-  }
-  if (!canSplitAt(body, at)) {
+  if (papersQuery.isLoading) return <CheckerSkeleton />;
+  if (papersQuery.isError) {
     return (
-      <p className="mt-2 text-[13px] text-destructive">
-        Tap inside the words, between the two questions. Both parts need some words.
-      </p>
+      <div role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
+        Could not load your papers. Check your connection and try again.
+        <div className="mt-2">
+          <ActionButton tone="muted" onClick={() => void papersQuery.refetch()}>
+            Try again
+          </ActionButton>
+        </div>
+      </div>
     );
   }
-  const { first, second } = splitHalves(body, at);
-  const tail = Array.from(first.trimEnd()).slice(-60).join('');
-  const head = Array.from(second.trimStart()).slice(0, 60).join('');
-  return (
-    <div className="mt-2 grid gap-2 text-[13px] sm:grid-cols-2">
-      <div className="rounded-xl bg-muted p-2">
-        <p className="font-semibold text-foreground">First question ends with</p>
-        <p className="break-words text-warm-secondary">...{tail}</p>
-      </div>
-      <div className="rounded-xl bg-muted p-2">
-        <p className="font-semibold text-foreground">Second question starts with</p>
-        <p className="break-words text-warm-secondary">{head}...</p>
-      </div>
-    </div>
-  );
-}
 
-/* A dialog: Escape and the backdrop close it, focus goes inside. */
-function Modal({
-  onClose,
-  labelledBy,
-  children,
-}: {
-  onClose: () => void;
-  labelledBy: string;
-  children: React.ReactNode;
-}) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (el && !el.contains(document.activeElement)) el.focus();
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const papers = sortPapers(papersQuery.data ?? []);
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={onClose}>
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={labelledBy}
-        tabIndex={-1}
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-card p-5 outline-none"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-/* W11: the whole question a sub-part belongs to, read-only, with the part
-   being checked highlighted. Bodies go through MathText verbatim. */
-function WholeQuestion({ context }: { context: QuestionContext }) {
-  return (
-    <div className="mb-3 rounded-2xl border border-warm-hairline p-3">
-      <p className="mb-2 text-[13px] font-semibold text-foreground">{contextHeading(context)}</p>
-      {context.parent ? (
-        <div
-          aria-current={context.currentIsParent ? 'true' : undefined}
-          className={cn('rounded-xl p-2.5', context.currentIsParent ? 'bg-brand-subtle ring-2 ring-brand' : 'bg-muted')}
-        >
-          {context.currentIsParent ? <CheckingTag /> : null}
-          <MathText text={context.parent.body ?? ''} className="text-[14px] leading-relaxed text-foreground" />
-          <OptionList options={context.parent.options} />
+    <div className="space-y-5">
+      <p className="text-[13px] text-warm-secondary" data-testid="paper-limit-note">
+        {PAPER_LIMIT_NOTE}
+      </p>
+      {papers.length === 0 ? (
+        <div className="rounded-2xl bg-muted px-4 py-8 text-center" data-testid="no-papers">
+          <p className="text-[16px] font-bold text-foreground">No papers for you yet</p>
+          <p className="mx-auto mt-1 max-w-md text-pretty text-[14px] text-warm-secondary">
+            Papers are given out automatically to match your grade, your board and the subjects your HOD has set for you. Check back soon, or ask your
+            HOD.
+          </p>
         </div>
-      ) : null}
-      <ol className="mt-2 space-y-2">
-        {context.parts.map((part, i) => {
-          const current = part.id === context.currentId;
-          return (
-            <li
-              key={part.id}
-              aria-current={current ? 'true' : undefined}
-              className={cn('rounded-xl p-2.5', current ? 'bg-brand-subtle ring-2 ring-brand' : 'bg-muted')}
-              style={{ marginLeft: Math.min(Math.max(part.depth - 1, 0), 3) * 12 }}
-            >
-              {current ? <CheckingTag /> : null}
-              {/* The printed label, unless the body already starts with it
-                  ("(a)" over "(a) Name the..." read twice). */}
-              {(part.body ?? '').trimStart().startsWith(partLabel(part, i)) ? null : (
-                <p className="mb-0.5 text-[12px] font-semibold text-warm-secondary">{partLabel(part, i)}</p>
-              )}
-              <MathText text={part.body ?? ''} className="text-[14px] leading-relaxed text-foreground" />
-              <OptionList options={part.options} />
-            </li>
-          );
-        })}
-      </ol>
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2" aria-label="My papers">
+          {papers.map((p) => {
+            const prog = paperCardProgress(p);
+            return (
+              <li key={p.paper_id} className="flex flex-col rounded-2xl bg-muted p-4" data-testid="paper-card">
+                <div className="flex items-start justify-between gap-2">
+                  <h2 className="text-balance text-[15px] font-bold text-foreground">{paperLabel(p)}</h2>
+                  {p.given_by_hod ? (
+                    <span className="shrink-0 rounded-full bg-brand-subtle px-2 py-0.5 text-[12px] font-semibold text-foreground">{GIVEN_BY_HOD}</span>
+                  ) : null}
+                </div>
+                <div className="mt-3">
+                  <div className="mb-1 flex justify-between text-[13px] font-semibold tabular-nums text-warm-secondary">
+                    <span>{prog.label}</span>
+                    {p.with_hod > 0 ? <span>{p.with_hod} with the HOD</span> : null}
+                  </div>
+                  <div
+                    className="h-2.5 w-full overflow-hidden rounded-full bg-card"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={prog.percent}
+                    aria-label={prog.label}
+                  >
+                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${prog.percent}%` }} />
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {prog.finished ? (
+                    <ActionButton tone="muted" onClick={() => onOpen(p.paper_id)}>
+                      See questions
+                    </ActionButton>
+                  ) : (
+                    <>
+                      <ActionButton tone="mint" onClick={() => onStart(p.paper_id)}>
+                        {p.done > 0 ? 'Keep verifying' : 'Start verifying'}
+                      </ActionButton>
+                      <ActionButton tone="muted" onClick={() => onOpen(p.paper_id)}>
+                        See questions
+                      </ActionButton>
+                    </>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <ProfileCard api={api} scope={scope} />
     </div>
   );
 }
 
-function CheckingTag() {
+/* --------------------------------------------------------------- the profile */
+
+function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
+  const profileQuery = useQuery({
+    queryKey: ['verifier-profile', scope],
+    queryFn: api.myProfile,
+    staleTime: 60 * 1000,
+  });
+  const [asking, setAsking] = useState(false);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  if (profileQuery.isLoading) return null;
+  const p = profileQuery.data ?? normaliseProfile(null);
+  const status = profileStatus(p);
+  const notice = profileNotice(status);
+
+  async function send() {
+    const list = parseSubjectList(text);
+    if (list.length === 0) {
+      setMessage('Type at least one subject.');
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      await api.requestSubjects(list);
+      setMessage('Sent. Your HOD will see your request.');
+      setAsking(false);
+      setText('');
+      void profileQuery.refetch();
+    } catch {
+      setMessage('Could not send that. Try again in a moment.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <span className="mb-1 inline-block rounded-full bg-brand px-2 py-0.5 text-[12px] font-bold text-foreground">
-      You are checking this part
-    </span>
+    <section aria-labelledby="my-details-title" className="rounded-2xl bg-muted p-4" data-testid="profile-card">
+      <h2 id="my-details-title" className="text-[15px] font-bold text-foreground">
+        My details
+      </h2>
+      <p className="text-[12px] text-warm-meta">Set by your HOD. You cannot change these here.</p>
+      {notice ? (
+        <p role="status" className="mt-2 rounded-xl bg-brand-subtle px-3 py-2 text-[13px] font-semibold text-foreground">
+          {notice}
+        </p>
+      ) : null}
+      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-4">
+        <Fact label="Grade" value={formatGrade(p?.grade ?? null)} />
+        <Fact label="School" value={p?.school ?? 'Not set'} />
+        <Fact label="Board" value={p?.board ?? 'Not set'} />
+        <Fact label="Valid until" value={formatValidUntil(p?.valid_until ?? null)} />
+      </dl>
+      <div className="mt-3 text-[13px]">
+        <p className="font-semibold text-foreground">Preferred subjects</p>
+        <p className="text-warm-secondary">{p && p.preferred_subjects.length > 0 ? p.preferred_subjects.join(', ') : 'None set by your HOD yet.'}</p>
+        {p && p.requested_subjects.length > 0 ? (
+          <p className="mt-1 text-warm-secondary">Waiting for your HOD: {p.requested_subjects.join(', ')}</p>
+        ) : null}
+      </div>
+      {asking ? (
+        <div className="mt-3">
+          <label htmlFor="req-subjects" className="mb-1 block text-[13px] font-semibold text-foreground">
+            Which subjects would you like? Separate them with commas.
+          </label>
+          <textarea
+            id="req-subjects"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={2}
+            className="w-full rounded-xl bg-card p-3 text-[16px] outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          />
+          <div className="mt-2 flex gap-2">
+            <ActionButton tone="dark" onClick={() => void send()} disabled={busy}>
+              {busy ? 'Sending...' : 'Send to my HOD'}
+            </ActionButton>
+            <ActionButton tone="muted" onClick={() => setAsking(false)} disabled={busy}>
+              Cancel
+            </ActionButton>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3">
+          <ActionButton tone="muted" onClick={() => setAsking(true)}>
+            Ask your HOD for subjects
+          </ActionButton>
+        </div>
+      )}
+      {message ? (
+        <p role="status" className="mt-2 text-[13px] font-semibold text-warm-secondary">
+          {message}
+        </p>
+      ) : null}
+    </section>
   );
 }
 
-function Chip({
-  onClick,
-  pressed,
-  tone,
-  children,
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-[12px] font-semibold uppercase tracking-[.04em] text-warm-meta">{label}</dt>
+      <dd className="text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- one paper */
+
+const STATE_STYLE: Record<PaperQuestionState, string> = {
+  to_verify: 'bg-brand-subtle text-foreground',
+  done: 'bg-mint text-foreground',
+  with_hod: 'bg-muted text-warm-secondary',
+  set_aside: 'bg-muted text-warm-secondary',
+  not_for_verifiers: 'bg-muted text-warm-secondary',
+};
+
+function PaperOverview({
+  api,
+  scope,
+  paperId,
+  onBack,
+  onStart,
 }: {
-  onClick: () => void;
-  pressed?: boolean;
-  tone: 'brand' | 'muted';
-  children: React.ReactNode;
+  api: CheckerApi;
+  scope: string;
+  paperId: string;
+  onBack: () => void;
+  onStart: () => void;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={pressed}
-      className={cn(CHIP, tone === 'brand' ? 'bg-brand-subtle text-foreground' : 'bg-muted text-warm-secondary')}
-    >
-      {children}
-    </button>
-  );
-}
+  // The app default is refetchOnMount: false, which showed the counts and the
+  // states from before the verifier's last session. Always ask again.
+  const papersQuery = useQuery({ queryKey: ['verifier-papers', scope], queryFn: api.myPapers, staleTime: 0, refetchOnMount: 'always' });
+  const questionsQuery = useQuery({
+    queryKey: ['verifier-paper-questions', scope, paperId],
+    queryFn: () => api.paperQuestions(paperId),
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+  const paper = papersQuery.data?.find((p) => p.paper_id === paperId) ?? null;
+  const list = questionsQuery.data ?? [];
+  const todo = list.filter((q) => q.state === 'to_verify').length;
 
-/* "All" is the empty selection: the server treats an empty or null list as
-   no filter, so tapping All just clears the picks. */
-function AllChip({ active, onClick }: { active: boolean; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(CHIP, active ? 'bg-brand text-foreground' : 'bg-muted text-warm-secondary')}
-    >
-      All
-    </button>
-  );
-}
+    <div data-testid="paper-overview">
+      <button
+        type="button"
+        onClick={onBack}
+        className="tap-44 mb-3 rounded-full bg-muted px-4 py-2 text-[13px] font-semibold text-warm-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      >
+        Back to my papers
+      </button>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-balance text-[17px] font-bold text-foreground">{paper ? paperLabel(paper) : 'This paper'}</h2>
+          {list.length > 0 ? <p className="text-[13px] text-warm-secondary">{stateSummary(list)}</p> : null}
+        </div>
+        {todo > 0 ? (
+          <ActionButton tone="mint" onClick={onStart}>
+            Start verifying
+          </ActionButton>
+        ) : null}
+      </div>
 
-function FacetChip({
-  choice,
-  label,
-  active,
-  onClick,
-}: {
-  choice: FacetChoice;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(CHIP, active ? 'bg-brand text-foreground' : 'bg-muted text-warm-secondary')}
-    >
-      {label}
-      {choice.waiting !== null ? <span className="ml-1 tabular-nums opacity-70">{choice.waiting}</span> : null}
-    </button>
+      {questionsQuery.isLoading ? (
+        <CheckerSkeleton />
+      ) : questionsQuery.isError ? (
+        <div role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
+          Could not load this paper. It may not be yours any more.
+        </div>
+      ) : list.length === 0 ? (
+        <p className="rounded-2xl bg-muted px-4 py-6 text-center text-[14px] text-warm-secondary">This paper has no questions to show.</p>
+      ) : (
+        <ol className="space-y-2" aria-label="Questions in this paper">
+          {list.map((q, i) => (
+            <li key={q.id} className="rounded-2xl bg-muted p-3" data-testid="paper-question">
+              <div className="mb-1 flex flex-wrap items-center gap-2 text-[12px] font-semibold">
+                <span className="text-foreground">Question {questionLabel(q, i)}</span>
+                {q.marks != null ? (
+                  <span className="text-warm-secondary">
+                    {q.marks} {q.marks === 1 ? 'mark' : 'marks'}
+                  </span>
+                ) : null}
+                {q.page ? <span className="text-warm-secondary">Page {q.page}</span> : null}
+                <span className={cn('rounded-full px-2 py-0.5', STATE_STYLE[q.state])}>{QUESTION_STATE_LABEL[q.state]}</span>
+              </div>
+              {/* The words exactly as stored, never cleaned; maths drawn the
+                  same way as on the verifying screen. */}
+              {isBlankBody(q.body) ? (
+                <p className="text-[14px] italic text-warm-secondary">No words were read for this question. You will compare it with the page.</p>
+              ) : (
+                <div className="line-clamp-3 break-words">
+                  <MathText text={q.body ?? ''} className="text-[14px] text-foreground" />
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   );
 }
