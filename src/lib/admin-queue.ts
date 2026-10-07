@@ -1,7 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { realApprovalApi } from '@/lib/admin-approval';
 import { normaliseReviewRow, paperTitleFrom, type ApprovalApi, type ReviewRow } from '@/lib/admin-approval-shape';
-import { adminEscalationQueue, adminResolveEscalation, checkerPictureUrl, type EscalationRow } from '@/lib/checker-api';
+import { adminEscalationQueue, adminResolveEscalation, checkerPictureUrl, paperPagePictures, type EscalationRow } from '@/lib/checker-api';
+import type { PaperPage } from '@/lib/paper-pages';
 
 /* The Admin queue: questions whose checking ended with "an admin must decide"
    (the question's review bucket is "admin" and it is not passed). The owner's
@@ -45,6 +46,8 @@ export interface AdminQueueApi extends Pick<ApprovalApi, 'editQuestion' | 'quest
   resolveHelp(questionId: string): Promise<void>;
   /** A short-lived link to a stored picture, or null. */
   pictureUrl(path: string): Promise<string | null>;
+  /** Every page picture of a paper, for the whole-paper fallback. */
+  paperPages(auditPaperId: string): Promise<PaperPage[]>;
 }
 
 const s = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v : null);
@@ -99,4 +102,5 @@ export const realAdminQueueApi: AdminQueueApi = {
   helpRequests: adminEscalationQueue,
   resolveHelp: (id) => adminResolveEscalation(id),
   pictureUrl: checkerPictureUrl,
+  paperPages: paperPagePictures,
 };

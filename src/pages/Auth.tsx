@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Loader2, ArrowRight } from 'lucide-react';
 import { z } from 'zod';
 import { isSafeRedirect } from '@/lib/safe-redirect';
+import { resolveRoleHome } from '@/lib/role-home-api';
 import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
 import { Logo } from '@/components/Logo';
 import { WhatsAppIcon } from '@/components/BrandIcons';
@@ -219,7 +220,16 @@ export default function Auth() {
             clearAuthRedirect();
             // AU-004a: the intent has done its job once the redirect resolves.
             clearAuthIntent();
-            navigate(redirectTo || '/', { replace: true });
+            // Nothing to return to: staff start on their own home (My work, HOD view, Admin).
+            let home: string | null = null;
+            if (!redirectTo) {
+              try {
+                home = await resolveRoleHome(user.id);
+              } catch {
+                home = null;
+              }
+            }
+            navigate(redirectTo || home || '/', { replace: true });
           }
         } catch (error) {
           if (import.meta.env.DEV) {

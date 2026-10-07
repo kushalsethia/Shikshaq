@@ -62,8 +62,8 @@ export const ACTION_NAMES: Record<PracticeAction, string> = {
   pass: 'Looks right',
   fix: 'Fix it',
   split: 'Split here',
-  help: 'Ask for help',
-  skip: 'Show me another paper',
+  help: 'Ask the HOD',
+  skip: 'Skip this question',
 };
 
 const FUSED = '4. State the SI unit of force. 5. Name the force that pulls objects towards the Earth.';
@@ -125,7 +125,7 @@ export const PRACTICE_QUESTIONS: PracticeQuestion[] = [
     offersSplit: false,
     correct: 'help',
     lesson:
-      'The typed words are scrambled. Do not try to retype a whole question from the picture. Press Ask for help and an admin will fix it.',
+      'The typed words are scrambled. Do not try to retype a whole question from the picture. Press Ask the HOD and your HOD will sort it out.',
     planted: 'Scrambled words, too broken to fix',
   },
   {
@@ -148,7 +148,7 @@ export const PRACTICE_QUESTIONS: PracticeQuestion[] = [
     offersSplit: false,
     correct: 'skip',
     lesson:
-      'The picture is too blurry to read, so you cannot honestly say the words match. Press Show me another paper. Never guess from a picture you cannot read.',
+      'The picture is too blurry to read, so you cannot honestly say the words match. Press Skip this question. Never guess from a picture you cannot read.',
     planted: 'A picture too blurry to read',
   },
 ];

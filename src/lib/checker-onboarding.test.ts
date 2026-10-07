@@ -67,11 +67,11 @@ describe('shortcut table on the help page', () => {
 
 describe('walkthrough steps', () => {
   it('point at the six real elements, in reading order', () => {
-    expect(WALKTHROUGH_STEPS.map((s) => s.target)).toEqual(['picture', 'question', 'pass', 'fix', 'help', 'skip']);
+    expect(WALKTHROUGH_STEPS.map((s) => s.target)).toEqual(['paper', 'picture', 'question', 'pass', 'fix', 'help', 'skip']);
   });
 
   it('every target exists as data-tour in the checker page', () => {
-    const page = readFileSync(resolve(__dirname, '../pages/Checker.tsx'), 'utf8');
+    const page = readFileSync(resolve(__dirname, '../pages/Checker.tsx'), 'utf8') + readFileSync(resolve(__dirname, '../components/checker/VerifyScreen.tsx'), 'utf8');
     for (const s of WALKTHROUGH_STEPS) {
       const direct = page.includes(`data-tour="${s.target}"`) || page.includes(`tourId="${s.target}"`);
       const viaExpr = s.target === 'picture' && page.includes("'picture'");
@@ -80,8 +80,8 @@ describe('walkthrough steps', () => {
   });
 
   it('uses the live button labels in its titles', () => {
-    const page = readFileSync(resolve(__dirname, '../pages/Checker.tsx'), 'utf8');
-    for (const label of ['Looks right', 'Fix it', 'Ask for help', 'Show me another paper']) {
+    const page = readFileSync(resolve(__dirname, '../pages/Checker.tsx'), 'utf8') + readFileSync(resolve(__dirname, '../components/checker/VerifyScreen.tsx'), 'utf8');
+    for (const label of ['Looks right', 'Fix it', 'Ask the HOD', 'Skip this question']) {
       expect(page).toContain(label);
       expect(WALKTHROUGH_STEPS.some((s) => s.title === label)).toBe(true);
     }

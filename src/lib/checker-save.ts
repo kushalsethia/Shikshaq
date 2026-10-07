@@ -26,7 +26,7 @@ export function checkerSaveRoute(
 }
 
 export const TYPO_NEEDS_VERSION =
-  'Typo corrections are not switched on yet. Fix only reading mistakes for now, or press Ask for help.';
+  'Typo corrections are not switched on yet. Fix only reading mistakes for now, or press Ask the HOD.';
 
 export const TYPO_CHECKBOX_LABEL = 'The printed paper has a typo, and I corrected it';
 

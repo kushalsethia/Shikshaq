@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AdminCheckersPage } from '@/pages/admin/checkers';
 import { createFakeCheckerAdminApi } from '@/dummy/checker-admin-fake-api';
+import { createFakeHodAdminApi, createFakeHodApi } from '@/dummy/hod-fake-api';
 import { setDummyMode } from '@/lib/dummy-mode';
 
 /* /admin/checkers in dummy mode (D75): the real page against the in-memory
@@ -9,6 +10,8 @@ import { setDummyMode } from '@/lib/dummy-mode';
 
 export default function AdminCheckersDummy() {
   const [api] = useState(createFakeCheckerAdminApi);
+  const [hodApi] = useState(createFakeHodAdminApi);
+  const [profileApi] = useState(createFakeHodApi);
 
   const banner = (
     <div
@@ -33,5 +36,5 @@ export default function AdminCheckersDummy() {
     </div>
   );
 
-  return <AdminCheckersPage api={api} dummy banner={banner} />;
+  return <AdminCheckersPage api={api} hodApi={hodApi} profileApi={profileApi} dummy banner={banner} />;
 }

@@ -281,10 +281,10 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
                     Fix it
                   </ActionButton>
                   <ActionButton tone="brand" onClick={() => answer({ action: 'help' })}>
-                    Ask for help
+                    Ask the HOD
                   </ActionButton>
                   <ActionButton tone="muted" onClick={() => answer({ action: 'skip' })}>
-                    Show me another paper
+                    Skip this question
                   </ActionButton>
                 </>
               )}

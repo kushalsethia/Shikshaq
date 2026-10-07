@@ -44,7 +44,7 @@ export function checkerErrorAdvice(err: unknown): CheckerErrorAdvice {
   }
   if (/typo corrections are not switched on/i.test(text)) {
     return {
-      message: 'Typo corrections are not switched on yet. Fix only reading mistakes for now, or press Ask for help.',
+      message: 'Typo corrections are not switched on yet. Fix only reading mistakes for now, or press Ask the HOD.',
       moveOn: false,
     };
   }
@@ -52,7 +52,7 @@ export function checkerErrorAdvice(err: unknown): CheckerErrorAdvice {
     return { message: 'Change the words to correct the typo, or untick the typo box.', moveOn: false };
   }
   if (/has no words|empty question/i.test(text)) {
-    return { message: "This question has no words, so it cannot be marked as right. Press Ask for help.", moveOn: false };
+    return { message: "This question has no words, so it cannot be marked as right. Press Ask the HOD.", moveOn: false };
   }
   if (/split point out of range/i.test(text)) {
     return { message: 'Tap inside the words, between the two questions, then press Split here.', moveOn: false };

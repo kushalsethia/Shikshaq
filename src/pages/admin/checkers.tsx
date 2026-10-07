@@ -10,6 +10,9 @@ import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { Search, UserPlus } from 'lucide-react';
+import { HodSection } from '@/components/admin/HodSection';
+import { realHodAdminApi, realHodApi, type HodAdminApi, type HodApi, type HodVerifierProfile } from '@/lib/hod-api';
+import { VerifierProfileForm } from '@/components/hod/VerifierProfileForm';
 import { realCheckerAdminApi, type CheckerAdminApi, type CheckerAdminRow } from '@/lib/checker-admin-api';
 import type { UserSearchRow } from '@/lib/checker-api';
 import { AdminPageIntro, InfoTip } from '@/components/admin/AdminHelp';
@@ -35,10 +38,16 @@ const DummyAdminCheckers = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminCheck
 
 export function AdminCheckersPage({
   api = realCheckerAdminApi,
+  hodApi = realHodAdminApi,
+  profileApi = realHodApi,
   dummy = false,
   banner,
 }: {
   api?: CheckerAdminApi;
+  /** The HODs section's API (admin_*_hod). */
+  hodApi?: HodAdminApi;
+  /** The verifier details form's API (hod_set_verifier_profile, hod_verifier_profiles). */
+  profileApi?: Pick<HodApi, 'setProfile' | 'profiles'>;
   /** Dummy mode (D75): no sign-in, no real admin check, a fake API. */
   dummy?: boolean;
   banner?: ReactNode;
@@ -53,6 +62,21 @@ export function AdminCheckersPage({
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
   const { confirm, confirmDialog } = useConfirm();
+  // The verifier whose details are being filled in: straight after an admin
+  // adds someone, or from a row's Details button.
+  const [detailsFor, setDetailsFor] = useState<{ user_id: string; label: string; initial: Partial<HodVerifierProfile> } | null>(null);
+  const [savingDetails, setSavingDetails] = useState(false);
+
+  async function openDetails(userId: string, label: string) {
+    let initial: Partial<HodVerifierProfile> = { name: label };
+    try {
+      const found = (await profileApi.profiles()).find((p) => p.user_id === userId);
+      if (found) initial = found;
+    } catch {
+      /* the form still works blank */
+    }
+    setDetailsFor({ user_id: userId, label, initial });
+  }
 
   // In dummy mode there is no real signed-in admin to check for, so the
   // guard is asked never to redirect and its verdict is overridden below --
@@ -77,7 +101,7 @@ export function AdminCheckersPage({
       setRows(data);
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error fetching checkers:', error);
-      sonnerToast.error('Failed to load the checker list');
+      sonnerToast.error('Failed to load the verifier list');
     } finally {
       setLoading(false);
     }
@@ -124,7 +148,7 @@ export function AdminCheckersPage({
       const newUserId = await api.addChecker(trimmed);
       setQuery('');
       setResults([]);
-      sonnerToast.success(`${trimmed} can now check papers`);
+      sonnerToast.success(`${trimmed} is now a verifier. Fill in their details so papers can be given to them.`);
       if (user) {
         void recordAdminAction({
           actorId: user.id,
@@ -136,11 +160,12 @@ export function AdminCheckersPage({
         });
       }
       await fetchCheckers();
+      void openDetails(newUserId, trimmed);
     } catch (error) {
       const message =
         error instanceof Error && /no account|not found/i.test(error.message)
           ? 'No Shikshaq account has that email yet. They may not have signed up, or they used a different email.'
-          : 'Could not add that checker. Check the email and try again.';
+          : 'Could not add that verifier. Check the email and try again.';
       setAddError(message);
       if (import.meta.env.DEV) console.error('Error adding checker:', error);
     } finally {
@@ -150,9 +175,9 @@ export function AdminCheckersPage({
 
   async function handleRemove(row: CheckerAdminRow) {
     const ok = await confirm({
-      title: `Remove ${row.email} as a checker?`,
-      description: 'They will no longer be able to open the paper checker. This does not undo any question they already checked.',
-      confirmLabel: 'Remove checker',
+      title: `Remove ${row.email} as a verifier?`,
+      description: 'They will no longer be able to open the verifying screen. This does not undo any question they already verified.',
+      confirmLabel: 'Remove verifier',
     });
     if (!ok) return;
 
@@ -172,7 +197,7 @@ export function AdminCheckersPage({
       }
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error removing checker:', error);
-      sonnerToast.error('Failed to remove that checker');
+      sonnerToast.error('Failed to remove that verifier');
     }
   }
 
@@ -199,7 +224,7 @@ export function AdminCheckersPage({
   if (!isAdmin) return null;
 
   const columns: AdminTableColumn[] = [
-    { key: 'email', label: 'Checker', width: '1.6fr', hint: TIPS['col.checker'] },
+    { key: 'email', label: 'Verifier', width: '1.6fr', hint: TIPS['col.checker'] },
     { key: 'added', label: 'Added', width: '1fr', hint: TIPS['col.added'] },
     { key: 'today', label: 'Today', width: '0.7fr', hint: TIPS['col.today'] },
     { key: 'total', label: 'Total', width: '0.7fr', hint: TIPS['col.total'] },
@@ -216,7 +241,10 @@ export function AdminCheckersPage({
       <span key="today" className="font-bold tabular-nums text-foreground">{r.checked_today}</span>,
       <span key="total" className="font-bold tabular-nums text-foreground">{r.checked_total}</span>,
     ],
-    actions: [{ label: 'Remove', tone: 'destructive', onClick: () => handleRemove(r) }],
+    actions: [
+      { label: 'Details', tone: 'primary', onClick: () => void openDetails(r.user_id, r.full_name || r.email) },
+      { label: 'Remove', tone: 'destructive', onClick: () => handleRemove(r) },
+    ],
   }));
 
   return (
@@ -229,7 +257,7 @@ export function AdminCheckersPage({
           <AdminPageIntro page="checkers" />
         </div>
         <AddStudentGuide />
-        <AdminPanelHeader title="Paper checkers" meta={`${rows.length} ${rows.length === 1 ? 'checker' : 'checkers'}`} />
+        <AdminPanelHeader title="Verifiers" meta={`${rows.length} ${rows.length === 1 ? 'verifier' : 'verifiers'}`} />
 
         <div className="mb-4 px-[18px]">
           <label className="flex max-w-md flex-col gap-1">
@@ -247,7 +275,7 @@ export function AdminCheckersPage({
                   setAddError(null);
                 }}
                 placeholder="Search by name or email"
-                aria-label="Search by name or email to add a checker"
+                aria-label="Search by name or email to add a verifier"
                 className="h-11 w-full rounded-full bg-muted pl-10 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
               />
             </span>
@@ -282,7 +310,7 @@ export function AdminCheckersPage({
                         <span className="block truncate text-[12px] text-warm-meta">{u.email ?? 'No email on file'}</span>
                       </span>
                       {already ? (
-                        <span className="shrink-0 text-[12px] font-semibold text-warm-secondary">Already a checker</span>
+                        <span className="shrink-0 text-[12px] font-semibold text-warm-secondary">Already a verifier</span>
                       ) : (
                         <button
                           type="button"
@@ -303,13 +331,48 @@ export function AdminCheckersPage({
         </div>
         {addError ? <p role="alert" className="mb-3 px-[18px] text-[13px] text-destructive">{addError}</p> : null}
 
+        {detailsFor ? (
+          <section className="mb-4 px-[18px]" aria-labelledby="verifier-details-title" data-testid="verifier-details-panel">
+            <h3 id="verifier-details-title" className="mb-1 text-[15px] font-bold text-foreground">
+              Details for {detailsFor.label}
+            </h3>
+            <p className="mb-2 text-[13px] text-warm-secondary">
+              Papers are given to a verifier by these details, and never above their grade. Until they are filled in, no papers are given.
+            </p>
+            <VerifierProfileForm
+              key={detailsFor.user_id}
+              initial={detailsFor.initial}
+              busy={savingDetails}
+              saveLabel="Save details"
+              cancelLabel="Do this later"
+              onCancel={() => setDetailsFor(null)}
+              onSave={(input) => {
+                setSavingDetails(true);
+                profileApi
+                  .setProfile(detailsFor.user_id, input)
+                  .then(() => {
+                    sonnerToast.success('Details saved. Papers will be given to them automatically.');
+                    setDetailsFor(null);
+                  })
+                  .catch((err: unknown) => {
+                    const raw = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : '';
+                    sonnerToast.error(raw || 'Could not save those details. Try again.');
+                  })
+                  .finally(() => setSavingDetails(false));
+              }}
+            />
+          </section>
+        ) : null}
+
         {rows.length === 0 ? (
           <div className="rounded-2xl bg-muted p-12 text-center">
-            <p className="text-sm text-warm-label">No one can check papers yet. Search for someone above and add them.</p>
+            <p className="text-sm text-warm-label">There are no verifiers yet. Search for someone above and add them.</p>
           </div>
         ) : (
           <AdminTable columns={columns} rows={tableRows} />
         )}
+
+        <HodSection hodApi={hodApi} searchUsers={api.searchUsers} />
       </BentoPanel>
 
       <AdminAuditNote />
