@@ -121,7 +121,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         <div className="min-w-0">
           <p className="text-[14px] font-semibold text-foreground">{paperLabel(a)}</p>
           <p className="text-[12px] text-warm-meta">
-            {a.remaining} {a.remaining === 1 ? 'question' : 'questions'} left · Given by {a.given_by_name ?? 'Automatic'}
+            {a.remaining} {a.remaining === 1 ? 'question' : 'questions'} left · {!a.given_by_name || a.given_by_name === 'Automatic' ? 'Given automatically' : `Given by ${a.given_by_name}`}
             {a.assigned_at ? ` ${ago(a.assigned_at)}` : ''}
           </p>
         </div>

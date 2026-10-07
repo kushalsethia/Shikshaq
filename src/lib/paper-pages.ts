@@ -57,5 +57,6 @@ export function positionLabel(pages: PaperPage[], index: number): string {
 export const WHOLE_PAPER_TITLE = 'No page matched this question, so here is the whole paper';
 export const WHOLE_PAPER_NOTE = 'Flip through the pages until you find the question, then check the typed words against it.';
 export const NO_PAGES_TITLE = 'This paper has no page pictures yet';
-export const NO_PAGES_NOTE = 'There is nothing to compare the words with. If you are not sure, ask the HOD instead of guessing.';
+// Shown to verifiers AND to the HOD, so it must not tell the HOD to "ask the HOD".
+export const NO_PAGES_NOTE = 'There is nothing to compare the words with. If you are not sure the words are right, do not pass it.';
 export const PAGES_FAILED_NOTE = 'The page pictures could not be loaded. Check your internet and try again.';
