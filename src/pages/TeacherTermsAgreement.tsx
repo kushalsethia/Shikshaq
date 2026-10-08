@@ -9,6 +9,7 @@ import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
 import { isSafeRedirect as isValidRedirect } from '@/lib/safe-redirect';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { PageLoader } from '@/components/layout/PageLoader';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { reportLoadError } from '@/lib/load-error';
 
@@ -172,16 +173,7 @@ export default function TeacherTermsAgreement() {
 
   // Show loading state while checking
   if (authLoading || checking) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
-            <p className="text-muted-foreground text-base">Loading...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   // If already agreed or not a teacher, don't render (they should be redirected)
