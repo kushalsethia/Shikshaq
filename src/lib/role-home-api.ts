@@ -3,9 +3,9 @@ import { homeFor, type Roles } from '@/lib/role-home';
 
 const safe = (p: PromiseLike<boolean>): Promise<boolean> => Promise.resolve(p).catch(() => false);
 
-/** Read the three staff roles for a signed-in person. Any failure counts as "not that role": this only decides where to land, never what is allowed. */
+/** Read the four staff roles for a signed-in person. Any failure counts as "not that role": this only decides where to land, never what is allowed. */
 export async function readRoles(userId: string): Promise<Roles> {
-  const [admin, hod, checker] = await Promise.all([
+  const [admin, hod, checker, reviewer] = await Promise.all([
     safe(
       supabase
         .from('admins')
@@ -16,8 +16,9 @@ export async function readRoles(userId: string): Promise<Roles> {
     ),
     safe(supabase.rpc('is_hod' as never).then(({ data, error }) => !error && Boolean(data))),
     safe(supabase.rpc('is_paper_checker' as never).then(({ data, error }) => !error && Boolean(data))),
+    safe(supabase.rpc('is_teacher_reviewer' as never).then(({ data, error }) => !error && Boolean(data))),
   ]);
-  return { isAdmin: admin, isHod: hod, isChecker: checker };
+  return { isAdmin: admin, isHod: hod, isChecker: checker, isTeacherReviewer: reviewer };
 }
 
 /** The page a person should start on after signing in with no page to return to, or null for the ordinary home. */

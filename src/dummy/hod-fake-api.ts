@@ -23,6 +23,7 @@ import type {
 } from '@/lib/hod-api';
 import type { PaperPage } from '@/lib/paper-pages';
 import type { TrustRow } from '@/lib/ai-trust';
+import { isVerifierGrade } from '@/lib/verifier-papers';
 import { dummyPageDataUrl, dummyPictureDataUrl } from '@/dummy/checker-fixtures';
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -266,11 +267,11 @@ export function createFakeHodApi(): FakeHodApi {
       rate: checked > 0 ? Math.round((asIs / checked) * 10000) / 10000 : null,
       waiting,
       trusted: false,
-      eligible: checked >= 200 && asIs / Math.max(checked, 1) >= 0.97,
+      eligible: checked >= 100 && asIs / Math.max(checked, 1) >= 0.97,
       auto_off_at: null,
       auto_off_reason: null,
       min_rate: 0.97,
-      min_checked: 200,
+      min_checked: 100,
       spot_check_every: 20,
       ...over,
     });
@@ -417,7 +418,7 @@ export function createFakeHodApi(): FakeHodApi {
     async setProfile(userId, input) {
       const who = checkers.find((c) => c.user_id === userId);
       if (!who) throw pgError('That person is not a verifier');
-      if (input.grade < 1 || input.grade > 12) throw pgError('Grade must be between 1 and 12');
+      if (!isVerifierGrade(input.grade)) throw pgError('Grade is out of range');
       profiles[userId] = {
         ...(profiles[userId] ?? prof(who, {})),
         full_name: input.full_name,
@@ -494,7 +495,7 @@ export function createFakeHodApi(): FakeHodApi {
       const row = trust.find((t) => t.level === level && t.decision === decision && t.subject === null);
       if (!row) throw pgError(`Unknown level ${level}/${decision}`);
       if (trusted && !row.eligible) {
-        throw pgError(`Not earned yet: ${row.checked} checked, ${Math.round((row.rate ?? 0) * 1000) / 10}% right (needs ${row.min_checked} checked and 97% right)`);
+        throw pgError(`Not earned yet: ${row.checked} checked, ${Math.round((row.rate ?? 0) * 1000) / 10}% agreed (needs ${row.min_checked} checked and 97% agreed)`);
       }
       for (const t of trust) {
         if (t.level === level && t.decision === decision) {

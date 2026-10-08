@@ -21,6 +21,7 @@ import { CHECKER_HELP_PATH, CHECKER_PRACTICE_PATH } from '@/lib/checker-onboardi
 import { GIVEN_BY_HOD, paperLabel } from '@/lib/checker-progress';
 import {
   formatGrade,
+  gradeSelectValue,
   formatValidUntil,
   normaliseProfile,
   PAPER_LIMIT_NOTE,
@@ -32,6 +33,7 @@ import {
   questionLabel,
   sortPapers,
   stateSummary,
+  VERIFIER_GRADE_OPTIONS,
   type PaperQuestionState,
 } from '@/lib/verifier-papers';
 
@@ -153,7 +155,7 @@ export function CheckerPage({
             ) : null}
             {isHod ? (
               <Link to="/hod" className={cn(CHIP, 'bg-muted text-warm-secondary')}>
-                HOD view
+                HOD desk
               </Link>
             ) : null}
             <span
@@ -336,7 +338,7 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
   function startEditing() {
     setForm({
       full_name: p?.full_name ?? '',
-      grade: p?.grade != null ? String(p.grade) : '',
+      grade: gradeSelectValue(p?.grade ?? null),
       school: p?.school ?? '',
       board: p?.board ?? '',
     });
@@ -423,10 +425,9 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
               onChange={(e) => setForm({ ...form, grade: e.target.value })}
               className="min-h-[44px] rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
-              <option value="">Not given</option>
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((g) => (
-                <option key={g} value={g}>
-                  Grade {g}
+              {VERIFIER_GRADE_OPTIONS.map((o) => (
+                <option key={o.value ?? ''} value={o.value ?? ''}>
+                  {o.label}
                 </option>
               ))}
             </select>

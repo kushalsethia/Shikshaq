@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Info } from 'lucide-react';
 import { MathText } from '@/components/papers/math-text';
 import { OptionList } from '@/components/checker/OptionList';
 import { cn } from '@/lib/utils';
@@ -9,7 +10,7 @@ import { canSplitAt, splitHalves } from '@/lib/checker-body';
 import { CHIP } from '@/lib/checker-button-styles';
 
 /* Small pieces the verify screen and the page around it share: a signed
-   picture link, the "what to check" card, the dialog shell, the whole-question
+   picture link, the "how to check" guidance, the dialog shell, the whole-question
    view and the chip button. Moved out of pages/Checker.tsx unchanged. */
 
 /**
@@ -39,40 +40,104 @@ export function useSignedUrl(api: CheckerApi, key: string, path: string): string
   return state.url;
 }
 
+const HIDE_TIPS_KEY = 'shikshaq.checker.hide-tips';
+
+function readTipsHidden(): boolean {
+  try {
+    return window.localStorage.getItem(HIDE_TIPS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeTipsHidden(hidden: boolean) {
+  try {
+    if (hidden) window.localStorage.setItem(HIDE_TIPS_KEY, '1');
+    else window.localStorage.removeItem(HIDE_TIPS_KEY);
+  } catch {
+    /* private mode or blocked storage: the choice just lasts this visit */
+  }
+}
+
 /**
- * "What to check": one block per lane the question is in (checker-lanes.ts),
- * in plain English. Lanes a student is asked to settle come first; lanes
- * that ask nothing of a student (a label, a possible repeat) are one muted
- * line. A flag with no lane still shows its fallback sentence.
+ * "How to check": quiet guidance, deliberately NOT a card. The comparison
+ * (the stored question against the printed page) is what the checker is
+ * here for; this only says how to go about it. So it has no fill and no
+ * border, a small muted label with an info icon, and body-small secondary
+ * text. One block per lane the question is in (checker-lanes.ts); lanes a
+ * student is asked to settle come first, lanes that ask nothing of a student
+ * are one muted line. A flag with no lane still shows its fallback sentence.
+ * `line` is the older picture-aware single sentence, used when there is no
+ * picture to read lanes against. A checker who knows the routine can hide it
+ * (remembered on this device, default shown).
  */
-export function LaneCard({ summary }: { summary: ReturnType<typeof describeLanes> }) {
-  const asked = summary.blocks.filter((b) => b.asked);
-  const quiet = summary.blocks.filter((b) => !b.asked);
-  if (asked.length === 0 && summary.unmapped.length === 0 && quiet.length === 0) return null;
+export function CheckGuidance({
+  summary,
+  line,
+  detail,
+}: {
+  summary?: ReturnType<typeof describeLanes> | null;
+  line?: string | null;
+  detail?: string | null;
+}) {
+  const [hidden, setHidden] = useState(readTipsHidden);
+  const asked = summary ? summary.blocks.filter((b) => b.asked) : [];
+  const quiet = summary ? summary.blocks.filter((b) => !b.asked) : [];
+  const unmapped = summary ? summary.unmapped : [];
+  const note = summary ? summary.note : null;
+  const hasLine = Boolean(line);
+  if (asked.length === 0 && unmapped.length === 0 && quiet.length === 0 && !hasLine) return null;
+  // One lane and nothing else: the lane's name rides in the label line.
+  const soloLane = asked.length === 1 && unmapped.length === 0 && !hasLine ? asked[0] : null;
+  const toggle = () => {
+    setHidden(!hidden);
+    writeTipsHidden(!hidden);
+  };
   return (
-    <div className="mb-3 rounded-2xl bg-brand-subtle p-3" data-testid="lane-card">
-      <p className="mb-1 text-[13px] font-semibold text-foreground">What to check</p>
-      <ul className="flex flex-col gap-2">
-        {asked.map((b) => (
-          <li key={b.lane.id} data-lane={b.lane.id}>
-            <p className="text-[14px] font-semibold leading-snug text-foreground">{b.lane.name}</p>
-            <p className="text-[14px] leading-snug text-foreground">{b.lane.what_to_do}</p>
-            {b.detail ? <p className="mt-0.5 text-[12px] text-warm-secondary">What the computer noticed: {b.detail}</p> : null}
-          </li>
-        ))}
-        {summary.unmapped.map((u) => (
-          <li key={u.code}>
-            <p className="text-[14px] leading-snug text-foreground">{u.sentence}</p>
-          </li>
-        ))}
-      </ul>
-      {quiet.length > 0 ? (
-        <p className="mt-2 text-[12px] leading-snug text-warm-secondary">
-          Not for you to settle: {quiet.map((b) => b.lane.name.toLowerCase()).join(', ')}. Someone else sorts that out.
+    <section aria-label="How to check" className="mb-4" data-testid="check-guidance">
+      <div className="flex items-center justify-between gap-3">
+        <p className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-warm-meta">
+          <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="min-w-0">{soloLane ? `How to check: ${soloLane.lane.name}` : 'How to check'}</span>
         </p>
-      ) : null}
-      {summary.note ? <p className="mt-1 text-[12px] text-warm-secondary">What the computer noticed: {summary.note}</p> : null}
-    </div>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={!hidden}
+          className="tap-44 shrink-0 rounded-full px-2 py-1 text-[13px] font-medium text-warm-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          {hidden ? 'Show tips' : 'Hide tips'}
+        </button>
+      </div>
+      {hidden ? null : (
+        <div className="mt-1 flex flex-col gap-2">
+          {hasLine ? (
+            <div>
+              <p className="text-[13px] leading-snug text-warm-secondary">{line}</p>
+              {detail ? <p className="mt-0.5 text-[12px] text-warm-meta">What the computer noticed: {detail}</p> : null}
+            </div>
+          ) : null}
+          {asked.map((b) => (
+            <div key={b.lane.id} data-lane={b.lane.id}>
+              {soloLane ? null : <p className="text-[13px] font-semibold leading-snug text-warm-secondary">{b.lane.name}</p>}
+              <p className="text-[13px] leading-snug text-warm-secondary">{b.lane.what_to_do}</p>
+              {b.detail ? <p className="mt-0.5 text-[12px] text-warm-meta">What the computer noticed: {b.detail}</p> : null}
+            </div>
+          ))}
+          {unmapped.map((u) => (
+            <p key={u.code} className="text-[13px] leading-snug text-warm-secondary">
+              {u.sentence}
+            </p>
+          ))}
+          {quiet.length > 0 ? (
+            <p className="text-[12px] leading-snug text-warm-meta">
+              Not for you to settle: {quiet.map((b) => b.lane.name.toLowerCase()).join(', ')}. Someone else sorts that out.
+            </p>
+          ) : null}
+          {note ? <p className="text-[12px] text-warm-meta">What the computer noticed: {note}</p> : null}
+        </div>
+      )}
+    </section>
   );
 }
 

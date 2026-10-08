@@ -195,7 +195,7 @@ export function normaliseProfile(raw: unknown): VerifierProfile | null {
   const grade = count(r.grade);
   return {
     full_name: str(r.full_name),
-    grade: grade >= 1 && grade <= 12 ? grade : null,
+    grade: isVerifierGrade(grade) ? grade : null,
     school: str(r.school),
     board: str(r.board),
     valid_until: str(r.valid_until),
@@ -212,9 +212,63 @@ export function profileStatus(p: Pick<VerifierProfile, 'grade' | 'expired'> | nu
   return p.expired ? 'expired' : 'ok';
 }
 
-/** "Grade 10". */
+/**
+ * A verifier's grade is one plain integer, so "never a paper above the
+ * verifier's grade" stays a number compare against public.class_grade (paper
+ * classes are 1 to 12). Owner, 2026-10-08: the list runs from Under grade 6 to
+ * Beyond UG.
+ *   5        Under grade 6 (1 to 4 are older rows and read the same)
+ *   6 to 12  Grade 6 to Grade 12
+ *   13 to 16 UG 1st year to UG 4th year
+ *   17       Beyond UG
+ *   null     not given: no class limit
+ * Keep in step with the check in 20261008130000_verifier_grade_range.sql.
+ */
+export const VERIFIER_GRADE_MIN = 1;
+export const VERIFIER_GRADE_MAX = 17;
+export const VERIFIER_GRADE_UNDER_6 = 5;
+
+export function isVerifierGrade(n: unknown): n is number {
+  return typeof n === 'number' && Number.isInteger(n) && n >= VERIFIER_GRADE_MIN && n <= VERIFIER_GRADE_MAX;
+}
+
+export interface VerifierGradeOption {
+  /** The integer stored, or null for "Not given". */
+  value: number | null;
+  label: string;
+}
+
+/** The grade dropdown, in order. One list for the verifier's own form and the HOD's. */
+export const VERIFIER_GRADE_OPTIONS: readonly VerifierGradeOption[] = [
+  { value: null, label: 'Not given' },
+  { value: 5, label: 'Under grade 6' },
+  { value: 6, label: 'Grade 6' },
+  { value: 7, label: 'Grade 7' },
+  { value: 8, label: 'Grade 8' },
+  { value: 9, label: 'Grade 9' },
+  { value: 10, label: 'Grade 10' },
+  { value: 11, label: 'Grade 11' },
+  { value: 12, label: 'Grade 12' },
+  { value: 13, label: 'UG 1st year' },
+  { value: 14, label: 'UG 2nd year' },
+  { value: 15, label: 'UG 3rd year' },
+  { value: 16, label: 'UG 4th year' },
+  { value: 17, label: 'Beyond UG' },
+];
+
+/** "Grade 10", "Under grade 6", "UG 2nd year", "Beyond UG", or "Not set". */
 export function formatGrade(grade: number | null): string {
-  return grade === null ? 'Not set' : `Grade ${grade}`;
+  if (!isVerifierGrade(grade)) return 'Not set';
+  if (grade < 6) return 'Under grade 6';
+  if (grade <= 12) return `Grade ${grade}`;
+  if (grade === 17) return 'Beyond UG';
+  return `UG ${['1st', '2nd', '3rd', '4th'][grade - 13]} year`;
+}
+
+/** The select value for a stored grade: older rows 1 to 4 show as Under grade 6; blank for none. */
+export function gradeSelectValue(grade: number | null): string {
+  if (!isVerifierGrade(grade)) return '';
+  return String(grade < VERIFIER_GRADE_UNDER_6 ? VERIFIER_GRADE_UNDER_6 : grade);
 }
 
 /** "31 Mar 2027", or "Not set". */

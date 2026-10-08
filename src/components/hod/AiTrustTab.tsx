@@ -6,11 +6,12 @@ import {
   barPosition,
   buildTrustGrid,
   checksNeeded,
+  DECISION_HINT,
   DECISION_LABEL,
   formatRate,
   LEVEL_LABEL,
   switchState,
-  TRUST_EXPLAINER,
+  trustExplainer,
   trustStatus,
   type TrustCell,
   type TrustRow,
@@ -19,9 +20,10 @@ import type { HodApi } from '@/lib/hod-api';
 import { cn } from '@/lib/utils';
 
 /* "AI trust": for each confidence level and each kind of AI decision, how
-   often people passed it with no edit, against the 97% over 200 checks bar.
-   The HOD sees the numbers; only an admin gets the switch. Verifiers never see
-   any of this: the AI's confidence would bias them. */
+   often verifiers agreed with no change, against the bar (97% over the
+   minimum number of checks, read from the rows, never written here). The HOD
+   sees the numbers; only an admin gets the switch. Verifiers never see any of
+   this: the AI's confidence would bias them. */
 
 export const AI_TRUST_KEY = (scope: string) => ['hod', scope, 'ai-trust'] as const;
 
@@ -42,7 +44,7 @@ function Meter({ row }: { row: TrustRow }) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={fill}
-        aria-label={`Right ${formatRate(row.rate)} of the time, the bar is ${Math.round(row.min_rate * 100)}%`}
+        aria-label={`Agreed ${formatRate(row.rate)} of the time, the bar is ${Math.round(row.min_rate * 100)}%`}
       >
         <div className={cn('h-full rounded-full', met ? 'bg-emerald-500' : 'bg-brand')} style={{ width: `${fill}%` }} />
         <div className="absolute -top-1 w-0.5 bg-foreground" style={{ left: `${bar}%`, height: '1.125rem' }} aria-hidden />
@@ -61,7 +63,8 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
     return (
       <div className="rounded-[18px] bg-muted p-4">
         <p className="text-[14px] font-bold text-foreground">{title}</p>
-        <p className="mt-1 text-[13px] text-warm-secondary">No data yet.</p>
+        <p className="mt-0.5 text-[13px] text-warm-secondary">{DECISION_HINT[cell.decision]}</p>
+        <p className="mt-2 text-[13px] text-warm-secondary">No data yet.</p>
       </div>
     );
   }
@@ -84,12 +87,17 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
 
   return (
     <div className="flex flex-col gap-3 rounded-[18px] bg-muted p-4" data-testid="trust-cell" data-level={cell.level} data-decision={cell.decision}>
-      <p className="text-[14px] font-bold text-foreground">{title}</p>
+      <div>
+        <p className="text-[14px] font-bold text-foreground">{title}</p>
+        <p className="mt-0.5 text-[13px] leading-snug text-warm-secondary" data-testid="trust-hint">
+          {DECISION_HINT[cell.decision]}
+        </p>
+      </div>
       <div className="flex items-baseline gap-2">
-        <span className="text-[34px] font-bold leading-none tabular-nums text-foreground" aria-label={`Right ${formatRate(row.rate)}`}>
+        <span className="text-[34px] font-bold leading-none tabular-nums text-foreground" aria-label={`Agreed ${formatRate(row.rate)}`}>
           {row.rate === null ? '-' : formatRate(row.rate)}
         </span>
-        <span className="text-[13px] text-warm-secondary">passed with no edit</span>
+        <span className="text-[13px] text-warm-secondary">verifiers agreed, no change</span>
       </div>
       <p className="text-[13px] tabular-nums text-foreground">{checksNeeded(row)}</p>
       <Meter row={row} />
@@ -143,10 +151,11 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
 
 export function AiTrustTab({ api, scope, canSwitchTrust: canSwitch }: { api: HodApi; scope: string; canSwitchTrust: boolean }) {
   const q = useQuery({ queryKey: AI_TRUST_KEY(scope), queryFn: () => api.aiTrust(), staleTime: 15_000, refetchOnMount: true });
+  const bar = q.data?.[0];
   return (
     <div>
       <p className="mb-4 rounded-2xl bg-brand-subtle px-4 py-3 text-[14px] leading-snug text-foreground" data-testid="trust-explainer">
-        {TRUST_EXPLAINER}
+        {trustExplainer(bar?.min_checked, bar?.min_rate, bar?.spot_check_every)}
       </p>
       {q.isLoading ? (
         <ListSkeleton rows={3} label="Loading the AI trust meter" />

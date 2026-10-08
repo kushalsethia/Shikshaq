@@ -89,7 +89,7 @@ export const WALKTHROUGH_STEPS: WalkthroughStep[] = [
   {
     target: 'skip',
     title: 'Skip this question',
-    body: 'Press this if you cannot decide, for example the picture is too blurry. It will not come back to you for a day, and you move to the next question.',
+    body: 'Press this to skip the question for now. It will come back to you after a day, and you currently move to the next question.',
   },
 ];
 
@@ -176,4 +176,4 @@ export function addHodSteps(origin: string): string[] {
 }
 
 export const HOD_NOTE =
-  'An HOD does not need to be a checker. Removing an HOD only takes away the HOD view; their earlier decisions stay. Admins can always open the HOD view.';
+  'An HOD does not need to be a checker. Removing an HOD only takes away the HOD desk; their earlier decisions stay. Admins can always open the HOD desk.';

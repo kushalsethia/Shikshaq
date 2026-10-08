@@ -5,7 +5,7 @@ import { MathText } from '@/components/papers/math-text';
 import { BodyEditor } from '@/components/checker/BodyEditor';
 import { OptionList } from '@/components/checker/OptionList';
 import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
-import { CheckerSkeleton, Callout, LaneCard, Modal, SplitPreview, WholeQuestion, useSignedUrl } from '@/components/checker/CheckerBits';
+import { CheckerSkeleton, Callout, CheckGuidance, Modal, SplitPreview, WholeQuestion, useSignedUrl } from '@/components/checker/CheckerBits';
 import { cn } from '@/lib/utils';
 import type { CheckerApi } from '@/lib/checker-api';
 import { whatToCheck, needsSplit } from '@/lib/checker-kid-reasons';
@@ -569,16 +569,24 @@ export function VerifyScreen({
           // Desktop: the question on the left, the picture of the printed page on the right.
           // Phone (one column): the question first, then the picture, so the words to check
           // are not pushed below a whole A4 page. The picture follows the question.
+          <div className="min-h-0">
+            <ul className="mb-3 flex flex-wrap gap-1.5" aria-label="About this question" data-testid="question-meta">
+              {metaChips.map((c) => (
+                <li key={c} className="rounded-full bg-muted px-3 py-1 text-[12px] font-semibold text-warm-secondary">
+                  {c}
+                </li>
+              ))}
+            </ul>
+            {/* How to check: quiet guidance above the pair, never a card. The
+                comparison below (what we have, the printed paper) is the job. */}
+            {hasPicture && laneSummary && (laneSummary.blocks.length > 0 || laneSummary.unmapped.length > 0) ? (
+              <CheckGuidance summary={laneSummary} />
+            ) : whatToCheckLine.line ? (
+              <CheckGuidance line={whatToCheckLine.line} detail={whatToCheckLine.detail} />
+            ) : null}
           <div className="grid min-h-0 grid-cols-1 gap-5 lg:grid-cols-2">
             {/* Left: the question, with its details in plain sight. */}
             <div className="flex min-w-0 flex-col">
-              <ul className="mb-3 flex flex-wrap gap-1.5" aria-label="About this question" data-testid="question-meta">
-                {metaChips.map((c) => (
-                  <li key={c} className="rounded-full bg-muted px-3 py-1 text-[12px] font-semibold text-warm-secondary">
-                    {c}
-                  </li>
-                ))}
-              </ul>
               {lost ? (
                 <Callout tone="warn" title={LOST_TEXT_TITLE}>
                   {LOST_TEXT_NOTE}
@@ -592,20 +600,6 @@ export function VerifyScreen({
                 <Callout tone="warn" title="These words look scrambled">
                   Do not try to retype them. Press Ask the HOD and your HOD will fix it from the paper.
                 </Callout>
-              ) : null}
-
-              {hasPicture && laneSummary && (laneSummary.blocks.length > 0 || laneSummary.unmapped.length > 0) ? (
-                <LaneCard summary={laneSummary} />
-              ) : whatToCheckLine.line ? (
-                <div className="mb-3 rounded-2xl bg-brand-subtle p-3">
-                  <p className="mb-1 text-[13px] font-semibold text-foreground">What to check</p>
-                  <p className="text-[14px] leading-snug text-foreground">{whatToCheckLine.line}</p>
-                  {whatToCheckLine.detail ? (
-                    <p className="mt-1 text-[12px] text-warm-secondary">
-                      What the computer noticed: {whatToCheckLine.detail}
-                    </p>
-                  ) : null}
-                </div>
               ) : null}
 
               {context ? <WholeQuestion context={context} /> : null}
@@ -627,7 +621,13 @@ export function VerifyScreen({
                 </div>
               ) : null}
 
-              {context ? <p className="mb-1 text-[13px] font-semibold text-foreground">The part you are checking</p> : null}
+              {context ? (
+                <p className="mb-1 text-[13px] font-semibold text-foreground">The part you are checking</p>
+              ) : blank && !lost && mode === 'check' ? null : (
+                // Same label style as "The printed paper" on the right, so the
+                // eye reads the two as a pair.
+                <p className="mb-1 text-[12px] text-warm-meta">What we have</p>
+              )}
 
               {mode === 'fix' ? (
                 <div>
@@ -691,7 +691,7 @@ export function VerifyScreen({
                   <SplitPreview body={bodyDraft} at={splitAt} />
                 </div>
               ) : blank && !lost ? null : (
-                <div data-tour="question" className="rounded-2xl bg-muted p-4">
+                <div data-tour="question" className="rounded-2xl border border-warm-hairline bg-card p-4">
                   {lost ? <p className="mb-2 text-[12px] font-semibold text-warm-meta">{LOST_TEXT_HEADING}</p> : null}
                   <MathText text={bodyDraft} className="break-words text-[16px] leading-relaxed text-foreground" />
                   <OptionList options={question.options} />
@@ -744,7 +744,7 @@ export function VerifyScreen({
                   {picturePlan?.mayMissParts && cropShown ? (
                     <p className="mb-2 text-[13px] leading-snug text-warm-secondary">{PICTURE_MAY_MISS_PARTS}</p>
                   ) : null}
-                  <div data-tour="picture" className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-2xl bg-white p-2 lg:max-h-[60vh]">
+                  <div data-tour="picture" className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-2xl border border-warm-hairline bg-white p-2 lg:max-h-[60vh]">
                     {cropShown === undefined ? (
                       <div className="h-40 animate-pulse rounded-[14px] bg-muted" aria-label="Loading the picture" />
                     ) : (
@@ -809,6 +809,7 @@ export function VerifyScreen({
               ) : null}
             </div>
 
+          </div>
           </div>
         )}
 

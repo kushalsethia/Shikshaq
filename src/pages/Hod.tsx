@@ -11,8 +11,10 @@ import { AiTrustTab } from '@/components/hod/AiTrustTab';
 import { ESCALATIONS_KEY, EscalationsTab } from '@/components/hod/EscalationsTab';
 import { HistoryTab } from '@/components/hod/HistoryTab';
 import { VerifiersTab } from '@/components/hod/VerifiersTab';
+import { TeacherReviewersTab } from '@/components/hod/TeacherReviewersTab';
 import { CHIP } from '@/lib/checker-button-styles';
 import { realHodApi, type HodApi } from '@/lib/hod-api';
+import type { TeacherReviewerAdminApi } from '@/lib/teacher-review-api';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 import { cn } from '@/lib/utils';
@@ -48,6 +50,8 @@ export interface HodTabProps {
   scope: string;
   /** Admins only: the AI trust switch. */
   canSwitchTrust: boolean;
+  /** The teacher reviewers tab; the real one when left out (dummy mode passes a fake). */
+  reviewerApi?: TeacherReviewerAdminApi;
 }
 
 export interface HodTabDef {
@@ -64,6 +68,7 @@ export const TABS: HodTabDef[] = [
   { key: 'verifiers', label: 'Verifiers', hint: 'How each verifier is doing, their details and preferred subjects.', Component: VerifiersTab },
   { key: 'history', label: 'History', hint: 'What HODs, admins and verifiers did.', Component: HistoryTab },
   { key: 'ai-trust', label: 'AI trust', hint: 'How often people agree with the AI, level by level.', Component: AiTrustTab },
+  { key: 'teacher-reviewers', label: 'Teacher reviewers', hint: 'Who is on the teachers team: add or remove people who approve and edit teachers.', Component: TeacherReviewersTab },
 ];
 
 export function HodPage({
@@ -71,14 +76,16 @@ export function HodPage({
   dummy = false,
   banner,
   dummyRoles,
+  reviewerApi,
 }: {
   api: HodApi;
   dummy?: boolean;
   banner?: ReactNode;
   /** Dummy mode has no sign-in, so the roles the page would read are given here. */
   dummyRoles?: { isAdmin: boolean; isChecker: boolean };
+  reviewerApi?: TeacherReviewerAdminApi;
 }) {
-  usePageMeta('HOD view | Shikshaq', 'What verifiers sent up, how each verifier is doing and who holds which paper.');
+  usePageMeta('HOD desk | Shikshaq', 'What verifiers sent up, how each verifier is doing and who holds which paper.');
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const scope = dummy ? 'dummy' : 'live';
@@ -123,7 +130,7 @@ export function HodPage({
       <BentoStack className="min-h-screen bg-muted">
         <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-5xl">
           {banner}
-          <div className="h-40 animate-pulse rounded-2xl bg-muted" role="status" aria-label="Loading the HOD view" />
+          <div className="h-40 animate-pulse rounded-2xl bg-muted" role="status" aria-label="Loading the HOD desk" />
         </BentoPanel>
       </BentoStack>
     );
@@ -157,7 +164,7 @@ export function HodPage({
       <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-5xl">
         {banner}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-lg font-bold text-foreground">HOD view</h1>
+          <h1 className="text-lg font-bold text-foreground">HOD desk</h1>
           <div className="flex flex-wrap items-center gap-2">
             {isAdmin ? (
               <Link to="/admin" className={cn(CHIP, 'bg-muted text-warm-secondary')}>
@@ -172,7 +179,7 @@ export function HodPage({
           </div>
         </div>
 
-        <div role="tablist" aria-label="HOD view" className="mb-5 flex max-w-full flex-wrap items-center gap-1 rounded-[20px] bg-muted p-1 sm:inline-flex sm:rounded-full">
+        <div role="tablist" aria-label="HOD desk" className="mb-5 flex max-w-full flex-wrap items-center gap-1 rounded-[20px] bg-muted p-1 sm:inline-flex sm:rounded-full">
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -202,7 +209,7 @@ export function HodPage({
         </div>
 
         <div role="tabpanel" id="hod-panel" aria-labelledby={`hod-tab-${active.key}`}>
-          <active.Component api={api} scope={scope} canSwitchTrust={isAdmin} />
+          <active.Component api={api} scope={scope} canSwitchTrust={isAdmin} reviewerApi={reviewerApi} />
         </div>
       </BentoPanel>
     </BentoStack>
