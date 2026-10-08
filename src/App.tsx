@@ -1,4 +1,4 @@
-import { LOCALITY_PAGES } from "./content/locality-pages.generated";
+import { LOCALITY_PAGE_PATHS } from "./content/locality-paths.generated";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -458,8 +458,8 @@ const App = () => (
                   real teachers, from the list scripts/generate-locality-pages.ts
                   writes at build time. Anything not in that list falls through
                   to NotFound like any other unknown URL. */}
-              {LOCALITY_PAGES.map((p) => (
-                <Route key={p.path} path={p.path} element={<LocalityPage />} />
+              {LOCALITY_PAGE_PATHS.map((path) => (
+                <Route key={path} path={path} element={<LocalityPage />} />
               ))}
               <Route path="/404" element={<NotFound />} />
               {/* Render in place rather than Navigate to /404: redirecting
