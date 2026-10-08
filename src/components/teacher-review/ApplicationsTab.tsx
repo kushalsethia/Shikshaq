@@ -6,18 +6,26 @@ import { CheckCircle, ImageOff, Loader2, Pencil, Search, XCircle } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useConfirm } from '@/components/ui/use-confirm';
-import { AdminPanelHeader, AdminStatusPill, AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { AdminPanelHeader, AdminStatusPill, AdminTable, AdminTableSkeleton, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { AdminEmpty, AdminError } from '@/components/admin/AdminState';
+import { AdminFilterChips } from '@/components/admin/AdminFilterChips';
 import { DetailsForm } from '@/components/teacher-review/DetailsForm';
 import { applicationToDetails, detailsToApplication, type DetailsValue } from '@/components/teacher-review/details-value';
 import { validateImageSrc } from '@/utils/imageSanitizer';
-import { APPLICATIONS_KEY, TEACHERS_KEY, applicationPatch, detailsProblem, type ReviewApplication, type TeacherReviewApi } from '@/lib/teacher-review-api';
+import { APPLICATIONS_KEY, APPLICATION_STATUS_LABEL, TEACHERS_KEY, applicationPatch, detailsProblem, docsLabel, type ReviewApplication, type TeacherReviewApi } from '@/lib/teacher-review-api';
+import { formatFeeRange } from '@/lib/fee-range';
+import { STATUS_VIEWS, approveCopy, countsByView, defaultOrder, emptyCopy, filterApplications, sortApplications, viewFromParam, type StatusView } from '@/lib/admin-applications';
 
 /* Applications: teachers who asked to join. A reviewer reads the details
    (contacts included), can fix them, then approves or rejects. Approving lists
    the teacher on the site, so it asks first; rejecting needs a reason the
-   teacher can read. */
+   teacher can read.
+
+   The views (Waiting, Approved, Rejected, All), their order, the wording of the
+   statuses, the fee range and the loading, error and empty states are shared
+   with the admin Applications page (pages/admin/approvals.tsx), so the two
+   read the same. Only the admin page can record the outreach note. */
 
 function messageOf(e: unknown, fallback: string): string {
   const m = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : '';
@@ -37,7 +45,7 @@ export function ApplicationsTab({ api, scope }: { api: TeacherReviewApi; scope: 
   const { confirm, confirmDialog } = useConfirm();
   const q = useQuery({ queryKey: APPLICATIONS_KEY(scope), queryFn: () => api.applications(), staleTime: 15_000, refetchOnMount: true });
   const [search, setSearch] = useState('');
-  const [show, setShow] = useState<'pending' | 'all'>('pending');
+  const [view, setView] = useState<StatusView>(viewFromParam(null));
   const [openId, setOpenId] = useState<string | null>(null);
   const [editing, setEditing] = useState<DetailsValue | null>(null);
   const [rejecting, setRejecting] = useState(false);
@@ -46,16 +54,9 @@ export function ApplicationsTab({ api, scope }: { api: TeacherReviewApi; scope: 
 
   const apps = useMemo(() => q.data ?? [], [q.data]);
   const open = apps.find((a) => a.id === openId) ?? null;
-  const pending = apps.filter((a) => a.status === 'pending').length;
+  const counts = useMemo(() => countsByView(apps), [apps]);
 
-  const shown = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return apps.filter((a) => {
-      if (show === 'pending' && a.status !== 'pending') return false;
-      if (!term) return true;
-      return [a.name, a.email, a.phone_number, a.reference_name, a.subjects].some((x) => x?.toLowerCase().includes(term));
-    });
-  }, [apps, search, show]);
+  const shown = useMemo(() => sortApplications(filterApplications(apps, view, search), defaultOrder(view)), [apps, search, view]);
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: APPLICATIONS_KEY(scope) });
@@ -100,11 +101,7 @@ export function ApplicationsTab({ api, scope }: { api: TeacherReviewApi; scope: 
   const busy = approve.isPending || reject.isPending || save.isPending;
 
   async function onApprove(a: ReviewApplication) {
-    const ok = await confirm({
-      title: `Approve ${a.name}?`,
-      description: 'They will be listed on the site straight away and can be found by parents.',
-      confirmLabel: 'Approve and list',
-    });
+    const ok = await confirm(approveCopy(a.name));
     if (ok) approve.mutate(a.id);
   }
 
@@ -127,7 +124,7 @@ export function ApplicationsTab({ api, scope }: { api: TeacherReviewApi; scope: 
   const columns: AdminTableColumn[] = [
     { key: 'who', label: 'Applicant', width: '1.6fr' },
     { key: 'contact', label: 'Contact', width: '1.6fr' },
-    { key: 'subjects', label: 'Subjects', width: '1.4fr' },
+    { key: 'subjects', label: 'Subjects', width: '1.4fr', wrap: true },
     { key: 'sent', label: 'Sent', width: '1fr' },
     { key: 'status', label: 'Status', width: '1fr' },
   ];
@@ -141,11 +138,11 @@ export function ApplicationsTab({ api, scope }: { api: TeacherReviewApi; scope: 
       </div>,
       a.subjects || '-',
       formatDistanceToNow(new Date(a.created_at), { addSuffix: true }),
-      <AdminStatusPill key="s" status={a.status === 'approved' ? 'live' : a.status === 'rejected' ? 'hidden' : 'pending'} label={a.status[0].toUpperCase() + a.status.slice(1)} />,
+      <AdminStatusPill key="s" status={a.status === 'approved' ? 'live' : a.status === 'rejected' ? 'hidden' : 'pending'} label={APPLICATION_STATUS_LABEL[a.status]} />,
     ],
     actions: [
       {
-        label: a.status === 'pending' ? 'Review' : 'View',
+        label: a.status === 'pending' ? 'Review' : 'Open',
         tone: 'primary',
         onClick: () => {
           setOpenId(a.id);
@@ -159,11 +156,17 @@ export function ApplicationsTab({ api, scope }: { api: TeacherReviewApi; scope: 
 
   return (
     <section aria-label="Applications">
-      <div aria-live="polite" aria-atomic="true">
-        <AdminPanelHeader title="Applications" meta={`${pending} waiting`} />
-      </div>
-      <div className="mb-4 flex flex-wrap items-center gap-2 px-[18px]">
-        <div className="relative">
+      <AdminPanelHeader title="Applications" />
+      <div className="mb-4 flex flex-col gap-3 px-[18px]">
+        <AdminFilterChips
+          chips={STATUS_VIEWS.map((v) => ({ key: v.key, label: v.label, hint: v.hint, ...(q.data ? { count: counts[v.key] } : q.isPending ? { noCount: true } : {}) }))}
+          value={view}
+          onChange={(k) => setView(viewFromParam(k))}
+          onClear={() => setView('waiting')}
+          defaultValue="waiting"
+          label="Which applications to show"
+        />
+        <div className="relative w-full sm:w-[280px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-label" aria-hidden />
           <input
             type="search"
@@ -171,32 +174,22 @@ export function ApplicationsTab({ api, scope }: { api: TeacherReviewApi; scope: 
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, email or phone"
             aria-label="Search applications"
-            className="h-11 w-[280px] max-w-full rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="h-11 w-full max-w-full rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-brand"
           />
         </div>
-        <Select value={show} onValueChange={(v) => setShow(v as 'pending' | 'all')}>
-          <SelectTrigger aria-label="Which applications to show" className="h-11 w-[170px] rounded-full border-0 bg-muted text-sm font-semibold">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pending">Waiting for review</SelectItem>
-            <SelectItem value="all">All applications</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {q.isPending ? (
-        <div className="h-40 animate-pulse rounded-2xl bg-muted" role="status" aria-label="Loading the applications" />
-      ) : q.isError ? (
-        <div className="rounded-2xl bg-muted p-8 text-center">
-          <p className="text-sm text-warm-secondary">The applications did not load.</p>
-          <button type="button" onClick={() => void q.refetch()} className="mt-2 text-sm font-semibold text-brand-blue">
-            Try again
-          </button>
-        </div>
+        <AdminTableSkeleton label="Loading the applications" />
+      ) : q.isError && !q.data ? (
+        <AdminError what="the applications" onRetry={() => void q.refetch()} className="mx-[18px]" />
       ) : shown.length === 0 ? (
-        <div className="rounded-2xl bg-muted p-12 text-center text-sm text-warm-label">
-          {search.trim() ? `No applications match "${search.trim()}".` : show === 'pending' ? 'No applications are waiting.' : 'No applications yet.'}
+        <div className="mx-[18px] rounded-2xl bg-muted">
+          <AdminEmpty
+            title={emptyCopy(view, search).title}
+            hint={emptyCopy(view, search).hint}
+            action={search.trim() ? { label: 'Clear search', onClick: () => setSearch('') } : view !== 'all' ? { label: 'Show all applications', onClick: () => setView('all') } : undefined}
+          />
         </div>
       ) : (
         <AdminTable columns={columns} rows={rows} />
@@ -241,7 +234,7 @@ export function ApplicationsTab({ api, scope }: { api: TeacherReviewApi; scope: 
                       <Row label="Boards">{open.school_boards_catered || 'Not said'}</Row>
                       <Row label="Where">{open.location_v2 || 'Not said'}</Row>
                       <Row label="Mode">{open.mode_of_teaching || 'Not said'}</Row>
-                      <Row label="Fees">{open.min_fees !== null || open.max_fees !== null ? `Rs ${open.min_fees ?? '?'} to ${open.max_fees ?? '?'} a month` : 'Not said'}</Row>
+                      <Row label="Fees per month">{formatFeeRange(open.min_fees, open.max_fees)}</Row>
                     </div>
                   </div>
                   {open.description ? (
@@ -258,7 +251,7 @@ export function ApplicationsTab({ api, scope }: { api: TeacherReviewApi; scope: 
                   ) : null}
                   {open.hero_image_url ? (
                     <div className="md:col-span-2">
-                      <h3 className="mb-2 text-sm font-semibold text-foreground">Photo</h3>
+                      <h3 className="mb-2 text-sm font-semibold text-foreground">Profile photo</h3>
                       {imageFailed ? (
                         <div className="flex h-48 w-full max-w-md flex-col items-center justify-center gap-2 rounded-2xl bg-muted text-warm-label">
                           <ImageOff className="h-6 w-6" aria-hidden />
@@ -270,7 +263,8 @@ export function ApplicationsTab({ api, scope }: { api: TeacherReviewApi; scope: 
                     </div>
                   ) : null}
                   <div className="md:col-span-2 space-y-1 text-[14px] text-warm-prose">
-                    <Row label="Status">{open.status}</Row>
+                    <Row label="Status">{APPLICATION_STATUS_LABEL[open.status]}</Row>
+                    <Row label="Sent with it">{docsLabel(open)}</Row>
                     <Row label="Sent">{new Date(open.created_at).toLocaleString()}</Row>
                     {open.rejection_reason ? <Row label="Reason given">{open.rejection_reason}</Row> : null}
                   </div>

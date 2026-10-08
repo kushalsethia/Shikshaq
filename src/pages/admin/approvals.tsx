@@ -1,548 +1,451 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { CheckCircle, XCircle, Search, Loader2, ImageOff } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 import { recordAdminAction } from '@/lib/audit';
 import { formatDistanceToNow } from 'date-fns';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import {
-  Textarea,
-} from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { validateImageSrc } from '@/utils/imageSanitizer';
-import { useAdminGuard, useReviewerNames, AdminGuardErrorState, adminDestructiveBtnStyle } from '@/components/AdminConsole';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useConfirm } from '@/components/ui/use-confirm';
+import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
 import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
-import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
+import { AdminEmpty, AdminError } from '@/components/admin/AdminState';
+import { AdminFilterChips, type AdminFilterChip } from '@/components/admin/AdminFilterChips';
+import { ApplicationDialog } from '@/components/admin/ApplicationDialog';
+import { useRefreshAdminCounts } from '@/pages/admin/useAdminSectionCounts';
 import {
   AdminTable,
+  AdminTableSkeleton,
   AdminPanelHeader,
   AdminStatusPill,
   type AdminTableColumn,
   type AdminTableRow,
-  type AdminStatus,
 } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
+import { PREVIEW_TOOLS } from '@/lib/preview-tools';
+import { isDummyMode } from '@/lib/dummy-mode';
+import { APPLICATION_STATUS_LABEL, docsLabel } from '@/lib/teacher-review-api';
+import {
+  STATUS_TONE,
+  STATUS_VIEWS,
+  approveWithConfirm,
+  countsByView,
+  defaultOrder,
+  emptyCopy,
+  filterApplications,
+  neighbours,
+  nextToOpen,
+  normaliseApplicationRow,
+  rejectWithReason,
+  sortApplications,
+  textedLabel,
+  viewFromParam,
+  withDecision,
+  type ApprovalsApi,
+  type SortOrder,
+  type StatusView,
+  type TeacherApplication,
+  type TextedStatus,
+} from '@/lib/admin-applications';
 
-/* Handoff 09i AD-001..004 — "Approvals". Ported from the legacy
-   src/pages/AdminApplications.tsx (614 lines): same teacher_applications
-   queries, the same approve_teacher_application RPC, and the same reject
-   mutation + recordAdminAction calls. The old AdminRail/AdminToolbar
-   sidebar shell is gone — this page renders the AdminHeader pill-tab row
-   and its own BentoPanel content, per the actual handoff spec (not the
-   superseded S7 rail). */
+/* Admin Applications: teachers who asked to join. Same teacher_applications
+   reads, the same approve_teacher_application RPC, the same reject update and
+   the same recordAdminAction calls as before (handoff 09i AD-001..004). What
+   changed is how the page behaves:
 
-interface TeacherApplication {
-  id: string;
-  name: string;
-  email: string;
-  phone_number: string;
-  sir_maam: 'Sir' | "Ma'am";
-  subjects: string | null;
-  classes_taught_for_backend: string | null;
-  school_boards_catered: string | null;
-  location_v2: string | null;
-  students_home_areas: string | null;
-  tutors_home_areas: string | null;
-  mode_of_teaching: string | null;
-  class_size: string | null;
-  description: string | null;
-  qualifications_etc: string | null;
-  years_started_teaching: string | null;
-  featured_subject: string | null;
-  whatsapp_link: string | null;
-  hero_image_url: string | null;
-  reference_name: string | null;
-  reference_number: string | null;
-  mou_consent: boolean;
-  mou_consent_timestamp: string | null;
-  status: 'pending' | 'approved' | 'rejected';
-  texted_status: 'not_texted' | 'texted' | 'follow_up';
-  reviewed_by: string | null;
-  reviewed_at: string | null;
-  rejection_reason: string | null;
-  created_at: string;
-  updated_at: string;
+   - A failed read says so, with Try again. It never reads "nothing waiting".
+   - Waiting / Approved / Rejected / All are chips with their own counts;
+     Waiting is the default and works from the oldest.
+   - Approve asks first, because it lists the teacher on the site at once.
+   - After a decision the row is patched in place, the next waiting application
+     opens, and the list refreshes quietly. The page never re-skeletons.
+   - The outreach note (Not texted / Texted / Follow up) lives on each one.
+
+   The page takes its database as `api`, so dummy mode (test builds only) can
+   run it against made-up applications. */
+
+const DummyApprovals = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminApprovalsDummy')) : null;
+
+const APPROVALS_KEY = (scope: string) => ['admin', 'approvals', scope] as const;
+
+/* The columns the admin role may read on teacher_applications (checked with
+   has_column_privilege for authenticated, 8 Oct 2026). Still select('*') until
+   the separate commit that names them: PostgREST narrows a wildcard silently,
+   but a NAMED column the role cannot read fails the whole request. */
+const APPLICATION_SELECT = '*';
+
+export const realApprovalsApi: ApprovalsApi = {
+  async list() {
+    const { data, error } = await supabase.from('teacher_applications').select(APPLICATION_SELECT).order('created_at', { ascending: false });
+    if (error) throw error;
+    return ((data ?? []) as unknown as Record<string, unknown>[]).map(normaliseApplicationRow);
+  },
+  async approve(applicationId, adminId) {
+    const { error } = await supabase.rpc('approve_teacher_application', { application_id: applicationId, admin_id: adminId });
+    if (error) throw error;
+  },
+  async reject(applicationId, adminId, reason) {
+    const { error } = await supabase
+      .from('teacher_applications')
+      .update({
+        status: 'rejected',
+        reviewed_by: adminId,
+        reviewed_at: new Date().toISOString(),
+        rejection_reason: reason || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', applicationId);
+    if (error) throw error;
+  },
+  async setTexted(applicationId, status) {
+    const { error } = await supabase.from('teacher_applications').update({ texted_status: status }).eq('id', applicationId);
+    if (error) throw error;
+  },
+  async reviewerNames(ids) {
+    if (ids.length === 0) return {};
+    const { data, error } = await supabase.from('profiles').select('id, full_name, email').in('id', ids);
+    if (error || !data) return {};
+    const map: Record<string, string> = {};
+    data.forEach((row) => {
+      map[row.id] = row.full_name || row.email || 'an admin';
+    });
+    return map;
+  },
+};
+
+// ------------------------------------------------------------------ the list
+
+const COLUMNS: AdminTableColumn[] = [
+  { key: 'applicant', label: 'Applicant', width: '1.6fr' },
+  { key: 'contact', label: 'Contact', width: '1.3fr' },
+  { key: 'subjects', label: 'Subjects', width: '1.6fr', wrap: true },
+  { key: 'area', label: 'Area', width: '1.1fr', wrap: true },
+  { key: 'submitted', label: 'Submitted', width: '1fr' },
+  { key: 'docs', label: 'Sent with it', width: '1.1fr', wrap: true },
+  { key: 'status', label: 'Status', width: '1fr' },
+];
+
+export type ApplicationsLoad = 'loading' | 'error' | 'ready';
+
+/** The body of the panel: skeleton, error, empty or the table. Presentational,
+ *  so every state can be rendered and checked on its own. A failed read shows
+ *  the error and NEVER an empty-state sentence. */
+export function ApplicationsBody({
+  load,
+  shown,
+  view,
+  search,
+  onRetry,
+  onClearSearch,
+  onShowAll,
+  onOpen,
+}: {
+  load: ApplicationsLoad;
+  shown: TeacherApplication[];
+  view: StatusView;
+  search: string;
+  onRetry: () => void;
+  onClearSearch: () => void;
+  onShowAll: () => void;
+  onOpen: (id: string) => void;
+}) {
+  if (load === 'loading') return <AdminTableSkeleton label="Loading the applications" />;
+  if (load === 'error') return <AdminError what="the applications" onRetry={onRetry} className="mx-[18px]" />;
+  if (shown.length === 0) {
+    const copy = emptyCopy(view, search);
+    const action = search.trim()
+      ? { label: 'Clear search', onClick: onClearSearch }
+      : view !== 'all'
+        ? { label: 'Show all applications', onClick: onShowAll }
+        : undefined;
+    return (
+      <div className="mx-[18px] rounded-2xl bg-muted">
+        <AdminEmpty title={copy.title} hint={copy.hint} action={action} />
+      </div>
+    );
+  }
+  const rows: AdminTableRow[] = shown.map((a) => ({
+    id: a.id,
+    cells: [
+      a.name,
+      <div key="c" className="min-w-0">
+        <p className="truncate">+91 {a.phone_number}</p>
+        {a.texted_status !== 'not_texted' ? <p className="truncate text-[12px] font-semibold text-brand-blue">{textedLabel(a.texted_status)}</p> : null}
+      </div>,
+      [a.subjects, a.classes_taught_for_backend].filter(Boolean).join(' · ') || 'Not said',
+      a.location_v2 || 'Not said',
+      formatDistanceToNow(new Date(a.created_at), { addSuffix: true }),
+      docsLabel(a),
+      <AdminStatusPill key="status" status={STATUS_TONE[a.status]} label={APPLICATION_STATUS_LABEL[a.status]} />,
+    ],
+    actions: [{ label: a.status === 'pending' ? 'Review' : 'Open', tone: 'primary', onClick: () => onOpen(a.id) }],
+  }));
+  return <AdminTable columns={COLUMNS} rows={rows} />;
 }
 
-export default function AdminApprovals() {
-  usePageMeta(
-    'Teacher Approvals | Shikshaq Admin',
-    'Review pending teacher applications, approve or reject, and manage the queue.'
-  );
+// ---------------------------------------------------------------- the page
+
+export function AdminApprovalsPage({
+  api = realApprovalsApi,
+  dummy = false,
+  banner,
+}: {
+  api?: ApprovalsApi;
+  dummy?: boolean;
+  banner?: ReactNode;
+}) {
+  usePageMeta('Applications | Shikshaq Admin', 'Review teachers who applied to join, then approve or reject them.');
   const { user, profile } = useAuth();
-  const actorName = profile?.full_name || user?.email || 'an admin';
-  const signedInName = actorName;
-  const [applications, setApplications] = useState<TeacherApplication[]>([]);
-  const [filteredApplications, setFilteredApplications] = useState<TeacherApplication[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const actorName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'an admin';
+  const adminId = dummy ? 'dummy-admin' : user?.id ?? null;
+  const guard = useAdminGuard(dummy ? null : user, { redirectOnDenied: !dummy });
+  const isAdmin = dummy ? true : guard.isAdmin;
+  const checkingAdmin = dummy ? false : guard.checkingAdmin;
+  const qc = useQueryClient();
+  const refreshCounts = useRefreshAdminCounts();
+  const { confirm, confirmDialog } = useConfirm();
+  const [params, setParams] = useSearchParams();
+
+  const scope = dummy ? 'dummy' : 'live';
+  const key = APPROVALS_KEY(scope);
+  const view = viewFromParam(params.get('status'));
+  const [search, setSearch] = useState('');
+  const [sortOverride, setSortOverride] = useState<SortOrder | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [selectedApplication, setSelectedApplication] = useState<TeacherApplication | null>(null);
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
-  const [rejectReason, setRejectReason] = useState('');
-  const [showReject, setShowReject] = useState(false);
-  const [heroImageError, setHeroImageError] = useState(false);
+  const [outreachBusy, setOutreachBusy] = useState(false);
 
-  const { isAdmin, checkingAdmin, error: adminGuardError, retry: retryAdminGuard } = useAdminGuard(user, {
-    onGranted: fetchApplications,
-    redirectOnDenied: true,
+  const q = useQuery({
+    queryKey: key,
+    queryFn: () => api.list(),
+    enabled: !!isAdmin,
+    staleTime: 15_000,
+    refetchOnMount: true,
+    retry: false,
   });
-  const reviewerNames = useReviewerNames(applications.map((a) => a.reviewed_by));
-  const sectionCounts = useAdminSectionCounts();
+  const apps = useMemo(() => q.data ?? [], [q.data]);
+  // Only the first load skeletons. A refetch that fails after data arrived
+  // keeps the rows and says so above them.
+  const load: ApplicationsLoad = q.data ? 'ready' : q.isError ? 'error' : 'loading';
 
-  useEffect(() => {
-    if (!checkingAdmin) setLoading(false);
-  }, [checkingAdmin]);
+  const counts = useMemo(() => countsByView(apps), [apps]);
+  const order = sortOverride ?? defaultOrder(view);
+  const shown = useMemo(() => sortApplications(filterApplications(apps, view, search), order), [apps, view, search, order]);
+  const open = apps.find((a) => a.id === openId) ?? null;
+  const pos = open ? neighbours(shown, open.id) : null;
 
-  async function fetchApplications() {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('teacher_applications')
-        .select('*')
-        .order('created_at', { ascending: false });
+  const namesQ = useQuery({
+    queryKey: [...key, 'names', open?.reviewed_by ?? ''],
+    queryFn: () => api.reviewerNames(open?.reviewed_by ? [open.reviewed_by] : []),
+    enabled: !!isAdmin && !!open?.reviewed_by,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
 
-      if (error) {
-        if (import.meta.env.DEV) console.error('Error fetching applications:', error);
-        sonnerToast.error('Failed to load applications');
-        return;
-      }
-
-      const VALID_APP_STATUSES: TeacherApplication['status'][] = ['pending', 'approved', 'rejected'];
-      const VALID_TEXTED_STATUSES: TeacherApplication['texted_status'][] = ['not_texted', 'texted', 'follow_up'];
-      const normalized: TeacherApplication[] = (data || []).map((row) => ({
-        ...row,
-        sir_maam: row.sir_maam === 'Sir' || row.sir_maam === "Ma'am" ? row.sir_maam : 'Sir',
-        status: (VALID_APP_STATUSES as string[]).includes(row.status)
-          ? (row.status as TeacherApplication['status'])
-          : 'pending',
-        texted_status: (VALID_TEXTED_STATUSES as string[]).includes(row.texted_status)
-          ? (row.texted_status as TeacherApplication['texted_status'])
-          : 'not_texted',
-      }));
-
-      setApplications(normalized);
-    } catch (error) {
-      if (import.meta.env.DEV) console.error('Error:', error);
-      sonnerToast.error('Failed to load applications');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    let filtered = applications;
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (app) =>
-          app.name?.toLowerCase().includes(query) ||
-          app.email?.toLowerCase().includes(query) ||
-          app.phone_number?.includes(query) ||
-          app.reference_name?.toLowerCase().includes(query) ||
-          app.reference_number?.includes(query)
+  const setView = useCallback(
+    (next: StatusView) => {
+      setParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (next === 'waiting') n.delete('status');
+          else n.set('status', next);
+          return n;
+        },
+        { replace: true },
       );
-    }
+      setSortOverride(null);
+    },
+    [setParams],
+  );
 
-    filtered = [...filtered].sort((a, b) => {
-      const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      return sortOrder === 'newest' ? -diff : diff;
-    });
+  const patch = useCallback(
+    (fn: (list: TeacherApplication[]) => TeacherApplication[]) => {
+      qc.setQueryData<TeacherApplication[]>(key, (old) => (old ? fn(old) : old));
+    },
+    [qc, key],
+  );
 
-    setFilteredApplications(filtered);
-  }, [searchQuery, applications, sortOrder]);
+  const quietRefresh = useCallback(() => {
+    refreshCounts();
+    void qc.invalidateQueries({ queryKey: key });
+  }, [qc, key, refreshCounts]);
 
-  const handleApprove = async (applicationId: string) => {
-    if (!user) return;
-    try {
-      setProcessingId(applicationId);
-      const { error } = await supabase.rpc('approve_teacher_application', {
-        application_id: applicationId,
-        admin_id: user.id,
-      });
-
-      if (error) {
-        if (import.meta.env.DEV) console.error('Error approving application:', error);
-        sonnerToast.error('Failed to approve application');
-        return;
-      }
-
-      const approvedApp = applications.find((a) => a.id === applicationId);
+  const afterDecision = (app: TeacherApplication, status: 'approved' | 'rejected', reason: string | null) => {
+    const nextId = nextToOpen(shown, app.id);
+    const left = counts.waiting - (app.status === 'pending' ? 1 : 0);
+    patch((list) => list.map((a) => (a.id === app.id ? withDecision(a, status, adminId ?? '', reason) : a)));
+    if (!dummy && user) {
       void recordAdminAction({
         actorId: user.id,
         actorName,
-        action: 'approve',
+        action: status === 'approved' ? 'approve' : 'reject',
         targetType: 'teacher_application',
-        targetId: applicationId,
-        targetLabel: approvedApp?.name || 'teacher',
+        targetId: app.id,
+        targetLabel: app.name || 'teacher',
+        ...(status === 'rejected' ? { reason: reason || null } : {}),
       });
-      sonnerToast.success(`"${approvedApp?.name || 'Application'}" approved`);
-      await fetchApplications();
-      setSelectedApplication(null);
+    }
+    sonnerToast.success(`"${app.name || 'Application'}" ${status}${left > 0 ? `. ${left} left.` : '. Nothing else is waiting.'}`);
+    setOpenId(nextId);
+    quietRefresh();
+  };
+
+  const onApprove = async (app: TeacherApplication) => {
+    if (!adminId) return;
+    try {
+      const res = await approveWithConfirm({
+        app,
+        adminId,
+        confirm,
+        api: {
+          approve: async (id, aid) => {
+            setProcessingId(id);
+            await api.approve(id, aid);
+          },
+        },
+      });
+      if (res === 'approved') afterDecision(app, 'approved', null);
     } catch (error) {
-      if (import.meta.env.DEV) console.error('Error:', error);
+      if (import.meta.env.DEV) console.error('Error approving application:', error);
       sonnerToast.error('Failed to approve application');
     } finally {
       setProcessingId(null);
     }
   };
 
-  const handleReject = async (applicationId: string, reason?: string) => {
-    if (!user) return;
+  const onReject = async (app: TeacherApplication, reason: string) => {
+    if (!adminId) return;
     try {
-      setProcessingId(applicationId);
-
-      const { error } = await supabase
-        .from('teacher_applications')
-        .update({
-          status: 'rejected',
-          reviewed_by: user.id,
-          reviewed_at: new Date().toISOString(),
-          rejection_reason: reason || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', applicationId);
-
-      if (error) {
-        if (import.meta.env.DEV) console.error('Error rejecting application:', error);
-        sonnerToast.error('Failed to reject application');
-        return;
-      }
-
-      const rejectedApp = applications.find((a) => a.id === applicationId);
-      void recordAdminAction({
-        actorId: user.id,
-        actorName,
-        action: 'reject',
-        targetType: 'teacher_application',
-        targetId: applicationId,
-        targetLabel: rejectedApp?.name || 'teacher',
-        reason: reason || null,
-      });
-      sonnerToast.success(`"${rejectedApp?.name || 'Application'}" rejected`);
-      await fetchApplications();
-      setSelectedApplication(null);
-      setShowReject(false);
-      setRejectReason('');
+      setProcessingId(app.id);
+      const res = await rejectWithReason({ app, adminId, reason, api });
+      if (res === 'rejected') afterDecision(app, 'rejected', reason);
     } catch (error) {
-      if (import.meta.env.DEV) console.error('Error:', error);
+      if (import.meta.env.DEV) console.error('Error rejecting application:', error);
       sonnerToast.error('Failed to reject application');
     } finally {
       setProcessingId(null);
     }
   };
 
-  const applicationStatus = (status: TeacherApplication['status']): AdminStatus => {
-    switch (status) {
-      case 'approved':
-        return 'live';
-      case 'rejected':
-        return 'hidden';
-      default:
-        return 'pending';
+  const onTexted = async (app: TeacherApplication, status: TextedStatus) => {
+    try {
+      setOutreachBusy(true);
+      await api.setTexted(app.id, status);
+      patch((list) => list.map((a) => (a.id === app.id ? { ...a, texted_status: status } : a)));
+      quietRefresh();
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('Error saving the outreach note:', error);
+      sonnerToast.error('Could not save the outreach note. Try again.');
+    } finally {
+      setOutreachBusy(false);
     }
   };
 
-  const getTextedStatusLabel = (status: string) => {
-    switch (status) {
-      case 'texted': return 'Texted';
-      case 'follow_up': return 'Follow Up';
-      default: return 'Not Texted';
-    }
-  };
+  const signedIn = dummy ? 'admin@example.com' : user?.email ?? actorName;
+  // Counts come from the shared hook inside AdminHeader; no page-level plumbing.
+  const nav = buildAdminNav('applications');
 
-  const pendingCount = applications.filter((a) => a.status === 'pending').length;
+  if (!dummy && guard.error) return <AdminGuardErrorState onRetry={guard.retry} />;
+  if (!checkingAdmin && !isAdmin) return null;
 
-  const nav = buildAdminNav('applications', { ...sectionCounts, approvals: sectionCounts.approvals ?? pendingCount });
-
-  if (checkingAdmin || loading) {
-    return (
-      <BentoStack className="min-h-screen bg-muted">
-        <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
-        <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-          <div className="animate-pulse space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-14 rounded-2xl bg-muted" />
-            ))}
-          </div>
-        </BentoPanel>
-        <AdminAuditNote />
-      </BentoStack>
-    );
-  }
-
-  if (adminGuardError) return <AdminGuardErrorState onRetry={retryAdminGuard} />;
-
-  if (!isAdmin) return null;
-
-  const applicationColumns: AdminTableColumn[] = [
-    { key: 'applicant', label: 'Applicant', width: '1.8fr' },
-    { key: 'contact', label: 'Contact', width: '1.4fr' },
-    { key: 'subjects', label: 'Subjects', width: '1.6fr' },
-    { key: 'area', label: 'Area', width: '1fr' },
-    { key: 'submitted', label: 'Submitted', width: '1fr' },
-    { key: 'docs', label: 'Docs', width: '1fr' },
-    { key: 'status', label: 'Status', width: '1fr' },
-  ];
-
-  const applicationRows: AdminTableRow[] = filteredApplications.map((application) => {
-    const subjects = [application.subjects, application.classes_taught_for_backend]
-      .filter(Boolean)
-      .join(' · ') || 'N/A';
-    const docsLabel = application.hero_image_url ? 'Photo + refs' : application.reference_name ? 'Refs only' : 'None';
-    return {
-      id: application.id,
-      cells: [
-        application.name,
-        `+91 ${application.phone_number} · ${getTextedStatusLabel(application.texted_status)}`,
-        subjects,
-        application.location_v2 || 'N/A',
-        formatDistanceToNow(new Date(application.created_at), { addSuffix: true }),
-        docsLabel,
-        <AdminStatusPill
-          key="status"
-          status={applicationStatus(application.status)}
-          label={application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-        />,
-      ],
-      actions: [
-        {
-          label: application.status === 'pending' ? 'Review' : 'View docs',
-          tone: 'primary',
-          onClick: () => {
-            setHeroImageError(false);
-            setSelectedApplication(application);
-          },
-        },
-      ],
-    };
-  });
-
-  const searchSlot = (
-    <div className="relative">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-label" aria-hidden />
-      <input
-        type="search"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        placeholder="Search by name, email, phone, or reference..."
-        aria-label="Search applications"
-        className="h-11 w-[280px] rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
-      />
-    </div>
-  );
-
-  const sortSlot = (
-    <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'newest' | 'oldest')}>
-      <SelectTrigger className="h-11 w-[150px] rounded-full border-0 bg-muted text-sm font-semibold">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="newest">Newest first</SelectItem>
-        <SelectItem value="oldest">Oldest first</SelectItem>
-      </SelectContent>
-    </Select>
-  );
+  const known = load === 'ready';
+  const chips: AdminFilterChip[] = STATUS_VIEWS.map((v) => ({
+    key: v.key,
+    label: v.label,
+    hint: v.hint,
+    ...(known ? { count: counts[v.key] } : load === 'loading' ? { noCount: true } : {}),
+  }));
 
   return (
     <BentoStack className="min-h-screen bg-muted">
-      <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
+      <AdminHeader nav={nav} signedInEmail={signedIn} />
+      {banner}
       <AdminPageIntroPanel page="applications" />
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-        <div aria-live="polite" aria-atomic="true">
-          <AdminPanelHeader title="Applications" meta={`${pendingCount} waiting`} />
-        </div>
+        <AdminPanelHeader title="Applications" />
 
-        <div className="mb-4 flex flex-wrap items-center gap-2 px-[18px]">
-          {searchSlot}
-          {sortSlot}
-        </div>
-
-        {filteredApplications.length === 0 ? (
-          <div className="rounded-2xl bg-muted p-12 text-center">
-            <p className="text-sm text-warm-label">
-              {searchQuery.trim()
-                ? `No applications match "${searchQuery.trim()}".`
-                : 'No applications waiting on review.'}
-            </p>
-            {searchQuery.trim() ? (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="mt-3 text-sm font-semibold text-brand underline-offset-2 hover:underline"
-              >
-                Clear search
-              </button>
-            ) : null}
+        <div className="mb-4 flex flex-col gap-3 px-[18px]">
+          <AdminFilterChips chips={chips} value={view} onChange={setView} onClear={() => setView('waiting')} defaultValue="waiting" label="Which applications to show" />
+          <div className="flex items-center gap-2">
+            <div className="relative min-w-0 flex-1 sm:w-[280px] sm:flex-none">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-label" aria-hidden />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search name, email, phone"
+                aria-label="Search applications"
+                className="h-11 w-full max-w-full rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
+              />
+            </div>
+            <Select value={order} onValueChange={(v) => setSortOverride(v as SortOrder)}>
+              <SelectTrigger aria-label="Order" className="h-11 w-[132px] shrink-0 rounded-full border-0 bg-muted text-sm font-semibold sm:w-[150px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        ) : (
-          <AdminTable columns={applicationColumns} rows={applicationRows} />
-        )}
+        </div>
+
+        {q.isError && q.data ? (
+          <AdminError
+            what="the latest applications"
+            detail="You are looking at the list as it was a moment ago."
+            onRetry={() => void q.refetch()}
+            className="mx-[18px] mb-3"
+          />
+        ) : null}
+
+        <div aria-busy={q.isFetching && !!q.data} aria-live="polite">
+          <ApplicationsBody
+            load={load}
+            shown={shown}
+            view={view}
+            search={search}
+            onRetry={() => void q.refetch()}
+            onClearSearch={() => setSearch('')}
+            onShowAll={() => setView('all')}
+            onOpen={setOpenId}
+          />
+        </div>
       </BentoPanel>
 
       <AdminAuditNote />
 
-      <Dialog
-        open={!!selectedApplication}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedApplication(null);
-            setShowReject(false);
-            setRejectReason('');
-            setHeroImageError(false);
-          }
-        }}
-      >
-        <DialogContent aria-describedby={undefined} className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[20px] p-6">
-          {selectedApplication && (
-            <>
-              <div className="mb-6 flex items-center justify-between gap-4">
-                <DialogTitle className="text-xl font-bold text-foreground">{selectedApplication.name}</DialogTitle>
-              </div>
-
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div>
-                  <h3 className="mb-2 text-sm font-semibold text-foreground">Basic Information</h3>
-                  <div className="space-y-1.5 text-[14px] text-warm-prose">
-                    <div><strong className="text-foreground">Name:</strong> {selectedApplication.name}</div>
-                    <div><strong className="text-foreground">Email:</strong> {selectedApplication.email}</div>
-                    <div><strong className="text-foreground">Phone:</strong> +91 {selectedApplication.phone_number}</div>
-                    <div><strong className="text-foreground">Sir/Ma'am:</strong> {selectedApplication.sir_maam}</div>
-                    {selectedApplication.reference_name && (
-                      <div><strong className="text-foreground">Reference Name:</strong> {selectedApplication.reference_name}</div>
-                    )}
-                    {selectedApplication.reference_number && (
-                      <div><strong className="text-foreground">Reference Number:</strong> +91 {selectedApplication.reference_number}</div>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="mb-2 text-sm font-semibold text-foreground">Teaching Details</h3>
-                  <div className="space-y-1.5 text-[14px] text-warm-prose">
-                    <div><strong className="text-foreground">Subjects:</strong> {selectedApplication.subjects || 'N/A'}</div>
-                    <div><strong className="text-foreground">Classes:</strong> {selectedApplication.classes_taught_for_backend || 'N/A'}</div>
-                    <div><strong className="text-foreground">Boards:</strong> {selectedApplication.school_boards_catered || 'N/A'}</div>
-                    <div><strong className="text-foreground">Location:</strong> {selectedApplication.location_v2 || 'N/A'}</div>
-                    <div><strong className="text-foreground">Mode:</strong> {selectedApplication.mode_of_teaching || 'N/A'}</div>
-                  </div>
-                </div>
-
-                {selectedApplication.description && (
-                  <div className="md:col-span-2">
-                    <h3 className="mb-2 text-sm font-semibold text-foreground">Description</h3>
-                    <p className="text-[14px] text-warm-prose">{selectedApplication.description}</p>
-                  </div>
-                )}
-
-                {selectedApplication.qualifications_etc && (
-                  <div className="md:col-span-2">
-                    <h3 className="mb-2 text-sm font-semibold text-foreground">Qualifications</h3>
-                    <p className="text-[14px] text-warm-prose">{selectedApplication.qualifications_etc}</p>
-                  </div>
-                )}
-
-                {selectedApplication.hero_image_url && (
-                  <div className="md:col-span-2">
-                    <h3 className="mb-2 text-sm font-semibold text-foreground">Hero Image / Docs</h3>
-                    {heroImageError ? (
-                      <div className="flex h-48 w-full max-w-md flex-col items-center justify-center gap-2 rounded-2xl bg-muted text-warm-label shadow-border">
-                        <ImageOff className="h-6 w-6" aria-hidden />
-                        <span className="text-[13px]">Image couldn't be loaded</span>
-                      </div>
-                    ) : (
-                      <img
-                        src={validateImageSrc(selectedApplication.hero_image_url)}
-                        alt="Hero"
-                        onError={() => setHeroImageError(true)}
-                        className="h-48 w-full max-w-md rounded-2xl object-cover shadow-border"
-                      />
-                    )}
-                  </div>
-                )}
-
-                <div className="md:col-span-2">
-                  <h3 className="mb-2 text-sm font-semibold text-foreground">Status</h3>
-                  <div className="space-y-1 text-[14px] text-warm-prose">
-                    <div><strong className="text-foreground">Status:</strong> {selectedApplication.status}</div>
-                    <div><strong className="text-foreground">Applied:</strong> {new Date(selectedApplication.created_at).toLocaleString()}</div>
-                    {selectedApplication.reviewed_at && (
-                      <div>
-                        <strong className="text-foreground">Reviewed:</strong> {new Date(selectedApplication.reviewed_at).toLocaleString()}
-                        {selectedApplication.reviewed_by && (
-                          <> by {reviewerNames[selectedApplication.reviewed_by] || 'an admin'}</>
-                        )}
-                      </div>
-                    )}
-                    {selectedApplication.rejection_reason && (
-                      <div><strong className="text-foreground">Rejection Reason:</strong> {selectedApplication.rejection_reason}</div>
-                    )}
-                  </div>
-                </div>
-
-                {selectedApplication.status === 'pending' && (
-                  <div className="flex flex-col gap-3 border-t border-warm-hairline pt-4 md:col-span-2">
-                    {showReject ? (
-                      <div className="flex flex-col gap-2">
-                        <label htmlFor="reject-reason" className="text-[13px] font-semibold text-foreground">
-                          Reason (required, the teacher can read this)
-                        </label>
-                        <Textarea
-                          id="reject-reason"
-                          value={rejectReason}
-                          onChange={(e) => setRejectReason(e.target.value)}
-                          placeholder="Explain why this application is being rejected..."
-                          className="min-h-[80px]"
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            disabled={!rejectReason.trim() || processingId === selectedApplication.id}
-                            onClick={() => handleReject(selectedApplication.id, rejectReason.trim())}
-                            className={`disabled:opacity-60 ${adminDestructiveBtnStyle}`}
-                          >
-                            {processingId === selectedApplication.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                            Confirm rejection
-                          </button>
-                          <Button variant="outline" onClick={() => { setShowReject(false); setRejectReason(''); }}>
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <Button
-                          disabled={processingId === selectedApplication.id}
-                          onClick={() => handleApprove(selectedApplication.id)}
-                        >
-                          {processingId === selectedApplication.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                          Approve Application
-                        </Button>
-                        <Button variant="outline" onClick={() => setShowReject(true)}>
-                          <XCircle className="h-4 w-4" />
-                          Reject Application
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ApplicationDialog
+        app={open}
+        position={pos && open ? { index: pos.index, total: shown.length } : null}
+        prevId={pos?.prev ?? null}
+        nextId={pos?.next ?? null}
+        reviewerName={open?.reviewed_by ? namesQ.data?.[open.reviewed_by] : undefined}
+        busy={processingId !== null}
+        outreachBusy={outreachBusy}
+        onClose={() => setOpenId(null)}
+        onOpen={setOpenId}
+        onApprove={(a) => void onApprove(a)}
+        onReject={(a, r) => void onReject(a, r)}
+        onTexted={(a, s) => void onTexted(a, s)}
+      />
+      {confirmDialog}
     </BentoStack>
   );
+}
+
+export default function AdminApprovals() {
+  if (DummyApprovals && isDummyMode()) {
+    return (
+      <Suspense fallback={null}>
+        <DummyApprovals />
+      </Suspense>
+    );
+  }
+  return <AdminApprovalsPage />;
 }
