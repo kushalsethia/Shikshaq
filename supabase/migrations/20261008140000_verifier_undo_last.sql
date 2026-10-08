@@ -126,7 +126,12 @@ begin
   if v_paper.id is null then
     raise exception 'That paper was not found' using errcode = '22023';
   end if;
-  if coalesce(v_paper.paper_passed, false) or v_paper.approval_state in ('awaiting', 'approved') then
+  -- paper_passed alone is NOT "gone for approval": it turns true the moment
+  -- the last question is answered, which is exactly the answer to undo. A
+  -- live_copy paper is different: passing it pushes it to the library at once
+  -- (trg_apply_live_copy_paper_to_live), so that one cannot be taken back here.
+  if v_paper.approval_state in ('awaiting', 'approved')
+     or (coalesce(v_paper.paper_passed, false) and v_paper.source = 'live_copy') then
     raise exception 'This paper has already gone for approval, so answers on it can no longer be undone. Ask the HOD if something is wrong.'
       using errcode = '22023';
   end if;
