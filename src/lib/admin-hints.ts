@@ -192,7 +192,7 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
     path: '/admin/checkers',
     short: 'Who is allowed to verify papers. Search for a person, add them, then fill in their details.',
     purpose:
-      'The list of verifiers: people allowed to open the verifying screen. To add someone, search by their name or email: they must have signed up on Shikshaq first. Right after you add them, fill in their grade, school and board. Papers are only given to a verifier once those are filled in, and never above their grade. Removing someone stops their access but keeps everything they already verified. HODs, who lead the verifiers, are managed on this page too.',
+      'The list of verifiers: people allowed to open the verifying screen. To add someone, search by their name or email: they must have signed up on Shikshaq first. Right after you add them, fill in their grade, school and board; a verifier can also fill in their own details. A verifier with no details, or no grade, still gets papers with no class limit, as if they were in Class 12. Once a grade is recorded, papers are never given above it. If the details have expired, the verifier gets no new papers until you renew them. Removing someone stops their access but keeps everything they already verified. HODs, who lead the verifiers, are managed on this page too.',
     flow: 'Search, press Add next to the right person, then fill in their details. Papers are given to them automatically.',
     buttons: [
       { label: 'Add', does: 'Lets that person open the verifying screen. They need to reload the site once. You are asked for their details straight after.' },
@@ -314,13 +314,17 @@ export function groupOf(page: AdminPageKey): AdminGroupCopy {
   return ADMIN_GROUPS.find((g) => g.pages.includes(page)) as AdminGroupCopy;
 }
 
+/** The one description of where a hide reason goes, for every Hide dialog.
+ *  Visitors never see it: admins read it on the row and in the history. */
+export const HIDE_REASON_NOTE = '(required, only admins see it)';
+
 /** Info tips for tiles, chips and columns. Keyed by a short name each page
  *  picks; kept here so a word means the same thing everywhere. */
 export const TIPS = {
   // Library views
   'view.live': 'On the site now and every question has been checked.',
-  'view.needs_review': 'On the site, or waiting to be, but some questions are not checked yet.',
-  'view.hidden': 'Not visible to visitors. The reason it was hidden is shown on the row.',
+  'view.needs_review': 'On the site now, but some questions are not checked yet. Hidden papers are not counted here.',
+  'view.hidden': 'Not visible to visitors. The reason it was hidden is shown on the row, for admins only.',
   'view.with_students': 'Has questions waiting in the student checking queue.',
   'view.with_admin': 'Has questions waiting for an admin in the Admin queue.',
   'view.ready': 'Every question is checked and the paper is waiting in Ready to go live for your yes.',

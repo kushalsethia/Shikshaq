@@ -124,7 +124,7 @@ const COLUMNS: AdminTableColumn[] = [
   { key: 'contact', label: 'Contact', width: '1.3fr' },
   { key: 'subjects', label: 'Subjects', width: '1.6fr', wrap: true },
   { key: 'area', label: 'Area', width: '1.1fr', wrap: true },
-  { key: 'submitted', label: 'Submitted', width: '1fr' },
+  { key: 'submitted', label: 'Submitted', width: '1fr', wrap: true },
   { key: 'docs', label: 'Sent with it', width: '1.1fr', wrap: true },
   { key: 'status', label: 'Status', width: '1fr' },
 ];
@@ -371,8 +371,8 @@ export function AdminApprovalsPage({
 
         <div className="mb-4 flex flex-col gap-3 px-[18px]">
           <AdminFilterChips chips={chips} value={view} onChange={setView} onClear={() => setView('waiting')} defaultValue="waiting" label="Which applications to show" />
-          <div className="flex items-center gap-2">
-            <div className="relative min-w-0 flex-1 sm:w-[280px] sm:flex-none">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 w-full sm:w-[280px] sm:flex-none">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-label" aria-hidden />
               <input
                 type="search"
@@ -384,7 +384,7 @@ export function AdminApprovalsPage({
               />
             </div>
             <Select value={order} onValueChange={(v) => setSortOverride(v as SortOrder)}>
-              <SelectTrigger aria-label="Order" className="h-11 w-[132px] shrink-0 rounded-full border-0 bg-muted text-sm font-semibold sm:w-[150px]">
+              <SelectTrigger aria-label="Order" className="h-11 w-full shrink-0 rounded-full border-0 bg-muted text-sm font-semibold sm:w-[150px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

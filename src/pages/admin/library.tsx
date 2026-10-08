@@ -18,7 +18,7 @@ import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewCha
 import { formatOnlineNames } from '@/lib/paper-review-realtime';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { AdminPageIntro, InfoTip } from '@/components/admin/AdminHelp';
-import { TIPS } from '@/lib/admin-hints';
+import { HIDE_REASON_NOTE, TIPS } from '@/lib/admin-hints';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 import { UNDOABLE_ACTIONS, historyLine, paperLabel, undoEffect } from '@/lib/paper-history-labels';
@@ -424,7 +424,7 @@ export function AdminLibraryPage({
         }
       >
         <Label htmlFor="hide-reason" className="mb-1.5 block text-[14px] font-semibold text-foreground">
-          Reason <span className="font-normal text-warm-meta">(required, shown on the paper in the Library)</span>
+          Reason <span className="font-normal text-warm-meta">{HIDE_REASON_NOTE}</span>
         </Label>
         <Textarea
           id="hide-reason"

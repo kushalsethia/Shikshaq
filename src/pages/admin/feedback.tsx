@@ -115,7 +115,7 @@ export function AdminFeedbackPage({
 }) {
   usePageMeta('Visitor feedback | Shikshaq Admin', 'Ratings and comments visitors left about the site.');
   const { user, profile } = useAuth();
-  const actorName = profile?.full_name || user?.email || 'Signed-in admin';
+  const actorName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'Signed-in admin';
   const [rows, setRows] = useState<FeedbackRow[]>([]);
   const [total, setTotal] = useState<number | undefined>(undefined);
   const [lastPage, setLastPage] = useState(0);
@@ -198,7 +198,7 @@ export function AdminFeedbackPage({
   if (checkingAdmin || !settled) {
     return (
       <BentoStack className="min-h-screen bg-muted">
-        <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
+        <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
         <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
           <div className="px-[18px]">
             <AdminLoading shape="table" rows={8} label="Loading the feedback" />
@@ -216,7 +216,7 @@ export function AdminFeedbackPage({
 
   return (
     <BentoStack className="min-h-screen bg-muted">
-      <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
+      <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
       <AdminPageIntroPanel page="feedback" />
       {banner}
 

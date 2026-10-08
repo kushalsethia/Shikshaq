@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
@@ -71,8 +72,9 @@ export function AdminTeamPage({
   dummy?: boolean;
   banner?: ReactNode;
 }) {
+  usePageMeta('Verifier progress | Shikshaq Admin', 'How many questions each verifier checked, and how the papers are moving.');
   const { user, profile } = useAuth();
-  const actorName = profile?.full_name || user?.email || 'Signed-in admin';
+  const actorName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'Signed-in admin';
   const [range, setRange] = useState<Range>('7d');
   const [stats, setStats] = useState<TeamStatsRow[]>([]);
   const [progress, setProgress] = useState<PaperProgressRow[]>([]);
@@ -152,7 +154,7 @@ export function AdminTeamPage({
   if (checkingAdmin || !settled) {
     return (
       <BentoStack className="min-h-screen bg-muted">
-        <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
+        <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
         <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
           <div className="px-[18px]">
             <AdminLoading shape="table" label="Loading the verifier progress" />
@@ -168,7 +170,7 @@ export function AdminTeamPage({
 
   return (
     <BentoStack className="min-h-screen bg-muted">
-      <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
+      <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
       <AdminPageIntroPanel page="team" />
       {banner}
 

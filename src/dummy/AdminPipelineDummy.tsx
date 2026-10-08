@@ -23,7 +23,7 @@ export default function AdminPipelineDummy() {
       aria-label="Dummy mode controls"
       className="mx-1.5 mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-fuchsia-950 px-3 py-2 text-[12px] text-fuchsia-100"
     >
-      <span className="font-bold uppercase tracking-[0.08em]">Dummy mode, made-up numbers</span>
+      <span className="font-bold uppercase tracking-[0.08em]">Dummy mode, nothing is saved</span>
       <button
         type="button"
         onClick={() => {

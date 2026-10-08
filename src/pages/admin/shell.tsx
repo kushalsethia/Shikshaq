@@ -161,7 +161,7 @@ const SCROLLER =
   'flex flex-nowrap items-center gap-1.5 overflow-x-auto overscroll-x-contain pr-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-proximity [mask-image:linear-gradient(to_right,#000_calc(100%-24px),transparent)] sm:flex-wrap sm:overflow-visible sm:pr-0 sm:[mask-image:none]';
 
 const PILL =
-  'inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full px-3.5 text-[14px] sm:px-4 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+  'relative inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full px-3.5 text-[14px] sm:px-4 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 
 /** The account disc: first letter of the email, opening a menu with the full
  *  email, a way back to the site, and Sign out (not offered in dummy mode,

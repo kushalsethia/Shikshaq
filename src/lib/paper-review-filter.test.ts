@@ -105,6 +105,17 @@ describe('tiles, chips and the list always agree', () => {
     expect(ids('all')).toHaveLength(5);
   });
 
+  it('a hidden paper that is still flagged is in Hidden only, never in Needs review', () => {
+    const withHiddenFlagged = mergeQueueRows([
+      ...RAW,
+      row({ paper_id: 'h9', is_published: false, needs_review: true, total_questions: 5 }),
+    ]);
+    const ids = (f: PaperFilter) => filterPapers(withHiddenFlagged, f).map((p) => p.paper_id).sort();
+    expect(ids('needs_review')).toEqual(['63724c', 'b2']);
+    expect(ids('hidden')).toEqual(['a1', 'h9']);
+    expect(filterCounts(withHiddenFlagged).needs_review).toBe(2);
+  });
+
   it('switching filter changes the list (the owner saw it not follow)', () => {
     const lists = PAPER_FILTERS.map((f) => filterPapers(papers, f.key).map((p) => p.paper_id).join(','));
     expect(new Set(lists).size).toBeGreaterThan(3);

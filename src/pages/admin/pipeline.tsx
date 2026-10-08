@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ArrowRight, ChevronDown } from 'lucide-react';
@@ -311,8 +312,9 @@ export function AdminPipelinePage({
   dummy?: boolean;
   banner?: ReactNode;
 }) {
+  usePageMeta('Pipeline | Shikshaq Admin', 'How far each batch of papers has got, from scan to live.');
   const { user, profile } = useAuth();
-  const signedInName = profile?.full_name || user?.email || 'Signed-in admin';
+  const signedInName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'Signed-in admin';
   const [stats, setStats] = useState<PipelineStats | null>(null);
   const [feed, setFeed] = useState<FeedRow[]>([]);
   const [status, setStatus] = useState<StatsStatus>('loading');
@@ -354,7 +356,7 @@ export function AdminPipelinePage({
   if (checkingAdmin) {
     return (
       <BentoStack className="min-h-screen bg-muted">
-        <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
+        <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? signedInName} />
         <BentoPanel fill="card" className="px-[18px] py-[18px] lg:px-[18px] lg:py-[18px]">
           <AdminLoading shape="tiles" rows={4} label="Loading the pipeline" />
         </BentoPanel>
@@ -396,7 +398,7 @@ export function AdminPipelinePage({
   const feedColumns: AdminTableColumn[] = [
     { key: 'when', label: 'When', width: '1fr' },
     { key: 'who', label: 'Who', width: '1.2fr' },
-    { key: 'what', label: 'What', width: '1.4fr' },
+    { key: 'what', label: 'What', width: '1.4fr', wrap: true },
     { key: 'detail', label: 'Detail', width: '2fr', wrap: true },
   ];
   const feedRows: AdminTableRow[] = feed.map((r) => ({
@@ -411,7 +413,7 @@ export function AdminPipelinePage({
 
   return (
     <BentoStack className="min-h-screen bg-muted">
-      <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
+      <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? signedInName} />
       <AdminPageIntroPanel page="pipeline" />
       {banner}
 
