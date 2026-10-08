@@ -794,13 +794,26 @@ export async function snippetUrls(auditPaperId: string, questionIds: string[]): 
   return out;
 }
 
+/** True when a PostgREST error means the function is not on the server: the
+ *  schema cache does not know it (PGRST202) or Postgres says it does not exist
+ *  (42883). Anything else is a real failure, not a missing function. */
+export function isMissingFunctionError(error: { code?: string | null } | null | undefined): boolean {
+  const code = error?.code ?? '';
+  return code === 'PGRST202' || code === '42883';
+}
+
 /** The Library's extra columns, one row per paper that has any: why it is
  *  hidden, how many questions wait with students and with an admin, and
- *  whether it is waiting in Ready to go live. Null when the server does not
- *  have admin_library_extras() yet (20261003130000_admin_queue_library.sql),
- *  so the Library still opens and says the extras are not available. */
+ *  whether it is waiting in Ready to go live. Null ONLY when the server does
+ *  not have admin_library_extras() yet (20261003130000_admin_queue_library.sql),
+ *  so the Library still opens and says the extras are not available. Any other
+ *  failure (a dropped connection, a refusal) throws, so the page can say the
+ *  counts did not load instead of blaming a missing database change. */
 export async function adminLibraryExtras(): Promise<LibraryExtra[] | null> {
   const { data, error } = await supabase.rpc('admin_library_extras' as never);
-  if (error) return null;
+  if (error) {
+    if (isMissingFunctionError(error)) return null;
+    throw error;
+  }
   return rpcRows<unknown>(data).map(normaliseExtra).filter((e): e is LibraryExtra => e !== null);
 }

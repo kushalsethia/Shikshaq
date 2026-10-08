@@ -20,7 +20,8 @@ function days(): DailyPoint[] {
   return out;
 }
 
-export function createFakePipelineApi(): PipelineApi {
+export function createFakePipelineApi(mode: 'full' | 'error' = 'full', delayMs = 900): PipelineApi {
+  const tick = () => new Promise((r) => setTimeout(r, delayMs));
   const stats: PipelineStats = {
     generated_at: new Date().toISOString(),
     library: {
@@ -50,6 +51,9 @@ export function createFakePipelineApi(): PipelineApi {
   ];
   return {
     async stats() {
+      // a short wait, so the registry (which loads on its own) is seen before the stats arrive
+      await tick();
+      if (mode === 'error') throw new Error('The pipeline numbers could not be read.');
       return stats;
     },
     async feed(limit) {

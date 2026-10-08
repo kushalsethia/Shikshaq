@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { adminPrimaryBtnStyle, adminSecondaryBtnStyle, adminToast } from '@/components/AdminConsole';
 import { BentoPanel } from '@/components/layout/PageContainer';
+import { AdminError, AdminLoading } from '@/components/admin/AdminState';
 import { AdminStatusPill } from '@/pages/admin/AdminTable';
 import { displaySchool } from '@/lib/school-display';
 import { cn } from '@/lib/utils';
@@ -45,7 +46,10 @@ export function UpdateLivePapersView({
   onCancel,
   onConfirm,
   onRetry,
+  bare = false,
 }: {
+  /** Draw without its own panel and heading, for use inside a tab. */
+  bare?: boolean;
   rows: LivePendingRow[] | null;
   state: 'idle' | 'loading' | 'error';
   confirmingId?: string | null;
@@ -60,10 +64,11 @@ export function UpdateLivePapersView({
   onConfirm: (id: string) => void;
   onRetry: () => void;
 }) {
-  return (
-    <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]" data-testid="update-live-papers">
-      <div className="px-[18px]">
-        <h2 className="text-[19px] font-extrabold tracking-[-0.03em] text-foreground">Live papers with changes waiting</h2>
+  const pad = bare ? undefined : 'px-[18px]';
+  const content = (
+    <>
+      <div className={pad}>
+        {bare ? null : <h2 className="text-[19px] font-extrabold tracking-[-0.03em] text-foreground">Live papers with changes waiting</h2>}
         <p className="mb-3 text-[13px] text-warm-secondary">
           These papers are already on the site, and their reviewed changes are not. Updating a live paper copies the
           reviewed text, new questions and hidden questions to the site.
@@ -71,22 +76,17 @@ export function UpdateLivePapersView({
       </div>
 
       {state === 'error' ? (
-        <div className="px-[18px]" role="alert">
-          <p className="text-sm text-foreground">The list did not load. Check your internet and try again.</p>
-          <button type="button" onClick={onRetry} className="tap-44 mt-2 text-sm font-semibold text-brand-blue">
-            Try again
-          </button>
+        <div className={pad}>
+          <AdminError what="the list of live papers" onRetry={onRetry} />
         </div>
       ) : rows === null ? (
-        <div className="animate-pulse space-y-2 px-[18px]" role="status" aria-label="Loading live papers with changes">
-          {[...Array(2)].map((_, i) => (
-            <div key={i} className="h-12 rounded-2xl bg-muted" />
-          ))}
+        <div className={pad}>
+          <AdminLoading shape="rows" rows={2} label="Loading live papers with changes" />
         </div>
       ) : rows.length === 0 ? (
-        <p className="px-[18px] py-4 text-[14px] text-warm-meta">No live paper has changes waiting.</p>
+        <p className={cn('py-4 text-[14px] text-warm-meta', pad)}>No live paper has changes waiting.</p>
       ) : (
-        <ul className="space-y-2 px-[18px]">
+        <ul className={cn('space-y-2', pad)}>
           {rows.map((r) => {
             const open = r.open;
             const asking = confirmingId === r.audit_paper_id;
@@ -208,11 +208,28 @@ export function UpdateLivePapersView({
           })}
         </ul>
       )}
+    </>
+  );
+  if (bare) return <div data-testid="update-live-papers">{content}</div>;
+  return (
+    <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]" data-testid="update-live-papers">
+      {content}
     </BentoPanel>
   );
 }
 
-export function UpdateLivePapers({ api = realLiveUpdateApi, onChanged }: { api?: LiveUpdateApi; onChanged?: () => void }) {
+export function UpdateLivePapers({
+  api = realLiveUpdateApi,
+  onChanged,
+  onLoaded,
+  bare,
+}: {
+  api?: LiveUpdateApi;
+  onChanged?: () => void;
+  /** Called with the number of papers each time the list is read. */
+  onLoaded?: (count: number) => void;
+  bare?: boolean;
+}) {
   const [rows, setRows] = useState<LivePendingRow[] | null>(null);
   const [state, setState] = useState<'idle' | 'loading' | 'error'>('loading');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -220,6 +237,8 @@ export function UpdateLivePapers({ api = realLiveUpdateApi, onChanged }: { api?:
   const [errorFor, setErrorFor] = useState<{ id: string; message: string } | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [openList, setOpenList] = useState<OpenQuestion[] | 'loading' | 'error' | null>(null);
+  const onLoadedRef = useRef(onLoaded);
+  onLoadedRef.current = onLoaded;
 
   function toggleOpen(id: string) {
     if (expandedId === id) {
@@ -240,8 +259,10 @@ export function UpdateLivePapers({ api = realLiveUpdateApi, onChanged }: { api?:
   const load = useCallback(async () => {
     setState('loading');
     try {
-      setRows(await api.pending());
+      const list = await api.pending();
+      setRows(list);
       setState('idle');
+      onLoadedRef.current?.(list.length);
     } catch (e) {
       if (import.meta.env.DEV) console.error('live papers pending', e);
       setState('error');
@@ -285,6 +306,7 @@ export function UpdateLivePapers({ api = realLiveUpdateApi, onChanged }: { api?:
       onCancel={() => setConfirmingId(null)}
       onConfirm={(id) => void confirm(id)}
       onRetry={() => void load()}
+      bare={bare}
     />
   );
 }

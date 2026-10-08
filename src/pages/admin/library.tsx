@@ -3,21 +3,25 @@ import { useBusyActions } from '@/lib/busy-guard';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
-import { useAdminGuard, AdminGuardErrorState, adminToast, adminPrimaryBtnStyle, adminSecondaryBtnStyle, AdminStatTiles } from '@/components/AdminConsole';
+import { useAdminGuard, AdminGuardErrorState, adminToast } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
 import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { AdminDialog } from '@/components/admin/AdminDialog';
+import { AdminEmpty, AdminError, AdminLoading } from '@/components/admin/AdminState';
+import { AdminFilterChips, type AdminFilterChip } from '@/components/admin/AdminFilterChips';
+import { AdminPillButton } from '@/components/admin/AdminPillButton';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewChannel';
 import { formatOnlineNames } from '@/lib/paper-review-realtime';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { AdminPageIntro, InfoTip } from '@/components/admin/AdminHelp';
-import { TIPS } from '@/lib/admin-hints';
+import { HIDE_REASON_NOTE, TIPS } from '@/lib/admin-hints';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
+import { UNDOABLE_ACTIONS, historyLine, paperLabel, undoEffect } from '@/lib/paper-history-labels';
 
 const DummyLibrary = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminLibraryDummy')) : null;
 import {
@@ -71,9 +75,50 @@ export const realLibraryApi: LibraryApi = {
   undo: (id) => adminUndoRevision(id),
 };
 
-// The revision actions admin_undo_revision() can reverse; every other
-// action (merge/split/reorder/add/undo, live_apply/live_clear) it refuses.
-const UNDOABLE_ACTIONS = new Set(['admin_edit', 'admin_delete', 'admin_hide', 'admin_restore']);
+export type ExtrasState = 'loading' | 'ok' | 'missing' | 'failed';
+
+/** What the Library knows about its optional extra counts. The function being
+ *  absent from the server is a different thing from a read that failed, and
+ *  the page must not blame a missing database change for a dropped
+ *  connection. */
+export function extrasState(q: { isLoading: boolean; isError: boolean; data: unknown }): ExtrasState {
+  if (q.isLoading) return 'loading';
+  if (q.isError) return 'failed';
+  return q.data == null ? 'missing' : 'ok';
+}
+
+export type LibraryListState = 'loading' | 'error' | 'empty-view' | 'empty-library' | 'rows';
+
+/** Which body the paper list shows. A failed read is `error`, never one of the
+ *  empty states: "No papers" is only for a read that succeeded and found
+ *  nothing. Pure, so it is tested without a login. */
+export function libraryListState(q: { loading: boolean; error: boolean; shown: number; view: LibraryView }): LibraryListState {
+  if (q.loading) return 'loading';
+  if (q.error) return 'error';
+  if (q.shown > 0) return 'rows';
+  return q.view === 'all' ? 'empty-library' : 'empty-view';
+}
+
+export function LibraryExtrasNotice({ state, onRetry }: { state: ExtrasState; onRetry: () => void }) {
+  if (state === 'missing') {
+    return (
+      <p className="mb-3 px-[18px] text-[13px] text-warm-secondary" role="status">
+        With students, With an admin, Ready to go live and why a paper was hidden are not available on this server yet. They show a question mark until they are.
+      </p>
+    );
+  }
+  if (state === 'failed') {
+    return (
+      <div role="alert" className="mx-[18px] mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-destructive/10 px-3 py-2">
+        <p className="text-[13px] font-semibold text-destructive">Could not load these counts.</p>
+        <AdminPillButton variant="secondary" size="sm" onClick={onRetry}>
+          Try again
+        </AdminPillButton>
+      </div>
+    );
+  }
+  return null;
+}
 
 export function AdminLibraryPage({
   api = realLibraryApi,
@@ -113,6 +158,7 @@ export function AdminLibraryPage({
   });
   const papersLoading = papersQ.isLoading;
   const extrasKnown = extrasQ.data != null;
+  const extras = extrasState(extrasQ);
   const rows: LibraryRow[] = useMemo(() => withExtras(papersQ.data ?? [], extrasQ.data ?? null), [papersQ.data, extrasQ.data]);
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['admin', 'library'] });
@@ -121,6 +167,9 @@ export function AdminLibraryPage({
   const [historyTarget, setHistoryTarget] = useState<LibraryRow | null>(null);
   const [history, setHistory] = useState<RevisionRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
+  // The revision whose Undo is waiting for a second, confirming press.
+  const [undoConfirm, setUndoConfirm] = useState<number | null>(null);
 
   const [hideTarget, setHideTarget] = useState<LibraryRow | null>(null);
   const [hideReason, setHideReason] = useState('');
@@ -145,13 +194,16 @@ export function AdminLibraryPage({
   useEffect(() => setShown(PAGE_SIZE), [view]);
   const visible = filtered.slice(0, shown);
 
-  async function openHistory(p: LibraryRow) {
+  async function openHistory(p: LibraryRow, keepConfirm = false) {
     setHistoryTarget(p);
     setHistoryLoading(true);
+    setHistoryError(false);
+    if (!keepConfirm) setUndoConfirm(null);
     try {
       setHistory(await api.history(p.paper_id));
     } catch {
-      adminToast('Failed to load history');
+      setHistory([]);
+      setHistoryError(true);
     } finally {
       setHistoryLoading(false);
     }
@@ -162,6 +214,7 @@ export function AdminLibraryPage({
       try {
         await api.undo(revisionId);
         adminToast('Reverted');
+        setUndoConfirm(null);
         if (historyTarget) void openHistory(historyTarget);
         refresh();
       } catch (e) {
@@ -212,11 +265,7 @@ export function AdminLibraryPage({
       <BentoStack className="min-h-screen bg-muted">
         <AdminHeader nav={nav} signedInEmail={signedIn} />
         <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-          <div className="animate-pulse space-y-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-14 rounded-2xl bg-muted" />
-            ))}
-          </div>
+          <AdminLoading shape="table" rows={4} label="Checking your access" className="px-[18px]" />
         </BentoPanel>
       </BentoStack>
     );
@@ -236,14 +285,14 @@ export function AdminLibraryPage({
 
   const showWhy = view === 'hidden' || view === 'all';
   const columns: AdminTableColumn[] = [
-    { key: 'school', label: 'School', width: '1.6fr', hint: TIPS['col.school'] },
-    { key: 'subject', label: 'Subject', width: '1fr', hint: TIPS['col.subject'] },
+    { key: 'school', label: 'School', width: '1.6fr', hint: TIPS['col.school'], wrap: true },
+    { key: 'subject', label: 'Subject', width: '1fr', hint: TIPS['col.subject'], wrap: true },
     { key: 'cls', label: 'Class', width: '0.6fr', hint: TIPS['col.class'] },
     { key: 'year', label: 'Year', width: '0.6fr', hint: TIPS['col.year'] },
     { key: 'progress', label: 'Progress', width: '0.9fr', hint: TIPS['col.progress'] },
     { key: 'left', label: 'To check', width: '0.7fr', hint: TIPS['col.to_check'] },
     { key: 'status', label: 'Status', width: '0.9fr', hint: TIPS['col.status'] },
-    ...(showWhy ? [{ key: 'why', label: 'Why hidden', width: '1.8fr', hint: TIPS['col.why_hidden'] }] : []),
+    ...(showWhy ? [{ key: 'why', label: 'Why hidden', width: '1.8fr', hint: TIPS['col.why_hidden'], wrap: true }] : []),
   ];
 
   const tableRows: AdminTableRow[] = visible.map((p) => ({
@@ -271,11 +320,16 @@ export function AdminLibraryPage({
     ],
   }));
 
-  const tiles = LIBRARY_VIEWS.filter((v) => v.key !== 'all' && v.key !== 'incomplete').map((v) => ({
+  // One set of counts: the chips. (Stat tiles and a header sentence used to
+  // repeat the same numbers.) A count that cannot be known yet shows "?".
+  const chips: AdminFilterChip[] = LIBRARY_VIEWS.map((v) => ({
+    key: v.key,
     label: v.label,
     hint: TIPS[v.tip],
-    value: papersLoading && rows.length === 0 ? '...' : v.needsExtras && !extrasKnown ? '?' : counts[v.key],
+    count: papersLoading && rows.length === 0 ? undefined : v.needsExtras && !extrasKnown ? undefined : counts[v.key],
   }));
+  const listState = libraryListState({ loading: papersLoading, error: papersQ.isError, shown: filtered.length, view });
+  const viewTip = LIBRARY_VIEWS.find((v) => v.key === view)?.tip;
 
   return (
     <BentoStack className="min-h-screen bg-muted">
@@ -286,7 +340,7 @@ export function AdminLibraryPage({
         <div className="mb-3 px-[18px]">
           <AdminPageIntro page="library" />
         </div>
-        <AdminPanelHeader title="Library" meta={`${counts.needs_review} need review, ${counts.hidden} hidden`} />
+        <AdminPanelHeader title="Library" />
 
         {liveStatus === 'live' ? (
           <p className="mb-4 flex items-center gap-2 px-[18px] text-[13px] text-warm-secondary" aria-live="polite">
@@ -299,62 +353,43 @@ export function AdminLibraryPage({
           </p>
         ) : null}
 
-        <div className="mb-4 px-[18px]">
-          <AdminStatTiles stats={tiles} />
-        </div>
-        <div role="group" aria-label="Show papers" className="mb-2 flex flex-wrap gap-2 px-[18px]">
-          {LIBRARY_VIEWS.map((v) => (
-            <span key={v.key} className="inline-flex items-center gap-1">
-              <button
-                type="button"
-                aria-pressed={view === v.key}
-                onClick={() => setView(v.key)}
-                className={cn(
-                  'inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-150 active:scale-[0.96]',
-                  view === v.key ? 'bg-panel text-background' : 'bg-muted text-warm-secondary hover:text-foreground',
-                )}
-              >
-                {v.label}
-                <span className="tabular-nums opacity-70">{v.needsExtras && !extrasKnown ? '?' : counts[v.key]}</span>
-              </button>
-            </span>
-          ))}
+        {/* Eight chips would wrap to four rows on a phone and push the list below the
+            fold, so under sm they sit on one line that scrolls sideways. */}
+        <div className="mb-2 overflow-x-auto px-[18px] sm:overflow-visible [&>div]:flex-nowrap [&_[role=group]]:flex-nowrap sm:[&>div]:flex-wrap sm:[&_[role=group]]:flex-wrap">
+          <AdminFilterChips chips={chips} value={view} onChange={(k) => setView(k as LibraryView)} defaultValue="all" onClear={() => setView('all')} label="Show papers" />
         </div>
         <p className="mb-3 flex items-start gap-1.5 px-[18px] text-[13px] text-warm-meta">
-          <InfoTip tip={LIBRARY_VIEWS.find((v) => v.key === view)?.tip} label="this view" className="mt-0.5" />
-          <span>{TIPS[LIBRARY_VIEWS.find((v) => v.key === view)?.tip ?? 'view.all']}</span>
+          <InfoTip tip={viewTip} label="this view" className="mt-0.5" />
+          <span>{TIPS[viewTip ?? 'view.all']}</span>
         </p>
-        {!extrasKnown && !extrasQ.isLoading ? (
-          <p className="mb-3 px-[18px] text-[13px] text-warm-secondary" role="status">
-            With students, With an admin, Ready to go live and the reason a paper was hidden need a database update that has not been applied yet. They show a question mark until it is.
-          </p>
-        ) : null}
-        {!papersLoading && filtered.length > 0 ? (
+        <LibraryExtrasNotice state={extras} onRetry={() => void extrasQ.refetch()} />
+        {!papersLoading && !papersQ.isError && filtered.length > 0 ? (
           <p className="mb-3 px-[18px] text-[13px] text-warm-meta" aria-live="polite">
             Showing {Math.min(shown, filtered.length)} of {filtered.length}
           </p>
         ) : null}
-        {papersLoading ? (
-          <div className="animate-pulse space-y-3 px-[18px]">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-14 rounded-2xl bg-muted" />
-            ))}
+        {listState === 'loading' ? (
+          <AdminLoading shape="table" rows={5} label="Loading the papers" className="px-[18px]" />
+        ) : listState === 'error' ? (
+          <div className="px-[18px]">
+            <AdminError what="the papers" onRetry={() => void papersQ.refetch()} />
           </div>
-        ) : papersQ.isError ? (
-          <div className="px-[18px]" role="alert">
-            <p className="text-sm text-foreground">The papers did not load. Check your internet and try again.</p>
-            <button type="button" onClick={refresh} className="tap-44 mt-2 text-sm font-semibold text-brand-blue">Try again</button>
-          </div>
-        ) : filtered.length === 0 ? (
-          <p className="px-[18px] py-8 text-center text-[15px] text-warm-meta">No papers match this view.</p>
+        ) : listState === 'empty-library' ? (
+          <AdminEmpty title="The library has no papers yet." hint="Papers appear here once they are imported." />
+        ) : listState === 'empty-view' ? (
+          <AdminEmpty
+            title="No papers in this view."
+            hint="Another view may have some."
+            action={{ label: 'Show all papers', onClick: () => setView('all') }}
+          />
         ) : (
           <>
             <AdminTable columns={columns} rows={tableRows} />
             {filtered.length > shown ? (
               <div className="mt-4 flex justify-center px-[18px]">
-                <button type="button" onClick={() => setShown((n) => n + PAGE_SIZE)} className={adminSecondaryBtnStyle}>
+                <AdminPillButton variant="secondary" onClick={() => setShown((n) => n + PAGE_SIZE)}>
                   Show {Math.min(PAGE_SIZE, filtered.length - shown)} more
-                </button>
+                </AdminPillButton>
               </div>
             ) : null}
           </>
@@ -363,50 +398,101 @@ export function AdminLibraryPage({
 
       <AdminAuditNote />
 
-      {/* Hide dialog: a reason is required and stays on the paper. */}
-      <Dialog open={!!hideTarget} onOpenChange={(open) => { if (!open) setHideTarget(null); }}>
-        <DialogContent aria-describedby={undefined} className="w-full max-w-md rounded-bento bg-card p-6">
-          <DialogTitle className="text-xl font-bold text-foreground">Hide this paper?</DialogTitle>
-          <p className="mt-1.5 text-[14px] text-warm-secondary">Readers stop seeing it straight away. Restore brings it back. Your reason is shown on the paper in the Library.</p>
-          <Textarea value={hideReason} onChange={(e) => setHideReason(e.target.value)} placeholder="Reason" rows={3} className="mt-3" autoFocus />
-          <div className="mt-4 flex gap-2">
-            <button onClick={confirmHide} disabled={!hideReason.trim() || (!!hideTarget && busy(`paper:${hideTarget.paper_id}`))} className={cn('disabled:opacity-60', adminPrimaryBtnStyle)}>Hide</button>
-            <button onClick={() => setHideTarget(null)} className={adminSecondaryBtnStyle}>Cancel</button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Hide dialog: names the paper, and a reason is required and stays on it. */}
+      <AdminDialog
+        open={!!hideTarget}
+        onOpenChange={(open) => {
+          if (!open) setHideTarget(null);
+        }}
+        title={hideTarget ? `Hide ${paperLabel(hideTarget)}?` : 'Hide this paper?'}
+        description="Readers stop seeing it straight away. Restore brings it back."
+        size="sm"
+        footer={
+          <>
+            <AdminPillButton variant="secondary" onClick={() => setHideTarget(null)}>
+              Cancel
+            </AdminPillButton>
+            <AdminPillButton
+              variant="destructive"
+              onClick={() => void confirmHide()}
+              disabled={!hideReason.trim()}
+              busy={!!hideTarget && busy(`paper:${hideTarget.paper_id}`)}
+            >
+              Hide paper
+            </AdminPillButton>
+          </>
+        }
+      >
+        <Label htmlFor="hide-reason" className="mb-1.5 block text-[14px] font-semibold text-foreground">
+          Reason <span className="font-normal text-warm-meta">{HIDE_REASON_NOTE}</span>
+        </Label>
+        <Textarea
+          id="hide-reason"
+          value={hideReason}
+          onChange={(e) => setHideReason(e.target.value)}
+          placeholder="e.g. Half the pages were scanned upside down"
+          rows={3}
+          autoFocus
+          aria-required="true"
+        />
+      </AdminDialog>
 
-      {/* History dialog: full change log, undo per revision. */}
-      <Dialog open={!!historyTarget} onOpenChange={(open) => { if (!open) setHistoryTarget(null); }}>
-        <DialogContent aria-describedby={undefined} className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-bento bg-card p-6">
-          <DialogTitle className="text-xl font-bold text-foreground">History: {historyTarget?.school}</DialogTitle>
-          {historyLoading ? (
-            <p className="mt-4 text-[14px] text-warm-secondary">Loading...</p>
-          ) : history.length === 0 ? (
-            <p className="mt-4 text-[14px] text-warm-secondary">No changes recorded yet.</p>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {history.map((r) => (
-                <li key={r.id} className="rounded-xl bg-muted p-3 text-[13px]">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-foreground">
-                      {r.action}{r.field ? ` - ${r.field}` : ''}
-                    </span>
-                    <span className="text-warm-meta">{new Date(r.created_at).toLocaleString()}</span>
-                  </div>
-                  <div className="mt-1 text-warm-secondary">by {r.actor} ({r.source})</div>
-                  {r.reason ? <div className="mt-1 text-foreground">Reason: {r.reason}</div> : null}
-                  {UNDOABLE_ACTIONS.has(r.action) && (
-                    <button onClick={() => void doUndo(r.id)} disabled={busy(`undo:${r.id}`)} className="mt-2 rounded-full bg-card px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60">
-                      {busy(`undo:${r.id}`) ? 'Undoing...' : 'Undo'}
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* History dialog: every change in plain words, Undo asks first. */}
+      <AdminDialog
+        open={!!historyTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setHistoryTarget(null);
+            setUndoConfirm(null);
+          }
+        }}
+        title={historyTarget ? `History of ${paperLabel(historyTarget)}` : 'History'}
+        size="md"
+        footer={
+          <AdminPillButton variant="secondary" onClick={() => setHistoryTarget(null)}>
+            Close
+          </AdminPillButton>
+        }
+      >
+        {historyLoading ? (
+          <AdminLoading shape="rows" rows={3} label="Loading the history" />
+        ) : historyError ? (
+          <AdminError what="the history" onRetry={() => historyTarget && void openHistory(historyTarget, true)} />
+        ) : history.length === 0 ? (
+          <AdminEmpty title="No changes recorded yet." hint="Edits, hides and restores to this paper will be listed here." />
+        ) : (
+          <ul className="space-y-3">
+            {history.map((r) => (
+              <li key={r.id} className="rounded-xl bg-muted p-3 text-[13px]">
+                <p className="font-semibold text-foreground">{historyLine(r)}</p>
+                <p className="mt-0.5 text-warm-meta">{new Date(r.created_at).toLocaleString()}</p>
+                {r.reason ? <p className="mt-1 text-foreground">Reason: {r.reason}</p> : null}
+                {UNDOABLE_ACTIONS.has(r.action) ? (
+                  undoConfirm === r.id ? (
+                    <div className="mt-2 rounded-xl bg-card p-3" role="group" aria-label="Confirm undo">
+                      <p className="text-[13px] text-foreground">{undoEffect(r)}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <AdminPillButton variant="secondary" size="sm" onClick={() => setUndoConfirm(null)} disabled={busy(`undo:${r.id}`)}>
+                          Keep it
+                        </AdminPillButton>
+                        <AdminPillButton variant="destructive" size="sm" onClick={() => void doUndo(r.id)} busy={busy(`undo:${r.id}`)}>
+                          {busy(`undo:${r.id}`) ? 'Undoing...' : 'Undo this change'}
+                        </AdminPillButton>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-2">
+                      <AdminPillButton variant="secondary" size="sm" onClick={() => setUndoConfirm(r.id)}>
+                        Undo
+                      </AdminPillButton>
+                    </div>
+                  )
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </AdminDialog>
     </BentoStack>
   );
 }

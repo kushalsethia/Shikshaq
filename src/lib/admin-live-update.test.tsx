@@ -150,7 +150,7 @@ describe('Update live paper panel', () => {
     expect(text(render({ rows: [] }))).toContain('No live paper has changes waiting.');
     expect(render({ rows: null, state: 'loading' })).toContain('role="status"');
     const failed = render({ rows: null, state: 'error' });
-    expect(text(failed)).toContain('The list did not load');
+    expect(text(failed)).toContain('The list of live papers did not load');
     expect(text(failed)).toContain('Try again');
   });
 });

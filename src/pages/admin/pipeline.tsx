@@ -1,10 +1,15 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { Link } from 'react-router-dom';
 import { formatDistanceToNow, format } from 'date-fns';
+import { ArrowRight, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
 import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
 import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { AdminEmpty, AdminError, AdminLoading, type AdminLoadingShape } from '@/components/admin/AdminState';
+import { adminPillClass } from '@/components/admin/AdminPillButton';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import {
@@ -18,9 +23,12 @@ import {
   type PipelineStats,
 } from '@/lib/pipeline-stats';
 import { realPipelineApi } from '@/lib/pipeline-api';
-import { PaperRegistryPanel } from '@/components/admin/PaperRegistryPanel';
+import { PaperRegistryPanel, type RegistrySummaryStatus } from '@/components/admin/PaperRegistryPanel';
 import { realPaperRegistryApi } from '@/lib/paper-registry-api';
-import type { PaperRegistryApi } from '@/lib/paper-registry';
+import { headlineCounts, type PaperRegistryApi, type ProcessedState, type RegistrySummary } from '@/lib/paper-registry';
+import { feedActionWords, feedActorWords } from '@/lib/activity-format';
+import { relativeWords, timeWords } from '@/lib/history-labels';
+import { cn } from '@/lib/utils';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 
@@ -35,19 +43,89 @@ const DummyAdminPipeline = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminPipel
    Words used here match the library's: Verified = published and checked,
    Needs review = published but not fully checked, Hidden = not published.
    "Student queue" is the checker's pile (every row has its page image),
-   "Admin queue" is the admin pile. */
+   "Admin queue" is the admin pile.
 
-function Tile({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
-  return (
-    <div className="rounded-2xl bg-muted px-4 py-3">
-      <p className="text-[12px] font-semibold uppercase tracking-wide text-warm-label">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{value}</p>
-      {sub ? <p className="mt-0.5 text-[13px] text-warm-meta">{sub}</p> : null}
-    </div>
+   Admin rework, Batch 6:
+   - Only the admin check gates the page. The header, the intro, the "Needs
+     attention" strip and the paper registry always render; each stats panel
+     has its own skeleton or its own error with Try again.
+   - The numbers somebody has to act on come first, as a strip of links.
+     The 30-day charts and the by-subject bars are folded away.
+   - Each panel says what it counts, because PDFs, desk papers and library
+     papers are three different totals. */
+
+type Tone = 'alert' | 'plain' | 'good';
+
+const TONE: Record<Tone, { box: string; label: string; value: string; sub: string }> = {
+  plain: { box: 'bg-muted', label: 'text-warm-label', value: 'text-foreground', sub: 'text-warm-meta' },
+  alert: { box: 'bg-rose-100', label: 'text-rose-900', value: 'text-rose-950', sub: 'text-rose-900' },
+  good: { box: 'bg-mint', label: 'text-[#24603D]', value: 'text-[#24603D]', sub: 'text-[#24603D]' },
+};
+
+function Tile({
+  label,
+  value,
+  sub,
+  tone = 'plain',
+  to,
+  onClick,
+  state = 'ok',
+}: {
+  label: string;
+  value?: ReactNode;
+  sub?: ReactNode;
+  tone?: Tone;
+  /** Makes the tile a link to the list behind the number. */
+  to?: string;
+  /** Makes the tile a button (scrolls or filters in this page). */
+  onClick?: () => void;
+  /** 'unknown' shows "?": a number that did not load is never shown as 0. */
+  state?: 'ok' | 'loading' | 'unknown';
+}) {
+  const t = TONE[tone];
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <p className={cn('text-[12px] font-semibold uppercase tracking-wide', t.label)}>{label}</p>
+        {to || onClick ? <ArrowRight className={cn('mt-0.5 h-4 w-4 shrink-0', t.label)} aria-hidden /> : null}
+      </div>
+      {state === 'loading' ? (
+        <div className="mt-2 h-7 w-16 animate-pulse rounded-lg bg-card/60 motion-reduce:animate-none" role="status" aria-label={`Loading ${label}`} />
+      ) : (
+        <p className={cn('mt-1 text-2xl font-bold tabular-nums', t.value)}>{state === 'unknown' ? '?' : value}</p>
+      )}
+      {sub ? <p className={cn('mt-0.5 text-[13px]', t.sub)}>{state === 'unknown' ? 'Did not load' : sub}</p> : null}
+    </>
   );
+  const box = cn('block min-h-[78px] w-full min-w-0 rounded-2xl px-4 py-3 text-left', t.box);
+  const interactive = cn(
+    box,
+    'transition-[filter,transform] duration-150 hover:brightness-95 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+  );
+  if (to) {
+    return (
+      <Link to={to} className={interactive}>
+        {body}
+      </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={interactive}>
+        {body}
+      </button>
+    );
+  }
+  return <div className={box}>{body}</div>;
 }
 
-/** One horizontal stacked bar: verified / needs review / hidden. */
+const BAR_PARTS = [
+  { key: 'verified', label: 'Verified', dot: 'bg-emerald-500' },
+  { key: 'needs_review', label: 'Needs review', dot: 'bg-amber-400' },
+  { key: 'hidden', label: 'Hidden', dot: 'bg-slate-300' },
+] as const;
+
+/** One horizontal stacked bar: verified / needs review / hidden. Colour is not the only key: see StackLegend. */
 function StackBar({ parts }: { parts: { value: number; className: string; label: string }[] }) {
   const total = parts.reduce((s, p) => s + p.value, 0) || 1;
   return (
@@ -57,6 +135,21 @@ function StackBar({ parts }: { parts: { value: number; className: string; label:
         <div key={p.label} className={p.className} style={{ width: `${(p.value / total) * 100}%` }} />
       ))}
     </div>
+  );
+}
+
+/** Dot, label and count for each segment, drawn once beside the bars so the colours are named in text. */
+function StackLegend({ counts }: { counts: { verified: number; needs_review: number; hidden: number } }) {
+  return (
+    <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="What the bar colours mean">
+      {BAR_PARTS.map((p) => (
+        <li key={p.key} className="flex items-center gap-1.5 text-[12px] text-warm-secondary">
+          <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', p.dot)} aria-hidden />
+          <span className="font-semibold text-foreground">{p.label}</span>
+          <span className="tabular-nums">{counts[p.key].toLocaleString()}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -97,6 +190,115 @@ function DayBars({ points, field, label, barClass }: {
   );
 }
 
+export type StatsStatus = 'loading' | 'ok' | 'error';
+
+const PANEL = 'px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]';
+
+/** The numbers somebody has to act on, each a way into its list. A number that did not load is "?", never 0. */
+export function AttentionStrip({
+  stats,
+  status,
+  notStarted,
+  registryStatus,
+  onShowNotStarted,
+  onShowRegistry,
+  onRetry,
+}: {
+  stats: PipelineStats | null;
+  status: StatsStatus;
+  /** From the registry summary, or null while it has not loaded. */
+  notStarted: number | null;
+  registryStatus: RegistrySummaryStatus;
+  onShowNotStarted: () => void;
+  onShowRegistry: () => void;
+  onRetry: () => void;
+}) {
+  const q = stats?.queues;
+  const desk = stats?.desk;
+  const statState: 'ok' | 'loading' | 'unknown' = status === 'ok' ? 'ok' : status === 'loading' ? 'loading' : 'unknown';
+  const regState: 'ok' | 'loading' | 'unknown' = registryStatus === 'ok' && notStarted !== null ? 'ok' : registryStatus === 'loading' ? 'loading' : 'unknown';
+  return (
+    <BentoPanel fill="card" className={PANEL}>
+      <AdminPanelHeader title="Needs attention" subtitle="Where work is waiting. Each number opens the list behind it." />
+      <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-4" data-testid="needs-attention">
+        <Tile
+          label="Not started"
+          tone={(notStarted ?? 0) > 0 ? 'alert' : 'plain'}
+          value={(notStarted ?? 0).toLocaleString()}
+          sub="PDFs nobody has touched"
+          state={regState}
+          onClick={onShowNotStarted}
+        />
+        <Tile
+          label="Admin queue"
+          tone={q && q.admin_queue > 0 ? 'alert' : 'plain'}
+          value={q?.admin_queue.toLocaleString()}
+          sub="questions waiting for an admin"
+          state={statState}
+          to="/admin/admin-queue"
+        />
+        <Tile
+          label="Student queue"
+          value={q?.student_queue.toLocaleString()}
+          sub="questions waiting for verifiers"
+          state={statState}
+          to="/admin/team"
+        />
+        <Tile
+          label="New scans"
+          value={desk?.new_scans.toLocaleString()}
+          sub="papers read from fresh scans"
+          state={statState}
+          onClick={onShowRegistry}
+        />
+      </div>
+      {status === 'error' ? (
+        <div className="mt-3 px-[18px]">
+          <AdminError what="the queue numbers" onRetry={onRetry} />
+        </div>
+      ) : null}
+    </BentoPanel>
+  );
+}
+
+/** A panel fed by the stats read: its own skeleton while that loads, its own error with Try again if it fails. */
+export function StatsPanel({
+  title,
+  subtitle,
+  meta,
+  status,
+  what,
+  onRetry,
+  shape = 'tiles',
+  children,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  meta?: ReactNode;
+  status: StatsStatus;
+  what: string;
+  onRetry: () => void;
+  shape?: AdminLoadingShape;
+  children: ReactNode;
+}) {
+  return (
+    <BentoPanel fill="card" className={PANEL}>
+      <AdminPanelHeader title={title} subtitle={subtitle} meta={status === 'ok' ? meta : undefined} />
+      {status === 'ok' ? (
+        children
+      ) : status === 'loading' ? (
+        <div className="px-[18px]">
+          <AdminLoading shape={shape} rows={shape === 'tiles' ? 4 : 3} label={`Loading ${what}`} />
+        </div>
+      ) : (
+        <div className="px-[18px]">
+          <AdminError what={what} onRetry={onRetry} />
+        </div>
+      )}
+    </BentoPanel>
+  );
+}
+
 export function AdminPipelinePage({
   api = realPipelineApi,
   registryApi = realPaperRegistryApi,
@@ -110,12 +312,14 @@ export function AdminPipelinePage({
   dummy?: boolean;
   banner?: ReactNode;
 }) {
+  usePageMeta('Pipeline | Shikshaq Admin', 'How far each batch of papers has got, from scan to live.');
   const { user, profile } = useAuth();
-  const signedInName = profile?.full_name || user?.email || 'Signed-in admin';
+  const signedInName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'Signed-in admin';
   const [stats, setStats] = useState<PipelineStats | null>(null);
   const [feed, setFeed] = useState<FeedRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [status, setStatus] = useState<StatsStatus>('loading');
+  const [registry, setRegistry] = useState<{ summary: RegistrySummary | null; status: RegistrySummaryStatus }>({ summary: null, status: 'loading' });
+  const [focus, setFocus] = useState<{ state: ProcessedState | null; nonce: number } | null>(null);
 
   const guard = useAdminGuard(dummy ? null : user, {
     onGranted: load,
@@ -130,35 +334,31 @@ export function AdminPipelinePage({
     if (dummy) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dummy]);
-  useEffect(() => {
-    if (!checkingAdmin && !isAdmin) setLoading(false);
-  }, [checkingAdmin, isAdmin]);
 
   async function load() {
-    setLoading(true);
-    setLoadError(null);
+    setStatus('loading');
     try {
       const [s, f] = await Promise.all([api.stats(), api.feed(40)]);
       setStats(s);
       setFeed(f);
+      setStatus('ok');
     } catch (e) {
       if (import.meta.env.DEV) console.error('pipeline stats', e);
-      setLoadError('Could not load the pipeline numbers.');
-    } finally {
-      setLoading(false);
+      setStatus('error');
     }
   }
 
+  const onSummary = useCallback((summary: RegistrySummary | null, st: RegistrySummaryStatus) => setRegistry({ summary, status: st }), []);
+  const showRegistry = (state: ProcessedState | null) => setFocus({ state, nonce: Date.now() });
+
   const nav = buildAdminNav('pipeline', sectionCounts);
 
-  if (checkingAdmin || loading) {
+  if (checkingAdmin) {
     return (
       <BentoStack className="min-h-screen bg-muted">
-        <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
-        <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-          <div className="grid animate-pulse grid-cols-2 gap-3 px-[18px] md:grid-cols-4">
-            {[...Array(8)].map((_, i) => <div key={i} className="h-20 rounded-2xl bg-muted" />)}
-          </div>
+        <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? signedInName} />
+        <BentoPanel fill="card" className="px-[18px] py-[18px] lg:px-[18px] lg:py-[18px]">
+          <AdminLoading shape="tiles" rows={4} label="Loading the pipeline" />
         </BentoPanel>
         <AdminAuditNote />
       </BentoStack>
@@ -168,23 +368,10 @@ export function AdminPipelinePage({
   if (adminGuardError && !dummy) return <AdminGuardErrorState onRetry={retryAdminGuard} />;
   if (!isAdmin) return null;
 
-  if (loadError || !stats) {
-    return (
-      <BentoStack className="min-h-screen bg-muted">
-        <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
-        <BentoPanel fill="card" className="px-[18px] py-[18px]">
-          <p className="text-sm text-foreground">{loadError ?? 'No numbers yet.'}</p>
-          <button type="button" onClick={() => void load()}
-            className="tap-44 mt-3 text-sm font-semibold text-brand underline-offset-2 hover:underline">
-            Try again
-          </button>
-        </BentoPanel>
-      </BentoStack>
-    );
-  }
-
-  const { library: lib, queues: q, desk } = stats;
-  const mathsLive = lib.maths_verified + lib.maths_needs_review;
+  const lib = stats?.library;
+  const q = stats?.queues;
+  const desk = stats?.desk;
+  const mathsLive = lib ? lib.maths_verified + lib.maths_needs_review : 0;
 
   const recentColumns: AdminTableColumn[] = [
     { key: 'paper', label: 'Paper', width: '2fr' },
@@ -193,15 +380,16 @@ export function AdminPipelinePage({
     { key: 'added', label: 'Added', width: '1fr' },
     { key: 'state', label: 'State', width: '1fr' },
   ];
-  const recentRows: AdminTableRow[] = stats.recent_papers.map((p) => {
+  const recentRows: AdminTableRow[] = (stats?.recent_papers ?? []).map((p) => {
     const state = paperState(p);
     return {
       id: p.id,
+      href: `/admin/library/${encodeURIComponent(p.id)}`,
       cells: [
-        <span key="p" className="font-bold text-foreground">{`${p.board ?? ''} ${p.cls} ${p.subject}`.trim()}{p.year ? `, ${p.year}` : ''}</span>,
+        <span key="p">{`${p.board ?? ''} ${p.cls} ${p.subject}`.trim()}{p.year ? `, ${p.year}` : ''}</span>,
         p.school || 'School not recorded',
         String(p.questions ?? 0),
-        <span key="a" className="font-normal text-warm-meta">{formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}</span>,
+        <span key="a" className="font-normal text-warm-meta" title={relativeWords(p.created_at)}>{timeWords(p.created_at)}</span>,
         <AdminStatusPill key="s" status={state === 'Verified' ? 'live' : state === 'Hidden' ? 'hidden' : 'paused'} label={state} />,
       ],
     };
@@ -209,104 +397,189 @@ export function AdminPipelinePage({
 
   const feedColumns: AdminTableColumn[] = [
     { key: 'when', label: 'When', width: '1fr' },
-    { key: 'who', label: 'Who', width: '1fr' },
-    { key: 'what', label: 'What', width: '1.4fr' },
-    { key: 'detail', label: 'Detail', width: '2fr' },
+    { key: 'who', label: 'Who', width: '1.2fr' },
+    { key: 'what', label: 'What', width: '1.4fr', wrap: true },
+    { key: 'detail', label: 'Detail', width: '2fr', wrap: true },
   ];
   const feedRows: AdminTableRow[] = feed.map((r) => ({
     id: `${r.stream}:${r.event_id}`,
     cells: [
-      <span key="w" className="font-normal text-warm-meta">{formatDistanceToNow(new Date(r.at), { addSuffix: true })}</span>,
-      r.actor_label || r.actor_kind || 'pipeline',
-      <span key="a" className="font-bold text-foreground">{r.action.replace(/_/g, ' ')}</span>,
+      <span key="w" className="font-normal text-warm-meta" title={relativeWords(r.at)}>{timeWords(r.at)}</span>,
+      feedActorWords(r.actor_label, r.actor_kind),
+      <span key="a" className="font-bold text-foreground">{feedActionWords(r.action)}</span>,
       r.detail || '',
     ],
   }));
 
   return (
     <BentoStack className="min-h-screen bg-muted">
-      <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
+      <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? signedInName} />
       <AdminPageIntroPanel page="pipeline" />
       {banner}
 
-      <PaperRegistryPanel api={registryApi} />
+      <AttentionStrip
+        stats={stats}
+        status={status}
+        notStarted={registry.summary ? headlineCounts(registry.summary).notStarted : null}
+        registryStatus={registry.status}
+        onShowNotStarted={() => showRegistry('not_started')}
+        onShowRegistry={() => showRegistry(null)}
+        onRetry={() => void load()}
+      />
 
-      <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-        <AdminPanelHeader title="Papers library"
-          meta={`updated ${formatDistanceToNow(new Date(stats.generated_at), { addSuffix: true })}`} />
-        <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-4">
-          <Tile label="Live papers" value={lib.published.toLocaleString()} sub={`${lib.questions.toLocaleString()} questions`} />
-          <Tile label="Verified" value={lib.verified.toLocaleString()} sub={`${pct(lib.verified, lib.published)}% of live`} />
-          <Tile label="Needs review" value={lib.needs_review.toLocaleString()} sub="live, not fully checked" />
-          <Tile label="Hidden" value={lib.hidden.toLocaleString()} sub="not published" />
-        </div>
-        <div className="mt-4 px-[18px]">
-          <div className="mb-1.5 flex items-baseline justify-between">
-            <p className="text-[13px] font-semibold text-foreground">Maths</p>
-            <p className="text-[13px] tabular-nums text-warm-meta">
-              {mathsLive} of {lib.maths_papers} live, {lib.maths_verified} verified
-            </p>
-          </div>
-          <StackBar parts={[
-            { value: lib.maths_verified, className: 'bg-emerald-500', label: 'Verified' },
-            { value: lib.maths_needs_review, className: 'bg-amber-400', label: 'Needs review' },
-            { value: lib.maths_hidden, className: 'bg-slate-300', label: 'Hidden' },
-          ]} />
-        </div>
-      </BentoPanel>
+      <PaperRegistryPanel api={registryApi} onSummary={onSummary} focus={focus} />
 
-      <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-        <AdminPanelHeader title="Checking" meta={`${desk.papers.toLocaleString()} papers on the desk`} />
-        <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-4">
-          <Tile label="Student queue" value={q.student_queue.toLocaleString()} sub="with the page picture" />
-          <Tile label="Admin queue" value={q.admin_queue.toLocaleString()} />
-          <Tile label="Questions cleared" value={q.passed.toLocaleString()} sub={`${pct(q.passed, q.questions)}% of ${q.questions.toLocaleString()}`} />
-          <Tile label="New scans" value={desk.new_scans.toLocaleString()} sub={`${desk.passed} papers fully passed`} />
-        </div>
-        <div className="mt-5 grid gap-6 px-[18px] md:grid-cols-3">
-          <DayBars points={stats.daily} field="desk_papers" label="Papers loaded to the desk" barClass="fill-brand-blue" />
-          <DayBars points={stats.daily} field="questions_cleared" label="Questions cleared" barClass="fill-emerald-500" />
-          <DayBars points={stats.daily} field="papers_added" label="Papers added to the library" barClass="fill-amber-400" />
-        </div>
-      </BentoPanel>
-
-      <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-        <AdminPanelHeader title="By subject" meta={`${stats.by_subject.length} subjects`} />
-        <ul className="space-y-3 px-[18px]">
-          {stats.by_subject.map((s) => (
-            <li key={s.subject}>
-              <div className="mb-1 flex items-baseline justify-between gap-3">
-                <span className="text-[13px] font-semibold text-foreground">{s.subject}</span>
-                <span className="text-[13px] tabular-nums text-warm-meta">
-                  {s.published} live, {s.verified} verified{s.hidden ? `, ${s.hidden} hidden` : ''}
-                </span>
+      <StatsPanel
+        title="Papers library"
+        subtitle="Papers published on the website. This counts library papers, so it differs from the PDF count above."
+        meta={stats ? `updated ${formatDistanceToNow(new Date(stats.generated_at), { addSuffix: true })}` : undefined}
+        status={status}
+        what="the library numbers"
+        onRetry={() => void load()}
+      >
+        {lib ? (
+          <>
+            <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-4">
+              <Tile label="Live papers" value={lib.published.toLocaleString()} sub={`${lib.questions.toLocaleString()} questions`} />
+              <Tile label="Verified" value={lib.verified.toLocaleString()} sub={`${pct(lib.verified, lib.published)}% of live`} />
+              <Tile label="Needs review" value={lib.needs_review.toLocaleString()} sub="live, not fully checked" />
+              <Tile label="Hidden" value={lib.hidden.toLocaleString()} sub="not published" />
+            </div>
+            <div className="mt-4 px-[18px]">
+              <div className="mb-1.5 flex items-baseline justify-between">
+                <p className="text-[13px] font-semibold text-foreground">Maths</p>
+                <p className="text-[13px] tabular-nums text-warm-meta">
+                  {mathsLive} of {lib.maths_papers} live, {lib.maths_verified} verified
+                </p>
               </div>
               <StackBar parts={[
-                { value: s.verified, className: 'bg-emerald-500', label: 'Verified' },
-                { value: s.needs_review, className: 'bg-amber-400', label: 'Needs review' },
-                { value: s.hidden, className: 'bg-slate-300', label: 'Hidden' },
+                { value: lib.maths_verified, className: 'bg-emerald-500', label: 'Verified' },
+                { value: lib.maths_needs_review, className: 'bg-amber-400', label: 'Needs review' },
+                { value: lib.maths_hidden, className: 'bg-slate-300', label: 'Hidden' },
               ]} />
-            </li>
-          ))}
-        </ul>
-        <p className="mt-4 px-[18px] text-[13px] text-warm-label">
-          Boards: {Object.entries(stats.by_board).map(([b, n]) => `${b} ${n}`).join(', ')}
-        </p>
-      </BentoPanel>
+              <div className="mt-2">
+                <StackLegend counts={{ verified: lib.maths_verified, needs_review: lib.maths_needs_review, hidden: lib.maths_hidden }} />
+              </div>
+            </div>
+          </>
+        ) : null}
+      </StatsPanel>
 
-      <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-        <AdminPanelHeader title="Newest papers" meta={`last ${stats.recent_papers.length}`} />
-        <AdminTable columns={recentColumns} rows={recentRows} readOnly />
-      </BentoPanel>
+      <StatsPanel
+        title="Checking"
+        subtitle="Papers on the checking desk and the questions cleared so far. The queues are in Needs attention."
+        meta={desk ? `${desk.papers.toLocaleString()} papers on the desk` : undefined}
+        status={status}
+        what="the checking numbers"
+        onRetry={() => void load()}
+      >
+        {desk && q ? (
+          <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-3">
+            <Tile label="Questions cleared" value={q.passed.toLocaleString()} sub={`${pct(q.passed, q.questions)}% of ${q.questions.toLocaleString()}`} />
+            <Tile label="Papers fully passed" value={desk.passed.toLocaleString()} sub={`of ${desk.papers.toLocaleString()} on the desk`} />
+            <Tile label="Papers flagged red" value={desk.red.toLocaleString()} sub="stopped for a problem" tone={desk.red > 0 ? 'alert' : 'plain'} />
+          </div>
+        ) : null}
+      </StatsPanel>
 
-      <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-        <AdminPanelHeader title="Activity" meta={`most recent ${feed.length}`} />
-        {feedRows.length ? (
-          <AdminTable columns={feedColumns} rows={feedRows} readOnly />
+      <StatsPanel
+        title="Newest papers"
+        subtitle="The latest papers added to the library. Open one to edit it."
+        meta={stats ? `last ${stats.recent_papers.length}` : undefined}
+        status={status}
+        what="the newest papers"
+        onRetry={() => void load()}
+        shape="table"
+      >
+        {recentRows.length ? (
+          <>
+            <AdminTable columns={recentColumns} rows={recentRows} readOnly />
+            <div className="mt-3 px-[18px]">
+              <Link to="/admin/library" className={adminPillClass('quiet', 'sm', 'px-3')}>
+                See all in Library
+              </Link>
+            </div>
+          </>
         ) : (
-          <p className="px-[18px] text-sm text-warm-label">No activity recorded yet.</p>
+          <AdminEmpty title="No papers in the library yet" />
         )}
-      </BentoPanel>
+      </StatsPanel>
+
+      <StatsPanel
+        title="Activity"
+        subtitle="The latest things the desk, the AI and people did."
+        meta={stats ? `most recent ${feed.length}` : undefined}
+        status={status}
+        what="the activity"
+        onRetry={() => void load()}
+        shape="table"
+      >
+        {feedRows.length ? (
+          <>
+            <AdminTable columns={feedColumns} rows={feedRows} readOnly />
+            <div className="mt-3 px-[18px]">
+              <Link to="/admin/activity" className={adminPillClass('quiet', 'sm', 'px-3')}>
+                See full activity
+              </Link>
+            </div>
+          </>
+        ) : (
+          <AdminEmpty title="No activity recorded yet" hint="Checks, edits and pipeline steps will appear here as they happen." />
+        )}
+      </StatsPanel>
+
+      <StatsPanel
+        title="Trends and subjects"
+        subtitle="The 30-day charts and the library broken down by subject."
+        meta={stats ? `3 charts, ${stats.by_subject.length} subjects` : undefined}
+        status={status}
+        what="the trends"
+        onRetry={() => void load()}
+      >
+        {stats ? (
+          <details className="group px-[18px]">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-xl bg-muted px-4 text-[14px] font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              Show the charts and the subject bars
+              <ChevronDown className="h-4 w-4 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none" aria-hidden />
+            </summary>
+            <div className="mt-5 grid gap-6 md:grid-cols-3">
+              <DayBars points={stats.daily} field="desk_papers" label="Papers loaded to the desk" barClass="fill-brand-blue" />
+              <DayBars points={stats.daily} field="questions_cleared" label="Questions cleared" barClass="fill-emerald-500" />
+              <DayBars points={stats.daily} field="papers_added" label="Papers added to the library" barClass="fill-amber-400" />
+            </div>
+            <h3 className="mb-2 mt-6 text-[15px] font-extrabold text-foreground">By subject</h3>
+            <div className="mb-3">
+              <StackLegend
+                counts={{
+                  verified: stats.by_subject.reduce((n, s) => n + s.verified, 0),
+                  needs_review: stats.by_subject.reduce((n, s) => n + s.needs_review, 0),
+                  hidden: stats.by_subject.reduce((n, s) => n + s.hidden, 0),
+                }}
+              />
+            </div>
+            <ul className="space-y-3">
+              {stats.by_subject.map((s) => (
+                <li key={s.subject}>
+                  <div className="mb-1 flex items-baseline justify-between gap-3">
+                    <span className="text-[13px] font-semibold text-foreground">{s.subject}</span>
+                    <span className="text-[13px] tabular-nums text-warm-meta">
+                      {s.published} live, {s.verified} verified{s.hidden ? `, ${s.hidden} hidden` : ''}
+                    </span>
+                  </div>
+                  <StackBar parts={[
+                    { value: s.verified, className: 'bg-emerald-500', label: 'Verified' },
+                    { value: s.needs_review, className: 'bg-amber-400', label: 'Needs review' },
+                    { value: s.hidden, className: 'bg-slate-300', label: 'Hidden' },
+                  ]} />
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 pb-1 text-[13px] text-warm-label">
+              Boards: {Object.entries(stats.by_board).map(([b, n]) => `${b} ${n}`).join(', ')}
+            </p>
+          </details>
+        ) : null}
+      </StatsPanel>
 
       <AdminAuditNote />
     </BentoStack>

@@ -1,24 +1,38 @@
-import { useEffect, useState, lazy, Suspense, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, lazy, Suspense, type ReactNode } from 'react';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { useSearchParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { toast as sonnerToast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 import { recordAdminAction } from '@/lib/audit';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
-import { AdminTable, AdminPanelHeader, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminStatus, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { useConfirm } from '@/components/ui/use-confirm';
-import { Search, UserPlus } from 'lucide-react';
 import { HodSection } from '@/components/admin/HodSection';
-import { realHodAdminApi, realHodApi, type HodAdminApi, type HodApi, type HodVerifierProfile } from '@/lib/hod-api';
+import { realHodAdminApi, realHodApi, type HodAdminApi, type HodApi, type HodRow, type HodVerifierProfile } from '@/lib/hod-api';
+import { realTeacherReviewerAdminApi, type ReviewerRow, type TeacherReviewerAdminApi } from '@/lib/teacher-review-api';
 import { VerifierProfileForm } from '@/components/hod/VerifierProfileForm';
 import { realCheckerAdminApi, type CheckerAdminApi, type CheckerAdminRow } from '@/lib/checker-admin-api';
-import type { UserSearchRow } from '@/lib/checker-api';
-import { AdminPageIntro, InfoTip } from '@/components/admin/AdminHelp';
+import { AdminPageIntro } from '@/components/admin/AdminHelp';
+import { AdminDialog } from '@/components/admin/AdminDialog';
+import { AdminTabs } from '@/components/admin/AdminTabs';
+import { AdminEmpty, AdminError, AdminLoading } from '@/components/admin/AdminState';
+import { PEOPLE_NO_ACCOUNT, PeoplePicker } from '@/components/admin/PeoplePicker';
 import { AddStudentGuide } from '@/components/admin/AddStudentGuide';
 import { TIPS } from '@/lib/admin-hints';
-import { looksLikeEmail } from '@/lib/email-shape';
+import { loadView } from '@/lib/admin-load-view';
+import {
+  DETAILS_LABEL,
+  detailsState,
+  needDetailsCount,
+  needDetailsText,
+  profilesById,
+  sortByDetails,
+  type DetailsState,
+} from '@/lib/verifier-details';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 
@@ -32,14 +46,97 @@ const DummyAdminCheckers = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminCheck
    picker, no bulk import, because there is no evidence yet this list will
    ever need either.
 
-   One place to add a checker (owner, 2026-10-02: the same job lived on two
-   pages and only one could search). Type a name or an email, pick the person,
-   press Add. The old Paper review checkers tab is gone. */
+   Two views, in the URL as ?view= so back and shared links work:
+     verifiers (default)  who can verify papers, and who still lacks details
+     hods                 HODs, and teacher reviewers (see HodSection)
+
+   One first-load gate covers both views. After that, adding or removing
+   someone refreshes the lists quietly: the page stays mounted, nothing jumps,
+   focus stays where it was. A failed read is an error with Try again, never
+   an empty list. */
+
+type View = 'verifiers' | 'hods';
+
+const DETAILS_TONE: Record<DetailsState, AdminStatus> = { missing: 'pending', expired: 'hidden', ready: 'live', unknown: 'paused' };
+
+const DETAILS_HINT =
+  'Ready: grade, school and board are saved and in date. Missing: nothing saved yet, so papers are given with no class limit. Expired: no new papers until the date is renewed.';
+
+/** The verifiers table (or the reason it is not there). Pure, so every state can be checked. */
+export function VerifierListBody({
+  rows,
+  error,
+  profiles,
+  onRetry,
+  onDetails,
+  onRemove,
+  openingId,
+}: {
+  rows: CheckerAdminRow[] | null;
+  error: boolean;
+  /** null = the profiles read failed or has not happened: details are "not known". */
+  profiles: HodVerifierProfile[] | null;
+  onRetry: () => void;
+  onDetails: (r: CheckerAdminRow) => void;
+  onRemove: (r: CheckerAdminRow) => void;
+  openingId?: string | null;
+}) {
+  const view = loadView({ settled: rows !== null || error, error, count: rows?.length ?? 0 });
+  if (view === 'error') return <AdminError what="the verifier list" onRetry={onRetry} className="mx-[18px]" />;
+  if (view === 'skeleton') return <AdminLoading shape="table" label="Loading the verifiers" />;
+  if (view === 'empty') {
+    return <AdminEmpty title="There are no verifiers yet" hint="Search for someone above and add them." />;
+  }
+  const list = rows ?? [];
+  const byId = profilesById(profiles);
+  const stateOf = (r: CheckerAdminRow) => detailsState(byId.get(r.user_id), profiles !== null);
+  const sorted = sortByDetails(list, stateOf);
+
+  const columns: AdminTableColumn[] = [
+    { key: 'email', label: 'Verifier', width: '1.6fr', hint: TIPS['col.checker'] },
+    { key: 'details', label: 'Details', width: '0.9fr', hint: DETAILS_HINT },
+    { key: 'added', label: 'Added', width: '1fr', hint: TIPS['col.added'] },
+    { key: 'today', label: 'Today', width: '0.6fr', hint: TIPS['col.today'] },
+    { key: 'total', label: 'Total', width: '0.6fr', hint: TIPS['col.total'] },
+  ];
+  const tableRows: AdminTableRow[] = sorted.map((r) => {
+    const s = stateOf(r);
+    return {
+      id: r.user_id,
+      cells: [
+        <div key="email" className="min-w-0">
+          <p className="truncate font-semibold text-foreground">{r.full_name || r.email}</p>
+          {r.full_name ? <p className="truncate text-[12px] text-warm-label">{r.email}</p> : null}
+        </div>,
+        <AdminStatusPill key="details" status={DETAILS_TONE[s]} label={DETAILS_LABEL[s]} />,
+        <span key="added" className="text-warm-meta">{formatDistanceToNow(new Date(r.added_at), { addSuffix: true })}</span>,
+        <span key="today" className="font-bold tabular-nums text-foreground">{r.checked_today}</span>,
+        <span key="total" className="font-bold tabular-nums text-foreground">{r.checked_total}</span>,
+      ],
+      actions: [
+        {
+          label: openingId === r.user_id ? 'Opening...' : s === 'ready' ? 'Details' : s === 'unknown' ? 'Details' : 'Add details',
+          tone: 'primary',
+          disabled: openingId === r.user_id,
+          onClick: () => onDetails(r),
+        },
+        { label: 'Remove', tone: 'destructive', onClick: () => onRemove(r) },
+      ],
+    };
+  });
+  return (
+    <>
+      {error ? <AdminError what="the latest verifier list" onRetry={onRetry} detail="The list below may be out of date." className="mx-[18px] mb-3" /> : null}
+      <AdminTable columns={columns} rows={tableRows} />
+    </>
+  );
+}
 
 export function AdminCheckersPage({
   api = realCheckerAdminApi,
   hodApi = realHodAdminApi,
   profileApi = realHodApi,
+  reviewerApi = realTeacherReviewerAdminApi,
   dummy = false,
   banner,
 }: {
@@ -48,26 +145,83 @@ export function AdminCheckersPage({
   hodApi?: HodAdminApi;
   /** The verifier details form's API (hod_set_verifier_profile, hod_verifier_profiles). */
   profileApi?: Pick<HodApi, 'setProfile' | 'profiles'>;
+  /** The teacher reviewers list (hod_*_teacher_reviewer). */
+  reviewerApi?: TeacherReviewerAdminApi;
   /** Dummy mode (D75): no sign-in, no real admin check, a fake API. */
   dummy?: boolean;
   banner?: ReactNode;
 }) {
+  usePageMeta('Verifiers | Shikshaq Admin', 'Who can verify papers, and their details.');
   const { user, profile } = useAuth();
-  const actorName = profile?.full_name || user?.email || 'Signed-in admin';
-  const [rows, setRows] = useState<CheckerAdminRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<UserSearchRow[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [addingId, setAddingId] = useState<string | null>(null);
-  const [addError, setAddError] = useState<string | null>(null);
+  const actorName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'Signed-in admin';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view: View = searchParams.get('view') === 'hods' ? 'hods' : 'verifiers';
+
+  const [rows, setRows] = useState<CheckerAdminRow[] | null>(null);
+  const [rowsError, setRowsError] = useState(false);
+  const [profiles, setProfiles] = useState<HodVerifierProfile[] | null>(null);
+  const [hods, setHods] = useState<HodRow[] | null>(null);
+  const [hodsError, setHodsError] = useState(false);
+  const [reviewers, setReviewers] = useState<ReviewerRow[] | null>(null);
+  const [reviewersError, setReviewersError] = useState(false);
+  const [settled, setSettled] = useState(false);
+  const [busy, setBusy] = useState(false);
   const { confirm, confirmDialog } = useConfirm();
   // The verifier whose details are being filled in: straight after an admin
   // adds someone, or from a row's Details button.
   const [detailsFor, setDetailsFor] = useState<{ user_id: string; label: string; initial: Partial<HodVerifierProfile> } | null>(null);
   const [savingDetails, setSavingDetails] = useState(false);
+  const [openingId, setOpeningId] = useState<string | null>(null);
+
+  // One read of everything both views need. Each list fails on its own: a
+  // failed read keeps whatever was already held and flags an error, and the
+  // profiles read (only used for the Details column) may fail without
+  // blocking the page.
+  const loadAll = useCallback(async () => {
+    setBusy(true);
+    const [c, p, h, r] = await Promise.allSettled([api.listCheckers(), profileApi.profiles(), hodApi.listHods(), reviewerApi.list()]);
+    if (c.status === 'fulfilled') {
+      setRows(c.value);
+      setRowsError(false);
+    } else {
+      if (import.meta.env.DEV) console.error('Error fetching checkers:', c.reason);
+      setRowsError(true);
+    }
+    if (p.status === 'fulfilled') setProfiles(p.value);
+    if (h.status === 'fulfilled') {
+      setHods(h.value);
+      setHodsError(false);
+    } else {
+      setHodsError(true);
+    }
+    if (r.status === 'fulfilled') {
+      setReviewers(r.value);
+      setReviewersError(false);
+    } else {
+      setReviewersError(true);
+    }
+    setSettled(true);
+    setBusy(false);
+  }, [api, profileApi, hodApi, reviewerApi]);
+
+  // In dummy mode there is no real signed-in admin to check for, so the
+  // guard is asked never to redirect and its verdict is overridden below --
+  // same shape Checker.tsx uses for CheckerPage's own `dummy` prop.
+  const guard = useAdminGuard(dummy ? null : user, {
+    onGranted: () => void loadAll(),
+    redirectOnDenied: !dummy,
+  });
+  const isAdmin = dummy ? true : guard.isAdmin;
+  const checkingAdmin = dummy ? false : guard.checkingAdmin;
+  const { error: adminGuardError, retry: retryAdminGuard } = guard;
+  useEffect(() => {
+    if (dummy) void loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dummy]);
+  const sectionCounts = useAdminSectionCounts();
 
   async function openDetails(userId: string, label: string) {
+    setOpeningId(userId);
     let initial: Partial<HodVerifierProfile> = { name: label };
     try {
       const found = (await profileApi.profiles()).find((p) => p.user_id === userId);
@@ -75,102 +229,36 @@ export function AdminCheckersPage({
     } catch {
       /* the form still works blank */
     }
+    setOpeningId(null);
     setDetailsFor({ user_id: userId, label, initial });
   }
 
-  // In dummy mode there is no real signed-in admin to check for, so the
-  // guard is asked never to redirect and its verdict is overridden below --
-  // same shape Checker.tsx uses for CheckerPage's own `dummy` prop.
-  const guard = useAdminGuard(dummy ? null : user, {
-    onGranted: fetchCheckers,
-    redirectOnDenied: !dummy,
-  });
-  const isAdmin = dummy ? true : guard.isAdmin;
-  const checkingAdmin = dummy ? false : guard.checkingAdmin;
-  const { error: adminGuardError, retry: retryAdminGuard } = guard;
-  useEffect(() => {
-    if (dummy) void fetchCheckers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dummy]);
-  const sectionCounts = useAdminSectionCounts();
-
-  async function fetchCheckers() {
+  async function handleAdd(email: string) {
+    let newUserId: string;
     try {
-      setLoading(true);
-      const data = await api.listCheckers();
-      setRows(data);
+      newUserId = await api.addChecker(email);
     } catch (error) {
-      if (import.meta.env.DEV) console.error('Error fetching checkers:', error);
-      sonnerToast.error('Failed to load the verifier list');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Search by name or email as the admin types (two letters or more).
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
-    let cancelled = false;
-    setSearching(true);
-    const timer = setTimeout(() => {
-      api
-        .searchUsers(q)
-        .then((r) => {
-          if (!cancelled) setResults(r);
-        })
-        .catch(() => {
-          if (!cancelled) setAddError('The search did not work. Try again.');
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, 250);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [query, api]);
-
-  async function handleAdd(email: string, key: string) {
-    const trimmed = email.trim();
-    if (!looksLikeEmail(trimmed)) {
-      setAddError('That person has no email on file. Ask them to update their profile.');
-      return;
-    }
-    setAddError(null);
-    setAddingId(key);
-    try {
-      const newUserId = await api.addChecker(trimmed);
-      setQuery('');
-      setResults([]);
-      sonnerToast.success(`${trimmed} is now a verifier. Fill in their details so papers can be given to them.`);
-      if (user) {
-        void recordAdminAction({
-          actorId: user.id,
-          actorName,
-          action: 'grant_checker',
-          targetType: 'checker',
-          targetId: newUserId,
-          targetLabel: trimmed,
-        });
-      }
-      await fetchCheckers();
-      void openDetails(newUserId, trimmed);
-    } catch (error) {
-      const message =
-        error instanceof Error && /no account|not found/i.test(error.message)
-          ? 'No Shikshaq account has that email yet. They may not have signed up, or they used a different email.'
-          : 'Could not add that verifier. Check the email and try again.';
-      setAddError(message);
       if (import.meta.env.DEV) console.error('Error adding checker:', error);
-    } finally {
-      setAddingId(null);
+      throw new Error(
+        error instanceof Error && /no account|not found/i.test(error.message)
+          ? PEOPLE_NO_ACCOUNT
+          : 'Could not add that verifier. Check the email and try again.',
+      );
     }
+    sonnerToast.success(`${email} is now a verifier. Add their details so papers match their grade.`);
+    if (user) {
+      void recordAdminAction({
+        actorId: user.id,
+        actorName,
+        action: 'grant_checker',
+        targetType: 'checker',
+        targetId: newUserId,
+        targetLabel: email,
+      });
+    }
+    // Refresh quietly, then open the form: the list does not flash.
+    await loadAll();
+    void openDetails(newUserId, email);
   }
 
   async function handleRemove(row: CheckerAdminRow) {
@@ -183,7 +271,7 @@ export function AdminCheckersPage({
 
     try {
       await api.removeChecker(row.user_id);
-      setRows((prev) => prev.filter((r) => r.user_id !== row.user_id));
+      setRows((prev) => (prev ? prev.filter((r) => r.user_id !== row.user_id) : prev));
       sonnerToast.success(`${row.email} removed`);
       if (user) {
         void recordAdminAction({
@@ -201,17 +289,33 @@ export function AdminCheckersPage({
     }
   }
 
+  const states = useMemo(() => {
+    const byId = profilesById(profiles);
+    return (rows ?? []).map((r) => detailsState(byId.get(r.user_id), profiles !== null));
+  }, [rows, profiles]);
+  const needs = needDetailsCount(states);
+  const activeHodCount = (hods ?? []).filter((h) => h.active).length;
+  const activeReviewerCount = (reviewers ?? []).filter((r) => r.active).length;
+
   const nav = buildAdminNav('checkers', sectionCounts);
 
-  if (checkingAdmin || loading) {
+  function setView(next: string) {
+    const p = new URLSearchParams(searchParams);
+    if (next === 'hods') p.set('view', 'hods');
+    else p.delete('view');
+    setSearchParams(p);
+  }
+
+  if (adminGuardError) return <AdminGuardErrorState onRetry={retryAdminGuard} />;
+
+  const firstLoad = checkingAdmin || !settled;
+  if (firstLoad) {
     return (
       <BentoStack className="min-h-screen bg-muted">
-        <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
+        <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
         <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-          <div className="animate-pulse space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-14 rounded-2xl bg-muted" />
-            ))}
+          <div className="px-[18px]">
+            <AdminLoading shape="table" label="Loading the verifiers" />
           </div>
         </BentoPanel>
         <AdminAuditNote />
@@ -219,125 +323,95 @@ export function AdminCheckersPage({
     );
   }
 
-  if (adminGuardError) return <AdminGuardErrorState onRetry={retryAdminGuard} />;
-
   if (!isAdmin) return null;
-
-  const columns: AdminTableColumn[] = [
-    { key: 'email', label: 'Verifier', width: '1.6fr', hint: TIPS['col.checker'] },
-    { key: 'added', label: 'Added', width: '1fr', hint: TIPS['col.added'] },
-    { key: 'today', label: 'Today', width: '0.7fr', hint: TIPS['col.today'] },
-    { key: 'total', label: 'Total', width: '0.7fr', hint: TIPS['col.total'] },
-  ];
-
-  const tableRows: AdminTableRow[] = rows.map((r) => ({
-    id: r.user_id,
-    cells: [
-      <div key="email" className="min-w-0">
-        <p className="truncate font-semibold text-foreground">{r.full_name || r.email}</p>
-        {r.full_name ? <p className="truncate text-[12px] text-warm-label">{r.email}</p> : null}
-      </div>,
-      <span key="added" className="text-warm-meta">{formatDistanceToNow(new Date(r.added_at), { addSuffix: true })}</span>,
-      <span key="today" className="font-bold tabular-nums text-foreground">{r.checked_today}</span>,
-      <span key="total" className="font-bold tabular-nums text-foreground">{r.checked_total}</span>,
-    ],
-    actions: [
-      { label: 'Details', tone: 'primary', onClick: () => void openDetails(r.user_id, r.full_name || r.email) },
-      { label: 'Remove', tone: 'destructive', onClick: () => handleRemove(r) },
-    ],
-  }));
 
   return (
     <BentoStack className="min-h-screen bg-muted">
-      <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
+      <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
       {banner}
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
         <div className="mb-3 px-[18px]">
           <AdminPageIntro page="checkers" />
         </div>
-        <AddStudentGuide />
-        <AdminPanelHeader title="Verifiers" meta={`${rows.length} ${rows.length === 1 ? 'verifier' : 'verifiers'}`} />
-
-        <div className="mb-4 px-[18px]">
-          <label className="flex max-w-md flex-col gap-1">
-            <span className="flex items-center gap-1 text-[12px] font-semibold text-warm-secondary">
-              Find a person to add
-              <InfoTip tip="checkers.search" label="the search" />
-            </span>
-            <span className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-label" aria-hidden />
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setAddError(null);
-                }}
-                placeholder="Search by name or email"
-                aria-label="Search by name or email to add a verifier"
-                className="h-11 w-full rounded-full bg-muted pl-10 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
+        <AdminTabs
+          label="Verifiers, or HODs and reviewers"
+          value={view}
+          onChange={setView}
+          className="px-[18px]"
+          tabs={[
+            { key: 'verifiers', label: 'Verifiers', count: rowsError && rows === null ? null : rows?.length || undefined },
+            {
+              key: 'hods',
+              label: 'HODs and reviewers',
+              count: (hodsError && hods === null) || (reviewersError && reviewers === null) ? null : activeHodCount + activeReviewerCount || undefined,
+            },
+          ]}
+        >
+          <div className="-mx-[18px]" aria-busy={busy || undefined}>
+            {view === 'verifiers' ? (
+              <section aria-label="Verifiers">
+                <AddStudentGuide />
+                <AdminPanelHeader
+                  title="Verifiers"
+                  subtitle={needDetailsText(needs) || undefined}
+                  meta={rows ? `${rows.length} ${rows.length === 1 ? 'verifier' : 'verifiers'}` : undefined}
+                />
+                <PeoplePicker
+                  label="Find a person to add"
+                  ariaLabel="Search by name or email to add a verifier"
+                  resultsLabel="People found"
+                  tip="checkers.search"
+                  tipLabel="the search"
+                  searchUsers={api.searchUsers}
+                  onAdd={handleAdd}
+                  actionLabel={(u) => (u.is_checker ? 'Turn back on' : 'Add')}
+                  isAlready={(u) => Boolean(u.is_checker && u.checker_active && (rows ?? []).some((r) => r.user_id === u.user_id))}
+                  alreadyLabel="Already a verifier"
+                />
+                <VerifierListBody
+                  rows={rows}
+                  error={rowsError}
+                  profiles={profiles}
+                  openingId={openingId}
+                  onRetry={() => void loadAll()}
+                  onDetails={(r) => void openDetails(r.user_id, r.full_name || r.email)}
+                  onRemove={(r) => void handleRemove(r)}
+                />
+              </section>
+            ) : (
+              <HodSection
+                hodApi={hodApi}
+                reviewerApi={reviewerApi}
+                searchUsers={api.searchUsers}
+                hods={hods}
+                hodsError={hodsError}
+                reviewers={reviewers}
+                reviewersError={reviewersError}
+                onReload={loadAll}
+                user={dummy ? null : user}
+                actorName={actorName}
               />
-            </span>
-          </label>
-          {query.trim().length >= 2 ? (
-            <ul className="mt-2 max-w-md space-y-1.5" aria-label="People found">
-              {searching ? (
-                <li className="text-[13px] text-warm-meta">Searching...</li>
-              ) : results.length === 0 ? (
-                <li className="rounded-xl bg-muted px-3 py-2.5 text-[13px] text-warm-secondary">
-                  No account matches that.{' '}
-                  {looksLikeEmail(query.trim()) ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleAdd(query, 'typed')}
-                      disabled={addingId !== null}
-                      className="font-bold text-brand-blue disabled:opacity-60"
-                    >
-                      {addingId === 'typed' ? 'Adding...' : `Try adding ${query.trim()} anyway`}
-                    </button>
-                  ) : (
-                    'Only people who have signed up on Shikshaq can be added.'
-                  )}
-                </li>
-              ) : (
-                results.map((u) => {
-                  const already = u.is_checker && u.checker_active && rows.some((r) => r.user_id === u.user_id);
-                  return (
-                    <li key={u.user_id} className="flex items-center justify-between gap-3 rounded-xl bg-muted px-3 py-2">
-                      <span className="min-w-0">
-                        <span className="block truncate text-[14px] font-semibold text-foreground">{u.full_name || 'Unnamed account'}</span>
-                        <span className="block truncate text-[12px] text-warm-meta">{u.email ?? 'No email on file'}</span>
-                      </span>
-                      {already ? (
-                        <span className="shrink-0 text-[12px] font-semibold text-warm-secondary">Already a verifier</span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => void handleAdd(u.email ?? '', u.user_id)}
-                          disabled={addingId !== null}
-                          className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-brand px-4 text-sm font-semibold text-foreground transition-transform duration-150 active:scale-[0.97] disabled:opacity-50"
-                        >
-                          <UserPlus className="h-4 w-4" aria-hidden />
-                          {addingId === u.user_id ? 'Adding...' : u.is_checker ? 'Turn back on' : 'Add'}
-                        </button>
-                      )}
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-          ) : null}
-        </div>
-        {addError ? <p role="alert" className="mb-3 px-[18px] text-[13px] text-destructive">{addError}</p> : null}
+            )}
+          </div>
+        </AdminTabs>
+      </BentoPanel>
 
+      <AdminAuditNote />
+      {confirmDialog}
+
+      <AdminDialog
+        open={detailsFor !== null}
+        onOpenChange={(o) => {
+          if (!o) setDetailsFor(null);
+        }}
+        title={detailsFor ? `Details for ${detailsFor.label}` : 'Verifier details'}
+        size="md"
+      >
         {detailsFor ? (
-          <section className="mb-4 px-[18px]" aria-labelledby="verifier-details-title" data-testid="verifier-details-panel">
-            <h3 id="verifier-details-title" className="mb-1 text-[15px] font-bold text-foreground">
-              Details for {detailsFor.label}
-            </h3>
-            <p className="mb-2 text-[13px] text-warm-secondary">
-              Papers are given to a verifier by these details, and never above their grade. The verifier can also fill them in; without a grade there is no class limit.
+          <div data-testid="verifier-details-panel">
+            <p className="mb-3 text-pretty text-[13px] leading-[1.5] text-warm-secondary">
+              A verifier can also fill in their own details. With no details, or no grade, they still get papers with no class limit, as if they were in Class 12. Once a grade is saved, papers are never given above it. Expired details get no new papers until you renew them.
             </p>
             <VerifierProfileForm
               key={detailsFor.user_id}
@@ -351,8 +425,9 @@ export function AdminCheckersPage({
                 profileApi
                   .setProfile(detailsFor.user_id, input)
                   .then(() => {
-                    sonnerToast.success('Details saved. Papers will be given to them automatically.');
+                    sonnerToast.success('Details saved. New papers will match their grade.');
                     setDetailsFor(null);
+                    void loadAll();
                   })
                   .catch((err: unknown) => {
                     const raw = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : '';
@@ -361,22 +436,9 @@ export function AdminCheckersPage({
                   .finally(() => setSavingDetails(false));
               }}
             />
-          </section>
-        ) : null}
-
-        {rows.length === 0 ? (
-          <div className="rounded-2xl bg-muted p-12 text-center">
-            <p className="text-sm text-warm-label">There are no verifiers yet. Search for someone above and add them.</p>
           </div>
-        ) : (
-          <AdminTable columns={columns} rows={tableRows} />
-        )}
-
-        <HodSection hodApi={hodApi} searchUsers={api.searchUsers} />
-      </BentoPanel>
-
-      <AdminAuditNote />
-      {confirmDialog}
+        ) : null}
+      </AdminDialog>
     </BentoStack>
   );
 }

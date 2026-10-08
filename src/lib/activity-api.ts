@@ -31,6 +31,12 @@ export interface ActivityRow {
   question_id: string | null;
   version: number | null;
   detail: string | null;
+  /** "5", "5(a)": the question's number on the paper, when the feed carries it. */
+  question_label?: string | null;
+  /** The paper's title, when the feed carries it. Shown beside the question. */
+  paper_title?: string | null;
+  /** True when the person who did this took it back. The feed does not send it yet; the page shows it when it does. */
+  undone?: boolean;
 }
 
 export interface VersionRow {

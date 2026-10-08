@@ -101,15 +101,14 @@ describe('account menu by team', () => {
 describe('admin menu after the clean-up', () => {
   const nav = buildAdminNav('library');
 
-  it('keeps four short tabs, with the rarely used pages under More', () => {
-    expect(ADMIN_GROUPS.map((g) => g.label)).toEqual(['Papers', 'Checking', 'Teachers', 'More']);
-    const day = ADMIN_GROUPS.filter((g) => g.key !== 'more').flatMap((g) => g.pages);
-    expect(day.length).toBeLessThanOrEqual(8);
-    expect(day).toContain('hod');
-    expect(day).toContain('admin-queue');
-    expect(ADMIN_GROUPS.find((g) => g.key === 'more')!.pages).toEqual(
-      expect.arrayContaining(['reviews', 'feedback', 'audit', 'checker-log']),
-    );
+  it('has six tabs by job, each page in the group where an admin would look for it', () => {
+    expect(ADMIN_GROUPS.map((g) => g.label)).toEqual(['Needs you', 'Papers', 'People', 'Teachers', 'Logs', 'System']);
+    const pagesOf = (key: string) => ADMIN_GROUPS.find((g) => g.key === key)!.pages;
+    expect(pagesOf('people')).toContain('hod');
+    expect(pagesOf('papers')).toContain('admin-queue');
+    expect(pagesOf('teachers')).toContain('reviews');
+    expect(pagesOf('system')).toContain('feedback');
+    expect(pagesOf('logs')).toEqual(expect.arrayContaining(['audit', 'checker-log']));
   });
 
   it('puts the HOD desk in the menu and it resolves', () => {

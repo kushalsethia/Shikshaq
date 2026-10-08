@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AdminCheckersPage } from '@/pages/admin/checkers';
 import { createFakeCheckerAdminApi } from '@/dummy/checker-admin-fake-api';
 import { createFakeHodAdminApi, createFakeHodApi } from '@/dummy/hod-fake-api';
+import { createFakeTeacherReviewerAdminApi } from '@/dummy/teacher-review-fake-api';
 import { setDummyMode } from '@/lib/dummy-mode';
 
 /* /admin/checkers in dummy mode (D75): the real page against the in-memory
@@ -12,6 +13,7 @@ export default function AdminCheckersDummy() {
   const [api] = useState(createFakeCheckerAdminApi);
   const [hodApi] = useState(createFakeHodAdminApi);
   const [profileApi] = useState(createFakeHodApi);
+  const [reviewerApi] = useState(createFakeTeacherReviewerAdminApi);
 
   const banner = (
     <div
@@ -29,12 +31,12 @@ export default function AdminCheckersDummy() {
           setDummyMode(false);
           window.location.assign('/admin/checkers?dummy=0');
         }}
-        className="ml-auto min-h-9 rounded-full bg-fuchsia-800 px-3 font-bold text-fuchsia-50 hover:bg-fuchsia-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        className="ml-auto min-h-10 rounded-full bg-fuchsia-800 px-3 font-bold text-fuchsia-50 hover:bg-fuchsia-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
       >
         Leave dummy mode
       </button>
     </div>
   );
 
-  return <AdminCheckersPage api={api} hodApi={hodApi} profileApi={profileApi} dummy banner={banner} />;
+  return <AdminCheckersPage api={api} hodApi={hodApi} profileApi={profileApi} reviewerApi={reviewerApi} dummy banner={banner} />;
 }

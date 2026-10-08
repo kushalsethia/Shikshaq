@@ -109,6 +109,9 @@ function eventsFor(actor: (typeof ACTORS)[number], day: string): RawEvent[] {
       note: action === 'admin_set_aside' ? 'The scan is cut off here' : null,
       paper_title: paper.title,
       paper_audit_id: paper.id,
+      // an occasional pass the checker took back (Undo last); picked from the
+      // seed, not from `rand`, so every other value keeps its place
+      ...(actor.role === 'student' && action === 'checker_pass' && hash(`${actor.key}|${day}|${i}`) % 17 === 0 ? { undone: true } : {}),
     });
   }
   return out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
@@ -143,7 +146,8 @@ export function createFakeCheckerLogApi(delayMs = 250, now: Date = FIXTURE_NOW):
       const days = [];
       for (let d = from; d <= to; d = addDays(d, 1)) {
         const events = eventsFor(a, d).filter(notFuture);
-        if (events.length) days.push({ day: d, counts: countEvents(events as { action: string }[]), events });
+        // like the server, the counts leave out what was taken back
+        if (events.length) days.push({ day: d, counts: countEvents(events.filter((e) => !e.undone) as { action: string }[]), events });
       }
       return normaliseDayLog({ actor: { name: a.name, role: a.role }, days }, actorKey);
     },

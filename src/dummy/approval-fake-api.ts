@@ -285,15 +285,17 @@ function seed(): Store {
   ]);
 
   // ---- A second, ready paper and two retro ones, for the queue -----------
-  const simple = (pid: string, title: string, school: string, n: number, kind: 'new' | 'retro'): PaperReview => {
+  const simple = (pid: string, title: string, school: string, n: number, kind: 'new' | 'retro', openCount = 0): PaperReview => {
     const rs: ReviewRow[] = Array.from({ length: n }, (_, i) =>
       q({
-        id: `${pid.slice(0, 30)}${String(i + 10).padStart(6, '0')}`,
+        // The paper's own last four characters sit in the middle, so two papers never share a question id.
+        id: `${pid.slice(0, 26)}${pid.slice(-4)}${String(i + 10).padStart(6, '0')}`,
         ord: i,
         display_number: String(i + 1),
         marks: 2,
         body: `Made-up question ${i + 1} for the preview. Write a short note on the topic named in the heading.`,
         live_bank_question_id: kind === 'retro' ? `lq${i}` : null,
+        ...(i < openCount ? { state: 'open' as const, flag_reasons: ['possible_duplicate'], review_bucket: 'admin' } : {}),
       }),
     );
     return {
@@ -315,12 +317,12 @@ function seed(): Store {
         approval_note: null,
       },
       rows: rs,
-      open_count: 0,
+      open_count: openCount,
     };
   };
   s.papers.set(P_GEO, simple(P_GEO, 'CBSE Class 9 Geography, 2025', 'Riverside Public School', 6, 'new'));
   s.papers.set(P_HIST, simple(P_HIST, 'ICSE Class 8 History and Civics, 2025', 'St. Aldric High School', 5, 'retro'));
-  s.papers.set(P_BIO, simple(P_BIO, 'ISC Class 12 Biology, 2025', 'Lakeview Academy', 7, 'retro'));
+  s.papers.set(P_BIO, simple(P_BIO, 'ISC Class 12 Biology, 2025', 'Lakeview Academy', 7, 'retro', 2));
   for (const pid of [P_GEO, P_HIST, P_BIO]) {
     s.paperEvents.set(pid, [
       ev({ at: at(900), actor_kind: 'pipeline', action: 'paper_loaded' }),
@@ -507,8 +509,11 @@ export function createFakeApprovalApi(delayMs = 250): ApprovalApi {
       const p = findPaperOf(s, questionId);
       const row = p?.rows.find((r) => r.id === questionId);
       if (!p || !row) throw { code: 'P0002', message: 'Question not found' };
-      if (p.paper.approval !== 'pending')
-        throw { code: '55000', message: 'Questions can be passed or set aside only while the paper waits for approval' };
+      // Like admin_set_question_state: while the paper waits anything goes; once
+      // approved a question can only be passed; after a send-back, nothing.
+      const latePass = p.paper.approval === 'approved' && state === 'pass';
+      if (p.paper.approval !== 'pending' && !latePass)
+        throw { code: '55000', message: 'Questions can be set aside or reopened only while the paper waits for approval; after approval a question can only be passed' };
       if (state === 'set_aside' && !note.trim()) throw { code: '22023', message: 'Say why the question is set aside' };
       row.state = state === 'pass' ? 'passed' : state === 'set_aside' ? 'set_aside' : 'open';
       row.set_aside_reason = state === 'set_aside' ? note : null;

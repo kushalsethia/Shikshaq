@@ -1,5 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { format } from 'date-fns';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
@@ -8,14 +8,27 @@ import { AdminPanelHeader } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { VersionHistory } from '@/components/admin/VersionHistory';
+import { AdminDialog } from '@/components/admin/AdminDialog';
+import { AdminEmpty, AdminError, AdminLoading } from '@/components/admin/AdminState';
+import { AdminFilterChips } from '@/components/admin/AdminFilterChips';
+import { AdminPillButton, adminPillClass } from '@/components/admin/AdminPillButton';
 import { DebugId } from '@/components/DebugId';
 import { DebugFacts } from '@/components/admin/DebugFacts';
 import { realActivityApi, type ActivityApi, type ActivityRow, type ActivityScope, type VersionedTable } from '@/lib/activity-api';
-import { actionWords, actorText, canOpenHistory, shortId, tableWords } from '@/lib/activity-format';
+import {
+  actionWords,
+  actorText,
+  activitySentence,
+  canOpenHistory,
+  groupActivity,
+  shortId,
+  tableWords,
+  type ActivityGroup,
+} from '@/lib/activity-format';
+import { relativeWords, timeWords } from '@/lib/history-labels';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
-import { cn } from '@/lib/utils';
 
 const DummyAdminActivity = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminActivityDummy')) : null;
 
@@ -24,12 +37,17 @@ const DummyAdminActivity = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminActiv
    edited what (audit_review_log + content_versions + content_checks, merged
    server side by admin_activity_feed), and a History button on every
    question row that opens its versions. Actor ids and labels only: this
-   list never shows a name or an email (owner, 2026-10-02). */
+   list never shows a name or an email (owner, 2026-10-02).
 
-const SCOPES: { value: ActivityScope; label: string }[] = [
-  { value: 'people', label: 'Checkers and admins' },
-  { value: 'ai', label: 'Computer' },
-  { value: 'all', label: 'Everything' },
+   Admin rework, Batch 6: one edit used to show up to three times (one row per
+   stream), so rows about the same question by the same actor within about two
+   minutes are one line, with the other streams as "also recorded". "Show raw
+   events" turns that off. The scope words match the checker log's. */
+
+const SCOPES: { key: ActivityScope; label: string; hint: string }[] = [
+  { key: 'all', label: 'Everyone', hint: 'People, AI checks and the pipeline.' },
+  { key: 'people', label: 'People', hint: 'Student checkers and admins.' },
+  { key: 'ai', label: 'AI and pipeline', hint: 'The AI checks and the automatic pipeline.' },
 ];
 
 const PAGE = 100;
@@ -43,15 +61,16 @@ export function AdminActivityPage({
   dummy?: boolean;
   banner?: ReactNode;
 }) {
-  usePageMeta('Activity | Shikshaq admin', 'Who checked or edited what, newest first.');
+  usePageMeta('Question changes | Shikshaq admin', 'Who checked or edited what, newest first.');
   const { user, profile } = useAuth();
-  const actorName = profile?.full_name || user?.email || 'Signed-in admin';
+  const actorName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'Signed-in admin';
   const guard = useAdminGuard(dummy ? null : user, { redirectOnDenied: !dummy });
   const isAdmin = dummy ? true : guard.isAdmin;
   const checkingAdmin = dummy ? false : guard.checkingAdmin;
   const sectionCounts = useAdminSectionCounts();
 
   const [scope, setScope] = useState<ActivityScope>('people');
+  const [raw, setRaw] = useState(false);
   const [rows, setRows] = useState<ActivityRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -85,6 +104,7 @@ export function AdminActivityPage({
   async function loadMore() {
     if (!rows || rows.length === 0) return;
     setLoadingMore(true);
+    setError(null);
     try {
       const older = await api.feed(scope, rows[rows.length - 1].at, PAGE);
       const seen = new Set(rows.map((r) => `${r.stream}:${r.event_id}`));
@@ -97,14 +117,21 @@ export function AdminActivityPage({
     }
   }
 
+  // Grouping runs on everything loaded so far, so a group that straddles two
+  // pages still joins up after Show older.
+  const groups: ActivityGroup<ActivityRow>[] = useMemo(
+    () => (rows ? (raw ? rows.map((r) => ({ head: r, also: [] })) : groupActivity(rows)) : []),
+    [rows, raw],
+  );
+
   const nav = buildAdminNav('activity', sectionCounts);
 
   if (checkingAdmin) {
     return (
       <BentoStack className="min-h-screen bg-muted">
-        <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
-        <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-          <ListSkeleton />
+        <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
+        <BentoPanel fill="card" className="px-[18px] py-[18px] lg:px-[18px] lg:py-[18px]">
+          <AdminLoading shape="rows" rows={5} label="Loading the activity" />
         </BentoPanel>
         <AdminAuditNote />
       </BentoStack>
@@ -113,87 +140,82 @@ export function AdminActivityPage({
   if (guard.error && !dummy) return <AdminGuardErrorState onRetry={guard.retry} />;
   if (!isAdmin) return null;
 
+  const hidden = rows ? rows.length - groups.length : 0;
+
   return (
     <BentoStack className="min-h-screen bg-muted">
-      <AdminHeader nav={nav} signedInEmail={dummy ? 'dummy admin' : user?.email ?? actorName} />
+      <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
       <AdminPageIntroPanel page="activity" />
       {banner}
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-        <AdminPanelHeader title="Activity" meta={rows ? `${rows.length} shown, newest first` : undefined} />
+        <AdminPanelHeader
+          title="Question changes"
+          meta={rows ? `${groups.length} shown, newest first` : undefined}
+        />
 
-        <div className="mb-4 flex flex-wrap gap-1.5 px-[18px]" role="group" aria-label="Whose activity">
-          {SCOPES.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              onClick={() => setScope(s.value)}
-              aria-pressed={scope === s.value}
-              className={cn(
-                'tap-44 min-h-9 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
-                scope === s.value ? 'bg-panel text-background' : 'bg-muted text-warm-secondary hover:bg-warm-hairline',
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
+        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 px-[18px]">
+          <AdminFilterChips
+            label="Whose changes"
+            chips={SCOPES.map((s) => ({ key: s.key, label: s.label, hint: s.hint, noCount: true }))}
+            value={scope}
+            onChange={(k) => setScope(k as ActivityScope)}
+            defaultValue="all"
+            onClear={() => setScope('all')}
+          />
+          <AdminPillButton
+            variant={raw ? 'primary' : 'secondary'}
+            size="sm"
+            aria-pressed={raw}
+            onClick={() => setRaw((v) => !v)}
+            title="One edit is recorded by up to three logs. Show every record instead of one line per edit."
+          >
+            Show raw events
+          </AdminPillButton>
         </div>
 
         <div className="px-[18px]">
           {error && !rows ? (
-            <div role="alert" className="rounded-2xl bg-muted p-8 text-center">
-              <p className="text-[14px] font-semibold text-foreground">{error}</p>
-              <button
-                type="button"
-                onClick={() => void load(scope)}
-                className="tap-44 min-h-9mt-3 rounded-full bg-brand px-4 text-[14px] font-bold text-foreground"
-              >
-                Try again
-              </button>
-            </div>
+            <AdminError what="the activity" detail={error} onRetry={() => void load(scope)} />
           ) : rows === null ? (
-            <ListSkeleton />
+            <AdminLoading shape="rows" rows={5} label="Loading the activity" />
           ) : rows.length === 0 ? (
-            <div className="rounded-2xl bg-muted p-8 text-center">
-              <p className="text-[14px] font-semibold text-foreground">Nothing here yet</p>
-              <p className="mt-1 text-[13px] text-warm-secondary">
-                {scope === 'people'
-                  ? 'No checker or admin has checked or edited a question yet. Try Everything to see the computer and pipeline too.'
-                  : 'No activity recorded for this view yet.'}
-              </p>
-              {scope !== 'all' ? (
-                <button
-                  type="button"
-                  onClick={() => setScope('all')}
-                  className="tap-44 min-h-9mt-3 rounded-full bg-brand px-4 text-[14px] font-bold text-foreground"
-                >
-                  Show everything
-                </button>
-              ) : null}
-            </div>
+            <AdminEmpty
+              title="Nothing here yet"
+              hint={
+                scope === 'people'
+                  ? 'No checker or admin has checked or edited a question yet. Try Everyone to see the AI and pipeline too.'
+                  : 'No activity recorded for this view yet.'
+              }
+              action={scope !== 'all' ? { label: 'Show everyone', onClick: () => setScope('all') } : undefined}
+            />
           ) : (
             <>
               <ol className="divide-y divide-warm-hairline">
-                {rows.map((row) => (
+                {groups.map((g) => (
                   <ActivityItem
-                    key={`${row.stream}:${row.event_id}`}
-                    row={row}
-                    onOpen={() =>
+                    key={`${g.head.stream}:${g.head.event_id}`}
+                    group={g}
+                    onOpen={(row) =>
                       setOpen({ table: (row.table_name as VersionedTable) ?? 'audit_questions', rowId: row.question_id! })
                     }
                   />
                 ))}
               </ol>
-              {error ? <p role="alert" className="mt-3 text-[13px] text-destructive">{error}</p> : null}
+              {!raw && hidden > 0 ? (
+                <p className="mt-3 text-[12px] text-warm-meta">
+                  {hidden} {hidden === 1 ? 'record is' : 'records are'} folded into the lines above. Show raw events lists every one.
+                </p>
+              ) : null}
+              {error ? (
+                <div className="mt-3">
+                  <AdminError what="older activity" detail={error} onRetry={() => void loadMore()} />
+                </div>
+              ) : null}
               {!done ? (
                 <div className="mt-4 flex justify-center">
-                  <button
-                    type="button"
-                    disabled={loadingMore}
-                    onClick={() => void loadMore()}
-                    className="tap-44 min-h-9rounded-full bg-muted px-5 text-[14px] font-semibold text-foreground transition-transform duration-150 hover:bg-warm-hairline active:scale-[0.96] disabled:opacity-50"
-                  >
+                  <AdminPillButton variant="secondary" busy={loadingMore} onClick={() => void loadMore()}>
                     {loadingMore ? 'Loading...' : 'Show older'}
-                  </button>
+                  </AdminPillButton>
                 </div>
               ) : (
                 <p className="mt-4 text-center text-[12px] text-warm-meta">That is everything for this view.</p>
@@ -204,90 +226,80 @@ export function AdminActivityPage({
       </BentoPanel>
       <AdminAuditNote />
 
-      {open ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
-          onClick={() => setOpen(null)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Version history"
-            className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-card p-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <VersionHistory api={api} table={open.table} rowId={open.rowId} />
-            <button
-              type="button"
-              onClick={() => setOpen(null)}
-              className="tap-44 min-h-9mt-4 rounded-full bg-muted px-4 text-[13px] font-semibold text-warm-secondary"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <AdminDialog
+        open={open !== null}
+        onOpenChange={(o) => {
+          if (!o) setOpen(null);
+        }}
+        title="History of this question"
+        size="md"
+        footer={
+          <AdminPillButton variant="secondary" size="sm" onClick={() => setOpen(null)}>
+            Close
+          </AdminPillButton>
+        }
+      >
+        {open ? <VersionHistory api={api} table={open.table} rowId={open.rowId} /> : null}
+      </AdminDialog>
     </BentoStack>
   );
 }
 
-const KIND_TONE: Record<string, string> = {
-  checker: 'bg-mint text-foreground',
-  admin: 'bg-brand text-foreground',
-  ai: 'bg-brand-subtle text-brand-deep',
-};
-
-function ActivityItem({ row, onOpen }: { row: ActivityRow; onOpen: () => void }) {
+export function ActivityItem({ group, onOpen }: { group: ActivityGroup<ActivityRow>; onOpen: (row: ActivityRow) => void }) {
+  const { head: row, also } = group;
   const actor = actorText(row);
-  const historyable = canOpenHistory(row);
+  const historyRow = [row, ...also].find((r) => canOpenHistory(r)) ?? null;
+  const question = `${tableWords(row.table_name)}${row.question_label ? ` ${row.question_label}` : ''}`;
   return (
     <li className="flex flex-wrap items-start gap-x-3 gap-y-1.5 py-3">
-      <time dateTime={row.at} className="w-[118px] shrink-0 pt-0.5 text-[12px] tabular-nums text-warm-meta">
-        {format(new Date(row.at), 'd MMM, h:mm a')}
+      <time
+        dateTime={row.at}
+        title={relativeWords(row.at)}
+        className="w-[132px] shrink-0 pt-0.5 text-[12px] tabular-nums text-warm-meta"
+      >
+        {timeWords(row.at)}
       </time>
       <div className="min-w-0 flex-1 basis-[220px]">
-        <p className="text-[14px] font-semibold text-foreground">{actionWords(row.action)}</p>
-        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-warm-secondary">
-          <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold', KIND_TONE[row.actor_kind] ?? 'bg-muted text-warm-secondary')}>
-            {actor.kind}
-          </span>
+        <p className="text-pretty text-[14px] font-semibold leading-[1.4] text-foreground">{activitySentence(row)}</p>
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12px] text-warm-secondary">
           <span className="font-mono" title={actor.full}>
             {actor.who}
           </span>
-          {row.question_id ? (
-            <span>
-              · {tableWords(row.table_name)} <span className="font-mono">{shortId(row.question_id)}</span>
-            </span>
-          ) : null}
+          {row.question_id ? <span>· {question}</span> : null}
+          {row.paper_title ? <span>· {row.paper_title}</span> : null}
           {row.version != null ? <span className="tabular-nums">· v{row.version}</span> : null}
         </p>
         {row.detail ? <p className="mt-0.5 break-words text-[12px] text-warm-meta">{row.detail}</p> : null}
+        {also.length ? (
+          <p className="mt-0.5 text-[12px] text-warm-meta">
+            Also recorded: {Array.from(new Set(also.map((r) => actionWords(r.action, r.question_label).toLowerCase()))).join('; ')}
+          </p>
+        ) : null}
         <span className="mt-1 inline-flex flex-wrap gap-1">
           <DebugId label="question" value={row.question_id} />
           <DebugId label="paper" value={row.paper_id} />
           <DebugFacts facts={{ stream: row.stream, event: row.event_id, action: row.action }} />
         </span>
       </div>
-      {historyable ? (
-        <button
-          type="button"
-          onClick={onOpen}
-          className="tap-44 min-h-9shrink-0 rounded-full bg-muted px-3.5 text-[13px] font-bold text-foreground transition-transform duration-150 hover:bg-warm-hairline active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-        >
-          History
-        </button>
+      {historyRow || row.actor_user_id ? (
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+          {row.actor_user_id ? (
+            <Link
+              to={`/admin/checker-log/${encodeURIComponent(row.actor_user_id)}`}
+              title={`Open the day log of ${shortId(row.actor_user_id)}`}
+              className={adminPillClass('quiet', 'sm', 'px-3')}
+            >
+              Their log
+            </Link>
+          ) : null}
+          {historyRow ? (
+            <AdminPillButton variant="secondary" size="sm" className="px-3.5" onClick={() => onOpen(historyRow)}>
+              History
+            </AdminPillButton>
+          ) : null}
+        </div>
       ) : null}
     </li>
-  );
-}
-
-function ListSkeleton() {
-  return (
-    <div className="space-y-3 px-[18px]" role="status" aria-label="Loading the activity">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <div key={i} className="h-14 animate-pulse rounded-2xl bg-muted" />
-      ))}
-    </div>
   );
 }
 

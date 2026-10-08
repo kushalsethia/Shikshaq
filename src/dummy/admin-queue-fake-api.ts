@@ -56,14 +56,26 @@ export function createFakeAdminQueueApi(): AdminQueueApi {
   const help: EscalationRow[] = [
     {
       question_id: 'f2b00000-0000-4000-8000-000000000009',
-      paper_id: 'f2a00000-0000-4000-8000-0000000000b9',
+      paper_id: P1,
       live_bank_paper_id: null,
       display_number: '4',
-      body: 'Made-up question for the help tab.',
+      body: 'Find the value of $x$ if $3x + 7 = 22$. Show each step of your working.',
       flag_reasons: ['display_number_missing'],
       school: 'Sample Hill School',
       subject: 'Mathematics',
       cls: '10',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      question_id: 'f2b00000-0000-4000-8000-00000000000a',
+      paper_id: P2,
+      live_bank_paper_id: null,
+      display_number: '6(a)',
+      body: 'A body of mass 2 kg moves with a speed of 5 m/s. Calculate its kinetic energy.',
+      flag_reasons: ['possible_duplicate'],
+      school: 'Riverside Academy',
+      subject: 'Physics',
+      cls: '12',
       updated_at: new Date().toISOString(),
     },
   ];
