@@ -180,6 +180,9 @@ function pageQuery(from: number) {
     .eq('is_published', true).gt('question_count', 0)
     .order('year', { ascending: false, nullsFirst: false })
     .order('school', { ascending: true })
+    /* Year and school are not unique; without a unique last key two range
+       requests can each see a different order and skip or repeat a paper. */
+    .order('id', { ascending: true })
     .range(from, from + PAGE - 1)
     /* D66: allowed_time_minutes/general_instructions/incomplete_note are not
        yet in the generated Database type. The migration that adds them
