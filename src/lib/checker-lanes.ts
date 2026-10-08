@@ -145,6 +145,7 @@ export const FLAG_LANES: Record<string, string> = {
   figure_missing: "figure",
   figure_ambiguous: "figure",
   empty_body: "empty_question",
+  or_only_body: "joined_or_split",
   chapter_unresolved: "label",
   type_mismatch: "label",
   snippet_unaligned: "find_on_page",

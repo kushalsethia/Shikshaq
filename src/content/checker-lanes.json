@@ -156,6 +156,9 @@
     "empty_body": {
       "lane": "empty_question"
     },
+    "or_only_body": {
+      "lane": "joined_or_split"
+    },
     "chapter_unresolved": {
       "lane": "label"
     },
