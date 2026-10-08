@@ -85,6 +85,16 @@ export function createFakeCheckerApi(): FakeCheckerApi {
   let outcome = new Map<string, PaperQuestionState>();
   let allQuestions: CheckerQuestion[] = [];
   let requested: string[] = [];
+  let myDetails: VerifierProfile = {
+    full_name: 'Dummy Verifier',
+    grade: 10,
+    school: 'Dummy School',
+    board: 'ICSE',
+    valid_until: '2027-03-31',
+    expired: false,
+    preferred_subjects: ['Mathematics'],
+    requested_subjects: [],
+  };
   const seedPapers = () => {
     paperOf = new Map(queue.map((q, i) => [q.id, i < PAPER_A_COUNT ? 'A' : 'B']));
     doneByPaper = {};
@@ -312,16 +322,14 @@ export function createFakeCheckerApi(): FakeCheckerApi {
 
     async myProfile(): Promise<VerifierProfile | null> {
       await gate();
-      return {
-        full_name: 'Dummy Verifier',
-        grade: 10,
-        school: 'Dummy School',
-        board: 'ICSE',
-        valid_until: '2027-03-31',
-        expired: false,
-        preferred_subjects: ['Mathematics'],
-        requested_subjects: requested,
-      };
+      return { ...myDetails, requested_subjects: requested };
+    },
+
+    async setMyProfile(input) {
+      await gateSave();
+      // Like verifier_set_my_profile: grade 1 to 12 or blank; valid until stays.
+      if (input.grade !== null && (input.grade < 1 || input.grade > 12)) throw pgError('22023', 'Grade must be 1 to 12');
+      myDetails = { ...myDetails, full_name: input.full_name, grade: input.grade, school: input.school, board: input.board };
     },
 
     async requestSubjects(subjects) {

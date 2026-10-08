@@ -20,10 +20,11 @@ import { cn } from '@/lib/utils';
 
 /* "Verifiers": how each verifier is doing (a table, plain words, scrolls
    sideways on a phone with the name held in place), and below it each
-   verifier's details and preferred subjects. Only an HOD or admin sets
-   details and preferred subjects; a verifier can only ask. Anyone whose
-   details are missing or expired is listed first, because no papers are given
-   to them until it is fixed. */
+   verifier's details and preferred subjects. A verifier can fill in their
+   own details (20261008100000) and the HOD can change them; preferred
+   subjects are the HOD's, a verifier can only ask. Anyone whose details are
+   missing or expired is listed first: expired gets no new papers, missing
+   still gets papers but with no class limit. */
 
 export const TEAM_KEY = (scope: string) => ['hod', scope, 'team'] as const;
 export const PROFILES_KEY = (scope: string) => ['hod', scope, 'profiles'] as const;
@@ -245,8 +246,8 @@ export function VerifiersTab({ api, scope }: { api: HodApi; scope: string }) {
           Details and subjects
         </h2>
         <p className="mb-2 text-[13px] text-warm-secondary">
-          {needing > 0 ? `${needing} need${needing === 1 ? 's' : ''} your attention and are listed first.` : 'Everyone is set up.'} Only you can set details and
-          preferred subjects. A verifier can ask for subjects and you approve here.
+          {needing > 0 ? `${needing} need${needing === 1 ? 's' : ''} your attention and are listed first.` : 'Everyone is set up.'} Verifiers can fill in their own
+          details and you can change them. Only you set preferred subjects; a verifier can ask and you approve here.
         </p>
         {profilesQ.isError ? (
           <LoadError what="The verifier details" onRetry={() => void profilesQ.refetch()} />

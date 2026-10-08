@@ -104,11 +104,13 @@ describe('verifier_my_profile mapping', () => {
     expect(formatValidUntil(p.valid_until)).toBe('31 Mar 2027');
   });
 
-  it('no row or no grade is missing, with a notice that says no papers can be given', () => {
+  it('no row or no grade is missing; the notice asks for details but says papers still come (20261008100000)', () => {
     expect(normaliseProfile([])).toBeNull();
     expect(profileStatus(null)).toBe('missing');
     expect(profileStatus(normaliseProfile({ grade: 0 }))).toBe('missing');
-    expect(profileNotice('missing')).toMatch(/no papers can be given/);
+    expect(profileNotice('missing')).toMatch(/Add your grade, school and board/);
+    expect(profileNotice('missing')).toMatch(/Papers are given to you either way/);
+    expect(profileNotice('missing')).not.toMatch(/no papers/i);
     expect(formatGrade(null)).toBe('Not set');
     expect(formatValidUntil(null)).toBe('Not set');
   });

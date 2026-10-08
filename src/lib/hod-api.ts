@@ -226,11 +226,13 @@ export function classGrade(cls: string | null | undefined): number | null {
 /**
  * Why the server would refuse to give this paper to this verifier, before
  * the HOD presses the button (verifier_can_take). null = allowed. A paper
- * whose class is unknown is the HOD's call, so only details are checked.
+ * whose class is unknown is the HOD's call. Since 20261008100000 a verifier
+ * with no details or no grade can take any paper; only expiry and a recorded
+ * grade below the paper's class refuse.
  */
 export function pickBlock(profile: HodVerifierProfile | undefined, paperClass: string | null | undefined): string | null {
-  if (!profile || profile.missing || profile.grade == null) return 'no grade yet';
-  if (profile.expired) return 'details expired';
+  if (profile?.expired) return 'details expired';
+  if (!profile || profile.missing || profile.grade == null) return null;
   const need = classGrade(paperClass);
   if (need != null && need > profile.grade) return 'paper above their class';
   return null;
@@ -276,7 +278,7 @@ export function profileFlag(p: Pick<HodVerifierProfile, 'missing' | 'expired' | 
 }
 
 export const PROFILE_FLAG_LABEL: Record<Exclude<ProfileFlag, null>, string> = {
-  missing: 'Details missing, no papers can be given',
+  missing: 'No details yet (papers still given)',
   expired: 'Details expired, no new papers',
   request: 'Asked for subjects',
 };
