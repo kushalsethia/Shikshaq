@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { EmptyNote, ListSkeleton, LoadError } from '@/components/hod/HodShared';
-import { ACTION_LABELS } from '@/lib/history-labels';
+import { ACTION_LABELS, markUndone } from '@/lib/history-labels';
 import { HISTORY_ROLES, memberName, roleWord, type HistoryRow, type HodApi } from '@/lib/hod-api';
 import { TEAM_KEY } from '@/components/hod/VerifiersTab';
 import { actionToneClass } from '@/lib/checker-button-styles';
@@ -91,7 +91,7 @@ export function HistoryTab({ api, scope }: { api: HodApi; scope: string }) {
               <li key={`${r.at}-${i}`} className="rounded-2xl bg-muted px-4 py-3 text-[14px]" data-testid="history-row">
                 <p className="text-foreground">
                   <span className="font-semibold">{r.actor_name ?? 'Someone'}</span>
-                  {r.actor_role ? <span className="ml-1 text-[12px] text-warm-meta">({roleWord(r.actor_role)})</span> : null} {historyText(r)}
+                  {r.actor_role ? <span className="ml-1 text-[12px] text-warm-meta">({roleWord(r.actor_role)})</span> : null} {markUndone(historyText(r), r.undone)}
                   {r.paper_label ? <span className="text-warm-secondary"> in {r.paper_label}</span> : null}
                 </p>
                 {r.note ? <p className="text-[13px] text-warm-secondary">Note: {r.note}</p> : null}

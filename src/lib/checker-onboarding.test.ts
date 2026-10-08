@@ -66,8 +66,8 @@ describe('shortcut table on the help page', () => {
 });
 
 describe('walkthrough steps', () => {
-  it('point at the six real elements, in reading order', () => {
-    expect(WALKTHROUGH_STEPS.map((s) => s.target)).toEqual(['paper', 'picture', 'question', 'pass', 'fix', 'help', 'skip']);
+  it('point at the real elements, in reading order', () => {
+    expect(WALKTHROUGH_STEPS.map((s) => s.target)).toEqual(['paper', 'picture', 'question', 'pass', 'fix', 'help', 'skip', 'undo']);
   });
 
   it('every target exists as data-tour in the checker page', () => {
@@ -81,7 +81,7 @@ describe('walkthrough steps', () => {
 
   it('uses the live button labels in its titles', () => {
     const page = readFileSync(resolve(__dirname, '../pages/Checker.tsx'), 'utf8') + readFileSync(resolve(__dirname, '../components/checker/VerifyScreen.tsx'), 'utf8');
-    for (const label of ['Looks right', 'Fix it', 'Ask the HOD', 'Skip this question']) {
+    for (const label of ['Looks right', 'Fix it', 'Ask the HOD', 'Skip this question', 'Undo last']) {
       expect(page).toContain(label);
       expect(WALKTHROUGH_STEPS.some((s) => s.title === label)).toBe(true);
     }

@@ -13,9 +13,9 @@
  * from a real paper.
  */
 
-import { canSplitAt } from '@/lib/checker-body';
+import { OR_ONLY_BUTTON, canSplitAt } from '@/lib/checker-body';
 
-export type PracticeAction = 'pass' | 'fix' | 'split' | 'help' | 'skip';
+export type PracticeAction = 'pass' | 'fix' | 'split' | 'help' | 'skip' | 'or_only';
 
 export interface PracticeQuestion {
   id: string;
@@ -37,6 +37,12 @@ export interface PracticeQuestion {
   /** Split: the second question starts at this code point offset (a tap one
    *  place before it is accepted too, because the space sits between). */
   splitAt?: number;
+  /** Other cut points accepted for a Split (a tap either side of an OR). */
+  splitAlso?: number[];
+  /** After a skip the question waits on the paper. When the student comes
+   *  back to it, this is the right move instead (and its lesson). */
+  revisitCorrect?: PracticeAction;
+  revisitLesson?: string;
   /** What the student should notice, in a sentence. Shown after answering. */
   lesson: string;
   /** Names the planted mistake, for the summary. */
@@ -48,7 +54,8 @@ export type PracticeAnswer =
   | { action: 'fix'; body: string; marks: number | null }
   | { action: 'split'; at: number | null }
   | { action: 'help' }
-  | { action: 'skip' };
+  | { action: 'skip' }
+  | { action: 'or_only' };
 
 export interface PracticeResult {
   correct: boolean;
@@ -64,8 +71,10 @@ export const ACTION_NAMES: Record<PracticeAction, string> = {
   split: 'Split here',
   help: 'Ask the HOD',
   skip: 'Skip this question',
+  or_only: OR_ONLY_BUTTON,
 };
 
+const OR_JOINED = '9. Describe one cause of the French Revolution. OR Explain one result of the French Revolution.';
 const FUSED = '4. State the SI unit of force. 5. Name the force that pulls objects towards the Earth.';
 
 export const PRACTICE_QUESTIONS: PracticeQuestion[] = [
@@ -148,8 +157,42 @@ export const PRACTICE_QUESTIONS: PracticeQuestion[] = [
     offersSplit: false,
     correct: 'skip',
     lesson:
-      'The picture is too blurry to read, so you cannot honestly say the words match. Press Skip this question. Never guess from a picture you cannot read.',
-    planted: 'A picture too blurry to read',
+      'The picture is too blurry to read, so you cannot honestly say the words match. Press Skip this question. It stays on the paper for later, and you can go on to the next question. Never guess from a picture you cannot read.',
+    revisitCorrect: 'help',
+    revisitLesson:
+      'You came back to a question you skipped earlier, and the picture is still too blurry to read. Do not skip it again and do not guess. Press Ask the HOD.',
+    planted: 'A picture too blurry to read (skipped, then come back to)',
+  },
+  {
+    id: 'practice-8',
+    printed: [
+      '9. Describe one cause of the French Revolution.   [3]',
+      'OR',
+      'Explain one result of the French Revolution.   [3]',
+    ],
+    body: OR_JOINED,
+    marks: null,
+    offersSplit: true,
+    correct: 'split',
+    splitAt: Array.from(OR_JOINED.slice(0, OR_JOINED.indexOf('OR '))).length,
+    splitAlso: [
+      Array.from(OR_JOINED.slice(0, OR_JOINED.indexOf('OR ') + 2)).length,
+      Array.from(OR_JOINED.slice(0, OR_JOINED.indexOf('OR ') + 3)).length,
+    ],
+    lesson:
+      'The page gives a choice of two questions with the word OR between them. Press Split here and tap just before or just after the OR. The OR is left out and the two questions are kept together as an either/or pair.',
+    planted: 'Two questions joined by OR (Split at the OR)',
+  },
+  {
+    id: 'practice-9',
+    printed: ['OR'],
+    body: 'OR',
+    marks: null,
+    offersSplit: false,
+    correct: 'or_only',
+    lesson:
+      'This row is only the word OR. It is not a question, it is the OR between the question above and the one below. Press "This is just the OR between two questions": the row is set aside and the questions around it are linked as an either/or pair.',
+    planted: 'A row that is only the word OR',
   },
 ];
 
@@ -166,7 +209,12 @@ function wrong(explanation: string): PracticeResult {
 }
 
 /** Marks one answer. Pure: the same question and answer give the same result. */
-export function evaluatePracticeAnswer(q: PracticeQuestion, a: PracticeAnswer): PracticeResult {
+export function evaluatePracticeAnswer(base: PracticeQuestion, a: PracticeAnswer, revisit = false): PracticeResult {
+  // A skipped question that is gone back to has a different right move.
+  const q: PracticeQuestion =
+    revisit && base.revisitCorrect
+      ? { ...base, correct: base.revisitCorrect, lesson: base.revisitLesson ?? base.lesson }
+      : base;
   if (a.action !== q.correct) {
     return wrong(`You pressed ${ACTION_NAMES[a.action]}, but ${ACTION_NAMES[q.correct]} was the right move here. ${q.lesson}`);
   }
@@ -189,8 +237,8 @@ export function evaluatePracticeAnswer(q: PracticeQuestion, a: PracticeAnswer): 
   if (q.correct === 'split' && a.action === 'split') {
     const want = q.splitAt ?? -1;
     const at = a.at;
-    if (at === null || !canSplitAt(q.body, at) || (at !== want && at !== want - 1)) {
-      return wrong(`Split here was right, but the cut is in the wrong place. The second question starts at "5.". ${q.lesson}`);
+    if (at === null || !canSplitAt(q.body, at) || (at !== want && at !== want - 1 && !(q.splitAlso ?? []).includes(at))) {
+      return wrong(`Split here was right, but the cut is in the wrong place. ${q.lesson}`);
     }
     return right(q.lesson);
   }
@@ -204,22 +252,32 @@ export interface PracticeCall {
 
 export interface PracticeApi {
   questions(): PracticeQuestion[];
-  answer(id: string, a: PracticeAnswer): PracticeResult;
+  /** `revisit` is true when the student has come back to a question they skipped. */
+  answer(id: string, a: PracticeAnswer, revisit?: boolean): PracticeResult;
+  /** Undo last: take back the most recent answer (practice only remembers it for tests). */
+  undo(id: string): void;
   /** Every answer given, for tests. */
   calls: PracticeCall[];
+  /** Every question id whose answer was taken back, for tests. */
+  undone: string[];
 }
 
 /** The fake API the practice page talks to. In memory, no network. */
 export function createPracticeApi(): PracticeApi {
   const calls: PracticeCall[] = [];
+  const undone: string[] = [];
   return {
     calls,
+    undone,
+    undo(id) {
+      undone.push(id);
+    },
     questions: () => PRACTICE_QUESTIONS.map((q) => ({ ...q })),
-    answer(id, a) {
+    answer(id, a, revisit = false) {
       const q = PRACTICE_QUESTIONS.find((x) => x.id === id);
       if (!q) throw new Error(`No practice question ${id}`);
       calls.push({ id, action: a.action });
-      return evaluatePracticeAnswer(q, a);
+      return evaluatePracticeAnswer(q, a, revisit);
     },
   };
 }

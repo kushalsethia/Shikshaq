@@ -49,7 +49,7 @@ export function markWalkthroughSeen(userId: string): void {
 
 export interface WalkthroughStep {
   /** Matches `data-tour="..."` on the real element in Checker.tsx. */
-  target: 'paper' | 'picture' | 'question' | 'pass' | 'fix' | 'help' | 'skip';
+  target: 'paper' | 'picture' | 'question' | 'pass' | 'fix' | 'help' | 'skip' | 'undo';
   title: string;
   body: string;
 }
@@ -89,7 +89,12 @@ export const WALKTHROUGH_STEPS: WalkthroughStep[] = [
   {
     target: 'skip',
     title: 'Skip this question',
-    body: 'Press this to skip the question for now. It will come back to you after a day, and you currently move to the next question.',
+    body: 'Press this to skip the question for now. It stays on this paper for later, and you move to the next question.',
+  },
+  {
+    target: 'undo',
+    title: 'Undo last',
+    body: 'Pressed something by mistake? Press this to take back your last answer. It works for 30 minutes, only on your own answers, and you can press it again to go back further.',
   },
 ];
 
@@ -124,6 +129,28 @@ export const CHECKER_RULES: CheckerRule[] = [
   {
     title: 'Two questions in one box',
     body: 'If the typed text is really two questions joined together, press "Split here, these look like two questions", tap where the second one starts and press Split here. If the two are joined by the word OR, tap just before or just after that OR: the OR is left out and the two questions are kept together as an either/or pair. A row that is only the word OR has its own button, "This is just the OR between two questions".',
+  },
+];
+
+/* ---- going back, skipping, and OR ---------------------------------------- */
+
+/** Shown on the help page under "Taking back, skipping and OR". */
+export const CHECKER_HELP_EXTRAS: CheckerRule[] = [
+  {
+    title: 'Undo last',
+    body: 'Pressed the wrong button? Press Undo last (or the U key) to take back your last answer. It works for 30 minutes after you pressed, and only on your own answers. If anyone else has touched that question since, or the HOD has already dealt with it, it cannot be undone and you will be told why. Press it again to go back one more answer.',
+  },
+  {
+    title: 'Skip for later',
+    body: 'Press Skip this question when you want to leave one for now. It stays on this paper and you move to the next question. Skipped questions wait for you: when the others are done you can go through them, or go to another paper first. You can skip the last question on a paper too.',
+  },
+  {
+    title: 'Split at the OR',
+    body: 'When two questions are joined by the word OR, press "Split here, these look like two questions" and tap just before or just after the OR. The word OR is left out, and the two questions are kept together as an either/or pair. Nothing else in the words changes.',
+  },
+  {
+    title: 'This is just the OR',
+    body: 'If a row contains only the word OR and nothing else, press "This is just the OR between two questions". The row is set aside, and the question above and the one below are linked as an either/or pair.',
   },
 ];
 

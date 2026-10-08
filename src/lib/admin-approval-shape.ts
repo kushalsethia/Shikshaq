@@ -290,6 +290,8 @@ export interface HistoryEvent {
   confidence: number | null;
   version: number | null;
   to_version: number | null;
+  /** The person who did this took it back (Undo last). Only present when true. */
+  undone?: boolean;
 }
 
 export interface QuestionVersion {
@@ -375,6 +377,7 @@ export function normaliseEvent(raw: unknown): HistoryEvent {
     confidence: num(r.confidence),
     version: num(r.version),
     to_version: num(pick(r, 'to_version', 'restored_version')),
+    ...(r.undone === true ? { undone: true } : {}),
   };
 }
 

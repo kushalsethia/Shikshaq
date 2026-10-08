@@ -76,8 +76,10 @@ which is the tooling genuinely compiling out rather than being hidden.
 
 **Admin is deliberately not one of the roles**, and `PreviewRole` has no
 `'admin'` member so re-adding it is a type error. Its password would ship in the
-bundle in plain text, and admin reaches 147 teachers' applications, emails and
-phone numbers. Sign in normally for admin.
+bundle in plain text, and admin reaches every teacher application and the phone
+number of all 148 listed teachers (counted 8 October 2026). Teacher reviewers
+(see the security model below) reach the same contacts through `reviewer_*`
+functions, so they are not a preview role either. Sign in normally for admin.
 
 **Both deployments share ONE Supabase project** (`uvtifolnsneitetzohtn`).
 Confirmed as intended. The test site reads and writes **live** data. Treat any
@@ -105,6 +107,10 @@ These have been decided. Do not relitigate them, and do not quietly undo them.
 - **Question-paper text is never altered.** Not cleaned, retyped, re-cased or
   "fixed". It is read from `bank_questions.body` and rendered verbatim. Any
   change to how it is stored or moved must be proven byte-exact, not assumed.
+  One owner-requested exception (8 October 2026): a verifier splitting at the
+  word OR drops only that OR separator (`OR`, `Or`, with a comma or full stop it
+  may carry) and keeps every other character. It goes through the versioned fix
+  path (`apply_fix_locked`), so the whole question as it was stays in history.
 - **No em or en dashes** in site copy, terms, teacher bios or meta text. The
   bios were normalised on 2026-08-31 (`supabase/normalise-bio-dashes.sql`,
   originals in `public._dash_backup`). Teacher reviews and question text are
@@ -124,6 +130,12 @@ These have been decided. Do not relitigate them, and do not quietly undo them.
 
 Anon and authenticated both reach question bodies and teacher contacts **only**
 through SECURITY DEFINER functions. Direct table reads are revoked.
+
+Teacher reviewers (8 October 2026) are a third group with contact access: an
+admin or the HOD grants the role, and a reviewer reads applications and listed
+teachers (phone and email included) and edits details **only** through the
+`reviewer_*` functions, each of which checks the role inside and writes to
+`admin_audit_log`. No RLS policy was widened for them. See docs/GUARDRAILS.md.
 
 **Two things will bite anyone who touches this:**
 
@@ -152,9 +164,15 @@ order by p.prosecdef desc, p.proname;
 not error on the rest.** A column revoke therefore turns a query into a silently
 smaller row — no failure, fields just become `undefined`. Seven queries named a
 revoked column and blanked every teacher card for every signed-out visitor.
-Prefer explicit column lists. The two remaining `select('*')` calls against
-gated tables (`admin/teachers.tsx`, `TeacherDashboard.tsx`) are deliberately
-paired with `admin_teacher_contacts()` / `teacher_own_contact()`.
+Prefer explicit column lists. Re-swept on 8 October 2026: the only table with
+column-level grants is `Shikshaqmine` (31 of 34 columns readable by anon and
+authenticated), and no `select('*')` reaches it any more; `admin/teachers.tsx`
+and `TeacherDashboard.tsx` both name their columns and are paired with
+`admin_teacher_contacts()` / `teacher_own_contact()`. The `select('*')` calls
+that remain (`teacher_applications`, `subjects`, `profiles`, `page_content`,
+`teacher_recommendations`, `teacher_upvote_stats`, `admin_audit_log`) hit tables
+whose table-level SELECT is intact, where Row Level Security, not columns,
+decides what a role sees.
 
 A *named* forbidden column fails the ENTIRE request with 401. `select('*')` does
 not. That difference is the whole bug class.

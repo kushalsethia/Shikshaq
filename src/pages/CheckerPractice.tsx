@@ -5,7 +5,7 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { ActionButton } from '@/components/checker/CheckerButtons';
 import { CHIP, actionToneClass } from '@/lib/checker-button-styles';
 import { cn } from '@/lib/utils';
-import { canSplitAt, codePointOffset, FIX_RULE_NOTE, FIX_RULE_TITLE } from '@/lib/checker-body';
+import { canSplitAt, codePointOffset, isOrOnlyBody, FIX_RULE_NOTE, FIX_RULE_TITLE, OR_ONLY_BUTTON, OR_ONLY_NOTE } from '@/lib/checker-body';
 import { matchCheckerKeyboardEvent, shortcutHint } from '@/lib/checker-shortcuts';
 import { CHECKER_HELP_PATH, CHECKER_PATH } from '@/lib/checker-onboarding';
 import {
@@ -15,10 +15,11 @@ import {
   type PracticeAction,
   type PracticeAnswer,
   type PracticeApi,
+  type PracticeQuestion,
   type PracticeResult,
 } from '@/lib/checker-practice';
 
-/* The optional practice round (/checker/practice). Seven made-up questions,
+/* The optional practice round (/checker/practice). Nine made-up questions,
    one planted mistake each, instant feedback after every answer and a summary
    at the end. Open to anyone: nothing here is secret and nothing is saved.
 
@@ -33,6 +34,8 @@ interface Done {
   id: string;
   action: PracticeAction;
   result: PracticeResult;
+  /** Answered after coming back to a question that was skipped. */
+  revisit: boolean;
 }
 
 export default function CheckerPractice() {
@@ -46,39 +49,73 @@ export default function CheckerPractice() {
 
 export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart: () => void }) {
   const questions = useMemo(() => api.questions(), [api]);
-  const [index, setIndex] = useState(0);
   const [mode, setMode] = useState<Mode>('check');
   const [bodyDraft, setBodyDraft] = useState(questions[0].body);
   const [marksDraft, setMarksDraft] = useState(questions[0].marks === null ? '' : String(questions[0].marks));
   const [splitAt, setSplitAt] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<PracticeResult | null>(null);
   const [done, setDone] = useState<Done[]>([]);
+  // The student chose to go back through the questions they skipped.
+  const [goingBack, setGoingBack] = useState(false);
   const nextRef = useRef<HTMLButtonElement | null>(null);
 
-  const finished = index >= questions.length;
-  const q = finished ? null : questions[index];
+  // Everything below is worked out from the list of answers, so Undo last is
+  // just "drop the newest answer" and the screen follows.
+  const firstPass = done.filter((d) => !d.revisit);
+  const answeredFirst = new Set(firstPass.map((d) => d.id));
+  const waiting = questions.filter(
+    (qq) => firstPass.some((d) => d.id === qq.id && d.action === 'skip') && !done.some((d) => d.revisit && d.id === qq.id),
+  );
+  const nextFirst = questions.find((qq) => !answeredFirst.has(qq.id)) ?? null;
+  const last = done.length ? done[done.length - 1] : null;
+  // While feedback is showing, the question just answered stays on screen.
+  const q: PracticeQuestion | null = feedback && last
+    ? (questions.find((x) => x.id === last.id) ?? null)
+    : nextFirst ?? (goingBack ? (waiting[0] ?? null) : null);
+  const revisit = q ? (feedback && last ? last.revisit : nextFirst === null) : false;
+  const onlySkippedLeft = !feedback && nextFirst === null && !goingBack && waiting.length > 0;
+  const finished = !q && !onlySkippedLeft;
   const picture = useMemo(() => (q ? practicePictureDataUrl(q.printed, q.blurry) : ''), [q]);
+
+  // A new question on screen starts from its own typed words and marks.
+  useEffect(() => {
+    if (!q) return;
+    setBodyDraft(q.body);
+    setMarksDraft(q.marks === null ? '' : String(q.marks));
+    setSplitAt(null);
+    setMode('check');
+  }, [q?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function answer(a: PracticeAnswer) {
     if (!q || feedback) return;
-    const result = api.answer(q.id, a);
+    const result = api.answer(q.id, a, revisit);
     setFeedback(result);
-    setDone((d) => [...d, { id: q.id, action: a.action, result }]);
+    setDone((d) => [...d, { id: q.id, action: a.action, result, revisit }]);
     setMode('check');
   }
 
   function advance() {
-    const next = index + 1;
-    setIndex(next);
     setFeedback(null);
     setMode('check');
     setSplitAt(null);
-    const nq = questions[next];
-    if (nq) {
-      setBodyDraft(nq.body);
-      setMarksDraft(nq.marks === null ? '' : String(nq.marks));
-    }
     window.scrollTo({ top: 0 });
+  }
+
+  // Undo last: take back the newest answer. The question comes back to be
+  // answered again, exactly like the real checker.
+  function undoLast() {
+    if (!last) return;
+    api.undo(last.id);
+    setDone((d) => d.slice(0, -1));
+    setFeedback(null);
+    setMode('check');
+    setSplitAt(null);
+    if (!last.revisit) setGoingBack(false);
+    const back = questions.find((x) => x.id === last.id);
+    if (back) {
+      setBodyDraft(back.body);
+      setMarksDraft(back.marks === null ? '' : String(back.marks));
+    }
   }
 
   function cancelEdit() {
@@ -101,7 +138,7 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (!q || feedback) return;
+      if (feedback) return;
       if (e.key === 'Escape' && mode !== 'check') {
         cancelEdit();
         return;
@@ -109,6 +146,13 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
       if (mode !== 'check') return;
       const action = matchCheckerKeyboardEvent(e);
       if (!action) return;
+      if (action === 'undo') {
+        if (!last) return;
+        e.preventDefault();
+        undoLast();
+        return;
+      }
+      if (!q) return;
       if (action === 'split' && !q.offersSplit) return;
       e.preventDefault();
       if (action === 'pass') answer({ action: 'pass' });
@@ -120,7 +164,20 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, mode, feedback]);
+  }, [q, mode, feedback, last]);
+
+  const undoButton = (
+    <button
+      type="button"
+      onClick={undoLast}
+      disabled={!last}
+      data-testid="practice-undo"
+      title={last ? 'Take back your last answer (U)' : 'Nothing to undo yet'}
+      className={cn(actionToneClass('muted'), 'disabled:cursor-not-allowed disabled:opacity-50')}
+    >
+      Undo last
+    </button>
+  );
 
   return (
     <BentoStack className="min-h-screen bg-muted">
@@ -128,9 +185,11 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-lg font-bold text-foreground">Practice round</h1>
           <div className="flex flex-wrap items-center gap-2">
-            {!finished ? (
+            {!finished && !onlySkippedLeft && q ? (
               <span className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold tabular-nums text-warm-secondary">
-                Question {index + 1} of {questions.length}
+                {revisit
+                  ? `Skipped question, ${waiting.findIndex((w) => w.id === q.id) + 1} of ${waiting.length}`
+                  : `Question ${Math.min(answeredFirst.size + (feedback && !revisit ? 0 : 1), questions.length)} of ${questions.length}`}
               </span>
             ) : null}
             <Link to={CHECKER_HELP_PATH} className={cn(CHIP, 'bg-muted text-warm-secondary')}>
@@ -148,7 +207,21 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
         </div>
 
         {finished ? (
-          <Summary done={done} questions={questions} onRestart={onRestart} />
+          <Summary done={done} questions={questions} onRestart={onRestart} undoButton={undoButton} />
+        ) : onlySkippedLeft ? (
+          <div className="flex flex-col items-center gap-3 py-12 text-center" data-testid="practice-only-skipped-left">
+            <h2 className="text-balance text-lg font-bold text-foreground">Only skipped questions are left</h2>
+            <p className="max-w-md text-pretty text-[14px] text-warm-secondary">
+              {waiting.length === 1 ? 'You skipped 1 question.' : `You skipped ${waiting.length} questions.`} It stays on this paper
+              for you to come back to. In the real checker you could go to another paper first. Here, go back to it now.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2.5">
+              <button type="button" onClick={() => setGoingBack(true)} className={actionToneClass('mint')}>
+                Go through skipped ones now
+              </button>
+              {undoButton}
+            </div>
+          </div>
         ) : q ? (
           <>
             <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-2">
@@ -208,6 +281,19 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
                   </div>
                 )}
 
+                {mode === 'check' && isOrOnlyBody(q.body) && !feedback ? (
+                  <div className="mt-2 rounded-2xl bg-brand-subtle px-3 py-2" data-testid="practice-or-only">
+                    <p className="text-[13px] leading-snug text-foreground">{OR_ONLY_NOTE}</p>
+                    <button
+                      type="button"
+                      onClick={() => answer({ action: 'or_only' })}
+                      className="tap-44 mt-2 rounded-full bg-card px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    >
+                      {OR_ONLY_BUTTON}
+                    </button>
+                  </div>
+                ) : null}
+
                 {mode === 'check' && q.offersSplit && !feedback ? (
                   <button
                     type="button"
@@ -247,9 +333,12 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
 
             <div className="sticky bottom-0 z-10 -mx-1 mt-5 flex flex-wrap items-center gap-2.5 border-t border-warm-hairline bg-card px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-4">
               {feedback ? (
-                <button ref={nextRef} type="button" onClick={advance} className={actionToneClass('mint')}>
-                  {index + 1 >= questions.length ? 'See how you did' : 'Next question'}
-                </button>
+                <>
+                  <button ref={nextRef} type="button" onClick={advance} className={actionToneClass('mint')}>
+                    {nextFirst && nextFirst.id !== q.id && answeredFirst.size < questions.length ? 'Next question' : 'Continue'}
+                  </button>
+                  {undoButton}
+                </>
               ) : mode === 'split' ? (
                 <>
                   <ActionButton
@@ -286,6 +375,7 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
                   <ActionButton tone="muted" onClick={() => answer({ action: 'skip' })}>
                     Skip this question
                   </ActionButton>
+                  {undoButton}
                 </>
               )}
               {!feedback ? (
@@ -305,12 +395,16 @@ function Summary({
   done,
   questions,
   onRestart,
+  undoButton,
 }: {
   done: Done[];
   questions: ReturnType<PracticeApi['questions']>;
   onRestart: () => void;
+  undoButton: React.ReactNode;
 }) {
-  const score = done.filter((d) => d.result.correct).length;
+  // A skipped question that was gone back to counts by its last answer.
+  const finalFor = (id: string): Done | undefined => [...done].reverse().find((x) => x.id === id);
+  const score = questions.filter((qq) => finalFor(qq.id)?.result.correct).length;
   return (
     <div data-testid="practice-summary">
       <h2 className="text-balance text-xl font-bold text-foreground">
@@ -323,7 +417,7 @@ function Summary({
       </p>
       <ol className="mt-4 flex flex-col gap-2">
         {questions.map((qq, n) => {
-          const d = done.find((x) => x.id === qq.id);
+          const d = finalFor(qq.id);
           const ok = d?.result.correct ?? false;
           return (
             <li key={qq.id} className={cn('rounded-2xl p-3', ok ? 'bg-mint' : 'bg-destructive/10')}>
@@ -331,8 +425,10 @@ function Summary({
                 {n + 1}. {qq.planted}
               </p>
               <p className="text-[13px] leading-snug text-warm-secondary">
-                {ok ? 'Right' : 'Not quite'}. The right move was {ACTION_NAMES[qq.correct]}.
-                {d && d.action !== qq.correct ? ` You pressed ${ACTION_NAMES[d.action]}.` : ''}
+                {ok ? 'Right' : 'Not quite'}. The right move was{' '}
+                {ACTION_NAMES[d?.revisit && qq.revisitCorrect ? qq.revisitCorrect : qq.correct]}
+                {d?.revisit && qq.revisitCorrect ? ' (after skipping it first)' : ''}.
+                {d && d.action !== (d.revisit && qq.revisitCorrect ? qq.revisitCorrect : qq.correct) ? ` You pressed ${ACTION_NAMES[d.action]}.` : ''}
               </p>
             </li>
           );
@@ -348,6 +444,7 @@ function Summary({
         <Link to={CHECKER_HELP_PATH} className={actionToneClass('muted')}>
           Rules and shortcuts
         </Link>
+        {undoButton}
       </div>
     </div>
   );
