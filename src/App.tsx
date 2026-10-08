@@ -1,5 +1,4 @@
-import { LOCALITY_PAGES } from "./content/locality-pages.generated";
-import { Toaster } from "@/components/ui/toaster";
+import { LOCALITY_PAGE_PATHS } from "./content/locality-paths.generated";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -19,7 +18,7 @@ import { ScrollManager } from "@/components/ScrollManager";
 import { DelayedFallback } from "@/components/DelayedFallback";
 import { CanonicalTag } from "@/components/CanonicalTag";
 import { AppShell } from "@/components/layout/AppShell";
-import { BentoStack, BentoPanel } from "@/components/layout/PageContainer";
+import { PageLoader } from "@/components/layout/PageLoader";
 /* Chatbot (642 lines), ProductTour (504 lines) and the one-time
    PapersLiveAnnouncement banner are none of them needed for first paint —
    all three are floating/overlay widgets mounted once at the app root
@@ -109,52 +108,6 @@ const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const SignUpSuccess = lazy(() => import("./pages/SignUpSuccess"));
 const Account = lazy(() => import("./pages/Account"));
 
-/* A shimmer bar, sized like the piece of real copy it stands in for —
-   same "shaped like what it replaces" rule list-states.tsx's SkeletonCard
-   follows, not a generic grey box. */
-const Bar = ({ w, h = 14 }: { w: string; h?: number }) => (
-  <div
-    className="rounded-full bg-warm-band motion-safe:animate-shimmer"
-    style={{ width: w, height: h }}
-  />
-);
-
-/* Every lazy route (everything but Home) showed this while its chunk
-   downloaded and parsed — route-prefetch.ts already warms that chunk on
-   hover so the wait is usually short, but on a cold load (direct link,
-   first tap, slow connection) the reader sat on a blank page with a
-   pulsing "Loading..." for however long that took. Shaped like a real page
-   instead: BentoStack/BentoPanel are the actual shell every route already
-   renders into, so the panel geometry does not jump when the real content
-   swaps in — only the shimmer bars resolve into real copy. Not a spinner
-   and not per-route (Suspense's fallback has no way to know which lazy
-   chunk is loading without more plumbing than a loading state warrants) —
-   one generic hero-plus-cards shape close enough to most destinations that
-   the swap reads as content arriving, not as the page changing shape.
-   No entrance animation on the swap itself: M-014 above still applies —
-   this fallback simply stops rendering the instant Suspense resolves. */
-const PageLoader = () => (
-  <div className="min-h-screen bg-background" aria-busy="true" aria-live="polite">
-    <span className="sr-only">Loading…</span>
-    <BentoStack>
-      <BentoPanel fill="card" edge="top" className="flex flex-col gap-3 px-[22px] pb-[46px] pt-[56px] lg:px-8 lg:pt-[72px]">
-        <Bar w="35%" h={11} />
-        <Bar w="70%" h={26} />
-        <Bar w="50%" h={26} />
-        <Bar w="90%" h={14} />
-      </BentoPanel>
-      <BentoPanel fill="muted" className="grid grid-cols-1 gap-3 px-[22px] py-9 sm:grid-cols-2 lg:grid-cols-3 lg:px-8">
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="flex flex-col gap-3 rounded-2xl bg-card p-4">
-            <div className="aspect-[4/3] w-full rounded-2xl bg-warm-band motion-safe:animate-shimmer" />
-            <Bar w="80%" />
-            <Bar w="55%" h={11} />
-          </div>
-        ))}
-      </BentoPanel>
-    </BentoStack>
-  </div>
-);
 
 // Optimize QueryClient for mobile devices
 const queryClient = new QueryClient({
@@ -253,7 +206,6 @@ const App = () => (
             <IntentProvider>
             {/* Sonner's Toaster reads useLocation() (O-010's route-aware bottom
                 offset), so it must render inside the Router, not above it. */}
-            <Toaster />
             <Sonner />
             {/* Test deployment only. Compiled out of the live bundle entirely
                 (VITE_PREVIEW_TOOLS unset -> tree-shaken), not merely hidden. */}
@@ -460,8 +412,8 @@ const App = () => (
                   real teachers, from the list scripts/generate-locality-pages.ts
                   writes at build time. Anything not in that list falls through
                   to NotFound like any other unknown URL. */}
-              {LOCALITY_PAGES.map((p) => (
-                <Route key={p.path} path={p.path} element={<LocalityPage />} />
+              {LOCALITY_PAGE_PATHS.map((path) => (
+                <Route key={path} path={path} element={<LocalityPage />} />
               ))}
               <Route path="/404" element={<NotFound />} />
               {/* Render in place rather than Navigate to /404: redirecting
