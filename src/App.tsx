@@ -1,5 +1,4 @@
 import { LOCALITY_PAGES } from "./content/locality-pages.generated";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -253,7 +252,6 @@ const App = () => (
             <IntentProvider>
             {/* Sonner's Toaster reads useLocation() (O-010's route-aware bottom
                 offset), so it must render inside the Router, not above it. */}
-            <Toaster />
             <Sonner />
             {/* Test deployment only. Compiled out of the live bundle entirely
                 (VITE_PREVIEW_TOOLS unset -> tree-shaken), not merely hidden. */}
