@@ -1,5 +1,5 @@
 /**
- * Everything a new student checker needs to get started, in one place with
+ * Everything a new verifier needs to get started, in one place with
  * no network and no Supabase: the routes, the once-per-account flag for the
  * walkthrough, the walkthrough steps, and the rules in plain words.
  *
@@ -180,16 +180,16 @@ export function shortcutRows(): { action: CheckerAction; label: string; keys: st
 
 /* ---- the admin guide on /admin/checkers -------------------------------- */
 
-export function addStudentSteps(origin: string): string[] {
+export function addVerifierSteps(origin: string): string[] {
   return [
-    'The student signs up on the Shikshaq site with their own email address.',
+    'The verifier signs up on the Shikshaq site with their own email address.',
     'Type that same email in the search box below. Their name appears. Press Add.',
     `Send them the link to ${origin}${CHECKER_PATH}. The first time they open it, a short walkthrough shows them around, and there is a practice round they can try.`,
   ];
 }
 
 export const NO_ACCOUNT_EXPLAINED =
-  'If it says no account has that email, either the student has not signed up yet, or they signed up with a different email than the one you typed. Ask them which email they used.';
+  'If it says no account has that email, either the person has not signed up yet, or they signed up with a different email than the one you typed. Ask them which email they used.';
 
 /* ---- the HODs section on /admin/checkers ------------------------------- */
 
@@ -197,11 +197,11 @@ export const HOD_PATH = '/hod';
 
 export function addHodSteps(origin: string): string[] {
   return [
-    'The person signs up on the Shikshaq site with their own email address, the same way a student does.',
+    'The person signs up on the Shikshaq site with their own email address, the same way a verifier does.',
     'Search for them below by name or email and press Make HOD. One HOD leads every verifier.',
     `Send them the link to ${origin}${HOD_PATH}. It shows the questions verifiers sent up, how each verifier is doing, and who holds which paper.`,
   ];
 }
 
 export const HOD_NOTE =
-  'An HOD does not need to be a checker. Removing an HOD only takes away the HOD desk; their earlier decisions stay. Admins can always open the HOD desk.';
+  'An HOD does not need to be a verifier. Removing an HOD only takes away the HOD desk; their earlier decisions stay. Admins can always open the HOD desk.';

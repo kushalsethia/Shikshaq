@@ -416,8 +416,9 @@ export function createFakeHodApi(): FakeHodApi {
       return Object.values(profiles).map((x) => ({ ...x }));
     },
     async setProfile(userId, input) {
-      const who = checkers.find((c) => c.user_id === userId);
-      if (!who) throw pgError('That person is not a verifier');
+      // The admin page can add a made-up person after this fake was built, so an
+      // unknown id is taken as a verifier added a moment ago.
+      const who = checkers.find((c) => c.user_id === userId) ?? { user_id: userId, name: input.full_name, email: 'new.verifier@example.com', active: true };
       if (!isVerifierGrade(input.grade)) throw pgError('Grade is out of range');
       profiles[userId] = {
         ...(profiles[userId] ?? prof(who, {})),

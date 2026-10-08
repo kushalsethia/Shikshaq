@@ -4,9 +4,11 @@ import { resolve } from 'node:path';
 import {
   ACTION_LABELS,
   CHECKER_RULES,
+  HOD_NOTE,
   NO_ACCOUNT_EXPLAINED,
   WALKTHROUGH_STEPS,
-  addStudentSteps,
+  addHodSteps,
+  addVerifierSteps,
   hasSeenWalkthrough,
   markWalkthroughSeen,
   shortcutRows,
@@ -90,7 +92,7 @@ describe('walkthrough steps', () => {
 
 describe('copy', () => {
   it('has no em or en dashes anywhere in the onboarding copy', () => {
-    const all = JSON.stringify([WALKTHROUGH_STEPS, CHECKER_RULES, addStudentSteps('https://x.test'), NO_ACCOUNT_EXPLAINED]);
+    const all = JSON.stringify([WALKTHROUGH_STEPS, CHECKER_RULES, addVerifierSteps('https://x.test'), NO_ACCOUNT_EXPLAINED]);
     expect(all).not.toMatch(/[–—]/);
   });
 
@@ -101,10 +103,15 @@ describe('copy', () => {
   });
 
   it('the admin guide gives the three steps and explains the no-account error', () => {
-    const steps = addStudentSteps('https://x.test');
+    const steps = addVerifierSteps('https://x.test');
     expect(steps).toHaveLength(3);
     expect(steps[2]).toContain('https://x.test/checker');
     expect(NO_ACCOUNT_EXPLAINED).toMatch(/not signed up/);
     expect(NO_ACCOUNT_EXPLAINED).toMatch(/different email/);
+  });
+
+  it('calls them verifiers, never students or checkers, in the admin guides', () => {
+    const words = JSON.stringify([addVerifierSteps('https://x.test'), NO_ACCOUNT_EXPLAINED, addHodSteps('https://x.test'), HOD_NOTE]);
+    expect(words.replace(/https:\/\/x\.test\/\w+/g, '')).not.toMatch(/student|checker/i);
   });
 });
