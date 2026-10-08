@@ -1,13 +1,15 @@
 import { Fragment, memo, useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Clock, FileText, Pencil } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { useAdminGuard, AdminGuardErrorState, adminToast, adminPrimaryBtnStyle, adminSecondaryBtnStyle } from '@/components/AdminConsole';
+import { useAdminGuard, AdminGuardErrorState, adminToast } from '@/components/AdminConsole';
+import { AdminDialog } from '@/components/admin/AdminDialog';
+import { AdminEmpty, AdminError, AdminLoading } from '@/components/admin/AdminState';
+import { AdminPillButton } from '@/components/admin/AdminPillButton';
 import { AdminHeader, buildAdminNav } from '@/pages/admin/shell';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { AdminStatusPill } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { MathText } from '@/components/papers/math-text';
 import { cn } from '@/lib/utils';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -20,6 +22,7 @@ import { DebugId } from '@/components/DebugId';
 import { DebugFacts } from '@/components/admin/DebugFacts';
 import { VersionHistory } from '@/components/admin/VersionHistory';
 import { realActivityApi } from '@/lib/activity-api';
+import { editorStateFromRow } from '@/lib/paper-edit-revert';
 import { useBusyActions } from '@/lib/busy-guard';
 import {
   adminPaperDraft,
@@ -74,7 +77,8 @@ import {
 
    The header fields are bank_papers columns with no draft copy. They save
    only when Save is pressed, straight to the live paper (History can undo
-   them), and the page says so. */
+   them), and the page says so: a "Live" badge on the header block, one pair
+   of lines above it, and "This changes the live paper now" beside Save. */
 
 const AUTOSAVE_MS = 800;
 
@@ -87,12 +91,13 @@ const KIND_LABEL: Record<string, string> = {
 type QuestionRow = DraftRow & { question_id: string };
 
 function toFieldStrings(r: { body: string | null; display_number: string | null; marks: number | null }) {
-  return { body: r.body ?? '', number: r.display_number ?? '', marks: r.marks != null ? String(r.marks) : '' };
+  return editorStateFromRow(r).fields;
 }
 
 export default function AdminPaperEditPage() {
   const { paperId = '' } = useParams<{ paperId: string }>();
   usePageMeta('Edit paper | Shikshaq Admin', 'Edit a paper draft and verify it for readers.');
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
   const actorName = profile?.full_name || user?.email || 'an admin';
   const { isAdmin, checkingAdmin, error: adminGuardError, retry } = useAdminGuard(user, { redirectOnDenied: true });
@@ -279,19 +284,18 @@ export default function AdminPaperEditPage() {
         </Link>
 
         {loading && rows.length === 0 ? (
-          <div className="mt-3 animate-pulse space-y-3">
-            <div className="mx-auto h-24 max-w-md rounded-2xl bg-muted" />
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-24 rounded-[18px] bg-muted" />
-            ))}
+          <div className="mt-3">
+            <div className="mx-auto mb-3 h-24 max-w-md animate-pulse rounded-2xl bg-muted motion-reduce:animate-none" />
+            <AdminLoading shape="cards" rows={4} label="Loading the paper" />
           </div>
         ) : loadError ? (
-          <div className="py-10 text-center">
-            <p className="text-[15px] text-warm-secondary">Could not load this paper.</p>
-            <button onClick={() => void load()} className={cn('mt-4', adminPrimaryBtnStyle)}>Try again</button>
-          </div>
+          <AdminError what="this paper" onRetry={() => void load()} className="mt-3" />
         ) : !paper ? (
-          <p className="py-10 text-center text-[15px] text-warm-meta">No paper with this id.</p>
+          <AdminEmpty
+            title="No paper with this id."
+            hint="It may have been removed. Go back to the Library to pick another."
+            action={{ label: 'Back to the Library', onClick: () => navigate('/admin/library') }}
+          />
         ) : (
           <div className="mx-auto max-w-[760px]">
             {/* Admin strip: state of the paper and of this draft. Kept above
@@ -349,16 +353,27 @@ export default function AdminPaperEditPage() {
               </div>
             ) : null}
 
+            <ul className="mt-3 space-y-1.5 rounded-2xl bg-muted px-4 py-3 text-[13px] leading-relaxed text-warm-secondary">
+              <li>
+                <span className="font-bold text-foreground">Header details, just below:</span> saved to the live paper the moment you press Save. History can undo them.
+              </li>
+              <li>
+                <span className="font-bold text-foreground">Questions, further down:</span> saved as a draft. Readers see them after you press Verify.
+              </li>
+            </ul>
+
             <PaperHeader paper={paper} questionCount={summary.total} onSave={saveDetail} />
 
-            <p className="mb-4 rounded-2xl bg-muted px-4 py-3 text-[13px] leading-relaxed text-warm-secondary">
-              Question changes save by themselves into the draft. Readers keep seeing the current paper until you press Verify.
-            </p>
-
             {!hasDraft ? (
-              <p className="py-10 text-center text-[15px] text-warm-meta">
-                This paper has no working copy yet, so there is nothing to edit here.
-              </p>
+              <div className="py-8 text-center">
+                <p className="text-[15px] font-bold text-foreground">Nothing to edit yet.</p>
+                <p className="mx-auto mt-1 max-w-md text-pretty text-[13px] leading-[1.5] text-warm-secondary">
+                  Header details above still change the live paper.
+                </p>
+                <Link to="/admin/library" className="mt-2 inline-flex min-h-11 items-center text-[13px] font-bold text-brand-blue hover:underline">
+                  Back to the Library
+                </Link>
+              </div>
             ) : (
               <ol className="grid grid-cols-1 gap-3">
                 {items.map((r) => {
@@ -439,22 +454,30 @@ export default function AdminPaperEditPage() {
         </div>
       ) : null}
 
-      <Dialog open={verifyOpen} onOpenChange={(open) => { if (!open && !verifying) setVerifyOpen(false); }}>
-        <DialogContent aria-describedby={undefined} className="w-full max-w-md rounded-bento bg-card p-6">
-          <DialogTitle className="text-xl font-bold text-foreground">Verify this paper?</DialogTitle>
-          <ul className="mt-3 space-y-1.5 text-[14px] text-warm-secondary">
-            {confirmLines.map((l) => (
-              <li key={l}>{l}</li>
-            ))}
-          </ul>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <button onClick={() => void doVerify()} disabled={verifying} className={cn('disabled:opacity-60', adminPrimaryBtnStyle)}>
+      <AdminDialog
+        open={verifyOpen}
+        onOpenChange={(open) => {
+          if (!open && !verifying) setVerifyOpen(false);
+        }}
+        title="Verify this paper?"
+        size="sm"
+        footer={
+          <>
+            <AdminPillButton variant="secondary" onClick={() => setVerifyOpen(false)} disabled={verifying}>
+              Cancel
+            </AdminPillButton>
+            <AdminPillButton variant="primary" onClick={() => void doVerify()} busy={verifying}>
               {verifying ? 'Verifying...' : 'Verify and publish'}
-            </button>
-            <button onClick={() => setVerifyOpen(false)} disabled={verifying} className={adminSecondaryBtnStyle}>Cancel</button>
-          </div>
-        </DialogContent>
-      </Dialog>
+            </AdminPillButton>
+          </>
+        }
+      >
+        <ul className="space-y-1.5 text-[14px] text-warm-secondary">
+          {confirmLines.map((l) => (
+            <li key={l}>{l}</li>
+          ))}
+        </ul>
+      </AdminDialog>
     </BentoStack>
   );
 }
@@ -474,6 +497,22 @@ function PaperHeader({
   const v = (f: PaperDetailField) => paperDetailValue(paper, f);
   return (
     <div className="my-5 border-b border-border pb-4 text-center">
+      <p className="mb-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+        {paper.is_published ? (
+          <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-success-subtle-bg px-[10px] text-[12px] font-bold text-success-subtle-text">
+            <span className="h-1.5 w-1.5 rounded-full bg-success-subtle-text" aria-hidden />
+            Live
+          </span>
+        ) : (
+          <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-destructive/10 px-[10px] text-[12px] font-bold text-destructive">
+            <span className="h-1.5 w-1.5 rounded-full bg-destructive" aria-hidden />
+            Hidden
+          </span>
+        )}
+        <span className="text-[12px] text-warm-secondary">
+          {paper.is_published ? 'Edits to these details change the live paper.' : 'Edits to these details save at once. The paper is hidden from readers.'}
+        </span>
+      </p>
       <p className="text-[13px] italic text-muted-foreground">
         <DetailText field="school" label="School" value={v('school')} onSave={onSave} display={(s) => displaySchool(s)} />
       </p>
@@ -524,7 +563,6 @@ function PaperHeader({
           multiline
         />
       </div>
-      <p className="mt-3 text-[12px] text-warm-meta">Header changes go to the live paper as soon as you press Save. History can undo them.</p>
     </div>
   );
 }
@@ -600,13 +638,14 @@ function DetailText({
       <span className="my-1 inline-flex w-full max-w-md flex-col items-stretch gap-1.5 align-top">
         {multiline ? <textarea rows={3} {...common} /> : <input inputMode={inputMode} {...common} />}
         {error ? <span className="text-left text-[13px] font-normal not-italic text-destructive">{error}</span> : null}
+        <span className="text-left text-[12px] font-semibold not-italic text-warm-secondary">This changes the live paper now.</span>
         <span className="flex gap-2">
-          <button type="button" onClick={() => void save()} disabled={saving} className={cn('min-h-11 disabled:opacity-60', adminPrimaryBtnStyle)}>
+          <AdminPillButton variant="primary" size="sm" onClick={() => void save()} busy={saving}>
             {saving ? 'Saving...' : 'Save'}
-          </button>
-          <button type="button" onClick={() => setEditing(false)} disabled={saving} className={adminSecondaryBtnStyle}>
+          </AdminPillButton>
+          <AdminPillButton variant="secondary" size="sm" onClick={() => setEditing(false)} disabled={saving}>
             Cancel
-          </button>
+          </AdminPillButton>
         </span>
       </span>
     );
@@ -705,7 +744,7 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
         setLostText(f.body);
         const fresh = await reloadQuestion(id);
         if (fresh) {
-          baselineRef.current = { body: fresh.body ?? '', display_number: fresh.display_number, marks: fresh.marks };
+          baselineRef.current = editorStateFromRow(fresh).baseline;
           setFields(toFieldStrings(fresh));
         }
         return;
@@ -741,6 +780,24 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
     },
     [saveNow],
   );
+
+  // A version was put back from the Versions dialog. The server's copy
+  // changed under the open editor, so fetch it and reset everything derived
+  // from the old one. Pending edits are dropped on purpose: the admin chose
+  // to put an older version back.
+  const onReverted = useCallback(async () => {
+    const fresh = await reloadQuestion(id);
+    if (!fresh) {
+      adminToast('The version was put back, but this page could not refresh it', { description: 'Reload the page to see it here.' });
+      return;
+    }
+    const next = editorStateFromRow(fresh);
+    baselineRef.current = next.baseline;
+    loadedBodyRef.current = next.loadedBody;
+    setFields(next.fields);
+    setLostText(null);
+    dispatch({ type: 'reset' });
+  }, [id, reloadQuestion]);
 
   function edit(patch: Partial<typeof fields>) {
     setFields((prev) => ({ ...prev, ...patch }));
@@ -826,32 +883,19 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
         </button>
       </div>
 
-      {versionsOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
-          onClick={() => setVersionsOpen(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Version history"
-            className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-card p-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <VersionHistory api={realActivityApi} table="audit_questions" rowId={id} />
-            <p className="mt-3 text-[12px] text-warm-meta">
-              After putting a version back, reload this page to see it in the editor.
-            </p>
-            <button
-              type="button"
-              onClick={() => setVersionsOpen(false)}
-              className="tap-44 mt-3 rounded-full bg-muted px-4 text-[13px] font-semibold text-warm-secondary"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <AdminDialog
+        open={versionsOpen}
+        onOpenChange={setVersionsOpen}
+        title="Question versions"
+        size="md"
+        footer={
+          <AdminPillButton variant="secondary" onClick={() => setVersionsOpen(false)}>
+            Close
+          </AdminPillButton>
+        }
+      >
+        {versionsOpen ? <VersionHistory api={realActivityApi} table="audit_questions" rowId={id} onReverted={() => void onReverted()} /> : null}
+      </AdminDialog>
 
       {flagLines.length > 0 ? (
         <div className="mb-2.5 rounded-[12px] bg-brand-subtle px-3 py-2">

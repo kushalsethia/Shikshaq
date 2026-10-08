@@ -50,7 +50,7 @@ const ALL_DUMMY_PAGES: DummyPageEntry[] = [
   { path: '/admin/reviews', label: 'Admin: reviews (dummy)', dormant: true },
   { path: '/admin/feedback', label: 'Admin: visitor feedback (dummy)', dormant: true },
   { path: '/admin/audit', label: 'Admin: admin actions (dummy)', dormant: true },
-  { path: '/admin/papers', label: 'Admin: student uploads (dummy)', dormant: true },
+  { path: '/admin/papers', label: 'Admin: student uploads (dummy)' },
   { path: '/admin/library', label: 'Admin: library (dummy)' },
   { path: '/admin/admin-queue', label: 'Admin: admin queue (dummy)' },
   { path: '/admin/checkers', label: 'Admin: checkers (dummy)' },
