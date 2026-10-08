@@ -7,11 +7,12 @@ import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
 import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
 import { AdminTable, AdminPanelHeader, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { AdminEmpty, AdminError, AdminLoading } from '@/components/admin/AdminState';
+import { AdminFilterChips } from '@/components/admin/AdminFilterChips';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
-import { cn } from '@/lib/utils';
 import { realCheckerLogApi } from '@/lib/checker-log-api';
-import { ROLE_LABELS, type CheckerLogApi, type CheckerRow } from '@/lib/checker-log';
+import { ROLE_LABELS, sinceWords, type CheckerLogApi, type CheckerRow } from '@/lib/checker-log';
 import { timeWords, type ActorKind } from '@/lib/history-labels';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
@@ -24,11 +25,18 @@ const DummyCheckerLog = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminCheckerL
    wise in good english language visually").
 
    Named checker-log because /admin/checkers is the page that grants checker
-   access, and stays as it is. */
+   access, and stays as it is.
+
+   Admin rework, Batch 6: the whole row is the link (it used to carry eight
+   identical "Open log" buttons), the role is a small badge under the name,
+   and the scope chips carry the People and AI counts the old tiles showed.
+   The scope words match the Activity page: Everyone, People, AI and pipeline. */
 
 type Filter = 'all' | 'people' | 'machines';
 
 const ROLE_ORDER: Record<ActorKind, number> = { student: 0, admin: 1, ai: 2, pipeline: 3 };
+
+const isPerson = (r: CheckerRow) => r.role === 'student' || r.role === 'admin';
 
 export function AdminCheckerLogPage({
   api = realCheckerLogApi,
@@ -39,7 +47,7 @@ export function AdminCheckerLogPage({
   dummy?: boolean;
   banner?: ReactNode;
 }) {
-  usePageMeta('Checker log | Shikshaq Admin', 'What each checker did, day by day.');
+  usePageMeta('Checker activity | Shikshaq Admin', 'What each checker did, day by day.');
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const signedIn = dummy ? 'admin@example.com' : user?.email ?? profile?.full_name ?? 'Signed-in admin';
@@ -79,7 +87,7 @@ export function AdminCheckerLogPage({
   const sorted = useMemo(
     () =>
       [...rows]
-        .filter((r) => (filter === 'people' ? r.role === 'student' || r.role === 'admin' : filter === 'machines' ? r.role === 'ai' || r.role === 'pipeline' : true))
+        .filter((r) => (filter === 'people' ? isPerson(r) : filter === 'machines' ? !isPerson(r) : true))
         .sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role] || (b.last_at ?? '').localeCompare(a.last_at ?? '')),
     [rows, filter],
   );
@@ -90,11 +98,7 @@ export function AdminCheckerLogPage({
         <AdminHeader nav={nav} signedInEmail={signedIn} />
         {banner}
         <BentoPanel fill="card" className="px-[18px] py-[18px]">
-          <div className="animate-pulse space-y-2" role="status" aria-label="Loading the checker log">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-12 rounded-2xl bg-muted" />
-            ))}
-          </div>
+          <AdminLoading shape="table" rows={6} label="Loading the checker activity" />
         </BentoPanel>
         <AdminAuditNote />
       </BentoStack>
@@ -103,23 +107,25 @@ export function AdminCheckerLogPage({
   if (!dummy && guard.error) return <AdminGuardErrorState onRetry={guard.retry} />;
   if (!isAdmin) return null;
 
-  const people = rows.filter((r) => r.role === 'student' || r.role === 'admin').length;
+  const people = rows.filter(isPerson).length;
   const dayAgo = Date.now() - 24 * 3600_000;
   const activeToday = rows.filter((r) => r.last_at && new Date(r.last_at).getTime() >= dayAgo).length;
   const total = rows.reduce((s, r) => s + r.total_actions, 0);
 
   const columns: AdminTableColumn[] = [
-    { key: 'name', label: 'Name', width: '1.6fr' },
-    { key: 'role', label: 'Role', width: '1.1fr' },
+    { key: 'name', label: 'Name', width: '2fr' },
     { key: 'last', label: 'Last active', width: '1.4fr' },
     { key: 'total', label: 'Actions', width: '0.8fr' },
     { key: 'since', label: 'Since', width: '1fr' },
   ];
   const tableRows: AdminTableRow[] = sorted.map((r) => ({
     id: r.actor_key,
+    href: `/admin/checker-log/${encodeURIComponent(r.actor_key)}`,
     cells: [
-      <span key="n">{r.name}</span>,
-      ROLE_LABELS[r.role],
+      <span key="n" className="flex min-w-0 flex-col items-start gap-0.5">
+        <span className="max-w-full truncate">{r.name}</span>
+        <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-warm-secondary">{ROLE_LABELS[r.role]}</span>
+      </span>,
       <span key="l" className="text-warm-meta" title={r.last_at ? timeWords(r.last_at) : undefined}>
         {r.last_at ? formatDistanceToNow(new Date(r.last_at), { addSuffix: true }) : 'Never'}
       </span>,
@@ -127,15 +133,8 @@ export function AdminCheckerLogPage({
         {r.total_actions.toLocaleString()}
       </span>,
       <span key="s" className="text-warm-meta">
-        {r.first_at ? timeWords(r.first_at).split(',')[0] : 'Not recorded'}
+        {sinceWords(r.first_at)}
       </span>,
-    ],
-    actions: [
-      {
-        label: 'Open log',
-        tone: 'primary',
-        onClick: () => navigate(`/admin/checker-log/${encodeURIComponent(r.actor_key)}`),
-      },
     ],
   }));
 
@@ -146,63 +145,47 @@ export function AdminCheckerLogPage({
       {banner}
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-        <AdminPanelHeader title="Checker log" meta={`${rows.length} in the log`} />
-        <p className="-mt-1 mb-3 px-[18px] text-pretty text-[14px] text-warm-secondary">
-          Everyone who checks papers, and the AI checks and pipeline that help them. Open a name to read what they did, day by
-          day.
-        </p>
-        <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-4">
-          <Stat label="People" value={people} sub="student checkers and admins" />
-          <Stat label="AI and pipeline" value={rows.length - people} />
-          <Stat label="Active in the last day" value={activeToday} />
-          <Stat label="Actions recorded" value={total.toLocaleString()} />
-        </div>
-      </BentoPanel>
-
-      <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-        <div className="mb-3 flex flex-wrap gap-1.5 px-[18px]" role="group" aria-label="Show">
-          {(
-            [
-              ['all', 'Everyone'],
-              ['people', 'People'],
-              ['machines', 'AI and pipeline'],
-            ] as [Filter, string][]
-          ).map(([k, label]) => (
-            <button
-              key={k}
-              type="button"
-              aria-pressed={filter === k}
-              onClick={() => setFilter(k)}
-              className={cn(
-                'inline-flex h-10 items-center rounded-full px-4 text-[13px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                filter === k ? 'bg-panel font-bold text-background' : 'bg-muted font-semibold text-warm-secondary hover:bg-warm-hairline',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <AdminPanelHeader title="Checker activity" subtitle="People first, then the AI checks and the pipeline. Open a name to read their days." />
         {loadError ? (
-          <div className="px-[18px]" role="alert">
-            <p className="text-sm text-foreground">The checker log did not load. Check your internet and try again.</p>
-            <button type="button" onClick={() => void load()} className="tap-44 mt-2 text-sm font-semibold text-brand-blue">
-              Try again
-            </button>
+          <div className="px-[18px]">
+            <AdminError what="the checker activity" onRetry={() => void load()} />
           </div>
-        ) : sorted.length ? (
-          <AdminTable columns={columns} rows={tableRows} />
         ) : (
-          <div className="px-[18px] py-6 text-center">
-            <p className="text-[15px] font-semibold text-foreground">Nobody has checked anything yet.</p>
-            <p className="mt-1 text-[13px] text-warm-secondary">Give someone checker access on the Checkers page to get started.</p>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/checkers')}
-              className="mt-3 inline-flex min-h-10 items-center rounded-full bg-muted px-4 text-[13px] font-bold text-foreground"
-            >
-              Open Checkers
-            </button>
-          </div>
+          <>
+            <div className="mb-4 grid grid-cols-2 gap-3 px-[18px]">
+              <Stat label="Active in the last day" value={activeToday} />
+              <Stat label="Actions recorded" value={total.toLocaleString()} />
+            </div>
+            <AdminFilterChips
+              className="mb-3 px-[18px]"
+              label="Show"
+              chips={[
+                { key: 'all', label: 'Everyone', count: rows.length },
+                { key: 'people', label: 'People', count: people, hint: 'Student checkers and admins.' },
+                { key: 'machines', label: 'AI and pipeline', count: rows.length - people, hint: 'The AI checks and the automatic pipeline.' },
+              ]}
+              value={filter}
+              onChange={(k) => setFilter(k as Filter)}
+              onClear={() => setFilter('all')}
+            />
+            {sorted.length ? (
+              <AdminTable columns={columns} rows={tableRows} readOnly />
+            ) : (
+              <AdminEmpty
+                title={rows.length ? 'Nobody in this view' : 'Nobody has checked anything yet'}
+                hint={
+                  rows.length
+                    ? 'Try Everyone to see all of the log.'
+                    : 'Give someone verifier access on the Verifiers page to get started.'
+                }
+                action={
+                  rows.length
+                    ? { label: 'Show everyone', onClick: () => setFilter('all') }
+                    : { label: 'Open Verifiers', onClick: () => navigate('/admin/checkers') }
+                }
+              />
+            )}
+          </>
         )}
       </BentoPanel>
 

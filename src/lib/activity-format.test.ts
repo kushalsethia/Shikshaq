@@ -17,7 +17,7 @@ import { createFakeActivityApi } from '@/dummy/activity-fake-api';
 describe('activity wording', () => {
   it('names the new checker actions plainly, and de-underscores unknown ones', () => {
     expect(actionWords('checker_printed_typo')).toBe('Corrected a typo printed on the paper');
-    expect(actionWords('version_revert')).toBe('Reverted to an earlier version');
+    expect(actionWords('version_revert')).toBe('Restored an earlier version');
     expect(actionWords('some_new_step')).toBe('Some new step');
     expect(actionWords('')).toBe('Something happened');
   });

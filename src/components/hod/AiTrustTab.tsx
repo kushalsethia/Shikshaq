@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { EmptyNote, ListSkeleton, LoadError } from '@/components/hod/HodShared';
 import {
+  barLabel,
   barPosition,
   buildTrustGrid,
   checksNeeded,
@@ -10,13 +12,16 @@ import {
   DECISION_LABEL,
   formatRate,
   LEVEL_LABEL,
+  meterStatus,
   switchState,
+  trustConfirm,
   trustExplainer,
   trustStatus,
   type TrustCell,
   type TrustRow,
 } from '@/lib/ai-trust';
 import type { HodApi } from '@/lib/hod-api';
+import { useConfirm } from '@/components/ui/use-confirm';
 import { cn } from '@/lib/utils';
 
 /* "AI trust": for each confidence level and each kind of AI decision, how
@@ -36,8 +41,18 @@ const CHIP_TONE = {
 function Meter({ row }: { row: TrustRow }) {
   const { fill, bar } = barPosition(row);
   const met = row.rate !== null && row.rate >= row.min_rate;
+  const status = meterStatus(row);
   return (
     <div>
+      {/* The label sits on the tick. Near the right edge it ends at the tick instead of centring on it, so it never leaves the card. */}
+      <div className="relative h-4" aria-hidden>
+        <span
+          className={cn('absolute top-0 whitespace-nowrap text-[12px] font-semibold text-foreground', bar >= 80 ? '-translate-x-full pr-1' : '-translate-x-1/2')}
+          style={{ left: `${bar}%` }}
+        >
+          {barLabel(row)}
+        </span>
+      </div>
       <div
         className="relative h-2.5 w-full rounded-full bg-card"
         role="progressbar"
@@ -49,13 +64,16 @@ function Meter({ row }: { row: TrustRow }) {
         <div className={cn('h-full rounded-full', met ? 'bg-emerald-500' : 'bg-brand')} style={{ width: `${fill}%` }} />
         <div className="absolute -top-1 w-0.5 bg-foreground" style={{ left: `${bar}%`, height: '1.125rem' }} aria-hidden />
       </div>
-      <p className="mt-1 text-[12px] text-warm-meta">The bar is {Math.round(row.min_rate * 100)}%</p>
+      <p className={cn('mt-1 text-[12px] font-semibold', met ? 'text-[#24603D]' : 'text-warm-meta')} data-testid="trust-meter-status">
+        {status}
+      </p>
     </div>
   );
 }
 
 function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boolean; api: HodApi; scope: string }) {
   const qc = useQueryClient();
+  const { confirm, confirmDialog } = useConfirm();
   const [busy, setBusy] = useState(false);
   const row = cell.total;
   const title = `${LEVEL_LABEL[cell.level]}, ${DECISION_LABEL[cell.decision]}`;
@@ -73,6 +91,12 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
 
   async function flip() {
     if (!row) return;
+    // Trusting stops people checking this level, so it says so first. Stopping puts people back on it: one tap.
+    if (sw.action === 'trust') {
+      const c = trustConfirm(row);
+      const ok = await confirm({ title: c.title, description: c.description, confirmLabel: c.confirmLabel, cancelLabel: 'Not yet' });
+      if (!ok) return;
+    }
     setBusy(true);
     try {
       await api.setAiTrust(row.level, row.decision, sw.action === 'trust');
@@ -125,13 +149,12 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
           ) : null}
         </div>
       ) : null}
+      {confirmDialog}
       {cell.subjects.length > 0 ? (
         <details className="group rounded-xl bg-card">
           <summary className="tap-44 flex cursor-pointer list-none items-center justify-between px-3 py-2 text-[13px] font-semibold text-foreground [&::-webkit-details-marker]:hidden">
             By subject ({cell.subjects.length})
-            <span aria-hidden className="transition-transform duration-150 group-open:rotate-180">
-              v
-            </span>
+            <ChevronDown aria-hidden className="h-4 w-4 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none" />
           </summary>
           <ul className="space-y-1 px-3 pb-3 text-[13px]">
             {cell.subjects.map((s) => (
