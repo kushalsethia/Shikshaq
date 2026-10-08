@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-const calls: { table?: string; op?: string; payload?: unknown; eq?: [string, unknown]; rpc?: [string, unknown] }[] = [];
+const calls: { table?: string; op?: string; cols?: string; payload?: unknown; eq?: [string, unknown]; rpc?: [string, unknown] }[] = [];
 
 vi.mock('@/integrations/supabase/client', () => {
   const chain = (table: string) => {
@@ -13,8 +13,9 @@ vi.mock('@/integrations/supabase/client', () => {
         entry.payload = payload;
         return api;
       },
-      select() {
+      select(cols?: string) {
         entry.op = 'select';
+        entry.cols = cols;
         return api;
       },
       order() {
@@ -48,6 +49,7 @@ vi.mock('@/lib/admin-debug', () => ({
 
 import { ApplicationsBody, realApprovalsApi } from '@/pages/admin/approvals';
 import {
+  APPLICATION_COLUMNS,
   approveWithConfirm,
   countsByView,
   defaultOrder,
@@ -261,6 +263,19 @@ describe('decisions keep calling the same api with the same arguments', () => {
 });
 
 describe('the real api writes exactly what the page always wrote', () => {
+  it('the list names its columns, one by one, and never asks for *', async () => {
+    await realApprovalsApi.list();
+    const c = calls.find((x) => x.op === 'select');
+    expect(c?.table).toBe('teacher_applications');
+    expect(c?.cols).not.toContain('*');
+    expect(c?.cols?.split(',')).toEqual([...APPLICATION_COLUMNS]);
+    expect(new Set(APPLICATION_COLUMNS).size).toBe(APPLICATION_COLUMNS.length);
+    // every field of the row type the page reads is in the list
+    for (const k of ['id', 'name', 'status', 'texted_status', 'min_fees', 'max_fees', 'created_at', 'hero_image_url', 'whatsapp_link']) {
+      expect(APPLICATION_COLUMNS).toContain(k);
+    }
+  });
+
   it('approve is the approve_teacher_application RPC', async () => {
     await realApprovalsApi.approve('app-1', 'admin-9');
     expect(calls).toContainEqual({ rpc: ['approve_teacher_application', { application_id: 'app-1', admin_id: 'admin-9' }] });

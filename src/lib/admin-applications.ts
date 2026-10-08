@@ -46,6 +46,21 @@ export interface TeacherApplication {
   updated_at: string;
 }
 
+/** The columns the list reads from teacher_applications, named one by one.
+ *  Each was proven readable by the admin role with
+ *  has_column_privilege('authenticated', 'public.teacher_applications', col, 'SELECT')
+ *  on 8 Oct 2026 (all 31 columns of the table). A NAMED column the role cannot
+ *  read fails the whole request with a 401, so add to this list only after
+ *  checking the same way. Keep it in step with TeacherApplication. */
+export const APPLICATION_COLUMNS = [
+  'id', 'name', 'email', 'phone_number', 'sir_maam', 'subjects', 'classes_taught_for_backend',
+  'school_boards_catered', 'location_v2', 'students_home_areas', 'tutors_home_areas',
+  'mode_of_teaching', 'class_size', 'description', 'qualifications_etc', 'years_started_teaching',
+  'featured_subject', 'whatsapp_link', 'hero_image_url', 'reference_name', 'reference_number',
+  'min_fees', 'max_fees', 'mou_consent', 'mou_consent_timestamp', 'status', 'texted_status',
+  'reviewed_by', 'reviewed_at', 'rejection_reason', 'created_at', 'updated_at',
+] as const;
+
 /** What the page needs from the database, as one object, so dummy mode can run
  *  the real page against made-up applications. */
 export interface ApprovalsApi {

@@ -30,6 +30,7 @@ import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 import { APPLICATION_STATUS_LABEL, docsLabel } from '@/lib/teacher-review-api';
 import {
+  APPLICATION_COLUMNS,
   STATUS_TONE,
   STATUS_VIEWS,
   approveWithConfirm,
@@ -72,11 +73,10 @@ const DummyApprovals = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminApprovals
 
 const APPROVALS_KEY = (scope: string) => ['admin', 'approvals', scope] as const;
 
-/* The columns the admin role may read on teacher_applications (checked with
-   has_column_privilege for authenticated, 8 Oct 2026). Still select('*') until
-   the separate commit that names them: PostgREST narrows a wildcard silently,
-   but a NAMED column the role cannot read fails the whole request. */
-const APPLICATION_SELECT = '*';
+/* An explicit column list, not select('*'): every name is in APPLICATION_COLUMNS
+   (admin-applications.ts), each proven readable by the admin role. To undo this
+   commit and go back to the wildcard, set this to '*'. */
+const APPLICATION_SELECT = APPLICATION_COLUMNS.join(',');
 
 export const realApprovalsApi: ApprovalsApi = {
   async list() {
