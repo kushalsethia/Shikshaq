@@ -34,8 +34,9 @@ const KEY = 'shikshaq:dummy-mode';
 
 /** Pages that have a dummy mode, for the preview toggle. */
 export const DUMMY_PAGES: { path: string; label: string }[] = [
-  { path: '/checker', label: 'My work (dummy)' },
-  { path: '/hod', label: 'HOD view (dummy)' },
+  { path: '/checker', label: 'Verify papers (dummy)' },
+  { path: '/hod', label: 'HOD desk (dummy)' },
+  { path: '/teacher-review', label: 'Review teachers (dummy)' },
   { path: '/admin/library', label: 'Admin: library (dummy)' },
   { path: '/admin/admin-queue', label: 'Admin: admin queue (dummy)' },
   { path: '/admin/checkers', label: 'Admin: checkers (dummy)' },

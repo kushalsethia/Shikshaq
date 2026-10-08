@@ -153,7 +153,7 @@ export function CheckerPage({
             ) : null}
             {isHod ? (
               <Link to="/hod" className={cn(CHIP, 'bg-muted text-warm-secondary')}>
-                HOD view
+                HOD desk
               </Link>
             ) : null}
             <span

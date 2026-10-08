@@ -174,7 +174,7 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
   },
   hod: {
     key: 'hod',
-    label: 'HOD view',
+    label: 'HOD desk',
     path: '/hod',
     short: 'What verifiers sent up, how each person is doing, and which paper each one holds.',
     purpose:

@@ -114,7 +114,7 @@ export function HodSection({ hodApi, searchUsers }: { hodApi: HodAdminApi; searc
     const who = h.name ?? h.email ?? 'this person';
     const ok = await confirm({
       title: `Remove ${who} as an HOD?`,
-      description: 'They will no longer be able to open the HOD view. Decisions they already made stay as they are.',
+      description: 'They will no longer be able to open the HOD desk. Decisions they already made stay as they are.',
       confirmLabel: 'Remove HOD',
     });
     if (!ok) return;
@@ -228,7 +228,7 @@ export function HodSection({ hodApi, searchUsers }: { hodApi: HodAdminApi; searc
         <div className="h-14 animate-pulse rounded-2xl bg-muted" aria-label="Loading the HODs" role="status" />
       ) : active.length === 0 ? (
         <div className="rounded-2xl bg-muted p-8 text-center">
-          <p className="text-sm text-warm-label">No HOD yet. Admins can still open the HOD view. Search above to add one.</p>
+          <p className="text-sm text-warm-label">No HOD yet. Admins can still open the HOD desk. Search above to add one.</p>
         </div>
       ) : (
         <AdminTable columns={columns} rows={tableRows} />

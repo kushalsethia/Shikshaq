@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { HodPage } from '@/pages/Hod';
 import { createFakeHodApi } from '@/dummy/hod-fake-api';
+import { createFakeTeacherReviewerAdminApi } from '@/dummy/teacher-review-fake-api';
 import { setDummyMode } from '@/lib/dummy-mode';
 
 /* /hod in dummy mode (D75): the real HodPage against made-up checkers, papers
@@ -10,6 +11,7 @@ import { setDummyMode } from '@/lib/dummy-mode';
 
 export default function HodDummy() {
   const [api] = useState(createFakeHodApi);
+  const [reviewerApi] = useState(createFakeTeacherReviewerAdminApi);
   const [admin, setAdmin] = useState(true);
   const qc = useQueryClient();
 
@@ -50,5 +52,5 @@ export default function HodDummy() {
     </div>
   );
 
-  return <HodPage api={api} dummy banner={banner} dummyRoles={{ isAdmin: admin, isChecker: true }} />;
+  return <HodPage api={api} dummy banner={banner} dummyRoles={{ isAdmin: admin, isChecker: true }} reviewerApi={reviewerApi} />;
 }

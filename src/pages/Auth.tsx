@@ -220,7 +220,7 @@ export default function Auth() {
             clearAuthRedirect();
             // AU-004a: the intent has done its job once the redirect resolves.
             clearAuthIntent();
-            // Nothing to return to: staff start on their own home (My work, HOD view, Admin).
+            // Nothing to return to: staff start on their own home (Verify papers, HOD desk, Review teachers, Admin).
             let home: string | null = null;
             if (!redirectTo) {
               try {
