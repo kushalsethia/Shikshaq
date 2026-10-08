@@ -6,6 +6,7 @@ import { PROFILES_KEY, TEAM_KEY } from '@/components/hod/VerifiersTab';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { actionToneClass } from '@/lib/checker-button-styles';
 import { paperLabel } from '@/lib/checker-progress';
+import { formatGrade } from '@/lib/verifier-papers';
 import {
   groupByVerifier,
   memberName,
@@ -61,7 +62,7 @@ function PickVerifier({
         {options.map((m) => {
           const p = profileOf(m.user_id);
           const block = pickBlock(p, paperClass);
-          const grade = p?.grade != null ? `Class ${p.grade}` : null;
+          const grade = p?.grade != null ? formatGrade(p.grade) : null;
           return (
             // The server refuses these anyway (verifier_can_take); greyed out
             // with the reason, so the HOD sees why before pressing.

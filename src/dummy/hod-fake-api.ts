@@ -23,6 +23,7 @@ import type {
 } from '@/lib/hod-api';
 import type { PaperPage } from '@/lib/paper-pages';
 import type { TrustRow } from '@/lib/ai-trust';
+import { isVerifierGrade } from '@/lib/verifier-papers';
 import { dummyPageDataUrl, dummyPictureDataUrl } from '@/dummy/checker-fixtures';
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -417,7 +418,7 @@ export function createFakeHodApi(): FakeHodApi {
     async setProfile(userId, input) {
       const who = checkers.find((c) => c.user_id === userId);
       if (!who) throw pgError('That person is not a verifier');
-      if (input.grade < 1 || input.grade > 12) throw pgError('Grade must be between 1 and 12');
+      if (!isVerifierGrade(input.grade)) throw pgError('Grade is out of range');
       profiles[userId] = {
         ...(profiles[userId] ?? prof(who, {})),
         full_name: input.full_name,

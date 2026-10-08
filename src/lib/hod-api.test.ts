@@ -193,9 +193,11 @@ describe('hod_verifier_profiles mapping', () => {
     expect(list[0].requested_subjects).toEqual(['Physics']);
   });
 
-  it('a grade outside 1 to 12 counts as missing', () => {
-    expect(normaliseVerifierProfiles([{ user_id: 'x', grade: 14 }])[0].missing).toBe(true);
-    expect(normaliseVerifierProfiles([{ user_id: 'x', grade: 14 }])[0].grade).toBeNull();
+  it('a grade outside 1 to 17 counts as missing, 13 to 17 are real grades', () => {
+    expect(normaliseVerifierProfiles([{ user_id: 'x', grade: 18 }])[0].missing).toBe(true);
+    expect(normaliseVerifierProfiles([{ user_id: 'x', grade: 18 }])[0].grade).toBeNull();
+    expect(normaliseVerifierProfiles([{ user_id: 'x', grade: 14 }])[0]).toMatchObject({ grade: 14, missing: false });
+    expect(normaliseVerifierProfiles([{ user_id: 'x', grade: 17 }])[0]).toMatchObject({ grade: 17, missing: false });
   });
 
   it('flags missing first, then expired, then a request', () => {
@@ -217,9 +219,11 @@ describe('the verifier details form check', () => {
   });
   it('names the first thing wrong', () => {
     expect(profileInputProblem({ ...ok, full_name: ' ' })).toMatch(/name/i);
-    expect(profileInputProblem({ ...ok, grade: '0' })).toMatch(/1 to 12/);
-    expect(profileInputProblem({ ...ok, grade: '13' })).toMatch(/1 to 12/);
-    expect(profileInputProblem({ ...ok, grade: '9.5' })).toMatch(/whole number/);
+    expect(profileInputProblem({ ...ok, grade: '0' })).toMatch(/Pick their grade/);
+    expect(profileInputProblem({ ...ok, grade: '13' })).toBeNull();
+    expect(profileInputProblem({ ...ok, grade: '17' })).toBeNull();
+    expect(profileInputProblem({ ...ok, grade: '18' })).toMatch(/Pick their grade/);
+    expect(profileInputProblem({ ...ok, grade: '9.5' })).toMatch(/Pick their grade/);
     expect(profileInputProblem({ ...ok, school: '' })).toMatch(/school/i);
     expect(profileInputProblem({ ...ok, board: '' })).toMatch(/board/i);
     expect(profileInputProblem({ ...ok, valid_until: '' })).toMatch(/date/i);

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActionButton } from '@/components/checker/CheckerButtons';
 import { BOARDS, profileInputProblem, type HodVerifierProfile, type ProfileInput } from '@/lib/hod-api';
+import { gradeSelectValue, VERIFIER_GRADE_OPTIONS } from '@/lib/verifier-papers';
 
 /* The form an HOD or admin fills in for a verifier: name, grade, school and
    board, valid until a date (31 Mar 2027 by default). Used on the HOD
@@ -28,7 +29,7 @@ export function VerifierProfileForm({
   cancelLabel?: string;
 }) {
   const [fullName, setFullName] = useState(initial.full_name ?? initial.name ?? '');
-  const [grade, setGrade] = useState(initial.grade ? String(initial.grade) : '');
+  const [grade, setGrade] = useState(gradeSelectValue(initial.grade ?? null));
   const [school, setSchool] = useState(initial.school ?? '');
   const [board, setBoard] = useState(initial.board ?? '');
   const [validUntil, setValidUntil] = useState(initial.valid_until ?? DEFAULT_VALID_UNTIL);
@@ -53,8 +54,15 @@ export function VerifierProfileForm({
           <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} autoComplete="off" />
         </label>
         <label className={label}>
-          Grade (1 to 12)
-          <input value={grade} onChange={(e) => setGrade(e.target.value)} inputMode="numeric" className={field} />
+          Grade
+          <select value={grade} onChange={(e) => setGrade(e.target.value)} className={field}>
+            <option value="">Pick a grade</option>
+            {VERIFIER_GRADE_OPTIONS.filter((o) => o.value !== null).map((o) => (
+              <option key={o.value} value={o.value as number}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </label>
         <label className={label}>
           School

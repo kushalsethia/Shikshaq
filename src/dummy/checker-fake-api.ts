@@ -13,7 +13,7 @@
 
 import type { CheckerApi, CheckerQuestion, LeaderboardRow, QueueFacetRow } from '@/lib/checker-api';
 import type { MyAssignment } from '@/lib/checker-progress';
-import type { MyPaper, PaperQuestion, PaperQuestionState, VerifierProfile } from '@/lib/verifier-papers';
+import { isVerifierGrade, type MyPaper, type PaperQuestion, type PaperQuestionState, type VerifierProfile } from '@/lib/verifier-papers';
 import type { PaperPage } from '@/lib/paper-pages';
 import { DUMMY_PAPER, dummyContext, dummyPageDataUrl, dummyPictureDataUrl, dummyQuestions } from '@/dummy/checker-fixtures';
 import { isBlankBody } from '@/lib/checker-body';
@@ -327,8 +327,8 @@ export function createFakeCheckerApi(): FakeCheckerApi {
 
     async setMyProfile(input) {
       await gateSave();
-      // Like verifier_set_my_profile: grade 1 to 12 or blank; valid until stays.
-      if (input.grade !== null && (input.grade < 1 || input.grade > 12)) throw pgError('22023', 'Grade must be 1 to 12');
+      // Like verifier_set_my_profile: grade 1 to 17 or blank; valid until stays.
+      if (input.grade !== null && !isVerifierGrade(input.grade)) throw pgError('22023', 'Grade is out of range');
       myDetails = { ...myDetails, full_name: input.full_name, grade: input.grade, school: input.school, board: input.board };
     },
 
