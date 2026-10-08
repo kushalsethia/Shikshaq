@@ -12,6 +12,8 @@ import {
   percent,
   questionsLine,
   rowFacts,
+  rowHeading,
+  rowSubline,
   rowTitle,
   stateLabel,
   subjectOptions,
@@ -51,10 +53,13 @@ describe('paper registry helpers', () => {
 
   it('uses plain words and no dashes in every label and hint', () => {
     expect(stateLabel('not_started')).toBe('Not started');
-    expect(stateLabel('ocr_queued')).toBe('Reading pages');
-    expect(stateLabel('fully_checked')).toBe('Checked');
-    expect(stateLabel('awaiting_approval')).toBe('Waiting for approval');
-    expect(stateLabel('live')).toBe('On the site');
+    expect(stateLabel('ocr_queued')).toBe('Waiting to be read');
+    expect(stateLabel('ocr_done')).toBe('Read, not loaded');
+    expect(stateLabel('loaded')).toBe('Loaded, not checked');
+    expect(stateLabel('ai_checked')).toBe('Checked by the AI');
+    expect(stateLabel('fully_checked')).toBe('Fully checked');
+    expect(stateLabel('awaiting_approval')).toBe('Waiting for your approval');
+    expect(stateLabel('live')).toBe('Live');
     expect(stateLabel(null)).toBe('Not started');
     for (const s of PROCESSED_STATES) {
       expect(STATE_LOOK[s].label + STATE_LOOK[s].hint).not.toMatch(/[\u2013\u2014]/);
@@ -101,6 +106,18 @@ describe('paper registry helpers', () => {
       'ICSE, Class X, Physics, 2025',
     );
     expect(rowFacts(row('k'))).toBe('');
+  });
+
+  it('leads a row with board, class, subject and year, and the PDF name second', () => {
+    const r = row('k', { pdf_name: 'ICSE_Phy_2025_final.pdf', board: 'ICSE', class: 'X', subject: 'Physics', year: '2025', school: 'Sample High' });
+    expect(rowHeading(r)).toBe('ICSE Class X Physics, 2025');
+    expect(rowSubline(r)).toBe('ICSE_Phy_2025_final.pdf, Sample High');
+    // nothing known: the PDF name leads and is not repeated underneath
+    const bare = row('k2', { pdf_name: 'scan_17.pdf' });
+    expect(rowHeading(bare)).toBe('scan_17.pdf');
+    expect(rowSubline(bare)).toBe('');
+    expect(rowHeading(row('k3'))).toBe('k3');
+    expect(rowHeading(row('k4', { subject: 'Physics' }))).toBe('Physics');
     expect(questionsLine(row('k'))).toBe('');
     expect(questionsLine(row('k', { questions_total: 40, questions_passed: 12 }))).toBe('12 of 40 questions cleared');
     expect(questionsLine(row('k', { questions_total: 40, questions_passed: 99 }))).toBe('40 of 40 questions cleared');

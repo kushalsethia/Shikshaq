@@ -10,7 +10,8 @@
  */
 
 import { normaliseEvent, type HistoryEvent } from '@/lib/admin-approval-shape';
-import { actorLabel, cleanPersonName, normaliseActorKind, type ActorKind } from '@/lib/history-labels';
+import { format, isSameYear } from 'date-fns';
+import { ACTION_LABELS, actionWords as sentenceWords, actorLabel, cleanPersonName, normaliseActorKind, type ActorKind } from '@/lib/history-labels';
 
 type Json = Record<string, unknown>;
 const asObj = (v: unknown): Json => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Json) : {});
@@ -225,8 +226,11 @@ export function daySentence(
   thisYear?: number,
 ): string {
   const who = shortName(actor.name, actor.role);
-  const qs = new Set(day.events.map((e) => e.question_id).filter(Boolean)).size;
-  const papers = new Set(day.events.map((e) => e.paper_audit_id).filter(Boolean)).size;
+  // A pass that was taken back (Undo last) did not check the question, so it
+  // does not count toward the questions or papers either.
+  const standing = day.events.filter((e) => !e.undone);
+  const qs = new Set(standing.map((e) => e.question_id).filter(Boolean)).size;
+  const papers = new Set(standing.map((e) => e.paper_audit_id).filter(Boolean)).size;
   const c = day.counts;
   const parts: string[] = [];
   if (c.passed) parts.push(`passed ${c.passed}`);
@@ -236,6 +240,9 @@ export function daySentence(
   if (c.edited) parts.push(`edited ${c.edited}`);
   if (c.approved) parts.push(`approved ${plural(c.approved, 'paper', 'papers')}`);
   let lead: string;
+  if (day.events.length > 0 && standing.length === 0) {
+    return `${dayWords(day.day, thisYear)}: ${who} took back everything they did.`;
+  }
   if (qs > 0) {
     lead = `${who} checked ${plural(qs, 'question', 'questions')}${papers ? ` on ${plural(papers, 'paper', 'papers')}` : ''}`;
   } else if (papers > 0) {
@@ -247,6 +254,25 @@ export function daySentence(
   if (c.other) parts.push(plural(c.other, 'other action', 'other actions'));
   const tail = parts.length ? `, ${parts.join(', ')}` : '';
   return `${dayWords(day.day, thisYear)}: ${lead}${tail}.`;
+}
+
+/** "2 Oct", or "2 Oct 2025" for an earlier year, for the Since column. */
+export function sinceWords(at: string | null | undefined, now: Date = new Date()): string {
+  if (!at) return 'Not recorded';
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return 'Not recorded';
+  return format(d, isSameYear(d, now) ? 'd MMM' : 'd MMM yyyy');
+}
+
+/** What the "other" bucket mostly holds, in words: "looked for this question on the scanned pages". Null when nothing names it. */
+export function otherActionWords(events: { action: string; undone?: boolean }[]): string | null {
+  const tally = new Map<string, number>();
+  for (const e of events) {
+    if (e.undone || categoryOf(e.action) !== 'other' || !ACTION_LABELS[e.action]) continue;
+    tally.set(e.action, (tally.get(e.action) ?? 0) + 1);
+  }
+  const top = [...tally.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+  return top ? sentenceWords({ action: top[0], at: '' }) : null;
 }
 
 /** 0..4 heat level for a day's total against the busiest day in view. */

@@ -3,37 +3,18 @@
  * Pure, so it is tested without a login. No em or en dashes in any copy.
  */
 
-/** What an action means, in a few words. Unknown actions fall back to their code, de-underscored. */
-const ACTION_WORDS: Record<string, string> = {
-  checker_pass: 'Marked a question as right',
-  checker_fix: 'Fixed a reading mistake',
-  checker_printed_typo: 'Corrected a typo printed on the paper',
-  checker_skip: 'Skipped a question',
-  checker_split: 'Split a question in two',
-  checker_ask_help: 'Asked for help',
-  verifier_undo: 'Undid their last answer',
-  verifier_or_separator: 'Marked a row as just the OR between two questions',
-  check_pass: 'Check: looks right',
-  check_fix: 'Check: needs a fix',
-  check_printed_typo: 'Check: printed typo',
-  check_escalate: 'Check: sent up',
-  check_flag: 'Check: flagged',
-  version_insert: 'New question or paper',
-  version_update: 'Text changed',
-  version_revert: 'Reverted to an earlier version',
-  version_delete: 'Deleted',
-  ai_fix: 'The computer fixed the text',
-  ai_pass: 'The computer passed it',
-  ai_escalate: 'The computer sent it to an admin',
-  ai_verdict: 'The computer gave a verdict',
-  ai_flagged: 'The computer flagged it',
-  reclassify: 'Moved between review piles',
-  route_back_unverified_page: 'Sent back: page not verified',
-};
+import { ACTION_LABELS, actionWords as sentenceWords, actorLabel, markUndone, modelName, normaliseActorKind } from '@/lib/history-labels';
 
-export function actionWords(action: string): string {
-  if (ACTION_WORDS[action]) return ACTION_WORDS[action];
-  const words = action.replace(/_/g, ' ').trim();
+function sentenceCase(text: string): string {
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+}
+
+/** The action with no actor, as a short phrase: "Passed this question". Wording comes from
+ *  history-labels (the one dictionary); an unknown code is de-underscored, never shown raw. */
+export function actionWords(action: string, questionLabel?: string | null): string {
+  const code = (action ?? '').trim();
+  if (code && ACTION_LABELS[code]) return sentenceCase(sentenceWords({ action: code, question_label: questionLabel ?? null, at: '' }));
+  const words = code.replace(/_/g, ' ').trim();
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : 'Something happened';
 }
 
@@ -135,4 +116,123 @@ export function canRevert(row: { is_current: boolean; op: string }): boolean {
 export function revertConfirmText(version: number, currentVersion: number | null): string {
   const next = currentVersion != null ? ` It becomes version ${currentVersion + 1}.` : '';
   return `Put back the text of version ${version}?${next} Nothing is deleted: every version stays in this history.`;
+}
+
+// ---------------------------------------------------------------------------
+// The Activity list and the pipeline feed, in sentences
+
+/** Lower-case predicate for a code, or the de-underscored code in brackets when no label exists. */
+function predicate(row: { action: string; question_label?: string | null }): string {
+  const code = (row.action ?? '').trim();
+  if (code && ACTION_LABELS[code]) return sentenceWords({ action: code, question_label: row.question_label ?? null, at: '' });
+  const words = code.replace(/_/g, ' ').trim();
+  return words ? `made a change (${words})` : 'made a change';
+}
+
+/** Who did it, by role and never by name: "A student checker", "An admin", "AI check (Sonnet)". */
+export function activityWho(row: { actor_kind: string; actor_label: string | null }): string {
+  if (row.actor_kind === 'person') return 'Someone';
+  return actorLabel({ actor_kind: row.actor_kind, actor_name: null, model: row.actor_label });
+}
+
+/** One row as a sentence, with "(undone)" when the person took it back. */
+export function activitySentence(row: {
+  action: string;
+  actor_kind: string;
+  actor_label: string | null;
+  question_label?: string | null;
+  undone?: boolean;
+}): string {
+  return markUndone(`${activityWho(row)} ${predicate(row)}`, row.undone);
+}
+
+/** The same person or machine, whichever stream wrote the row ('ai:sonnet' and 'sonnet' are one actor). */
+export function actorIdentity(row: { actor_user_id: string | null; actor_label: string | null; actor_kind: string }): string {
+  if (row.actor_user_id) return `u:${row.actor_user_id}`;
+  const kind = normaliseActorKind(row.actor_kind);
+  return `${kind}:${modelName(row.actor_label) ?? (row.actor_label ?? '').toLowerCase()}`;
+}
+
+export interface ActivityGroup<R> {
+  /** The row shown as the headline. */
+  head: R;
+  /** The same edit as seen by the other streams, shown as a small detail. */
+  also: R[];
+}
+
+type Groupable = {
+  at: string;
+  stream: string;
+  question_id: string | null;
+  actor_user_id: string | null;
+  actor_label: string | null;
+  actor_kind: string;
+};
+
+const STREAM_RANK: Record<string, number> = { log: 0, check: 1, version: 2 };
+
+/**
+ * One checker edit is written by three streams (audit_review_log,
+ * content_versions, content_checks) that never share a key, so it used to
+ * appear up to three times. Rows about the same question by the same actor,
+ * each within `windowMs` of the last, are one group. The checker action
+ * (the log stream) is the headline; the others become "also recorded".
+ * A different actor never joins a group, and a row with no question never does.
+ * Input is newest first; the output keeps that order.
+ */
+export function groupActivity<R extends Groupable>(rows: R[], windowMs = 2 * 60_000): ActivityGroup<R>[] {
+  const groups: { rows: R[]; last: number }[] = [];
+  const open = new Map<string, { rows: R[]; last: number }>();
+  for (const row of rows) {
+    const t = Date.parse(row.at);
+    if (!row.question_id || Number.isNaN(t)) {
+      groups.push({ rows: [row], last: t });
+      continue;
+    }
+    const key = `${row.question_id}|${actorIdentity(row)}`;
+    const g = open.get(key);
+    if (g && Math.abs(g.last - t) <= windowMs) {
+      g.rows.push(row);
+      g.last = t;
+    } else {
+      const fresh = { rows: [row], last: t };
+      groups.push(fresh);
+      open.set(key, fresh);
+    }
+  }
+  return groups.map((g) => {
+    const head = [...g.rows].sort((a, b) => (STREAM_RANK[a.stream] ?? 9) - (STREAM_RANK[b.stream] ?? 9))[0];
+    return { head, also: g.rows.filter((r) => r !== head) };
+  });
+}
+
+/** Known actors in the pipeline feed, by the label the database writes. */
+const FEED_ACTORS: Record<string, string> = {
+  pipeline: 'Pipeline (automatic)',
+  system: 'Pipeline (automatic)',
+  script: 'Pipeline (automatic)',
+  checker: 'A student checker',
+  student: 'A student checker',
+  kid: 'A student checker',
+  admin: 'An admin',
+  ai: 'AI check',
+};
+
+/** Who did it, for the pipeline feed. Falls back to the de-underscored label, as before. */
+export function feedActorWords(label: string | null | undefined, kind: string | null | undefined): string {
+  const l = (label ?? '').trim();
+  const k = (kind ?? '').trim().toLowerCase();
+  const known = FEED_ACTORS[l.toLowerCase()];
+  if (known) return known;
+  const model = modelName(l);
+  if (model) return `AI check (${model})`;
+  if (!l && FEED_ACTORS[k]) return FEED_ACTORS[k];
+  const raw = l || k || 'pipeline';
+  if (/^[0-9a-f]{8}-/i.test(raw)) return FEED_ACTORS[k] ?? 'Someone';
+  return raw.replace(/[_:]+/g, ' ').trim();
+}
+
+/** What happened, for the pipeline feed: "Fixed this question". */
+export function feedActionWords(action: string): string {
+  return actionWords(action);
 }

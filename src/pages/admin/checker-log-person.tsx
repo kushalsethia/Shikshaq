@@ -3,9 +3,12 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { useAdminGuard, AdminGuardErrorState, adminPrimaryBtnStyle, adminSecondaryBtnStyle } from '@/components/AdminConsole';
+import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
+import { AdminError, AdminLoading } from '@/components/admin/AdminState';
+import { AdminFilterChips } from '@/components/admin/AdminFilterChips';
+import { AdminPillButton, adminPillClass } from '@/components/admin/AdminPillButton';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { cn } from '@/lib/utils';
 import { realCheckerLogApi } from '@/lib/checker-log-api';
@@ -19,6 +22,7 @@ import {
   dayWords,
   heatLevel,
   kolkataDay,
+  otherActionWords,
   totalOf,
   type CheckerDayLog,
   type CheckerLogApi,
@@ -53,21 +57,33 @@ const BAR_CLASS: Record<CountKey, string> = {
 
 const HEAT_CLASS = ['bg-muted', 'bg-emerald-100', 'bg-emerald-300', 'bg-emerald-500', 'bg-emerald-700'] as const;
 
-function CountBars({ counts }: { counts: LogDay['counts'] }) {
-  const shown = COUNT_KEYS.filter((k) => counts[k] > 0);
+function CountBars({ counts, events }: { counts: LogDay['counts']; events: LogDay['events'] }) {
+  // "Other" names nothing, so it is not a bar. It is a muted line that says
+  // what it mostly holds.
+  const shown = COUNT_KEYS.filter((k) => k !== 'other' && counts[k] > 0);
   const max = Math.max(1, ...shown.map((k) => counts[k]));
+  const mostly = counts.other > 0 ? otherActionWords(events) : null;
   return (
-    <dl className="mt-3 grid gap-1.5" aria-label="Actions by kind">
-      {shown.map((k) => (
-        <div key={k} className="grid grid-cols-[84px_minmax(0,1fr)_36px] items-center gap-2">
-          <dt className="text-[12px] font-semibold text-warm-secondary">{COUNT_LABELS[k]}</dt>
-          <div className="h-2.5 overflow-hidden rounded-full bg-muted" aria-hidden>
-            <div className={cn('h-full rounded-full', BAR_CLASS[k])} style={{ width: `${(counts[k] / max) * 100}%` }} />
-          </div>
-          <dd className="text-right text-[12px] font-bold tabular-nums text-foreground">{counts[k]}</dd>
-        </div>
-      ))}
-    </dl>
+    <>
+      {shown.length ? (
+        <dl className="mt-3 grid gap-1.5" aria-label="Actions by kind">
+          {shown.map((k) => (
+            <div key={k} className="grid grid-cols-[84px_minmax(0,1fr)_36px] items-center gap-2">
+              <dt className="text-[12px] font-semibold text-warm-secondary">{COUNT_LABELS[k]}</dt>
+              <div className="h-2.5 overflow-hidden rounded-full bg-card" aria-hidden>
+                <div className={cn('h-full rounded-full', BAR_CLASS[k])} style={{ width: `${(counts[k] / max) * 100}%` }} />
+              </div>
+              <dd className="text-right text-[12px] font-bold tabular-nums text-foreground">{counts[k]}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {counts.other > 0 ? (
+        <p className="mt-2 text-[12px] text-warm-meta">
+          Other ({counts.other}){mostly ? `, mostly: ${mostly}` : ''}
+        </p>
+      ) : null}
+    </>
   );
 }
 
@@ -92,7 +108,7 @@ function DayCard({
         <span className="font-extrabold">{sentence.slice(0, colon + 1)}</span>
         {sentence.slice(colon + 1)}
       </p>
-      <CountBars counts={day.counts} />
+      <CountBars counts={day.counts} events={day.events} />
       <button
         type="button"
         aria-expanded={open}
@@ -174,7 +190,8 @@ export function AdminCheckerLogPersonPage({
   const byDay = useMemo(() => new Map((log?.days ?? []).map((d) => [d.day, d])), [log]);
   const strip = useMemo(() => dayRange(from, today), [from, today]);
   const max = useMemo(() => Math.max(0, ...(log?.days ?? []).map((d) => totalOf(d.counts))), [log]);
-  const activeDays = (log?.days ?? []).filter((d) => totalOf(d.counts) > 0);
+  // A day with only taken-back actions still has a card, so the "(undone)" rows can be read.
+  const activeDays = (log?.days ?? []).filter((d) => totalOf(d.counts) > 0 || d.events.length > 0);
   const rangeTotal = activeDays.reduce((s, d) => s + totalOf(d.counts), 0);
 
   if (checkingAdmin || (loading && !log)) {
@@ -183,13 +200,7 @@ export function AdminCheckerLogPersonPage({
         <AdminHeader nav={nav} signedInEmail={signedIn} />
         {banner}
         <BentoPanel fill="card" className="px-[18px] py-[18px]">
-          <div className="animate-pulse space-y-3" role="status" aria-label="Loading the log">
-            <div className="h-7 w-1/3 rounded-xl bg-muted" />
-            <div className="h-10 rounded-xl bg-muted" />
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="h-32 rounded-[18px] bg-muted" />
-            ))}
-          </div>
+          <AdminLoading shape="cards" rows={3} label="Loading the log" />
         </BentoPanel>
       </BentoStack>
     );
@@ -202,13 +213,10 @@ export function AdminCheckerLogPersonPage({
       <BentoStack className="min-h-screen bg-muted">
         <AdminHeader nav={nav} signedInEmail={signedIn} />
         {banner}
-        <BentoPanel fill="card" className="px-[18px] py-[18px]" role="alert">
-          <p className="text-sm text-foreground">This log did not load. Check your internet and try again.</p>
-          <div className="mt-3 flex gap-2">
-            <button type="button" onClick={() => void load()} className={adminPrimaryBtnStyle}>
-              Try again
-            </button>
-            <Link to="/admin/checker-log" className={adminSecondaryBtnStyle}>
+        <BentoPanel fill="card" className="px-[18px] py-[18px]">
+          <AdminError what="this log" onRetry={() => void load()} />
+          <div className="mt-3">
+            <Link to="/admin/checker-log" className={adminPillClass('secondary', 'sm')}>
               Back to everyone
             </Link>
           </div>
@@ -225,7 +233,7 @@ export function AdminCheckerLogPersonPage({
       <BentoPanel fill="card" className="px-[18px] py-[18px] lg:px-[18px] lg:py-[18px]">
         <Link
           to="/admin/checker-log"
-          className="tap-44 inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand-blue hover:text-brand-blue-deep"
+          className="tap-44 inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-brand-blue hover:text-brand-blue-deep"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
           Everyone in the log
@@ -238,22 +246,12 @@ export function AdminCheckerLogPersonPage({
               {activeDays.length} of the last {range} days
             </p>
           </div>
-          <div className="flex gap-1.5" role="group" aria-label="How far back">
-            {RANGES.map((r) => (
-              <button
-                key={r}
-                type="button"
-                aria-pressed={range === r}
-                onClick={() => setRange(r)}
-                className={cn(
-                  'inline-flex h-10 items-center rounded-full px-4 text-[13px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                  range === r ? 'bg-panel font-bold text-background' : 'bg-muted font-semibold text-warm-secondary hover:bg-warm-hairline',
-                )}
-              >
-                Last {r} days
-              </button>
-            ))}
-          </div>
+          <AdminFilterChips
+            label="How far back"
+            chips={RANGES.map((r) => ({ key: String(r), label: `Last ${r} days`, noCount: true }))}
+            value={String(range)}
+            onChange={(k) => setRange(Number(k) as (typeof RANGES)[number])}
+          />
         </div>
 
         <div className="mt-4">
@@ -300,9 +298,9 @@ export function AdminCheckerLogPersonPage({
           <div className="rounded-2xl bg-muted p-5 text-center">
             <p className="text-[15px] font-semibold text-foreground">Nothing recorded in the last {range} days.</p>
             {range < RANGES[RANGES.length - 1] ? (
-              <button type="button" onClick={() => setRange(RANGES[RANGES.length - 1])} className={cn(adminSecondaryBtnStyle, 'mt-3')}>
+              <AdminPillButton className="mt-3" onClick={() => setRange(RANGES[RANGES.length - 1])}>
                 Look further back
-              </button>
+              </AdminPillButton>
             ) : null}
           </div>
         )}

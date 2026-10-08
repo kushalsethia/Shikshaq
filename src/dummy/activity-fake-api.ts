@@ -30,16 +30,18 @@ function row(r: Partial<ActivityRow> & Pick<ActivityRow, 'at' | 'stream' | 'even
     question_id: null,
     version: null,
     detail: null,
+    question_label: null,
+    paper_title: null,
     ...r,
   };
 }
 
 function seedFeed(): ActivityRow[] {
   return [
-    row({ at: at(2), stream: 'log', event_id: '9001', action: 'checker_printed_typo', actor_user_id: CHECKER_A, actor_kind: 'checker', question_id: Q1, row_id: Q1, version: 4, detail: "the paper printed 'compleetly'" }),
+    row({ at: at(2), stream: 'log', event_id: '9001', action: 'checker_printed_typo', actor_user_id: CHECKER_A, actor_kind: 'checker', question_id: Q1, row_id: Q1, version: 4, question_label: '8', paper_title: 'ICSE Class 10 Maths, 2025', detail: "the paper printed 'compleetly'" }),
     row({ at: at(2), stream: 'version', event_id: '801', action: 'version_update', actor_user_id: CHECKER_A, actor_kind: 'checker', question_id: Q1, row_id: Q1, version: 4, detail: "printed typo corrected by a checker: the paper printed 'compleetly'" }),
     row({ at: at(2), stream: 'check', event_id: '701', action: 'check_printed_typo', actor_user_id: CHECKER_A, actor_kind: 'checker', question_id: Q1, row_id: Q1, version: 3, paper_id: null }),
-    row({ at: at(9), stream: 'log', event_id: '9000', action: 'checker_pass', actor_user_id: CHECKER_B, actor_kind: 'checker', question_id: Q2, row_id: Q2, version: 1 }),
+    row({ at: at(9), stream: 'log', event_id: '9000', action: 'checker_pass', actor_user_id: CHECKER_B, actor_kind: 'checker', question_id: Q2, row_id: Q2, version: 1, question_label: '3(b)', paper_title: 'ICSE Class 10 Maths, 2025', undone: true }),
     row({ at: at(9), stream: 'check', event_id: '700', action: 'check_pass', actor_user_id: CHECKER_B, actor_kind: 'checker', question_id: Q2, row_id: Q2, version: 1, paper_id: null }),
     row({ at: at(40), stream: 'version', event_id: '800', action: 'version_update', actor_label: 'ai:sonnet', actor_kind: 'ai', question_id: Q1, row_id: Q1, version: 3, detail: 'ai-check' }),
     row({ at: at(41), stream: 'check', event_id: '699', action: 'check_fix', actor_label: 'sonnet', actor_kind: 'ai', question_id: Q1, row_id: Q1, version: 2, paper_id: null, detail: 'confidence 0.91' }),

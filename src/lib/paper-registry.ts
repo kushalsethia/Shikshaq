@@ -50,50 +50,50 @@ export const STATE_LOOK: Record<ProcessedState, StateLook> = {
     dot: 'bg-rose-600',
   },
   ocr_queued: {
-    label: 'Reading pages',
-    hint: 'Queued for, or in the middle of, reading the pages.',
+    label: 'Waiting to be read',
+    hint: 'Queued for reading, or in the middle of it.',
     bar: 'bg-amber-300',
     pill: 'bg-amber-100 text-amber-900',
     dot: 'bg-amber-600',
   },
   ocr_done: {
-    label: 'Pages read',
-    hint: 'The pages are read but the paper is not on the desk yet.',
+    label: 'Read, not loaded',
+    hint: 'The pages are read, but the paper is not on the checking desk yet.',
     bar: 'bg-amber-500',
     pill: 'bg-amber-100 text-amber-900',
     dot: 'bg-amber-700',
   },
   loaded: {
-    label: 'On the desk',
-    hint: 'Loaded to the desk, waiting for its checks.',
+    label: 'Loaded, not checked',
+    hint: 'On the checking desk, waiting for its first checks.',
     bar: 'bg-sky-400',
     pill: 'bg-sky-100 text-sky-900',
     dot: 'bg-sky-600',
   },
   ai_checked: {
-    label: 'AI checked',
-    hint: 'The AI pass is done. Students and admin still have questions to clear.',
+    label: 'Checked by the AI',
+    hint: 'The AI pass is done. Verifiers and admins still have questions to clear.',
     bar: 'bg-blue-500',
     pill: 'bg-blue-100 text-blue-900',
     dot: 'bg-blue-600',
   },
   fully_checked: {
-    label: 'Checked',
+    label: 'Fully checked',
     hint: 'Every question is cleared.',
     bar: 'bg-indigo-500',
     pill: 'bg-indigo-100 text-indigo-900',
     dot: 'bg-indigo-600',
   },
   awaiting_approval: {
-    label: 'Waiting for approval',
-    hint: 'Checked, and waiting for an admin to approve it.',
+    label: 'Waiting for your approval',
+    hint: 'Fully checked. It needs an admin to approve it before it goes live.',
     bar: 'bg-violet-500',
     pill: 'bg-violet-100 text-violet-900',
     dot: 'bg-violet-600',
   },
   live: {
-    label: 'On the site',
-    hint: 'Published in the library.',
+    label: 'Live',
+    hint: 'Published in the library for visitors.',
     bar: 'bg-emerald-500',
     pill: 'bg-mint text-[#24603D]',
     dot: 'bg-[#24603D]',
@@ -217,6 +217,23 @@ export function hasMore(total: number, shown: number): boolean {
 /** A row's display name: the PDF, or its key when the PDF name was not sent. */
 export function rowTitle(r: Pick<RegistryRow, 'pdf_name' | 'registry_key'>): string {
   return r.pdf_name?.trim() || r.registry_key;
+}
+
+/** What a row leads with: "ICSE Class X Physics, 2025", or the PDF name when the desk sent no facts. */
+export function rowHeading(r: Pick<RegistryRow, 'board' | 'class' | 'subject' | 'year' | 'pdf_name' | 'registry_key'>): string {
+  const main = [r.board, r.class ? `Class ${r.class}` : null, r.subject]
+    .map((x) => (x ?? '').trim())
+    .filter(Boolean)
+    .join(' ');
+  const year = (r.year ?? '').trim();
+  if (!main) return rowTitle(r);
+  return year ? `${main}, ${year}` : main;
+}
+
+/** Under the heading: the PDF name, then the school. Skips the PDF name when it is the heading already. */
+export function rowSubline(r: Pick<RegistryRow, 'board' | 'class' | 'subject' | 'year' | 'pdf_name' | 'registry_key' | 'school'>): string {
+  const parts = [rowHeading(r) === rowTitle(r) ? '' : rowTitle(r), (r.school ?? '').trim()].filter(Boolean);
+  return parts.join(', ');
 }
 
 /** "ICSE, Class X, Physics, 2025" with whatever is known, no stray commas. */

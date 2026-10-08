@@ -16,7 +16,7 @@
  * No em or en dashes anywhere in the copy.
  */
 
-import { format, isSameYear } from 'date-fns';
+import { format, formatDistance, isSameYear } from 'date-fns';
 
 // ---------------------------------------------------------------------------
 // Who
@@ -393,6 +393,11 @@ export const ACTION_LABELS: Record<string, (c: Ctx) => string> = {
   // the HOD and the AI trust levels
   admin_add_hod: () => 'made someone an HOD',
   admin_remove_hod: () => 'removed someone as an HOD',
+  // the admin audit trail (admin_audit_log), written from the Verifiers page
+  grant_hod: () => 'made someone an HOD',
+  revoke_hod: () => 'removed someone as an HOD',
+  grant_checker: () => 'gave someone checker access',
+  revoke_checker: () => 'removed checker access',
   hod_send_back: (c) => `sent ${c.q} back to the checkers`,
   hod_set_aside: (c) => `set ${c.q} aside`,
   hod_assign_paper: () => 'gave a paper to a verifier',
@@ -487,6 +492,13 @@ export function timeWords(at: string | Date, now: Date = new Date()): string {
   const d = typeof at === 'string' ? new Date(at) : at;
   if (Number.isNaN(d.getTime())) return 'at an unknown time';
   return format(d, isSameYear(d, now) ? 'd MMM, h:mm aaa' : 'd MMM yyyy, h:mm aaa');
+}
+
+/** "5 minutes ago": the relative form, used as the hover title beside an absolute time. */
+export function relativeWords(at: string | Date, now: Date = new Date()): string {
+  const d = typeof at === 'string' ? new Date(at) : at;
+  if (Number.isNaN(d.getTime())) return '';
+  return formatDistance(d, now, { addSuffix: true });
 }
 
 /** The predicate of a history sentence: "changed the question text on question 5". */
