@@ -1,19 +1,26 @@
-import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { PREVIEW_TOOLS } from '@/lib/preview-tools';
+import { isDummyMode } from '@/lib/dummy-mode';
 
 /* Shared by every /admin/* page for its nav badges: real counts only, never a
    placeholder, head-count queries only (no row bodies).
 
-   Load cost, measured by reading the code: this ran on every one of the 13
-   admin pages and fired 4 count queries each time, uncached, so moving between
-   tabs paid 4 round trips every time. It is now one React Query entry shared
-   by every page (60 s fresh, kept 10 min), so a tab change costs nothing.
+   Load cost: one React Query entry shared by every page (60 s fresh, kept
+   10 min, refetched when the tab regains focus once stale), so a tab change
+   costs nothing.
+
+   ZERO IS QUIET, UNKNOWN IS LOUD. A count that could not be read is left
+   `undefined` and named in `failed`; it is never coerced to 0. The shell shows
+   a muted "?" for it and offers Retry. A real 0 shows no badge at all.
 
    If the server has admin_nav_counts() (20261003130000_admin_queue_library.sql),
-   one call returns all five numbers, including Ready to go live and the Admin
-   queue. Until it is applied the four count queries below answer, and the two
-   new badges are simply left off. The choice is remembered for the session so
-   a missing function is not retried on every page. */
+   one call returns four of the five numbers. If that call fails, the plain
+   head-counts answer for the three they can cover, and Ready to go live and
+   the Admin queue are reported as failed (status "partial"). The student
+   uploads count is always its own head-count, run in parallel. A missing
+   function is remembered for the session so it is not retried on every page. */
 
 export interface AdminSectionCounts {
   /** Teacher applications waiting. */
@@ -24,9 +31,52 @@ export interface AdminSectionCounts {
   paperApprovals?: number;
   /** Questions waiting in the Admin queue. */
   adminQueue?: number;
+  /** Student uploads waiting to be read and decided. */
+  submissions?: number;
+}
+
+export type AdminCountField = keyof AdminSectionCounts;
+
+export const ADMIN_COUNT_FIELDS: AdminCountField[] = ['paperApprovals', 'adminQueue', 'submissions', 'approvals', 'reviews'];
+
+/** What one read of the counts produced: the numbers it got, and the fields it did not. */
+export interface AdminCountsResult {
+  counts: AdminSectionCounts;
+  failed: AdminCountField[];
+}
+
+export type AdminCountsStatus = 'loading' | 'ok' | 'partial' | 'error';
+
+export interface AdminCountsState {
+  counts: AdminSectionCounts;
+  status: AdminCountsStatus;
+  /** Fields that could not be read. Empty when status is "ok" or "loading". */
+  failed: AdminCountField[];
+  refetch: () => void;
 }
 
 let oneCallMissing = false;
+/** Test hook: forget that the function was missing. */
+export function resetAdminCountsMemory(): void {
+  oneCallMissing = false;
+}
+
+const num = (v: unknown): number | undefined =>
+  typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && v !== '' && Number.isFinite(Number(v)) ? Number(v) : undefined;
+
+/** A head-count that failed or came back without a number is `undefined`, never 0. */
+function headCount(r: { count: number | null; error: unknown }): number | undefined {
+  return r.error ? undefined : typeof r.count === 'number' ? r.count : undefined;
+}
+
+/** Pending student uploads: the inbox (paper_submissions), not the papers library. */
+async function submissionsCount(): Promise<number | undefined> {
+  try {
+    return headCount(await supabase.from('paper_submissions').select('id', { count: 'exact', head: true }).eq('status', 'pending'));
+  } catch {
+    return undefined;
+  }
+}
 
 async function viaOneCall(): Promise<AdminSectionCounts | null> {
   if (oneCallMissing) return null;
@@ -40,12 +90,11 @@ async function viaOneCall(): Promise<AdminSectionCounts | null> {
   const raw = data as unknown;
   const d = (Array.isArray(raw) ? raw[0] : raw) as Record<string, unknown> | null;
   if (!d) return null;
-  const n = (v: unknown) => (typeof v === 'number' ? v : typeof v === 'string' && v !== '' && Number.isFinite(Number(v)) ? Number(v) : undefined);
   return {
-    approvals: n(d.applications),
-    reviews: n(d.reviews),
-    paperApprovals: n(d.ready),
-    adminQueue: n(d.admin_queue),
+    approvals: num(d.applications),
+    reviews: num(d.reviews),
+    paperApprovals: num(d.ready),
+    adminQueue: num(d.admin_queue),
   };
 }
 
@@ -55,22 +104,76 @@ async function viaCounts(): Promise<AdminSectionCounts> {
     supabase.from('teacher_comments').select('id', { count: 'exact', head: true }).eq('approved', false),
     supabase.from('teacher_recommendations').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
   ]);
+  const c = headCount(comments);
+  const r = headCount(recommendations);
   return {
-    approvals: approvals.count ?? undefined,
-    reviews: (comments.count ?? 0) + (recommendations.count ?? 0),
+    approvals: headCount(approvals),
+    // Half a number is not a number: if either source failed, reviews is unknown.
+    reviews: c === undefined || r === undefined ? undefined : c + r,
   };
+}
+
+/** Reads every count once. Never throws for a failed count; a field that could
+ *  not be read is left out and listed in `failed`. */
+export async function fetchAdminCounts(): Promise<AdminCountsResult> {
+  const [oneCall, submissions] = await Promise.all([
+    viaOneCall().catch(() => null),
+    submissionsCount(),
+  ]);
+  const base: AdminSectionCounts = oneCall ?? (await viaCounts().catch(() => ({} as AdminSectionCounts)));
+  const counts: AdminSectionCounts = { ...base, submissions };
+  const failed = ADMIN_COUNT_FIELDS.filter((f) => counts[f] === undefined);
+  return { counts, failed };
 }
 
 export const ADMIN_COUNTS_KEY = ['admin', 'section-counts'] as const;
 
-export function useAdminSectionCounts(): AdminSectionCounts {
-  const { data } = useQuery({
+/** The state of the counts: the numbers, which ones failed, and a retry. */
+export function useAdminCountsState(): AdminCountsState {
+  const q = useQuery({
     queryKey: ADMIN_COUNTS_KEY,
-    queryFn: async () => (await viaOneCall()) ?? (await viaCounts()),
+    queryFn: async (): Promise<AdminCountsResult> => {
+      // Dynamic, never static: the fake must not reach a live bundle.
+      if (PREVIEW_TOOLS && isDummyMode()) return (await import('@/dummy/admin-counts-fake')).fakeCounts();
+      return fetchAdminCounts();
+    },
     staleTime: 60_000,
     gcTime: 10 * 60_000,
     retry: false,
-    refetchOnWindowFocus: false,
+    // The nav is the only place these numbers live, and it is one cheap read,
+    // so it is worth refreshing when the admin comes back to the tab.
+    refetchOnWindowFocus: true,
   });
-  return data ?? {};
+  const { refetch: queryRefetch } = q;
+  const refetch = useCallback(() => {
+    void queryRefetch();
+  }, [queryRefetch]);
+  return deriveCountsState(q.data, q.isError, refetch);
+}
+
+/** Pure so it can be tested: status from what the query holds. */
+export function deriveCountsState(
+  data: AdminCountsResult | undefined,
+  isError: boolean,
+  refetch: () => void,
+): AdminCountsState {
+  if (data) {
+    const status: AdminCountsStatus = data.failed.length === 0 ? 'ok' : data.failed.length >= ADMIN_COUNT_FIELDS.length ? 'error' : 'partial';
+    return { counts: data.counts, status, failed: data.failed, refetch };
+  }
+  if (isError) return { counts: {}, status: 'error', failed: [...ADMIN_COUNT_FIELDS], refetch };
+  return { counts: {}, status: 'loading', failed: [], refetch };
+}
+
+/** The plain numbers, for pages that only need to pass them to buildAdminNav. */
+export function useAdminSectionCounts(): AdminSectionCounts {
+  return useAdminCountsState().counts;
+}
+
+/** Call from a queue mutation's onSuccess so the nav badges tick down at once. */
+export function useRefreshAdminCounts(): () => void {
+  const qc = useQueryClient();
+  return useCallback(() => {
+    void qc.invalidateQueries({ queryKey: ADMIN_COUNTS_KEY });
+  }, [qc]);
 }

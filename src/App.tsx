@@ -70,6 +70,7 @@ const LocalityPage = lazy(() => import("./pages/LocalityPage"));
 const WhatsAppRedirect = lazy(() => import("./pages/WhatsAppRedirect"));
 const BoardPage = lazy(() => import("./pages/BoardPage"));
 const RecommendTeacher = lazy(() => import("./pages/RecommendTeacher"));
+const AdminOverview = lazy(() => import("./pages/admin/index"));
 const AdminApprovals = lazy(() => import("./pages/admin/approvals"));
 const AdminTeachersPage = lazy(() => import("./pages/admin/teachers"));
 const AdminPapersPage = lazy(() => import("./pages/admin/papers"));
@@ -332,7 +333,7 @@ const App = () => (
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/recommend-teacher" element={<RecommendTeacher />} />
-              <Route path="/admin" element={<Navigate to="/admin/approvals" replace />} />
+              <Route path="/admin" element={<AdminOverview />} />
               <Route path="/admin/approvals" element={<AdminApprovals />} />
               <Route path="/admin/teachers" element={<AdminTeachersPage />} />
               <Route path="/admin/papers" element={<AdminPapersPage />} />

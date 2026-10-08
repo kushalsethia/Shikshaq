@@ -1,12 +1,14 @@
-import { Info } from 'lucide-react';
+import { useId } from 'react';
+import { ChevronDown, Info } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { useRememberedOpen } from '@/lib/use-remembered-open';
 import { BentoPanel } from '@/components/layout/PageContainer';
 import { ADMIN_PAGES, TIPS, type AdminPageKey, type TipKey } from '@/lib/admin-hints';
 
 /* The two pieces of help every admin page shares: a small "i" that opens a
    one-line explanation (a popover, so it works on a phone as well as with a
-   mouse), and the "What this page is for" strip under the nav. All wording
+   mouse), and the one-line page strip with its Help disclosure. All wording
    lives in src/lib/admin-hints.ts. */
 
 export function InfoTip({ tip, text, label, className }: { tip?: TipKey; text?: string; label?: string; className?: string }) {
@@ -33,31 +35,54 @@ export function InfoTip({ tip, text, label, className }: { tip?: TipKey; text?: 
   );
 }
 
-/** "What this page is for" plus what each button does. */
+/** One line about the page, plus a "Help" disclosure holding what the page is
+ *  for, the flow, and what each button does. Open on a page's first visit only;
+ *  after that it stays as the admin left it (remembered in this browser, with a
+ *  safe fallback when storage is blocked). On a phone this is one short row, so
+ *  the first number on the page is not pushed below the fold. */
 export function AdminPageIntro({ page, className }: { page: AdminPageKey; className?: string }) {
   const copy = ADMIN_PAGES[page];
+  const [open, setOpen] = useRememberedOpen(`admin-help:${page}`);
+  const panelId = useId();
   return (
-    <section
-      aria-label="What this page is for"
-      className={cn('rounded-[18px] bg-brand-blue-subtle px-4 py-3.5 lg:px-5', className)}
-    >
-      <p className="text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">What this page is for</p>
-      <p className="mt-1 text-pretty text-[14px] leading-[1.55] text-foreground">{copy.purpose}</p>
-      <p className="mt-1 text-pretty text-[13px] leading-[1.5] text-warm-secondary">{copy.flow}</p>
-      {copy.buttons.length > 0 ? (
-        <details className="group mt-2">
-          <summary className="inline-flex min-h-8 cursor-pointer list-none items-center text-[13px] font-bold text-brand-blue marker:hidden [&::-webkit-details-marker]:hidden">
-            What the buttons do
-          </summary>
-          <dl className="mt-1 space-y-1.5">
-            {copy.buttons.map((b) => (
-              <div key={b.label} className="text-[13px] leading-[1.5]">
-                <dt className="inline font-bold text-foreground">{b.label}: </dt>
-                <dd className="inline text-warm-secondary">{b.does}</dd>
-              </div>
-            ))}
-          </dl>
-        </details>
+    <section aria-label="About this page" className={cn('rounded-[18px] bg-brand-blue-subtle px-4 py-1.5 lg:px-5', className)}>
+      <div className="flex items-center gap-2">
+        <p
+          className="min-w-0 flex-1 text-pretty my-1.5 text-[13px] leading-[1.45] text-foreground line-clamp-2 sm:line-clamp-1"
+          title={copy.short}
+        >
+          {copy.short}
+        </p>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen(!open)}
+          className="relative inline-flex min-h-10 shrink-0 items-center gap-1 rounded-full px-3 text-[13px] font-bold text-brand-blue transition-colors duration-150 hover:bg-card/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Help
+          <ChevronDown className={cn('h-4 w-4 transition-transform duration-150 motion-reduce:transition-none', open && 'rotate-180')} aria-hidden />
+        </button>
+      </div>
+      {open ? (
+        <div id={panelId} className="border-t border-brand-blue/10 pb-3 pt-2.5">
+          <p className="text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">What this page is for</p>
+          <p className="mt-1 text-pretty text-[14px] leading-[1.55] text-foreground">{copy.purpose}</p>
+          <p className="mt-1 text-pretty text-[13px] leading-[1.5] text-warm-secondary">{copy.flow}</p>
+          {copy.buttons.length > 0 ? (
+            <>
+              <p className="mt-2.5 text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">What the buttons do</p>
+              <dl className="mt-1 space-y-1.5">
+                {copy.buttons.map((b) => (
+                  <div key={b.label} className="text-[13px] leading-[1.5]">
+                    <dt className="inline font-bold text-foreground">{b.label}: </dt>
+                    <dd className="inline text-warm-secondary">{b.does}</dd>
+                  </div>
+                ))}
+              </dl>
+            </>
+          ) : null}
+        </div>
       ) : null}
     </section>
   );
