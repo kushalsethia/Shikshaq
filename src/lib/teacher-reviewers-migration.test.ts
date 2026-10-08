@@ -40,7 +40,17 @@ describe('teacher reviewers migration', () => {
 
   it('every function it creates is named in the lock-down block', () => {
     const lock = code.slice(code.search(/do \$lock\$/i));
-    for (const fn of created) expect(lock, fn).toContain(`public.${fn}(`);
+    // protect_teacher_fields is a trigger function: no client role may run it,
+    // so it is revoked on its own (no grant), not in the grant loop.
+    for (const fn of created.filter((f) => f !== 'protect_teacher_fields')) expect(lock, fn).toContain(`public.${fn}(`);
+    expect(code).toContain('revoke all on function public.protect_teacher_fields() from public, anon, authenticated;');
+  });
+
+  it('a reviewer rename survives protect_teacher_fields, slug and email stay protected', () => {
+    expect(code).toContain("perform set_config('shikshaq.reviewer_edit', 'on', true);");
+    expect(code).toMatch(/if not v_reviewer and old\."Title" is distinct from new\."Title"/);
+    expect(code).toMatch(/if old\."Slug" is distinct from new\."Slug" then\s+new\."Slug" := old\."Slug";/);
+    expect(code).toMatch(/if old\."Email ID" is distinct from new\."Email ID" then\s+new\."Email ID" := old\."Email ID";/);
   });
 
   it('the lock-down revokes from public, anon and authenticated by name, then grants to authenticated only', () => {

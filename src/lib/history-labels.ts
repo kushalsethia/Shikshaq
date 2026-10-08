@@ -396,6 +396,7 @@ export const ACTION_LABELS: Record<string, (c: Ctx) => string> = {
   hod_set_preferred_subjects: () => 'set the preferred subjects of a verifier',
   verifier_request_subjects: () => 'asked for preferred subjects',
   verifier_set_my_profile: () => 'filled in their own grade, school and board',
+  owner_reroute_to_verifiers: () => 'sent questions the AI had settled on its own to verifiers, so people check them',
   admin_set_ai_trust: () => 'changed which AI confidence levels are trusted',
   ai_trust_auto_off: () => 'stopped trusting an AI confidence level because people corrected it too often',
   ai_trust_sample: (c) => `sent ${c.q} to a checker to measure the AI`,
