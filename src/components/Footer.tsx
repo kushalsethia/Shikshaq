@@ -155,7 +155,7 @@ function Fig({ to, value, children }: { to: string; value: number | null; childr
     <Link
       to={to}
       className={cn(
-        'inline whitespace-nowrap rounded-full px-2 py-0.5',
+        'tap-44 inline whitespace-nowrap rounded-full px-2 py-0.5',
         'bg-white/10 text-white transition-colors duration-hover hover:bg-white/20',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel',
       )}
@@ -178,7 +178,7 @@ function Act({ to, children, tone = 'brand' }: { to: string; children: React.Rea
     <Link
       to={to}
       className={cn(
-        'inline whitespace-nowrap rounded-full px-1.5 py-0.5 font-semibold',
+        'tap-44 inline whitespace-nowrap rounded-full px-1.5 py-0.5 font-semibold',
         'transition-colors duration-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel',
         tone === 'brand'
           ? 'bg-brand text-brand-foreground hover:bg-brand/85'

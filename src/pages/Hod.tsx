@@ -172,7 +172,7 @@ export function HodPage({
           </div>
         </div>
 
-        <div role="tablist" aria-label="HOD view" className="mb-5 flex max-w-full flex-wrap items-center gap-1 rounded-[22px] bg-muted p-1 sm:inline-flex sm:rounded-full">
+        <div role="tablist" aria-label="HOD view" className="mb-5 flex max-w-full flex-wrap items-center gap-1 rounded-[20px] bg-muted p-1 sm:inline-flex sm:rounded-full">
           {TABS.map((t) => (
             <button
               key={t.key}

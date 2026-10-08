@@ -233,7 +233,7 @@ export const adminDestructiveBtnStyle =
  * AdminConsole.md "Toast"): a dark pill, bottom-center, with an optional
  * Undo action. Wraps the app's existing `sonner` toast (already used by
  * every admin page and the rest of the app) rather than introducing the
- * separate shadcn use-toast system, which is mounted but otherwise unused.
+ * separate shadcn use-toast system, which has been removed.
  */
 export function adminToast(message: string, opts?: { description?: string; undo?: () => void }) {
   sonnerToast(message, {

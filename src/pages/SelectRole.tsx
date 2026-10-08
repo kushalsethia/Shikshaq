@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
 import { BentoPanel } from '@/components/layout/PageContainer';
+import { PageLoader } from '@/components/layout/PageLoader';
 import { usePageMeta } from '@/hooks/usePageMeta';
 
 const FIELD_CLASS = 'flex h-[52px] w-full items-center rounded-2xl bg-muted px-4 text-base text-foreground outline-none shikshaq-role-field';
@@ -171,16 +172,7 @@ export default function SelectRole() {
 
   // Show loading state only while checking auth or initial role check
   if (authLoading || checkingRole) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
-            <p className="text-muted-foreground text-base">Loading...</p>
-          </div>
-        </main>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   // If user already has a role, don't render (they should be redirected)
