@@ -92,7 +92,23 @@ forward.
 Parent · student (ICSE, CBSE, ISC; Classes IV to XII) · teacher (applying,
 live, paused) · paper contributor · admin · a school that set a paper ·
 Google (crawl, prerender, schema) · a phone on patchy 4G · a screen-reader
-user.
+user · a verifier (a student checking papers) · the HOD · a teacher reviewer
+(approves, rejects and edits teachers without being an admin).
+
+The verify flow is judged as a place a person works for an hour, on a phone as
+well as a laptop. Mistakes must be cheap and say so in plain words:
+
+- **Undo last** is always in reach, switched off only when there is nothing to
+  take back, and a refusal says why in a sentence (it works for 30 minutes, on
+  your own answers only).
+- **Skip for later** is never refused, not even on the last question. A skipped
+  question stays on its paper; the screen says how many are waiting and offers
+  to go through them or move to another paper.
+- **OR between two questions** has one obvious path for each case: Split at the
+  OR when two questions are joined, and "This is just the OR" for a row that is
+  only the word. The preview says the OR is left out.
+- The help page, the first-visit tour and the practice round all teach these
+  three, and the practice round stays local (no network, nothing saved).
 
 ## Severity
 

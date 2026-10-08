@@ -243,7 +243,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         </div>
         <p className="mb-2 text-[13px] text-warm-secondary">
           Papers go to verifiers automatically, a whole paper to one verifier and never above their grade. A verifier with no grade recorded can get any
-          paper. A paper whose class is not known goes only to Class 12 verifiers or those with no grade. A paper with nothing done on it for 7 days comes back
+          paper. A paper whose class is not known can go to any verifier. A paper with nothing done on it for 7 days comes back
           here by itself.
         </p>
         {unassignedQ.isError ? (

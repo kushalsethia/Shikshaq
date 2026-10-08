@@ -3,6 +3,7 @@ import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { actionToneClass } from '@/lib/checker-button-styles';
 import {
+  CHECKER_HELP_EXTRAS,
   CHECKER_PATH,
   CHECKER_PRACTICE_PATH,
   CHECKER_RULES,
@@ -37,6 +38,16 @@ export default function CheckerHelp() {
             </li>
           ))}
         </ol>
+
+        <h2 className="mb-2 mt-6 text-[16px] font-bold text-foreground">Taking back, skipping and OR</h2>
+        <ul className="flex flex-col gap-2" data-testid="checker-help-extras">
+          {CHECKER_HELP_EXTRAS.map((r) => (
+            <li key={r.title} className="rounded-2xl bg-muted p-3">
+              <p className="text-[14px] font-semibold text-foreground">{r.title}</p>
+              <p className="mt-0.5 text-pretty text-[14px] leading-snug text-warm-secondary">{r.body}</p>
+            </li>
+          ))}
+        </ul>
 
         <h2 className="mb-2 mt-6 text-[16px] font-bold text-foreground">Keyboard shortcuts</h2>
         <p className="mb-2 text-[13px] text-warm-secondary">

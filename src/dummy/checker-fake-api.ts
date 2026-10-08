@@ -4,8 +4,9 @@
  * page runs unchanged; nothing here touches Supabase.
  *
  * It copies the server's rules that the page depends on: kid questions in
- * order, a skipped question comes back at the end of its paper (the old
- * one-queue nextQuestion still hides it), subject/class picks filter
+ * order, a skipped question waits on its paper until the verifier asks to
+ * go through the skipped ones (the old one-queue nextQuestion still hides
+ * it), subject/class picks filter
  * exactly, a split counts characters (code points) like Postgres left(),
  * refuses 0 or the end, and a blank question cannot be passed. `simulate`
  * lets the preview force the failure states a real checker hits.
@@ -92,7 +93,7 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export function createFakeCheckerApi(): FakeCheckerApi {
   let queue: CheckerQuestion[] = dummyQuestions();
   let skipped = new Set<string>();
-  /** When each question was last skipped, so skipped ones come back earliest first. */
+  /** When each question was last skipped. Skipped ones wait on the paper and are served only on request, earliest first. */
   const skipOrder = new Map<string, number>();
   let skipClock = 0;
   let prefs: { subjects: string[] | null; classes: string[] | null; chosen: boolean } = {

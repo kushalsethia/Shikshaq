@@ -1,8 +1,34 @@
 # Supabase runbook
 
-## Pending, 2026-10-02: `20261002090000_checker_versions_and_activity.sql` (site PR D)
+## State of the migrations, 2026-10-08
 
-**NOT APPLIED.** Needs the owner's yes. Rehearsed against live inside one
+**Applied to the live project** (checked against `supabase_migrations.schema_migrations`
+on 2026-10-08; the live version stamp is the apply time, not the file name):
+every migration from `20261002090000` through `20261008160000`, that is
+`20261007100000` (checker assignments and the HOD) to `20261008160000` (skip for
+later), which includes `20261008120000_teacher_reviewers.sql`,
+`20261008140000_verifier_undo_last.sql` and
+`20261008150000_verifier_or_alternatives.sql`.
+
+**Pending rehearsal:** `20261008170000_cascade_undo_skip_or.sql`. Not applied.
+It moves the remaining counters onto the counted views, gives
+`checker_settle_current` the one skip rule, carries the OR link through the
+publish paths, lets an unknown class go to any verifier, and marks undone rows in
+the history readers. It changes no table. Rehearse it inside one transaction that
+raises at the end (see the technique in the maintainers' notes), run the verify
+and grants blocks, then apply with the owner's yes. One function is dropped and
+created again (`hod_action_history`, one more column), so open it as an HOD
+afterwards and check the History tab.
+
+Not a migration, and not reversible by one: the 2026-10-08 reroute of 5,151
+AI-only questions to verifiers (backup in `public._reroute_backup_20261008`).
+See docs/GUARDRAILS.md.
+
+---
+
+## Applied, 2026-10-02: `20261002090000_checker_versions_and_activity.sql` (site PR D)
+
+*(Historical. Applied since; kept for what it added.)* Was: needs the owner's yes. Rehearsed against live inside one
 transaction that raised at the end, so nothing was kept. Apply it **before**
 merging PR D: the new checker sends the version it saw, and without this
 migration the questions carry no version, so the site falls back to the old

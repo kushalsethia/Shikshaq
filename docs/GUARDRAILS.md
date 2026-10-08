@@ -435,6 +435,56 @@ reproducible from this repo alone.
 - `ACCEPTED` Stale-edit protection on admin edits is not built here; the
       planned versions migration adds one version lock to every write.
 
+### Teachers, verifiers and AI trust (2026-10-08)
+
+- [x] **Teacher reviewer contact access.** An admin or the HOD grants the role
+      (`hod_add_teacher_reviewer`, `hod_remove_teacher_reviewer`; migration
+      `20261008120000_teacher_reviewers.sql`). A reviewer reads applications and
+      listed teachers, **phone and email included**, and edits details, only
+      through the `reviewer_*` SECURITY DEFINER functions, each of which checks
+      `is_teacher_reviewer()` inside and writes a row to `admin_audit_log`. They
+      return no verification-document column (the only image is the teacher's
+      own profile photo). No RLS policy on `teacher_applications` or
+      `Shikshaqmine` was created or widened. A reviewer cannot pause or delete a
+      listing, change a slug, id or email, upload a photo, or edit a listed
+      teacher's contact columns. Measured 2026-10-08: **148** teachers listed
+      (147 not paused), all 148 with a phone number and 127 with an email; 63
+      teacher applications; 0 active reviewers so far. The privacy policy says
+      who can see contact details and that each such action is logged.
+- [x] **AI trust is earned per level, never assumed.** A level (high, medium or
+      low confidence, per decision) is trusted only when an admin presses the
+      switch and only after **97% over at least 100 person checks** (it was 200;
+      lowered by the owner on 2026-10-08, `20261008110000_ai_trust_bar_100.sql`).
+      While trusted, **1 in 20** trusted questions is still sent to a person as a
+      spot check, and anything the AI marks as an issue always goes to a person.
+      The level **switches itself off** when its latest 100 checks fall below
+      97%; `ai_trust_recheck` runs with the daily pipeline and before every AI
+      apply. The bar lives in one function, `ai_trust_bar()` (service role only).
+- `ACCEPTED` **The 2026-10-08 reroute of 5,151 AI-only questions to verifiers
+      cannot be reversed by a button.** It changed `audit_questions` review piles
+      in bulk. The previous state of the touched rows is kept in
+      `public._reroute_backup_20261008` (5,181 rows measured on 2026-10-08, a
+      superset of the 5,151 rerouted). Undoing it means restoring from that
+      table by hand and is a data change that needs the owner's yes; it is not a
+      migration and has no undo in the app. Do not drop the table casually.
+- [x] **Verifier undo and the counted views.** A verifier can take back their own
+      last answers for 30 minutes (`verifier_undo_last`, migration
+      `20261008140000_verifier_undo_last.sql`). Nothing is deleted:
+      `audit_review_log` and `content_checks` gain `undone_at` / `undone_by`, a
+      `verifier_undo` row says what happened, and every counter reads
+      `audit_review_log_counted` / `content_checks_counted`, which leave undone
+      rows out (the views are `security_invoker`, readable by service_role and the
+      definer functions only). `20261008170000_cascade_undo_skip_or.sql` moved the
+      readers it had missed onto the views (admin Checkers list, approval queue,
+      paper progress, AI backfill, HOD escalations, idle return) and made the
+      day log count only standing rows. History pages read the real tables and
+      show an undone row marked "(undone)". Refusals: someone else touched the
+      question since, the HOD already answered, the paper went for approval, or
+      (live_copy papers) it already passed and reached the library.
+- `ACCEPTED` **An unknown class goes to any verifier** (owner, 2026-10-08). A
+      verifier with no grade still counts as Class 12. A skipped question waits on
+      the paper (no day window) and the paper stays open for that verifier.
+
 ## 3. Reliability and observability
 
 This is the weakest area and the one with the least attention on it.

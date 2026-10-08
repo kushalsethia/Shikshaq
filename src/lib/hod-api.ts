@@ -178,7 +178,7 @@ export const TEAM_COLUMNS: TeamColumn[] = [
   { key: 'passed_as_is', label: 'Passed as is', hint: 'Questions they said looked right without changing anything.' },
   { key: 'edited', label: 'Fixed', hint: 'Questions where they changed the words, number or marks.' },
   { key: 'escalated', label: 'Sent to HOD', hint: 'Questions they asked the HOD about.' },
-  { key: 'skipped', label: 'Skipped', hint: 'Questions they skipped.' },
+  { key: 'skipped', label: 'Skipped', hint: 'Questions they skipped. They wait on the paper until the verifier goes back to them.' },
   { key: 'overturned', label: 'Later corrected', hint: 'Questions they passed that someone else later fixed.' },
   { key: 'last_active', label: 'Last active', hint: 'When they last checked a question.' },
 ];
@@ -235,7 +235,7 @@ export function pickBlock(profile: HodVerifierProfile | undefined, paperClass: s
   if (profile?.expired) return 'details expired';
   if (!profile || profile.missing || profile.grade == null) return null;
   const need = classGrade(paperClass);
-  if (need != null && need > profile.grade) return 'paper above their class';
+  if (need != null && need > profile.grade) return 'paper above their grade';
   return null;
 }
 
@@ -325,6 +325,8 @@ export interface HistoryRow {
   question_id: string | null;
   question_number: string | null;
   note: string | null;
+  /** The verifier took this action back (Undo last). Only present when true. */
+  undone?: boolean;
 }
 
 export function normaliseHistory(raw: unknown): HistoryRow[] {
@@ -346,6 +348,7 @@ export function normaliseHistory(raw: unknown): HistoryRow[] {
       question_id: str(r.question_id),
       question_number: str(r.question_number),
       note: str(r.note),
+      ...(r.undone === true ? { undone: true } : {}),
     });
   }
   return out;

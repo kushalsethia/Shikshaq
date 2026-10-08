@@ -159,9 +159,10 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p className={pClass}>
-          Your searches and saved teachers are private to you. Teacher verification documents are visible
-          only to the two of us who run Shikshaq, are never published, and are never shared with another
-          teacher or a school.
+          Your searches and saved teachers are private to you. Teacher applications and contact details are
+          visible only to Shikshaq's admins and the teacher reviewers they or the HOD appoint. Each such
+          action is logged. Verification documents are never published or shared with another teacher or a
+          school.
         </p>
         <h3 className={h3Class}>4.1 Google OAuth</h3>
         <p className={pClass}>
@@ -589,7 +590,7 @@ export default function PrivacyPolicy() {
       pillTone="blue"
       h1="What we know about you"
       lede="Short version: your phone number is the only sensitive thing we hold, we never sell it, and it is shown to a teacher only when you choose to message them. Each section below opens with the plain-English version, followed by the exact clause it summarizes."
-      updated="Last updated 12 August 2026 · written to be read, not skimmed"
+      updated="Last updated 8 October 2026 · written to be read, not skimmed"
       accent="blue"
       summary={[
         { head: 'We never sell data', text: 'Not to coaching centres, not to advertisers, not to anyone. There is no data business here.', tone: 'blue' },

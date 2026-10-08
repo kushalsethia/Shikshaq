@@ -58,14 +58,14 @@ describe('pickBlock: what the HOD cannot pick, before pressing', () => {
     expect(pickBlock(prof({}), 'unknown')).toBeNull();
   });
   it('blocks above a recorded grade and expired details only', () => {
-    expect(pickBlock(prof({}), 'XII')).toBe('paper above their class');
+    expect(pickBlock(prof({}), 'XII')).toBe('paper above their grade');
     expect(pickBlock(prof({ expired: true }), 'X')).toBe('details expired');
     expect(pickBlock(prof({ expired: true, grade: null }), 'X')).toBe('details expired');
   });
   it('a plain integer compare still works at both new ends (20261008130000)', () => {
     // Under grade 6 is 5: classes up to V, nothing above.
     expect(pickBlock(prof({ grade: 5 }), 'V')).toBeNull();
-    expect(pickBlock(prof({ grade: 5 }), 'VI')).toBe('paper above their class');
+    expect(pickBlock(prof({ grade: 5 }), 'VI')).toBe('paper above their grade');
     // UG and Beyond UG (13 to 17) sit above every paper class.
     for (const g of [13, 14, 15, 16, 17]) expect(pickBlock(prof({ grade: g }), 'XII')).toBeNull();
   });
@@ -118,7 +118,11 @@ describe('dummy verifier can fill in their own details', () => {
 
 /* The owner's loophole answers, 7 Oct 2026 (20261007140000): idle papers
    come back after 7 days, a skipped question goes to the end of the paper,
-   a paper with no class goes only to Class 12 verifiers. */
+   a paper with no class goes only to Class 12 verifiers. The last two were
+   changed on 8 Oct 2026: skipped questions now wait on the paper until the
+   verifier goes back to them (20261008160000), and a paper with no class can
+   go to any verifier (20261008170000). This file pins the 7 Oct migration as
+   it was written. */
 
 const sql = readFileSync(resolve(__dirname, '../../supabase/migrations/20261007140000_verifier_loophole_rules.sql'), 'utf8');
 
@@ -130,7 +134,7 @@ describe('20261007140000 verifier loophole rules', () => {
     expect(sql).toContain("x.closed_reason like 'nothing done for %'");
   });
 
-  it('treats an unknown class as Class 12 in the hand-out', () => {
+  it('as written on 7 Oct, treated an unknown class as Class 12 in the hand-out (later changed to any verifier)', () => {
     expect(sql).toContain('coalesce(public.class_grade(ap.class), 12) as grade');
     expect(sql).not.toContain('public.class_grade(ap.class) is not null');
   });

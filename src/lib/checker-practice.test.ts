@@ -130,9 +130,9 @@ function rightAnswer(q: PracticeQuestion): PracticeAnswer {
 }
 
 describe('practice questions', () => {
-  it('has 5 to 8 questions, each with its own id', () => {
+  it('has 5 to 10 questions, each with its own id', () => {
     expect(PRACTICE_QUESTIONS.length).toBeGreaterThanOrEqual(5);
-    expect(PRACTICE_QUESTIONS.length).toBeLessThanOrEqual(8);
+    expect(PRACTICE_QUESTIONS.length).toBeLessThanOrEqual(10);
     expect(new Set(PRACTICE_QUESTIONS.map((q) => q.id)).size).toBe(PRACTICE_QUESTIONS.length);
   });
 
@@ -143,6 +143,7 @@ describe('practice questions', () => {
     expect(correct).toContain('split'); // a fused question
     expect(correct).toContain('help'); // ask for help is right
     expect(correct).toContain('skip'); // unreadable picture
+    expect(correct).toContain('or_only'); // a row that is only the word OR
     const fixes = PRACTICE_QUESTIONS.filter((q) => q.correct === 'fix');
     expect(fixes.some((q) => q.fixedMarks !== q.marks)).toBe(true); // wrong mark
     expect(fixes.some((q) => q.fixedBody !== q.body)).toBe(true); // missing word
@@ -184,6 +185,41 @@ describe('practice questions', () => {
     expect(evaluatePracticeAnswer(q, { action: 'split', at: q.splitAt! - 1 }).correct).toBe(true);
     expect(evaluatePracticeAnswer(q, { action: 'split', at: 5 }).correct).toBe(false);
     expect(evaluatePracticeAnswer(q, { action: 'split', at: null }).correct).toBe(false);
+  });
+
+  it('has a question with two questions joined by OR, and Split accepts a tap either side of the OR', () => {
+    const q = PRACTICE_QUESTIONS.find((x) => x.id === 'practice-8')!;
+    expect(q.correct).toBe('split');
+    expect(q.body).toContain(' OR ');
+    for (const at of [q.splitAt!, q.splitAt! - 1, ...q.splitAlso!]) {
+      expect(evaluatePracticeAnswer(q, { action: 'split', at }).correct, String(at)).toBe(true);
+    }
+    expect(evaluatePracticeAnswer(q, { action: 'split', at: 5 }).correct).toBe(false);
+  });
+
+  it('has a row that is only the word OR, answered by This is just the OR', () => {
+    const q = PRACTICE_QUESTIONS.find((x) => x.correct === 'or_only')!;
+    expect(q.body).toBe('OR');
+    expect(evaluatePracticeAnswer(q, { action: 'or_only' }).correct).toBe(true);
+    const wrong = evaluatePracticeAnswer(q, { action: 'pass' });
+    expect(wrong.correct).toBe(false);
+    expect(wrong.explanation).toContain(ACTION_NAMES.or_only);
+  });
+
+  it('a skipped question waits and, when gone back to, the right move is to ask the HOD', () => {
+    const q = PRACTICE_QUESTIONS.find((x) => x.correct === 'skip')!;
+    expect(q.revisitCorrect).toBe('help');
+    expect(evaluatePracticeAnswer(q, { action: 'skip' }).correct).toBe(true);
+    expect(evaluatePracticeAnswer(q, { action: 'skip' }, true).correct).toBe(false);
+    expect(evaluatePracticeAnswer(q, { action: 'help' }, true).correct).toBe(true);
+  });
+
+  it('Undo last is local: the fake only remembers which answer was taken back', () => {
+    const api = createPracticeApi();
+    api.answer('practice-1', { action: 'pass' });
+    api.undo('practice-1');
+    expect(api.undone).toEqual(['practice-1']);
+    expect(supabaseTripwire.touched).toEqual([]);
   });
 
   it('keeps the made-up copy free of em and en dashes', () => {

@@ -318,6 +318,13 @@ export interface HistoryEventInput extends ActorInput {
   confidence?: number | null;
   version?: number | null;
   to_version?: number | null;
+  /** True when the person who did this took it back (verifier Undo last). The row stays in history. */
+  undone?: boolean;
+}
+
+/** Put "(undone)" after a history sentence for a row that was taken back. */
+export function markUndone(text: string, undone: boolean | null | undefined): string {
+  return undone ? `${text} (undone)` : text;
 }
 
 type Ctx = {
@@ -526,7 +533,7 @@ export interface HistoryLine {
 
 export function historyLine(e: HistoryEventInput, now: Date = new Date()): HistoryLine {
   const who = actorLabel(e);
-  const what = actionWords(e);
+  const what = markUndone(actionWords(e), e.undone);
   const when = timeWords(e.at, now);
   return { who, what, when, line: `${who} ${what} - ${when}`, note: friendlyNote(e.note, e.actor_kind) };
 }

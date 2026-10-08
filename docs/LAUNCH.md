@@ -20,8 +20,10 @@ git push --dry-run origin HEAD:main             # 593c447..ef862f8
   commits we do not already have.
 - Nothing on `main` is discarded, so nothing can be lost in a conflict
   resolution done under pressure.
-- `main` has not moved since **13 July 2026** (`593c447`). Everything a live
-  user has ever seen is that build.
+- `main` held the **13 July 2026** build (`593c447`, tagged `pre-2.0-live`)
+  until the launch itself, which went out on **26 September 2026** as a merged
+  PR. `main` has moved since, only ever through merged PRs from
+  `shikshaq-2.0` (#53, #72, #76 and #77 so far).
 
 `main` gains **449 commits** (re-verified 2026-09-26 via
 `git rev-list --count origin/main..shikshaq-2.0`; this number moves every
@@ -97,9 +99,13 @@ would destroy their work.
 Rolling back the **code** does not roll back the **database**, and it does not
 need to. Every schema change is additive or a privilege revoke. The 13 July
 build does not read `read_events`, does not call the new functions, and reads
-teacher contacts through columns it still has access to. The one thing to know:
-the old build shows **five** free questions in its copy while the gate now
-serves **two**, so a rollback reintroduces the mismatch this launch fixed.
+teacher contacts through columns it still has access to. Two things to know
+(as of 8 October 2026): the old build shows **five** free questions in its copy
+while the gate now serves **two**, so a rollback reintroduces the mismatch this
+launch fixed; and `pre-2.0-live` now sits behind many later merges (verifiers,
+HOD, teacher reviewers, undo, the paper library changes), so rolling `main`
+back to it would take all of that off the live site while their migrations stay
+in the database. Prefer reverting the one bad merge over resetting to the tag.
 
 ## After the push, check these in order
 

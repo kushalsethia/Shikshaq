@@ -540,6 +540,7 @@ export function VerifyScreen({
       onClick={() => void doUndo()}
       disabled={submitting || answered.length === 0}
       data-testid="undo-last"
+      data-tour="undo"
       title={answered.length === 0 ? 'Nothing to undo yet' : 'Take back your last answer (U)'}
       className="tap-44 inline-flex items-center gap-1.5 rounded-full bg-muted px-4 py-2 text-[14px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50"
     >
