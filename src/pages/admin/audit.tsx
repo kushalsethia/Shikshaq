@@ -137,7 +137,7 @@ export function AuditPanel({
     return {
       id: r.id,
       cells: [
-        // AD-008: "When" is in the muted meta colour, NOT bold — overrides
+        // AD-008: "When" is in the muted meta colour, NOT bold, which overrides
         // AdminTable's default bold-first-column treatment (right for every other section,
         // where column 1 is the record's name; wrong here, where "Action" carries the weight).
         <span key="when" className="font-normal text-warm-meta" title={relativeWords(r.created_at)}>
