@@ -182,6 +182,13 @@ export async function checkerAskForHelp(questionId: string, reason: string): Pro
   if (error) throw error;
 }
 
+/** A row that is only the word OR (verifier_or_separator, 20261008150000): it is
+ *  set aside and the questions either side of it are linked as alternatives. */
+export async function checkerMarkOrSeparator(questionId: string): Promise<void> {
+  const { error } = await supabase.rpc('verifier_or_separator' as never, { p_question_id: questionId } as never);
+  if (error) throw error;
+}
+
 export async function checkerCheckedTodayCount(): Promise<number> {
   const { data, error } = await supabase.rpc('checker_checked_today_count' as never);
   if (error) return 0;
@@ -305,10 +312,41 @@ export async function verifierPaperQuestions(paperId: string): Promise<PaperQues
 
 /** "Start verifying": the next question of one paper, leased for 10 minutes
  *  (verifier_next_in_paper). Null when nothing is left in it. */
-export async function verifierNextInPaper(paperId: string): Promise<CheckerQuestion | null> {
-  const { data, error } = await supabase.rpc('verifier_next_in_paper' as never, { p_paper_id: paperId } as never);
+export async function verifierNextInPaper(
+  paperId: string,
+  options: { includeSkipped?: boolean } = {},
+): Promise<CheckerQuestion | null> {
+  // Skipped questions wait for later (20261008160000): they are served only
+  // when the verifier asks to go through them.
+  const { data, error } = await supabase.rpc('verifier_next_in_paper' as never, {
+    p_paper_id: paperId,
+    p_include_skipped: Boolean(options.includeSkipped),
+  } as never);
   if (error) throw error;
   return rpcRow<CheckerQuestion>(data);
+}
+
+/** What verifier_undo_last (20261008140000) hands back: which kind of answer
+ *  was undone and the question as it is now, leased to the caller again. */
+export interface UndoResult {
+  question_id: string;
+  undone: 'pass' | 'fix' | 'ask_help' | 'skip';
+  /** The log action that was undone, e.g. checker_pass. */
+  undone_action: string;
+  question: CheckerQuestion;
+}
+
+/** Undo the caller's most recent answer on this paper (Looks right, Fix it,
+ *  Ask the HOD or Skip), within 30 minutes and while nobody else has touched
+ *  the question. A refusal comes back as an error whose message is a plain
+ *  sentence for the verifier (errcode 22023). */
+export async function verifierUndoLast(paperId: string): Promise<UndoResult> {
+  const { data, error } = await supabase.rpc('verifier_undo_last' as never, { p_paper_id: paperId } as never);
+  if (error) throw error;
+  const raw = data as unknown;
+  const row = (Array.isArray(raw) ? raw[0] : raw) as UndoResult | null | undefined;
+  if (!row || !row.question) throw new Error('Nothing came back from the undo. Try again.');
+  return row;
 }
 
 /** The verifier's own details, read only (verifier_my_profile). */
@@ -374,6 +412,7 @@ export interface CheckerApi {
   splitQuestion: typeof checkerSplitQuestion;
   askForHelp: typeof checkerAskForHelp;
   skipQuestion: typeof checkerSkipQuestion;
+  markOrSeparator: typeof checkerMarkOrSeparator;
   checkedTodayCount: typeof checkerCheckedTodayCount;
   myStats: typeof checkerMyStats;
   leaderboard: typeof checkerLeaderboard;
@@ -385,6 +424,7 @@ export interface CheckerApi {
   myPapers: typeof verifierMyPapers;
   paperQuestions: typeof verifierPaperQuestions;
   nextInPaper: typeof verifierNextInPaper;
+  undoLast: typeof verifierUndoLast;
   myProfile: typeof verifierMyProfile;
   setMyProfile: typeof verifierSetMyProfile;
   requestSubjects: typeof verifierRequestSubjects;
@@ -401,6 +441,7 @@ export const realCheckerApi: CheckerApi = {
   splitQuestion: checkerSplitQuestion,
   askForHelp: checkerAskForHelp,
   skipQuestion: checkerSkipQuestion,
+  markOrSeparator: checkerMarkOrSeparator,
   checkedTodayCount: checkerCheckedTodayCount,
   myStats: checkerMyStats,
   leaderboard: checkerLeaderboard,
@@ -412,6 +453,7 @@ export const realCheckerApi: CheckerApi = {
   myPapers: verifierMyPapers,
   paperQuestions: verifierPaperQuestions,
   nextInPaper: verifierNextInPaper,
+  undoLast: verifierUndoLast,
   myProfile: verifierMyProfile,
   setMyProfile: verifierSetMyProfile,
   requestSubjects: verifierRequestSubjects,

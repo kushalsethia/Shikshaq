@@ -94,14 +94,54 @@ export function splitHalves(text: string, codePoints: number): { first: string; 
   return { first: chars.slice(0, codePoints).join(''), second: chars.slice(codePoints).join('') };
 }
 
+/* The word OR between two questions (20261008150000). "OR" or "Or", with the
+   comma or full stop it may carry, standing alone: never a lower case "or"
+   inside a sentence, never part of a longer word ("ORANGE", "FOR"). The white
+   space class is spelled out so it matches the database exactly. */
+const OR_AT_START = /^[ \t\n\r\f\v]*(?:OR|Or)[,.]?(?:[ \t\n\r\f\v]+|$)/;
+const OR_AT_END = /(?:^|[ \t\n\r\f\v]+)(?:OR|Or)[,.]?[ \t\n\r\f\v]*$/;
+const OR_ONLY = /^[ \t\n\r\f\v]*(?:OR|Or)[,.]?[ \t\n\r\f\v]*$/;
+
+/** Said under the split preview when the cut sits at an OR. */
+export const SPLIT_OR_NOTE =
+  'The word OR is left out of both parts. The two questions are kept together as an either/or pair, and the library shows OR between them.';
+
+/** The one-tap action on a row that is only the word OR. */
+export const OR_ONLY_TITLE = 'This row is only the word OR';
+export const OR_ONLY_NOTE =
+  'It is the OR between two questions, not a question. Set it aside and the questions on either side are kept together as an either/or pair.';
+export const OR_ONLY_BUTTON = 'This is just the OR between two questions';
+export const OR_ONLY_DONE = 'Set aside. The questions around it are now an either/or pair.';
+
+/** True when the whole row is just the OR between two questions. */
+export function isOrOnlyBody(body: string | null | undefined): boolean {
+  return OR_ONLY.test(body ?? '');
+}
+
+/** The two halves a split makes, as the database makes them: when the cut sits
+ *  at an OR (starting the second half or ending the first) that separator is
+ *  dropped and `orSeparator` says the two become alternatives. Every other
+ *  character is kept. Mirrors split_or_separator() in 20261008150000. */
+export function splitOrPlan(
+  text: string,
+  codePoints: number,
+): { first: string; second: string; orSeparator: boolean } {
+  const { first, second } = splitHalves(text, codePoints);
+  const atStart = OR_AT_START.exec(second);
+  if (atStart) return { first, second: second.slice(atStart[0].length), orSeparator: true };
+  const atEnd = OR_AT_END.exec(first);
+  if (atEnd) return { first: first.slice(0, atEnd.index), second, orSeparator: true };
+  return { first, second, orSeparator: false };
+}
+
 /** Whether a split at this code-point offset is one the server will accept
  *  (it refuses 0 and anything at or past the end), and leaves words on both
- *  sides. */
+ *  sides once an OR separator at the cut is taken out. */
 export function canSplitAt(text: string, codePoints: number | null): boolean {
   if (codePoints === null) return false;
   const length = Array.from(text).length;
   if (codePoints <= 0 || codePoints >= length) return false;
-  const { first, second } = splitHalves(text, codePoints);
+  const { first, second } = splitOrPlan(text, codePoints);
   return first.trim().length > 0 && second.trim().length > 0;
 }
 

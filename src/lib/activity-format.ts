@@ -11,6 +11,7 @@ const ACTION_WORDS: Record<string, string> = {
   checker_skip: 'Skipped a question',
   checker_split: 'Split a question in two',
   checker_ask_help: 'Asked for help',
+  verifier_undo: 'Undid their last answer',
   check_pass: 'Check: looks right',
   check_fix: 'Check: needs a fix',
   check_printed_typo: 'Check: printed typo',

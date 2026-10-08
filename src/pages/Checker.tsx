@@ -31,6 +31,7 @@ import {
   profileStatus,
   QUESTION_STATE_LABEL,
   questionLabel,
+  skippedLabel,
   sortPapers,
   stateSummary,
   VERIFIER_GRADE_OPTIONS,
@@ -275,7 +276,10 @@ function PaperList({
                 <div className="mt-3">
                   <div className="mb-1 flex justify-between text-[13px] font-semibold tabular-nums text-warm-secondary">
                     <span>{prog.label}</span>
-                    {p.with_hod > 0 ? <span>{p.with_hod} with the HOD</span> : null}
+                    <span className="flex gap-3">
+                      {p.skipped > 0 ? <span data-testid="skipped-count">{skippedLabel(p.skipped)}</span> : null}
+                      {p.with_hod > 0 ? <span>{p.with_hod} with the HOD</span> : null}
+                    </span>
                   </div>
                   <div
                     className="h-2.5 w-full overflow-hidden rounded-full bg-card"

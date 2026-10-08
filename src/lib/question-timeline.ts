@@ -27,6 +27,7 @@ const ACTION_LABEL: Record<string, string> = {
   checker_split: 'Split into two questions',
   checker_ask_help: 'Asked for help',
   checker_skip: 'Skipped',
+  verifier_undo: 'Undid the last answer',
   published: 'Published to the live site',
   live_apply: 'Copied onto the live site',
   live_clear: 'Paper marked complete',
