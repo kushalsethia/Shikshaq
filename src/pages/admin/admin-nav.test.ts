@@ -48,7 +48,8 @@ describe('admin menu', () => {
       // Old bookmark, redirects to the Library page of that paper.
       '/admin/paper-review/:paperId': '/admin/library',
     };
-    const redirectsOrRoot = new Set([...redirects, '/admin']);
+    // '/admin' is no longer a redirect: it is a menu item ("Needs you now").
+    const redirectsOrRoot = new Set(redirects);
     for (const r of routes.filter((x) => x.startsWith('/admin'))) {
       if (redirectsOrRoot.has(r)) continue;
       if (inMenu.has(r)) continue;
@@ -62,5 +63,52 @@ describe('admin menu', () => {
       const target = groupLandingPath(nav, g.key);
       expect(isAdminPath(target), `${g.label} -> ${target}`).toBe(true);
     }
+  });
+
+  it('has the six groups in this order, with these pages in this order', () => {
+    expect(ADMIN_GROUPS.map((g) => [g.key, g.pages])).toEqual([
+      ['now', ['now']],
+      ['papers', ['ready', 'admin-queue', 'submissions', 'library']],
+      ['people', ['checkers', 'team', 'hod', 'student-queue']],
+      ['teachers', ['applications', 'reviews', 'teachers']],
+      ['logs', ['activity', 'checker-log', 'audit']],
+      ['system', ['pipeline', 'feedback']],
+    ]);
+  });
+
+  it('makes /admin a menu item and a real route, not a redirect', () => {
+    expect(nav.find((n) => n.path === '/admin')?.key).toBe('now');
+    expect(routes).toContain('/admin');
+    expect(redirects).not.toContain('/admin');
+  });
+
+  it('keeps every old address working: each legacy path still redirects', () => {
+    const LEGACY: [string, string][] = [
+      ['/admin/applications', '/admin/approvals'],
+      ['/admin/recommendations', '/admin/reviews'],
+      ['/admin/comments', '/admin/reviews'],
+      ['/admin/upvotes', '/admin/reviews'],
+      ['/admin/paper-review', '/admin/library'],
+    ];
+    for (const [from, to] of LEGACY) {
+      const m = new RegExp(`<Route\\s+path="${from}"\\s+element=\\{<Navigate\\s+to="${to}"`).exec(app);
+      expect(m, `${from} must still redirect to ${to}`).not.toBeNull();
+    }
+    // The one with a parameter goes through a small component that keeps the id.
+    expect(app).toMatch(/<Route\s+path="\/admin\/paper-review\/:paperId"\s+element=\{<LegacyPaperReviewRedirect/);
+    expect(app).toContain('/admin/library/${paperId');
+  });
+
+  it('puts every link that leaves the admin after the pages inside it', () => {
+    // The plan says "at most one outside link per group", but it also puts both
+    // the HOD desk and the student screen in People. The rule that holds for
+    // both: outside links trail the group, never sit between admin pages.
+    for (const g of ADMIN_GROUPS) {
+      const items = nav.filter((n) => n.group === g.key);
+      const firstOutside = items.findIndex((n) => !isAdminPath(n.path));
+      if (firstOutside === -1) continue;
+      for (const n of items.slice(firstOutside)) expect(isAdminPath(n.path), `${n.label} is inside the admin but follows an outside link`).toBe(false);
+    }
+    expect(nav.filter((n) => !isAdminPath(n.path)).map((n) => n.key)).toEqual(['hod', 'student-queue']);
   });
 });
