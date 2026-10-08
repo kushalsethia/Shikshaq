@@ -206,7 +206,7 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
               className={`absolute left-0 top-0 flex h-[98px] w-[76px] flex-col justify-end rounded-[10px] p-2 -rotate-6 ${TILT} ${LIFT}`}
               style={{ backgroundColor: palette.tint, color: palette.text }}
             >
-              <span className="text-[10px] font-bold uppercase tracking-[0.04em]">{intent.board}</span>
+              <span className="text-label font-bold uppercase">{intent.board}</span>
             </span>
             <span className="absolute left-[96px] top-[14px] max-w-[calc(100%-96px)]">
               <Pill className="truncate bg-card text-foreground">{intent.school}</Pill>
