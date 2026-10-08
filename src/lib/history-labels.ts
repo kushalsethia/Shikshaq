@@ -381,6 +381,8 @@ export const ACTION_LABELS: Record<string, (c: Ctx) => string> = {
   checker_split: (c) => `split ${c.q} in two`,
   checker_ask_help: (c) => `asked the HOD for help${c.on}`,
   checker_return_paper: () => 'handed a paper back',
+  verifier_undo: () => 'undid their last answer',
+  verifier_or_separator: (c) => `marked ${c.q} as just the OR between two questions and linked the questions around it`,
   // the HOD and the AI trust levels
   admin_add_hod: () => 'made someone an HOD',
   admin_remove_hod: () => 'removed someone as an HOD',

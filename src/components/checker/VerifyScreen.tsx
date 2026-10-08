@@ -6,9 +6,10 @@ import { BodyEditor } from '@/components/checker/BodyEditor';
 import { OptionList } from '@/components/checker/OptionList';
 import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
 import { CheckerSkeleton, Callout, CheckGuidance, Modal, SplitPreview, WholeQuestion, useSignedUrl } from '@/components/checker/CheckerBits';
+import { Undo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CheckerApi } from '@/lib/checker-api';
-import { whatToCheck, needsSplit } from '@/lib/checker-kid-reasons';
+import { whatToCheck } from '@/lib/checker-kid-reasons';
 import { englishContext, passageHeading } from '@/lib/checker-english';
 import { assembleQuestionContext, type QuestionContext } from '@/lib/checker-context';
 import { planCheckerPicture, pictureHeading, PICTURE_MAY_MISS_PARTS, type PicturePlan } from '@/lib/checker-pictures';
@@ -28,6 +29,11 @@ import { PageImageViewer } from '@/components/checker/PageImageViewer';
 import { matchCheckerKeyboardEvent, shortcutHint } from '@/lib/checker-shortcuts';
 import {
   isBlankBody,
+  isOrOnlyBody,
+  OR_ONLY_BUTTON,
+  OR_ONLY_DONE,
+  OR_ONLY_NOTE,
+  OR_ONLY_TITLE,
   looksGarbled,
   codePointOffset,
   splitHalves,
@@ -38,7 +44,7 @@ import {
   FIX_RULE_NOTE,
   BIG_EDIT_WARNING,
 } from '@/lib/checker-body';
-import { checkerErrorAdvice, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE } from '@/lib/checker-errors';
+import { checkerErrorAdvice, undoErrorMessage, UNDONE_NOTE, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE } from '@/lib/checker-errors';
 import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewChannel';
 import { isForeignChangeToOpenQuestion } from '@/lib/paper-review-realtime';
 import { DebugId } from '@/components/DebugId';
@@ -46,6 +52,7 @@ import { ActionButton } from '@/components/checker/CheckerButtons';
 import { CheckerWalkthrough } from '@/components/checker/CheckerWalkthrough';
 import { CHECKER_PRACTICE_PATH, CHECKER_TOUR_PARAM, hasSeenWalkthrough, markWalkthroughSeen } from '@/lib/checker-onboarding';
 import { paperLabel, paperProgress } from '@/lib/checker-progress';
+import { skippedNote } from '@/lib/verifier-papers';
 
 /* The verify screen ("Start verifying"): one question of one paper at a time.
    The question and its details are on the left; the picture of the printed
@@ -114,9 +121,13 @@ export function VerifyScreen({
      is deliberate too: fetching a picture URL speculatively for a row nobody
      has been leased yet would be a picture for a question this checker may
      never see. */
+  // Skipped questions wait for later: they are served only after the
+  // verifier asks to go through them (20261008160000).
+  const [includeSkipped, setIncludeSkipped] = useState(false);
+  const nextKey = ['verifier-next', scope, paperId, includeSkipped] as const;
   const questionQuery = useQuery({
-    queryKey: ['verifier-next', scope, paperId],
-    queryFn: () => api.nextInPaper(paperId),
+    queryKey: nextKey,
+    queryFn: () => api.nextInPaper(paperId, { includeSkipped }),
     retry: 1,
     // Always ask the server: the question is leased for 10 minutes, so a cached
     // one may have been taken by the time it is shown.
@@ -138,10 +149,9 @@ export function VerifyScreen({
   });
   const paperRow = papersQuery.data?.find((p) => p.paper_id === paperId) ?? null;
   const progress = paperRow ? paperProgress({ done_count: paperRow.done, remaining_count: paperRow.remaining, total_count: paperRow.total }) : null;
-  // Skip sends a question to the end of the paper (20261007140000). On the
-  // last one left it would come straight back, so Skip is off and the screen
-  // says to ask the HOD instead.
-  const lastOne = paperRow != null && paperRow.remaining <= 1;
+  // Skipped questions stay on the paper for later. When nothing but skipped
+  // ones are left, the screen says so instead of looping them back.
+  const skippedCount = paperRow?.skipped ?? 0;
   if (question) labelRef.current = paperLabel(paperRow ?? question);
   const currentPaperLabel = question ? paperLabel(paperRow ?? question) : labelRef.current;
 
@@ -211,6 +221,10 @@ export function VerifyScreen({
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpReason, setHelpReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // What the verifier has answered in this visit, newest last, so Undo knows
+  // whether there is anything to take back. The server decides what can
+  // really be undone (30 minutes, nobody else touched it).
+  const [answered, setAnswered] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   // A message that survives moving to the next question (an error that made
   // the page move on, or "Saved").
@@ -280,7 +294,10 @@ export function VerifyScreen({
 
   const blank = question ? isBlankBody(question.body) : false;
   const garbled = question ? looksGarbled(question.body, question.subject).garbled : false;
-  const splitOffered = question ? needsSplit(question.flag_reasons) && !blank : false;
+  // Split is offered on every question that has words (owner, 8 Oct 2026):
+  // an OR between two questions is not always flagged.
+  const splitOffered = question ? !blank : false;
+  const orOnly = question ? isOrOnlyBody(question.body) : false;
   const edited = question
     ? bodyDraft !== (question.body ?? '') ||
       numberDraft !== (question.display_number ?? '') ||
@@ -288,15 +305,17 @@ export function VerifyScreen({
     : false;
   // An empty question can never be "right" as it is; only after the checker
   // typed its words in from the picture.
-  const canPass = question ? !isBlankBody(bodyDraft) : false;
+  // A row that is only the word OR is not a question either: use the OR action.
+  const canPass = question ? !isBlankBody(bodyDraft) && !isOrOnlyBody(bodyDraft) : false;
   const marksInvalid = marksDraft.trim() !== '' && !(Number.isFinite(Number(marksDraft)) && Number(marksDraft) >= 0);
   const showBigEditWarning = mode === 'fix' && question ? bigEdit(question.body ?? '', bodyDraft) : false;
 
-  async function run(action: () => Promise<unknown>, okText: string) {
+  async function run(action: () => Promise<unknown>, okText: string, kind: string) {
     setSubmitting(true);
     setError(null);
     try {
       await action();
+      setAnswered((a) => [...a, kind]);
       setNotice({ text: okText, tone: 'ok' });
       refresh();
     } catch (err) {
@@ -362,15 +381,21 @@ export function VerifyScreen({
             { version: question.version, printedTypo: typo, typoNote: typo ? typoNote : null },
           ),
         typo ? 'Saved with the typo corrected.' : 'Saved.',
+        'fix',
       );
     } else {
-      await run(() => api.passQuestion(question.id, question.version), 'Marked as right.');
+      await run(() => api.passQuestion(question.id, question.version), 'Marked as right.', 'pass');
     }
+  }
+
+  async function doOrSeparator() {
+    if (!question || submitting || !orOnly) return;
+    await run(() => api.markOrSeparator(question.id), OR_ONLY_DONE, 'or_separator');
   }
 
   async function doSplit() {
     if (!question || submitting || !canSplitAt(bodyDraft, splitAt)) return;
-    await run(() => api.splitQuestion(question.id, bodyDraft, splitAt!), 'Split into two. Both will be checked again.');
+    await run(() => api.splitQuestion(question.id, bodyDraft, splitAt!), 'Split into two. Both will be checked again.', 'split');
   }
 
   async function doAskForHelp(reason: string) {
@@ -378,12 +403,43 @@ export function VerifyScreen({
     await run(async () => {
       await api.askForHelp(question.id, reason.trim() || 'Not sure how to fix this');
       setHelpOpen(false);
-    }, 'Sent to your HOD.');
+    }, 'Sent to your HOD.', 'ask_help');
   }
 
+  // Skip is always available, also on the last question left. A skipped
+  // question stays on this paper for later; the verifier can go to other papers.
   async function doSkip() {
-    if (!question || submitting || lastOne) return;
-    await run(() => api.skipQuestion(question.id),'Skipped. It comes back at the end of this paper.');
+    if (!question || submitting) return;
+    await run(
+      async () => {
+        await api.skipQuestion(question.id);
+        // Skipping while going through the skipped ones sends it back to waiting.
+        setIncludeSkipped(false);
+      },
+      'Skipped. It stays on this paper for later.',
+      'skip',
+    );
+  }
+
+  // Take back the last answer (verifier_undo_last). The server decides what is
+  // allowed; its refusal is a plain sentence, shown as it is.
+  async function doUndo() {
+    if (submitting || answered.length === 0) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await api.undoLast(paperId);
+      setAnswered((a) => a.slice(0, -1));
+      qc.setQueryData(nextKey, result.question);
+      qc.invalidateQueries({ queryKey: ['checker-my-stats', scope] });
+      qc.invalidateQueries({ queryKey: ['verifier-papers', scope] });
+      qc.invalidateQueries({ queryKey: ['verifier-paper-questions', scope, paperId] });
+      setNotice({ text: UNDONE_NOTE, tone: 'ok' });
+    } catch (err) {
+      setError(undoErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function cancelEdit() {
@@ -454,12 +510,15 @@ export function VerifyScreen({
       } else if (action === 'skip') {
         e.preventDefault();
         void doSkip();
+      } else if (action === 'undo' && answered.length > 0) {
+        e.preventDefault();
+        void doUndo();
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, helpOpen, submitting, tourOpen, question?.id, canPass, splitOffered]);
+  }, [mode, helpOpen, submitting, tourOpen, question?.id, canPass, splitOffered, answered.length]);
 
   const metaChips = question
     ? [
@@ -471,6 +530,23 @@ export function VerifyScreen({
         question.year,
       ].filter((x): x is string => Boolean(x))
     : [];
+
+  // Rewind: enabled once the verifier has answered something in this visit.
+  // Also shown on the "done" screens, where the last answer is the one most
+  // often clicked by mistake.
+  const undoButton = (
+    <button
+      type="button"
+      onClick={() => void doUndo()}
+      disabled={submitting || answered.length === 0}
+      data-testid="undo-last"
+      title={answered.length === 0 ? 'Nothing to undo yet' : 'Take back your last answer (U)'}
+      className="tap-44 inline-flex items-center gap-1.5 rounded-full bg-muted px-4 py-2 text-[14px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <Undo2 className="h-4 w-4" aria-hidden="true" />
+      Undo last
+    </button>
+  );
 
   return (
     <div data-testid="verify-screen">
@@ -497,13 +573,23 @@ export function VerifyScreen({
             </p>
             <h2 className="text-balance text-[17px] font-bold leading-snug text-foreground">{currentPaperLabel}</h2>
           </div>
-          <button
-            type="button"
-            onClick={onExit}
-            className="tap-44 rounded-full bg-card px-4 py-2 text-[13px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            Back to this paper's questions
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onExit}
+              className="tap-44 rounded-full bg-card px-4 py-2 text-[13px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              Back to this paper's questions
+            </button>
+            <button
+              type="button"
+              onClick={onList ?? onExit}
+              data-testid="back-to-my-papers"
+              className="tap-44 rounded-full bg-card px-4 py-2 text-[13px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              Back to my papers
+            </button>
+          </div>
         </div>
         {progress && question ? (
           <div className="mt-3">
@@ -555,15 +641,39 @@ export function VerifyScreen({
               Try again
             </ActionButton>
           </div>
+        ) : !question && !includeSkipped && skippedCount > 0 && paperRow != null && paperRow.remaining <= skippedCount ? (
+          // Only skipped questions are left. They stay on this paper for
+          // later; the verifier can go to other papers or go through them now.
+          <div className="flex flex-col items-center gap-3 py-16 text-center" data-testid="only-skipped-left">
+            <p className="text-balance text-xl font-bold text-foreground">Done for now</p>
+            <p className="max-w-md text-pretty text-[14px] text-warm-secondary">{skippedNote(skippedCount)}</p>
+            <div className="flex flex-wrap justify-center gap-2.5">
+              <ActionButton tone="mint" onClick={onList ?? onExit}>
+                Back to my papers
+              </ActionButton>
+              <ActionButton
+                tone="muted"
+                onClick={() => {
+                  setIncludeSkipped(true);
+                }}
+              >
+                Go through skipped ones now
+              </ActionButton>
+              {undoButton}
+            </div>
+          </div>
         ) : !question ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center" data-testid="paper-finished">
             <p className="text-balance text-xl font-bold text-foreground">Paper finished</p>
             <p className="max-w-md text-pretty text-[14px] text-warm-secondary">
               You have been through every question you can settle on {currentPaperLabel}. Anything you sent to the HOD stays with them.
             </p>
-            <ActionButton tone="mint" onClick={onList ?? onExit}>
-              Back to my papers
-            </ActionButton>
+            <div className="flex flex-wrap justify-center gap-2.5">
+              <ActionButton tone="mint" onClick={onList ?? onExit}>
+                Back to my papers
+              </ActionButton>
+              {undoButton}
+            </div>
           </div>
         ) : (
           // Desktop: the question on the left, the picture of the printed page on the right.
@@ -599,6 +709,17 @@ export function VerifyScreen({
               ) : garbled ? (
                 <Callout tone="warn" title="These words look scrambled">
                   Do not try to retype them. Press Ask the HOD and your HOD will fix it from the paper.
+                </Callout>
+              ) : null}
+
+              {orOnly && mode === 'check' ? (
+                <Callout tone="warn" title={OR_ONLY_TITLE}>
+                  {OR_ONLY_NOTE}
+                  <span className="mt-2 block">
+                    <ActionButton tone="brand" onClick={() => void doOrSeparator()} disabled={submitting}>
+                      {OR_ONLY_BUTTON}
+                    </ActionButton>
+                  </span>
                 </Callout>
               ) : null}
 
@@ -817,6 +938,7 @@ export function VerifyScreen({
             thumb while a long passage scrolls. */}
         {question && !questionQuery.isError ? (
           <div className="sticky bottom-0 z-10 -mx-1 mt-5 flex flex-wrap items-center gap-2.5 border-t border-warm-hairline bg-card px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-4">
+            {undoButton}
             {mode === 'split' ? (
               <>
                 <ActionButton tone="mint" onClick={doSplit} disabled={!canSplitAt(bodyDraft, splitAt) || submitting}>
@@ -856,18 +978,13 @@ export function VerifyScreen({
                 <ActionButton tourId="help" tone="brand" onClick={() => setHelpOpen(true)} disabled={submitting}>
                   Ask the HOD
                 </ActionButton>
-                <ActionButton tourId="skip" tone="muted" onClick={doSkip} disabled={submitting || lastOne}>
+                <ActionButton tourId="skip" tone="muted" onClick={doSkip} disabled={submitting}>
                   Skip this question
                 </ActionButton>
-                {lastOne && mode === 'check' ? (
-                  <p className="basis-full text-[12px] text-warm-meta" data-testid="last-one-note">
-                    This is the last question left on this paper. If you cannot judge it, ask the HOD.
-                  </p>
-                ) : null}
               </>
             )}
             <p className="ml-auto hidden text-[12px] text-warm-meta lg:block">
-              {mode === 'check' ? shortcutHint({ canSplit: splitOffered, canPass }) : 'Esc cancels'}
+              {mode === 'check' ? shortcutHint({ canSplit: splitOffered, canPass, canUndo: answered.length > 0 }) : 'Esc cancels'}
             </p>
           </div>
         ) : null}

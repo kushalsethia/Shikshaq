@@ -11,12 +11,12 @@
  * lets the preview force the failure states a real checker hits.
  */
 
-import type { CheckerApi, CheckerQuestion, LeaderboardRow, QueueFacetRow } from '@/lib/checker-api';
+import type { CheckerApi, CheckerQuestion, LeaderboardRow, QueueFacetRow, UndoResult } from '@/lib/checker-api';
 import type { MyAssignment } from '@/lib/checker-progress';
 import { isVerifierGrade, type MyPaper, type PaperQuestion, type PaperQuestionState, type VerifierProfile } from '@/lib/verifier-papers';
 import type { PaperPage } from '@/lib/paper-pages';
 import { DUMMY_PAPER, dummyContext, dummyPageDataUrl, dummyPictureDataUrl, dummyQuestions } from '@/dummy/checker-fixtures';
-import { isBlankBody } from '@/lib/checker-body';
+import { isBlankBody, isOrOnlyBody, splitOrPlan } from '@/lib/checker-body';
 import { lostTextSuggestion } from '@/lib/checker-lost-text';
 import { checkerSaveRoute, TYPO_NEEDS_VERSION } from '@/lib/checker-save';
 
@@ -43,6 +43,34 @@ export interface FakeCheckerApi extends CheckerApi {
   arrive(): void;
   /** Reasons given to returnPaper, newest last. */
   returns: string[];
+  /** The fake's clock in milliseconds; a test moves it to test the 30 minute window. */
+  clock: () => number;
+  /** Someone else (another verifier, the HOD, an admin, the pipeline) touches a question. */
+  someoneElseActed(questionId: string): void;
+  /** Which questions are linked as either/or alternatives, by question id. */
+  alternatives(): Record<string, { group: string; label: 'main' | 'or' }>;
+  /** Add a question to the queue of the current paper (for tests). */
+  addQuestion(partial: Partial<CheckerQuestion>): CheckerQuestion;
+  /** The HOD answers an escalated question. */
+  hodAnswered(questionId: string): void;
+}
+
+/** verifier_undo_last refuses an answer older than this. */
+export const UNDO_WINDOW_MS = 30 * 60 * 1000;
+
+/** One thing the verifier did, kept so it can be undone. */
+interface FakeAction {
+  kind: 'pass' | 'fix' | 'ask_help' | 'skip' | 'split' | 'or_separator';
+  id: string;
+  paperKey: string;
+  at: number;
+  undone: boolean;
+  /** Where the question sat in the queue before it left it. */
+  queueIndex: number;
+  /** What a fix replaced, kept exactly as it was. */
+  prev?: { body: string; display_number: string | null; marks: number | null | undefined; version: number | null | undefined };
+  /** The skip clock value a skip replaced, so an undo puts the order back. */
+  prevSkip?: number;
 }
 
 /** The made-up papers the checker is handed one at a time. B is "given by your HOD". */
@@ -84,6 +112,10 @@ export function createFakeCheckerApi(): FakeCheckerApi {
   // What happened to each question this verifier has been through.
   let outcome = new Map<string, PaperQuestionState>();
   let allQuestions: CheckerQuestion[] = [];
+  let actions: FakeAction[] = [];
+  const alternatives = new Map<string, { group: string; label: 'main' | 'or' }>();
+  const touched = new Set<string>();
+  const hodDone = new Set<string>();
   let requested: string[] = [];
   let myDetails: VerifierProfile = {
     full_name: 'Dummy Verifier',
@@ -102,6 +134,10 @@ export function createFakeCheckerApi(): FakeCheckerApi {
     current = null;
     outcome = new Map();
     allQuestions = queue.map((q) => ({ ...q }));
+    actions = [];
+    touched.clear();
+    hodDone.clear();
+    alternatives.clear();
     requested = [];
   };
   seedPapers();
@@ -119,6 +155,36 @@ export function createFakeCheckerApi(): FakeCheckerApi {
     simulate: 'none',
     fixes: [],
     returns: [],
+    clock: () => Date.now(),
+
+    someoneElseActed(id) {
+      touched.add(id);
+    },
+
+    alternatives() {
+      return Object.fromEntries(alternatives);
+    },
+
+    addQuestion(partial) {
+      const n = queue.length + allQuestions.length + 1;
+      const q: CheckerQuestion = {
+        ...dummyQuestions()[0],
+        id: `d00000b0-0000-4000-8000-${String(n).padStart(12, '0')}`,
+        ord: 200 + n,
+        flag_reasons: [],
+        flag_detail: null,
+        ...partial,
+      };
+      queue.push(q);
+      allQuestions.push({ ...q });
+      paperOf.set(q.id, current ?? 'A');
+      return q;
+    },
+
+    hodAnswered(id) {
+      touched.add(id);
+      hodDone.add(id);
+    },
 
     reset() {
       api.fixes = [];
@@ -184,6 +250,7 @@ export function createFakeCheckerApi(): FakeCheckerApi {
       const q = find(id);
       checkVersion(q, version);
       if (!q.body || !q.body.trim()) throw pgError('22023', 'This question has no words; it cannot be passed');
+      record('pass', id);
       done(id);
     },
 
@@ -206,6 +273,16 @@ export function createFakeCheckerApi(): FakeCheckerApi {
         typoNote: options.typoNote ?? null,
         body: patch.body ?? null,
       });
+      // Keep what the fix replaced, byte for byte, so an undo can put it back.
+      const kept = allQuestions.find((x) => x.id === id);
+      const action = record('fix', id);
+      if (kept) {
+        action.prev = { body: kept.body, display_number: kept.display_number, marks: kept.marks, version: kept.version };
+        if (patch.body != null) kept.body = patch.body;
+        if (patch.display_number != null) kept.display_number = patch.display_number;
+        if (patch.marks != null) kept.marks = patch.marks;
+        kept.version = (kept.version ?? 1) + 1;
+      }
       done(id);
     },
 
@@ -215,35 +292,72 @@ export function createFakeCheckerApi(): FakeCheckerApi {
       if (bodyBefore !== q.body) throw pgError('40001', 'stale question text, reload and retry');
       const chars = Array.from(bodyBefore);
       if (splitAt <= 0 || splitAt >= chars.length) throw pgError('P0001', 'Split point out of range');
+      // Like checker_split_question (20261008150000): an OR at the cut is left
+      // out of both halves and the two become alternatives.
+      const plan = splitOrPlan(bodyBefore, splitAt);
+      if (plan.first.trim() === '' || plan.second.trim() === '') {
+        throw pgError('22023', 'Both parts of a split need some words in them');
+      }
       const secondId = `${id.slice(0, 24)}${String(Date.now()).slice(-12)}`;
-      q.body = chars.slice(0, splitAt).join('');
+      q.body = plan.first;
       q.flag_reasons = q.flag_reasons.filter((r) => r !== 'ocr_fused');
       const second: CheckerQuestion = {
         ...q,
         id: secondId,
         ord: q.ord + 0.5,
-        display_number: null,
-        body: chars.slice(splitAt).join(''),
+        display_number: plan.orSeparator ? q.display_number : null,
+        marks: plan.orSeparator ? q.marks : null,
+        body: plan.second,
         flag_reasons: [`split_from_${id}`],
         flag_detail: null,
       };
+      if (plan.orSeparator) {
+        const group = alternatives.get(id)?.group ?? (q.display_number?.trim() || id);
+        alternatives.set(id, { group, label: alternatives.get(id)?.label ?? 'main' });
+        alternatives.set(secondId, { group, label: 'or' });
+      }
       paperOf.set(secondId, paperOf.get(id) ?? 'A');
       allQuestions.push({ ...second });
+      const keptFirst = allQuestions.find((x) => x.id === id);
+      if (keptFirst) keptFirst.body = plan.first;
       queue.splice(queue.indexOf(q) + 1, 0, second);
       today++;
       total++;
+      record('split', id);
       return { first_id: id, second_id: secondId };
+    },
+
+    async markOrSeparator(id) {
+      await gateSave();
+      const q = find(id);
+      if (!isOrOnlyBody(q.body)) {
+        throw pgError('22023', 'This row has more than the word OR in it, so it is not just the OR between two questions.');
+      }
+      const here = queue.filter((x) => paperOf.get(x.id) === paperOf.get(id) && x.id !== id && !outcome.has(x.id));
+      const before = [...here].filter((x) => x.ord < q.ord).sort((a, b) => b.ord - a.ord)[0];
+      const after = [...here].filter((x) => x.ord > q.ord).sort((a, b) => a.ord - b.ord)[0];
+      if (!before || !after) {
+        throw pgError('22023', 'There is no question on one side of this OR, so the two cannot be linked. Press Ask the HOD.');
+      }
+      const group = alternatives.get(before.id)?.group ?? alternatives.get(after.id)?.group ?? (before.display_number?.trim() || before.id);
+      if (!alternatives.has(before.id)) alternatives.set(before.id, { group, label: 'main' });
+      if (!alternatives.has(after.id)) alternatives.set(after.id, { group, label: 'or' });
+      record('or_separator', id);
+      done(id, 'set_aside');
     },
 
     async askForHelp(id) {
       await gateSave();
       find(id);
+      record('ask_help', id);
       done(id, 'with_hod');
     },
 
     async skipQuestion(id) {
       await gateSave();
       find(id);
+      const action = record('skip', id);
+      action.prevSkip = skipOrder.get(id);
       skipped.add(id);
       skipOrder.set(id, ++skipClock);
     },
@@ -273,6 +387,8 @@ export function createFakeCheckerApi(): FakeCheckerApi {
           done: doneCount,
           remaining: open,
           with_hod: withHod,
+          // Skipped questions are part of `remaining`; they wait for later.
+          skipped: queue.filter((q) => paperOf.get(q.id) === k && servable(q) && skipped.has(q.id)).length,
         };
       });
     },
@@ -304,7 +420,7 @@ export function createFakeCheckerApi(): FakeCheckerApi {
         });
     },
 
-    async nextInPaper(paperId) {
+    async nextInPaper(paperId, options = {}) {
       await gate();
       const key = PAPER_ORDER.find((k) => PAPERS[k].id === paperId);
       if (!key) throw pgError('42501', 'This paper is not assigned to you');
@@ -312,12 +428,73 @@ export function createFakeCheckerApi(): FakeCheckerApi {
         const blank = queue.find((q) => isBlankBody(q.body) && paperOf.get(q.id) === key);
         if (blank) return decorate({ ...blank });
       }
-      // Like 20261007140000: skipped questions come last, the earliest skipped first.
+      // Like 20261008160000: a skipped question waits for later. It is served
+      // only when the verifier asks to go through the skipped ones, earliest
+      // skipped first.
       const open = queue.filter((q) => paperOf.get(q.id) === key && servable(q));
       const next =
         open.find((q) => !skipped.has(q.id)) ??
-        [...open].sort((a, b) => (skipOrder.get(a.id) ?? 0) - (skipOrder.get(b.id) ?? 0))[0];
+        (options.includeSkipped
+          ? [...open].sort((a, b) => (skipOrder.get(a.id) ?? 0) - (skipOrder.get(b.id) ?? 0))[0]
+          : undefined);
       return next ? decorate(next) : null;
+    },
+
+    async undoLast(paperId): Promise<UndoResult> {
+      // Like verifier_undo_last (20261008140000): the caller's most recent
+      // answer on the paper, inside 30 minutes, while nobody else touched it.
+      await gateSave();
+      const key = PAPER_ORDER.find((k) => PAPERS[k].id === paperId);
+      if (!key || returned.has(key)) {
+        throw pgError('22023', 'You no longer hold this paper, so your last answer cannot be undone here. Ask the HOD.');
+      }
+      const last = [...actions].reverse().find((a) => a.paperKey === key && !a.undone);
+      if (!last) throw pgError('22023', 'There is nothing to undo on this paper.');
+      if (api.clock() - last.at > UNDO_WINDOW_MS) {
+        throw pgError('22023', 'Your last answer was more than 30 minutes ago, so it can no longer be undone.');
+      }
+      if (last.kind === 'split') {
+        throw pgError('22023', 'Splitting a question cannot be undone here. Ask the HOD if the split was a mistake.');
+      }
+      if (last.kind === 'or_separator') {
+        throw pgError('22023', 'That step cannot be undone here. Ask the HOD if it was a mistake.');
+      }
+      if (last.kind === 'ask_help' && hodDone.has(last.id)) {
+        throw pgError('22023', 'The HOD has already dealt with that question, so it can no longer be taken back.');
+      }
+      if (touched.has(last.id)) {
+        throw pgError('22023', 'Someone else has worked on that question since, so it can no longer be undone. Ask the HOD.');
+      }
+      const kept = allQuestions.find((x) => x.id === last.id);
+      if (!kept) throw pgError('22023', 'That question is no longer there');
+
+      if (last.kind === 'skip') {
+        skipped.delete(last.id);
+        if (last.prevSkip === undefined) skipOrder.delete(last.id);
+        else skipOrder.set(last.id, last.prevSkip);
+      } else {
+        if (last.kind === 'fix' && last.prev) {
+          kept.body = last.prev.body;
+          kept.display_number = last.prev.display_number;
+          kept.marks = last.prev.marks;
+          kept.version = (kept.version ?? 1) + 1; // a new version holding the old words
+        }
+        outcome.delete(last.id);
+        doneByPaper[key] = Math.max(0, (doneByPaper[key] ?? 0) - 1);
+        today = Math.max(0, today - 1);
+        total = Math.max(0, total - 1);
+        if (!queue.some((x) => x.id === last.id)) {
+          queue.splice(Math.min(last.queueIndex, queue.length), 0, { ...kept });
+        }
+      }
+      last.undone = true;
+      const actionNames = { pass: 'checker_pass', fix: 'checker_fix', ask_help: 'checker_ask_help', skip: 'checker_skip' } as const;
+      return {
+        question_id: last.id,
+        undone: last.kind,
+        undone_action: actionNames[last.kind],
+        question: decorate({ ...(queue.find((x) => x.id === last.id) ?? kept) }),
+      };
     },
 
     async myProfile(): Promise<VerifierProfile | null> {
@@ -430,6 +607,19 @@ export function createFakeCheckerApi(): FakeCheckerApi {
     const q = queue.find((x) => x.id === id);
     if (!q) throw pgError('42501', 'This question is not currently assigned to you');
     return q;
+  }
+
+  function record(kind: FakeAction['kind'], id: string): FakeAction {
+    const action: FakeAction = {
+      kind,
+      id,
+      paperKey: paperOf.get(id) ?? current ?? 'A',
+      at: api.clock(),
+      undone: false,
+      queueIndex: queue.findIndex((x) => x.id === id),
+    };
+    actions.push(action);
+    return action;
   }
 
   function done(id: string, state: PaperQuestionState = 'done') {
