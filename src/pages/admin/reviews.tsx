@@ -1,519 +1,574 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { recordAdminAction } from '@/lib/audit';
 import { cn } from '@/lib/utils';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  adminFieldStyle,
-  adminPanelStyle,
-  adminPrimaryBtnStyle,
-  adminSecondaryBtnStyle,
-  adminToast,
-  useAdminGuard,
-  useReviewerNames,
-  AdminGuardErrorState,
-} from '@/components/AdminConsole';
+import { adminFieldStyle, adminPanelStyle, adminToast, useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
 import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
-import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
-import { AdminStatusPill, AdminRowActions, type AdminStatus, type AdminRowAction } from '@/pages/admin/AdminTable';
+import { useRefreshAdminCounts } from '@/pages/admin/useAdminSectionCounts';
+import { AdminStatusPill, AdminRowActions, AdminPanelHeader, type AdminStatus, type AdminRowAction } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
+import { AdminEmpty, AdminError, AdminLoading } from '@/components/admin/AdminState';
+import { AdminFilterChips } from '@/components/admin/AdminFilterChips';
+import { AdminPillButton } from '@/components/admin/AdminPillButton';
+import { AdminTabs } from '@/components/admin/AdminTabs';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { loadView } from '@/lib/admin-load-view';
+import {
+  afterPublish,
+  afterRemove,
+  canConvert,
+  contactHref,
+  convertConfirmed,
+  countsAfterPublish,
+  realReviewsAdminApi,
+  recommendationLabel,
+  upvoteSummary,
+  type CommentFilter,
+  type Recommendation,
+  type RecommendationStatus,
+  type ReviewComment,
+  type ReviewCounts,
+  type ReviewsAdminApi,
+  type SortOrder,
+  type UpvoteStat,
+} from '@/lib/reviews-admin-api';
+import { PREVIEW_TOOLS } from '@/lib/preview-tools';
+import { isDummyMode } from '@/lib/dummy-mode';
 import { ThumbsUp } from 'lucide-react';
 
-/* Handoff 09i AD-007 "Reviews" — the single-page merge of the three legacy
-   review-adjacent admin routes (AdminComments, AdminRecommendations,
-   AdminUpvotes), switched by a segmented source control. AdminFeedback.tsx
-   (site NPS/star-rating feedback, unrelated to teacher reviews — no teacher
-   column, no publish/convert action) is deliberately left out of THIS
-   merge; see the report for the reasoning. It has its own tab and page
-   again at admin/feedback.tsx (a plain table, not this queue-card shape),
-   because leaving it out of the merge had left it with no admin surface
-   anywhere -- not the intended outcome of "doesn't belong in this merge".
+const DummyAdminReviews = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminReviewsDummy')) : null;
 
-   AD-007 ⚠: this screen is "not a table — a queue of cards" and "reported
+/* Handoff 09i AD-007 "Reviews" -- the single-page merge of the three legacy
+   review-adjacent admin routes (comments, recommendations, upvotes), switched
+   by tabs that live in the URL as ?tab= (reviews, recommendations, upvotes).
+   Visitor feedback (site ratings, unrelated to teacher reviews) has its own
+   page at admin/feedback.tsx.
+
+   AD-007: this screen is "not a table, a queue of cards" and "reported
    reviews only" (a moderator clears a queue, they do not browse all
    reviews). The real `teacher_comments` schema has no reported/flagged
-   column distinct from the pre-publish `approved` moderation flag this page
-   already used — there is no separate "reported after publish" concept to
-   query, so the Reviews source's existing pending-moderation queue is what
-   renders as the AD-007 card queue (queries/mutations unchanged). The
-   Approved/All tabs are real, working admin features this task must not
-   remove, so they stay, demoted to a small secondary control rather than
-   the primary view AD-007 warns against building. AD-007 also says "hide,
-   never delete" — the real mutation here is `teacher_comments.delete()` (no
-   `hidden` flag exists on the table to soft-hide with), so the destructive
-   action keeps its honest "Remove" label and permanent-delete confirm
-   dialog rather than being mislabelled "Hide". See the redesign commit
-   message for the full adaptation notes. */
+   column distinct from the pre-publish `approved` moderation flag, so the
+   Waiting view is the card queue; Published and All are real working
+   filters kept beside it. The destructive action is a real delete (no
+   `hidden` flag exists to soft-hide with), so it keeps the honest verb
+   "Remove" and a permanent-delete confirm.
+
+   Admin rework, Batch 5:
+   - Each source (reviews, recommendations, upvotes) fails on its own: its
+     own error with Try again that re-runs only its own read. A failed read
+     is never "nothing waiting".
+   - The tab badges and filter counts are their own head-counts, so they do
+     not depend on how many rows are loaded or on the filter. The nav badge
+     comes from the shared counts hook.
+   - A write updates the list in place (the row leaves, or flips), then the
+     counts refresh in the background. The page never blanks the queue.
+   - The data goes through ReviewsAdminApi (src/lib/reviews-admin-api.ts), so
+     dummy mode and tests can swap it. */
 
 type Source = 'reviews' | 'recommendations' | 'upvotes';
+const SOURCES: Source[] = ['reviews', 'recommendations', 'upvotes'];
 
-/** AD-007's card shape, shared by all three sources on this page (not just
- *  the literal "reported reviews" one the spec text describes — this whole
- *  screen is the Reviews section, so every source it merges renders as the
- *  same card queue rather than reverting to a table for two of the three). */
-interface QueueCardData {
+const PAGE_TITLE: Record<Source, string> = { reviews: 'Reviews', recommendations: 'Recommendations', upvotes: 'Upvotes by teacher' };
+
+/** AD-007's card shape, shared by all three sources on this page. */
+export interface QueueCardData {
   id: string;
   quote: ReactNode;
   attribution: string;
+  /** Extra lines under the attribution (contact numbers). */
+  details?: ReactNode;
   badge: ReactNode;
   actions: AdminRowAction[];
+  /** Rendered inside the card under the content (the inline edit form). */
+  extra?: ReactNode;
 }
 
-/** AD-007: `rounded-[20px] bg-muted p-[16px_18px]`, quote at 14.5px/1.55,
- *  attribution at 12.5px muted, badge + actions right-aligned. */
+/** AD-007: `rounded-2xl bg-muted`, quote at 15px/1.55, attribution 13px muted,
+ *  badge, then the actions. Below `sm` the actions drop under the text and
+ *  wrap, with the first action leading. */
 function AdminQueueCard({ card }: { card: QueueCardData }) {
   return (
     <div className="rounded-2xl bg-muted px-[18px] py-4">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-[15px] leading-[1.55] text-warm-prose">{card.quote}</p>
+          <p className="text-pretty break-words text-[15px] leading-[1.55] text-warm-prose">{card.quote}</p>
           <div className="mt-2 text-[13px] text-warm-meta">{card.attribution}</div>
+          {card.details}
           <div className="mt-2.5">{card.badge}</div>
         </div>
-        <div className="shrink-0">
-          <AdminRowActions actions={card.actions} />
+        <div className="sm:shrink-0">
+          <AdminRowActions actions={card.actions} stack />
         </div>
+      </div>
+      {card.extra}
+    </div>
+  );
+}
+
+/** One source's list, or the reason there is none. Pure, so every state can be checked. */
+export function SourcePanel({
+  what,
+  settled,
+  error,
+  cards,
+  emptyTitle,
+  emptyHint,
+  emptyAction,
+  onRetry,
+  dim,
+}: {
+  /** "the reviews", for the error sentence. */
+  what: string;
+  settled: boolean;
+  error: boolean;
+  cards: QueueCardData[];
+  emptyTitle: string;
+  emptyHint?: string;
+  emptyAction?: { label: string; onClick: () => void };
+  onRetry: () => void;
+  /** A refetch is under way: keep the cards, soften them. */
+  dim?: boolean;
+}) {
+  const view = loadView({ settled, error, count: cards.length });
+  if (view === 'skeleton') return <AdminLoading shape="cards" rows={4} label={`Loading ${what}`} />;
+  if (view === 'error') return <AdminError what={what} onRetry={onRetry} />;
+  if (view === 'empty') return <AdminEmpty title={emptyTitle} hint={emptyHint} action={emptyAction} className="rounded-2xl bg-muted py-12" />;
+  return (
+    <>
+      {error ? <AdminError what={`the latest ${what.replace(/^the /, '')}`} onRetry={onRetry} detail="The list below may be out of date." className="mb-3" /> : null}
+      <div className={cn('flex flex-col gap-2.5 transition-opacity duration-150', dim && 'opacity-60')}>
+        {cards.map((card) => (
+          <AdminQueueCard key={card.id} card={card} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ContactLink({ contact }: { contact: string }) {
+  const href = contactHref(contact);
+  if (!href) return <span className="text-warm-secondary">{contact || 'No contact given'}</span>;
+  return (
+    <a href={href} className="inline-flex min-h-10 items-center font-bold text-brand-blue underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      {contact}
+    </a>
+  );
+}
+
+/** "Teacher:" and "Recommended by:" with a tap-to-call number, from data already loaded. */
+function ContactLines({ rec }: { rec: Recommendation }) {
+  return (
+    <dl className="mt-1.5 space-y-0 text-[13px] text-warm-secondary">
+      <div>
+        <dt className="inline font-semibold text-foreground">Teacher: </dt>
+        <dd className="inline">
+          {rec.teacher_name} <ContactLink contact={rec.teacher_contact} />
+        </dd>
+      </div>
+      <div>
+        <dt className="inline font-semibold text-foreground">Recommended by: </dt>
+        <dd className="inline">
+          {rec.recommender_name} <ContactLink contact={rec.recommender_contact} />
+        </dd>
+      </div>
+    </dl>
+  );
+}
+
+function RecommendationEditForm({
+  rec,
+  status,
+  notes,
+  saving,
+  error,
+  onStatus,
+  onNotes,
+  onSave,
+  onCancel,
+}: {
+  rec: Recommendation;
+  status: string;
+  notes: string;
+  saving: boolean;
+  error: string | null;
+  onStatus: (v: string) => void;
+  onNotes: (v: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const statusRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    statusRef.current?.focus();
+  }, []);
+  return (
+    <div className={cn(adminPanelStyle, 'mt-4 max-w-[560px] space-y-4 p-5')} data-testid="recommendation-edit">
+      <div className="text-sm font-bold text-foreground">Editing recommendation: {rec.teacher_name}</div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div>
+          <label htmlFor={`rec-status-${rec.id}`} className="mb-2 block text-sm font-medium text-warm-secondary">
+            Status
+          </label>
+          <Select value={status} onValueChange={onStatus}>
+            <SelectTrigger id={`rec-status-${rec.id}`} ref={statusRef} className={`h-auto border-0 ${adminFieldStyle}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="contacted">Contacted</SelectItem>
+              <SelectItem value="onboarded">Onboarded</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label htmlFor={`rec-notes-${rec.id}`} className="mb-2 block text-sm font-medium text-warm-secondary">
+            Notes
+          </label>
+          <Textarea
+            id={`rec-notes-${rec.id}`}
+            value={notes}
+            onChange={(e) => onNotes(e.target.value)}
+            placeholder="Add notes..."
+            rows={3}
+            className={`border-0 ${adminFieldStyle}`}
+          />
+        </div>
+      </div>
+      {error ? (
+        <p role="alert" className="text-[13px] text-destructive">
+          {error}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <AdminPillButton variant="primary" busy={saving} onClick={onSave}>
+          {saving ? 'Saving...' : 'Save'}
+        </AdminPillButton>
+        <AdminPillButton variant="secondary" disabled={saving} onClick={onCancel}>
+          Cancel
+        </AdminPillButton>
       </div>
     </div>
   );
 }
 
-function AdminQueueList({ cards }: { cards: QueueCardData[] }) {
-  return (
-    <div className="flex flex-col gap-2.5">
-      {cards.map((card) => (
-        <AdminQueueCard key={card.id} card={card} />
-      ))}
-    </div>
-  );
-}
+const REC_TONE: Record<RecommendationStatus, AdminStatus> = { onboarded: 'live', rejected: 'hidden', contacted: 'paused', pending: 'pending' };
 
-interface Comment {
-  id: string;
-  teacher_id: string;
-  user_id: string;
-  comment: string;
-  is_anonymous: boolean;
-  approved: boolean;
-  approved_by: string | null;
-  approved_at: string | null;
-  created_at: string;
-  updated_at: string;
-  profiles: {
-    full_name: string | null;
-    role: string | null;
-    school_college: string | null;
-    grade: string | null;
-  } | null;
-  approver_name: string | null;
-  teachers_list: { name: string; slug: string } | null;
-}
-
-interface Recommendation {
-  id: string;
-  user_id: string | null;
-  recommender_name: string;
-  recommender_contact: string;
-  teacher_name: string;
-  teacher_contact: string;
-  status: 'pending' | 'contacted' | 'onboarded' | 'rejected';
-  notes: string | null;
-  approved_by: string | null;
-  approved_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-interface UpvoteStat {
-  teacher_id: string;
-  teacher_name: string;
-  teacher_slug: string;
-  upvote_count: number;
-}
-
-const REVIEWS_PAGE_SIZE = 50;
-
-export default function AdminReviews() {
-  usePageMeta(
-    'Reviews & Recommendations | Shikshaq Admin',
-    'Moderate teacher reviews, recommendations and upvotes waiting on the admin queue.'
-  );
+export function AdminReviewsPage({
+  api = realReviewsAdminApi,
+  dummy = false,
+  banner,
+}: {
+  api?: ReviewsAdminApi;
+  dummy?: boolean;
+  banner?: ReactNode;
+}) {
+  usePageMeta('Reviews | Shikshaq Admin', 'Moderate parents\' reviews of teachers, recommended teachers and upvotes waiting on the admin queue.');
   const { confirm, confirmDialog } = useConfirm();
   const { user, profile } = useAuth();
   const actorName = profile?.full_name || user?.email || 'an admin';
   const signedInName = profile?.full_name || user?.email || 'Admin';
+  const refreshNav = useRefreshAdminCounts();
 
-  const { isAdmin, checkingAdmin, error: adminGuardError, retry: retryAdminGuard } = useAdminGuard(user, { redirectOnDenied: true });
+  const guard = useAdminGuard(dummy ? null : user, { redirectOnDenied: !dummy });
+  const isAdmin = dummy ? true : guard.isAdmin;
+  const checkingAdmin = dummy ? false : guard.checkingAdmin;
+  const { error: adminGuardError, retry: retryAdminGuard } = guard;
 
-  const [source, setSource] = useState<Source>('reviews');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const source: Source = (SOURCES as string[]).includes(tabParam ?? '') ? (tabParam as Source) : 'reviews';
+  function setSource(next: string) {
+    const p = new URLSearchParams(searchParams);
+    if (next === 'reviews') p.delete('tab');
+    else p.set('tab', next);
+    setSearchParams(p);
+  }
 
-  // --- Reviews & comments (from AdminComments.tsx) ---------------------
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
+
+  // --- Counts: their own reads, independent of what is loaded ---------------
+  const [counts, setCounts] = useState<ReviewCounts>({});
+  const [countsSettled, setCountsSettled] = useState(false);
+  const refreshCounts = useCallback(() => {
+    void api
+      .counts()
+      .then((c) => setCounts(c))
+      .catch(() => setCounts({}))
+      .finally(() => setCountsSettled(true));
+    refreshNav();
+  }, [api, refreshNav]);
+
+  // --- Reviews --------------------------------------------------------------
+  const [comments, setComments] = useState<ReviewComment[]>([]);
+  const [commentsSettled, setCommentsSettled] = useState(false);
+  const [commentsError, setCommentsError] = useState(false);
+  const [commentsBusy, setCommentsBusy] = useState(false);
   const [commentsLoadingMore, setCommentsLoadingMore] = useState(false);
   const [commentsHasMore, setCommentsHasMore] = useState(true);
   const [commentsPage, setCommentsPage] = useState(0);
-  const [commentFilter, setCommentFilter] = useState<'all' | 'pending' | 'approved'>('pending');
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [commentFilter, setCommentFilter] = useState<CommentFilter>('pending');
+  const commentsSeq = useRef(0);
 
-  async function fetchComments(append = false) {
-    try {
-      if (!append) {
-        setCommentsLoading(true);
-        setCommentsPage(0);
-      } else {
-        setCommentsLoadingMore(true);
-      }
-
-      const from = append ? commentsPage * REVIEWS_PAGE_SIZE : 0;
-      const to = from + REVIEWS_PAGE_SIZE - 1;
-
-      let query = supabase
-        .from('teacher_comments')
-        .select(
-          `
-          id,
-          teacher_id,
-          user_id,
-          comment,
-          is_anonymous,
-          approved,
-          approved_by,
-          approved_at,
-          created_at,
-          updated_at
-        `
-        )
-        .order('created_at', { ascending: sortOrder === 'oldest' })
-        .range(from, to);
-
-      if (commentFilter === 'pending') {
-        query = query.eq('approved', false);
-      } else if (commentFilter === 'approved') {
-        query = query.eq('approved', true);
-      }
-
-      const { data, error } = await query;
-      if (error) {
+  const fetchComments = useCallback(
+    async (append = false) => {
+      const seq = ++commentsSeq.current;
+      if (append) setCommentsLoadingMore(true);
+      else setCommentsBusy(true);
+      try {
+        const r = await api.comments({ filter: commentFilter, sort: sortOrder, page: append ? commentsPage : 0 });
+        if (seq !== commentsSeq.current) return;
+        setCommentsHasMore(r.hasMore);
+        if (append) {
+          setComments((prev) => [...prev, ...r.rows.filter((n) => !prev.some((p) => p.id === n.id))]);
+          setCommentsPage((p) => p + 1);
+        } else {
+          setComments(r.rows);
+          setCommentsPage(1);
+          setCommentsError(false);
+        }
+      } catch (error) {
+        if (seq !== commentsSeq.current) return;
         if (import.meta.env.DEV) console.error('Error fetching comments:', error);
-        adminToast('Failed to load reviews');
-        return;
+        if (append) adminToast('Could not load more reviews. Try again.');
+        else setCommentsError(true);
+      } finally {
+        if (seq === commentsSeq.current) {
+          setCommentsSettled(true);
+          setCommentsBusy(false);
+          setCommentsLoadingMore(false);
+        }
       }
-
-      const rawComments = data || [];
-      setCommentsHasMore(rawComments.length === REVIEWS_PAGE_SIZE);
-
-      if (rawComments.length === 0 && !append) {
-        setComments([]);
-        return;
-      }
-
-      const userIds = [
-        ...new Set(
-          rawComments.flatMap((c: { user_id: string; approved_by: string | null }) =>
-            c.approved_by ? [c.user_id, c.approved_by] : [c.user_id]
-          )
-        ),
-      ];
-      const teacherIds = [...new Set(rawComments.map((c: { teacher_id: string }) => c.teacher_id))];
-
-      const [profilesRes, teachersRes] = await Promise.all([
-        userIds.length > 0
-          ? supabase.from('profiles').select('id, full_name, role, school_college, grade').in('id', userIds)
-          : Promise.resolve({ data: [] }),
-        teacherIds.length > 0
-          ? supabase.from('teachers_list').select('id, name, slug').in('id', teacherIds)
-          : Promise.resolve({ data: [] }),
-      ]);
-
-      const profilesMap = new Map((profilesRes.data || []).map((p: { id: string }) => [p.id, p]));
-      const teachersMap = new Map((teachersRes.data || []).map((t: { id: string }) => [t.id, t]));
-
-      const commentsWithData = rawComments.map((comment: Record<string, unknown>) => {
-        const approver = comment.approved_by
-          ? (profilesMap.get(comment.approved_by as string) as { full_name?: string | null } | undefined)
-          : null;
-        return {
-          ...comment,
-          profiles: profilesMap.get(comment.user_id as string) || null,
-          approver_name: approver?.full_name || (comment.approved_by ? 'an admin' : null),
-          teachers_list: teachersMap.get(comment.teacher_id as string) || null,
-        };
-      }) as unknown as Comment[];
-
-      if (append) {
-        setComments((prev) => [...prev, ...commentsWithData]);
-        setCommentsPage((p) => p + 1);
-      } else {
-        setComments(commentsWithData);
-        setCommentsPage(1);
-      }
-    } catch (error) {
-      if (import.meta.env.DEV) console.error('Error:', error);
-      adminToast('Failed to load reviews');
-    } finally {
-      setCommentsLoading(false);
-      setCommentsLoadingMore(false);
-    }
-  }
+    },
+    [api, commentFilter, sortOrder, commentsPage],
+  );
 
   useEffect(() => {
-    if (isAdmin) fetchComments();
+    if (isAdmin) void fetchComments(false);
+    // Reload when the filter or sort changes; "load more" is its own call.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, commentFilter, sortOrder]);
+  }, [isAdmin, commentFilter, sortOrder, api]);
 
-  const handleApproveComment = async (commentId: string) => {
+  const handlePublish = async (c: ReviewComment) => {
     try {
-      const { error } = await supabase.from('teacher_comments').update({ approved: true }).eq('id', commentId);
-      if (error) {
-        if (import.meta.env.DEV) console.error('Error approving comment:', error);
-        adminToast('Failed to publish review');
-        return;
-      }
-      adminToast('Review published');
-      const approvedComment = comments.find((c) => c.id === commentId);
-      if (user) {
-        void recordAdminAction({
-          actorId: user.id,
-          actorName,
-          action: 'approve',
-          targetType: 'comment',
-          targetId: commentId,
-          targetLabel: approvedComment?.teachers_list?.name || 'review',
-        });
-      }
-      fetchComments();
+      await api.publishComment(c.id);
     } catch (error) {
-      if (import.meta.env.DEV) console.error('Error:', error);
+      if (import.meta.env.DEV) console.error('Error approving comment:', error);
       adminToast('Failed to publish review');
+      return;
     }
+    adminToast('Review published');
+    if (user) {
+      void recordAdminAction({
+        actorId: user.id,
+        actorName,
+        action: 'approve',
+        targetType: 'comment',
+        targetId: c.id,
+        targetLabel: c.teachers_list?.name || 'review',
+      });
+    }
+    setComments((prev) => afterPublish(prev, c.id, commentFilter, new Date().toISOString()));
+    setCounts((prev) => countsAfterPublish(prev));
+    refreshCounts();
   };
 
-  const handleDeleteComment = async (commentId: string) => {
+  const handleRemoveComment = async (c: ReviewComment) => {
     const ok = await confirm({
-      title: 'Delete this review?',
-      description: 'It disappears from the teacher’s profile straight away. This cannot be undone.',
-      confirmLabel: 'Delete review',
+      title: 'Remove this review?',
+      description: 'It disappears from the teacher\'s profile straight away. This cannot be undone.',
+      confirmLabel: 'Remove review',
     });
     if (!ok) return;
-
     try {
-      const { error } = await supabase.from('teacher_comments').delete().eq('id', commentId);
-      if (error) {
-        if (import.meta.env.DEV) console.error('Error deleting comment:', error);
-        adminToast('Failed to remove review');
-        return;
-      }
-      adminToast('Review removed');
-      const deletedComment = comments.find((c) => c.id === commentId);
-      if (user) {
-        void recordAdminAction({
-          actorId: user.id,
-          actorName,
-          action: 'delete',
-          targetType: 'comment',
-          targetId: commentId,
-          targetLabel: deletedComment?.teachers_list?.name || 'review',
-        });
-      }
-      fetchComments();
+      await api.removeComment(c.id);
     } catch (error) {
-      if (import.meta.env.DEV) console.error('Error:', error);
+      if (import.meta.env.DEV) console.error('Error deleting comment:', error);
       adminToast('Failed to remove review');
+      return;
     }
+    adminToast('Review removed');
+    if (user) {
+      void recordAdminAction({
+        actorId: user.id,
+        actorName,
+        action: 'delete',
+        targetType: 'comment',
+        targetId: c.id,
+        targetLabel: c.teachers_list?.name || 'review',
+      });
+    }
+    setComments((prev) => afterRemove(prev, c.id));
+    refreshCounts();
   };
 
-  const getCommentAuthorName = (comment: Comment): string => {
-    if (comment.is_anonymous) return 'Anonymous';
-    return comment.profiles?.full_name || 'Anonymous';
-  };
-
-  const getCommentAuthorInfo = (comment: Comment): string => {
-    if (comment.is_anonymous) return '';
-    if (comment.profiles?.role === 'guardian') return 'Guardian';
-    if (comment.profiles?.role === 'student') {
+  const authorName = (c: ReviewComment) => (c.is_anonymous ? 'Anonymous' : c.profiles?.full_name || 'Anonymous');
+  const authorInfo = (c: ReviewComment): string => {
+    if (c.is_anonymous) return '';
+    if (c.profiles?.role === 'guardian') return 'Guardian';
+    if (c.profiles?.role === 'student') {
       const parts: string[] = [];
-      if (comment.profiles.school_college) parts.push(comment.profiles.school_college);
-      if (comment.profiles.grade) parts.push(`Grade ${comment.profiles.grade}`);
+      if (c.profiles.school_college) parts.push(c.profiles.school_college);
+      if (c.profiles.grade) parts.push(`Grade ${c.profiles.grade}`);
       return parts.join(' • ');
     }
     return '';
   };
 
-  const getCommentInitials = (comment: Comment): string => {
-    if (comment.is_anonymous) return 'A';
-    if (comment.profiles?.full_name) {
-      const names = comment.profiles.full_name.split(' ');
-      if (names.length >= 2) return (names[0][0] + names[names.length - 1][0]).toUpperCase();
-      return names[0][0].toUpperCase();
-    }
-    return 'U';
-  };
-
-  // --- Recommendations (from AdminRecommendations.tsx) ------------------
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [recsLoading, setRecsLoading] = useState(true);
+  // --- Recommendations ------------------------------------------------------
+  const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [recsSettled, setRecsSettled] = useState(false);
+  const [recsError, setRecsError] = useState(false);
+  const [recsBusy, setRecsBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editStatus, setEditStatus] = useState<string>('');
-  const [editNotes, setEditNotes] = useState<string>('');
+  const [editStatus, setEditStatus] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [convertingId, setConvertingId] = useState<string | null>(null);
+  const [reviewerNames, setReviewerNames] = useState<Record<string, string>>({});
+  const recsSeq = useRef(0);
 
-  async function fetchRecommendations() {
+  const fetchRecs = useCallback(async () => {
+    const seq = ++recsSeq.current;
+    setRecsBusy(true);
     try {
-      setRecsLoading(true);
-      const { data, error } = await supabase
-        .from('teacher_recommendations')
-        .select('*')
-        .order('created_at', { ascending: sortOrder === 'oldest' });
-
-      if (error) {
-        if (import.meta.env.DEV) console.error('Error fetching recommendations:', error);
-        adminToast('Failed to load recommendations');
-        return;
-      }
-
-      const VALID_STATUSES: Recommendation['status'][] = ['pending', 'contacted', 'onboarded', 'rejected'];
-      const normalized: Recommendation[] = (data || []).map((row) => ({
-        ...row,
-        status: (VALID_STATUSES as string[]).includes(row.status) ? (row.status as Recommendation['status']) : 'pending',
-      }));
-      setRecommendations(normalized);
+      const rows = await api.recommendations(sortOrder);
+      if (seq !== recsSeq.current) return;
+      setRecs(rows);
+      setRecsError(false);
     } catch (error) {
-      if (import.meta.env.DEV) console.error('Error:', error);
-      adminToast('Failed to load recommendations');
+      if (seq !== recsSeq.current) return;
+      if (import.meta.env.DEV) console.error('Error fetching recommendations:', error);
+      setRecsError(true);
     } finally {
-      setRecsLoading(false);
+      if (seq === recsSeq.current) {
+        setRecsSettled(true);
+        setRecsBusy(false);
+      }
     }
-  }
-
-  const reviewerNames = useReviewerNames(recommendations.map((r) => r.approved_by));
+  }, [api, sortOrder]);
 
   useEffect(() => {
-    if (isAdmin) fetchRecommendations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, sortOrder]);
+    if (isAdmin) void fetchRecs();
+  }, [isAdmin, fetchRecs]);
 
-  const handleEditRecommendation = (rec: Recommendation) => {
+  useEffect(() => {
+    const ids = recs.map((r) => r.approved_by).filter((x): x is string => Boolean(x));
+    if (ids.length === 0) return;
+    let cancelled = false;
+    void api.reviewerNames(ids).then((m) => {
+      if (!cancelled) setReviewerNames(m);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, recs]);
+
+  const openEdit = (rec: Recommendation) => {
     setEditingId(rec.id);
     setEditStatus(rec.status);
     setEditNotes(rec.notes || '');
+    setEditError(null);
   };
 
-  const handleSaveRecommendation = async (id: string) => {
-    if (!user) return;
+  const handleSaveRecommendation = async (rec: Recommendation) => {
+    if (!user && !dummy) return;
+    setEditSaving(true);
+    setEditError(null);
     try {
-      const { error } = await supabase
-        .from('teacher_recommendations')
-        .update({ status: editStatus, notes: editNotes, approved_by: user.id, approved_at: new Date().toISOString() })
-        .eq('id', id);
-
-      if (error) {
-        if (import.meta.env.DEV) console.error('Error updating recommendation:', error);
-        adminToast('Failed to update. You may need to update via Supabase Dashboard.');
-        return;
-      }
-
-      adminToast('Recommendation updated');
-      const editedRec = recommendations.find((r) => r.id === id);
+      await api.saveRecommendation(rec.id, { status: editStatus, notes: editNotes }, user?.id ?? 'dummy');
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('Error updating recommendation:', error);
+      setEditError('Could not save this recommendation. Your notes are still here. Try again.');
+      setEditSaving(false);
+      return;
+    }
+    setEditSaving(false);
+    adminToast('Recommendation updated');
+    if (user) {
       void recordAdminAction({
         actorId: user.id,
         actorName,
         action: 'edit',
         targetType: 'recommendation',
-        targetId: id,
-        targetLabel: editedRec?.teacher_name || 'recommendation',
+        targetId: rec.id,
+        targetLabel: rec.teacher_name || 'recommendation',
       });
-      setEditingId(null);
-      fetchRecommendations();
-    } catch (error) {
-      if (import.meta.env.DEV) console.error('Error:', error);
-      adminToast('Failed to update recommendation');
     }
+    setRecs((prev) =>
+      prev.map((r) =>
+        r.id === rec.id
+          ? { ...r, status: editStatus as RecommendationStatus, notes: editNotes, approved_by: user?.id ?? r.approved_by, approved_at: new Date().toISOString() }
+          : r,
+      ),
+    );
+    setEditingId(null);
+    refreshCounts();
   };
 
-  const handleQuickStatus = async (id: string, status: Recommendation['status']) => {
-    if (!user) return;
-    const previous = recommendations.find((r) => r.id === id)?.status;
+  const handleQuickStatus = async (rec: Recommendation, status: RecommendationStatus) => {
+    if (!user && !dummy) return;
+    const previous = rec.status;
+    setRecs((prev) => prev.map((r) => (r.id === rec.id ? { ...r, status } : r)));
     try {
-      setRecommendations((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
-
-      const { error } = await supabase
-        .from('teacher_recommendations')
-        .update({ status, approved_by: user.id, approved_at: new Date().toISOString() })
-        .eq('id', id);
-
-      if (error) {
-        if (import.meta.env.DEV) console.error('Error updating recommendation:', error);
-        if (previous) setRecommendations((prev) => prev.map((r) => (r.id === id ? { ...r, status: previous } : r)));
-        adminToast('Failed to update recommendation');
-        return;
-      }
-
-      adminToast(status === 'contacted' ? 'Marked as contacted' : 'Recommendation dismissed');
-      const targetRec = recommendations.find((r) => r.id === id);
+      await api.saveRecommendation(rec.id, { status }, user?.id ?? 'dummy');
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('Error updating recommendation:', error);
+      setRecs((prev) => prev.map((r) => (r.id === rec.id ? { ...r, status: previous } : r)));
+      adminToast('Failed to update recommendation');
+      return;
+    }
+    adminToast(status === 'contacted' ? 'Marked as contacted' : 'Recommendation dismissed');
+    if (user) {
       void recordAdminAction({
         actorId: user.id,
         actorName,
         action: status === 'contacted' ? 'edit' : 'reject',
         targetType: 'recommendation',
-        targetId: id,
-        targetLabel: targetRec?.teacher_name || 'recommendation',
+        targetId: rec.id,
+        targetLabel: rec.teacher_name || 'recommendation',
       });
-    } catch (error) {
-      if (import.meta.env.DEV) console.error('Error:', error);
-      if (previous) setRecommendations((prev) => prev.map((r) => (r.id === id ? { ...r, status: previous } : r)));
-      adminToast('Failed to update recommendation');
     }
+    refreshCounts();
   };
 
-  /** Ports AdminRecommendations' "Contact" quick action into A4's "Convert rec →
-   *  application" verb: inserts a matching row into teacher_applications (the
-   *  intake table Approvals reads from) so the recommendation becomes a real
-   *  application to review, then marks the recommendation onboarded. */
-  const handleConvertToApplication = async (rec: Recommendation) => {
-    if (!user) return;
-    try {
-      const { error: insertError } = await supabase.from('teacher_applications').insert({
-        name: rec.teacher_name,
-        phone_number: rec.teacher_contact,
-        email: '',
-        sir_maam: '',
-        subjects: '',
-        classes_taught_for_backend: '',
-        status: 'pending',
-        reference_name: rec.recommender_name,
-        reference_number: rec.recommender_contact,
-        description: rec.notes || `Recommended by ${rec.recommender_name} (${rec.recommender_contact})`,
-      });
-
-      if (insertError) {
-        if (import.meta.env.DEV) console.error('Error converting recommendation:', insertError);
-        adminToast('Failed to convert recommendation to an application');
-        return;
-      }
-
-      const { error: updateError } = await supabase
-        .from('teacher_recommendations')
-        .update({ status: 'onboarded', approved_by: user.id, approved_at: new Date().toISOString() })
-        .eq('id', rec.id);
-
-      if (updateError && import.meta.env.DEV) {
-        console.error('Error marking recommendation onboarded after conversion:', updateError);
-      }
-
+  /** Turns a recommendation into a teacher application (the intake Approvals reads). */
+  const handleConvert = async (rec: Recommendation) => {
+    if (!user && !dummy) return;
+    const outcome = await convertConfirmed(
+      async () => {
+        const yes = await confirm({
+          title: `Create a teacher application for ${rec.teacher_name}?`,
+          description: 'It appears in Applications, ready to review, with the recommender as the reference. This recommendation is then marked onboarded.',
+          confirmLabel: 'Create application',
+        });
+        // Disable the button only once the admin has said yes.
+        if (yes) setConvertingId(rec.id);
+        return yes;
+      },
+      api,
+      rec,
+      user?.id ?? 'dummy',
+    );
+    setConvertingId(null);
+    if (outcome === 'cancelled') return;
+    if (outcome === 'failed') {
+      adminToast('Failed to convert recommendation to an application');
+      return;
+    }
+    if (outcome === 'marked') {
       adminToast('Converted to an application');
+      setRecs((prev) => prev.map((r) => (r.id === rec.id ? { ...r, status: 'onboarded' } : r)));
+    } else {
+      adminToast('Application created, but the recommendation could not be marked onboarded. Mark it manually.');
+    }
+    if (user) {
       void recordAdminAction({
         actorId: user.id,
         actorName,
@@ -523,87 +578,37 @@ export default function AdminReviews() {
         targetLabel: rec.teacher_name,
         reason: 'Converted recommendation to teacher application',
       });
-      fetchRecommendations();
-    } catch (error) {
-      if (import.meta.env.DEV) console.error('Error:', error);
-      adminToast('Failed to convert recommendation to an application');
     }
+    refreshCounts();
   };
 
-  const recStatus = (status: Recommendation['status']): AdminStatus => {
-    switch (status) {
-      case 'onboarded':
-        return 'live';
-      case 'rejected':
-        return 'hidden';
-      case 'contacted':
-        return 'paused';
-      default:
-        return 'pending';
-    }
-  };
+  // --- Upvotes --------------------------------------------------------------
+  const [upvotes, setUpvotes] = useState<UpvoteStat[]>([]);
+  const [upvotesSettled, setUpvotesSettled] = useState(false);
+  const [upvotesError, setUpvotesError] = useState(false);
 
-  // --- Upvotes (from AdminUpvotes.tsx) -----------------------------------
-  const [upvoteStats, setUpvoteStats] = useState<UpvoteStat[]>([]);
-  const [upvotesLoading, setUpvotesLoading] = useState(true);
-
-  async function fetchUpvoteStats() {
+  const fetchUpvotes = useCallback(async () => {
     try {
-      setUpvotesLoading(true);
-      const { data, error } = await supabase.from('teacher_upvote_stats').select('*').order('upvote_count', { ascending: false });
-
-      if (error) {
-        if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
-          const { data: upvotesData, error: upvotesError } = await supabase.from('teacher_upvotes').select('teacher_id');
-          if (upvotesError) throw upvotesError;
-
-          const counts = new Map<string, number>();
-          upvotesData?.forEach((upvote: any) => {
-            counts.set(upvote.teacher_id, (counts.get(upvote.teacher_id) || 0) + 1);
-          });
-
-          const teacherIds = Array.from(counts.keys());
-          if (teacherIds.length > 0) {
-            const { data: teachersData, error: teachersError } = await supabase
-              .from('teachers_list')
-              .select('id, name, slug')
-              .in('id', teacherIds);
-            if (teachersError) throw teachersError;
-
-            const stats: UpvoteStat[] =
-              teachersData?.map((teacher: any) => ({
-                teacher_id: teacher.id,
-                teacher_name: teacher.name,
-                teacher_slug: teacher.slug,
-                upvote_count: counts.get(teacher.id) || 0,
-              })) || [];
-            stats.sort((a, b) => b.upvote_count - a.upvote_count);
-            setUpvoteStats(stats);
-          } else {
-            setUpvoteStats([]);
-          }
-        } else {
-          throw error;
-        }
-      } else {
-        setUpvoteStats(data || []);
-      }
-    } catch (error: any) {
+      setUpvotes(await api.upvoteStats());
+      setUpvotesError(false);
+    } catch (error) {
       if (import.meta.env.DEV) console.error('Error fetching upvote stats:', error);
-      adminToast('Failed to load upvote statistics');
+      setUpvotesError(true);
     } finally {
-      setUpvotesLoading(false);
+      setUpvotesSettled(true);
     }
-  }
+  }, [api]);
 
   useEffect(() => {
-    if (isAdmin) fetchUpvoteStats();
+    if (isAdmin) {
+      void fetchUpvotes();
+      refreshCounts();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin]);
+  }, [isAdmin, api]);
 
-  /** AdminUpvotes had no per-row mutation at all (its action just opened the
-   *  public profile). A4 gives every source a row action, so upvotes get a
-   *  real destructive one: clear all upvotes recorded for that teacher. */
+  /** AdminUpvotes had no per-row mutation at all. Every source gets a row action,
+   *  so upvotes get a real destructive one: clear all upvotes recorded for a teacher. */
   const handleClearUpvotes = async (stat: UpvoteStat) => {
     const ok = await confirm({
       title: `Clear upvotes for ${stat.teacher_name}?`,
@@ -611,48 +616,131 @@ export default function AdminReviews() {
       confirmLabel: 'Clear upvotes',
     });
     if (!ok) return;
-
     try {
-      const { error } = await supabase.from('teacher_upvotes').delete().eq('teacher_id', stat.teacher_id);
-      if (error) {
-        if (import.meta.env.DEV) console.error('Error clearing upvotes:', error);
-        adminToast('Failed to clear upvotes');
-        return;
-      }
-      adminToast('Upvotes cleared');
-      if (user) {
-        void recordAdminAction({
-          actorId: user.id,
-          actorName,
-          action: 'delete',
-          targetType: 'upvotes',
-          targetId: stat.teacher_id,
-          targetLabel: stat.teacher_name,
-        });
-      }
-      fetchUpvoteStats();
+      await api.clearUpvotes(stat.teacher_id);
     } catch (error) {
-      if (import.meta.env.DEV) console.error('Error:', error);
+      if (import.meta.env.DEV) console.error('Error clearing upvotes:', error);
       adminToast('Failed to clear upvotes');
+      return;
     }
+    adminToast('Upvotes cleared');
+    if (user) {
+      void recordAdminAction({
+        actorId: user.id,
+        actorName,
+        action: 'delete',
+        targetType: 'upvotes',
+        targetId: stat.teacher_id,
+        targetLabel: stat.teacher_name,
+      });
+    }
+    setUpvotes((prev) => prev.filter((s) => s.teacher_id !== stat.teacher_id));
   };
 
-  // --- Shared rail/toolbar chrome -----------------------------------------
-  const pendingReviewsCount = useMemo(() => comments.filter((c) => !c.approved).length, [comments]);
-  const pendingRecsCount = useMemo(() => recommendations.filter((r) => r.status === 'pending').length, [recommendations]);
+  // --- Cards ----------------------------------------------------------------
+  const reviewCards: QueueCardData[] = comments.map((comment) => {
+    const teacherName = comment.teachers_list?.name || `Teacher ${comment.teacher_id}`;
+    const attribution = comment.approved
+      ? `${authorName(comment)} · on ${teacherName} · published ${comment.approved_at ? formatDistanceToNow(new Date(comment.approved_at), { addSuffix: true }) : 'recently'}${comment.approver_name ? ` by ${comment.approver_name}` : ''}`
+      : [authorName(comment), `on ${teacherName}`, authorInfo(comment), formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })].filter(Boolean).join(' · ');
+    return {
+      id: comment.id,
+      quote: `"${comment.comment}"`,
+      attribution,
+      badge: <AdminStatusPill status={comment.approved ? 'live' : 'pending'} label={comment.approved ? 'Published' : 'Waiting'} />,
+      actions: comment.approved
+        ? [{ label: 'Remove', tone: 'destructive', onClick: () => void handleRemoveComment(comment) }]
+        : [{ label: 'Publish', tone: 'mint', onClick: () => void handlePublish(comment) }],
+    };
+  });
 
-  const sectionCounts = useAdminSectionCounts();
-  const nav = buildAdminNav('reviews', { ...sectionCounts, reviews: pendingReviewsCount + pendingRecsCount || undefined });
+  const recommendationCards: QueueCardData[] = recs.map((rec) => {
+    const reviewedMeta = rec.approved_at
+      ? `Reviewed by ${rec.approved_by ? reviewerNames[rec.approved_by] || 'an admin' : 'an admin'}, ${formatDistanceToNow(new Date(rec.approved_at), { addSuffix: true })}`
+      : `Sent ${formatDistanceToNow(new Date(rec.created_at), { addSuffix: true })}`;
+    const actions: AdminRowAction[] = [
+      ...(rec.status === 'pending'
+        ? [
+            { label: 'Mark as contacted', tone: 'mint' as const, onClick: () => void handleQuickStatus(rec, 'contacted') },
+            { label: 'Dismiss', tone: 'muted' as const, onClick: () => void handleQuickStatus(rec, 'rejected') },
+          ]
+        : []),
+      ...(canConvert(rec.status)
+        ? [{ label: convertingId === rec.id ? 'Creating...' : 'Convert to application', tone: 'mint' as const, disabled: convertingId !== null, onClick: () => void handleConvert(rec) }]
+        : []),
+      { label: 'Edit', tone: 'muted', onClick: () => openEdit(rec) },
+    ];
+    return {
+      id: rec.id,
+      quote: rec.notes || `Recommended: ${rec.teacher_name}`,
+      attribution: reviewedMeta,
+      details: <ContactLines rec={rec} />,
+      badge: <AdminStatusPill status={REC_TONE[rec.status]} label={recommendationLabel(rec.status)} />,
+      actions,
+      extra:
+        editingId === rec.id ? (
+          <RecommendationEditForm
+            rec={rec}
+            status={editStatus}
+            notes={editNotes}
+            saving={editSaving}
+            error={editError}
+            onStatus={setEditStatus}
+            onNotes={setEditNotes}
+            onSave={() => void handleSaveRecommendation(rec)}
+            onCancel={() => setEditingId(null)}
+          />
+        ) : undefined,
+    };
+  });
 
-  const sourceTabs: { key: Source; label: string; count: number }[] = [
-    { key: 'reviews', label: 'Reviews', count: pendingReviewsCount },
-    { key: 'recommendations', label: 'Recommendations', count: pendingRecsCount },
-    { key: 'upvotes', label: 'Upvotes', count: upvoteStats.length },
-  ];
+  const upvoteCards: QueueCardData[] = upvotes.map((stat, index) => ({
+    id: stat.teacher_id,
+    quote: stat.teacher_name,
+    attribution: `#${index + 1} by upvote count`,
+    badge: (
+      <span className="inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full bg-success-subtle-bg px-[10px] text-[12px] font-bold tabular-nums text-success-subtle-text">
+        <ThumbsUp className="h-3 w-3" aria-hidden="true" />
+        {stat.upvote_count}
+      </span>
+    ),
+    actions: [
+      { label: 'View profile', tone: 'primary', onClick: () => window.open(`/tuition-teachers/${stat.teacher_slug}`, '_blank', 'noopener') },
+      { label: 'Clear upvotes', tone: 'destructive', onClick: () => void handleClearUpvotes(stat) },
+    ],
+  }));
 
+  // --- Chrome ---------------------------------------------------------------
+  const nav = buildAdminNav('reviews');
+
+  const countOrUnknown = (n: number | undefined): number | null | undefined => (countsSettled ? (n === undefined ? null : n) : undefined);
+  const allReviews =
+    counts.pendingReviews !== undefined && counts.approvedReviews !== undefined ? counts.pendingReviews + counts.approvedReviews : undefined;
+
+  const waitingMeta = (n: number | undefined) => (n === undefined ? undefined : n > 0 ? `${n} waiting` : 'Nothing waiting');
+
+  if (adminGuardError) return <AdminGuardErrorState onRetry={retryAdminGuard} />;
+
+  if (checkingAdmin) {
+    return (
+      <BentoStack className="min-h-screen bg-muted">
+        <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
+        <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
+          <div className="px-[18px]">
+            <AdminLoading shape="cards" rows={4} label="Checking admin access" />
+          </div>
+        </BentoPanel>
+        <AdminAuditNote />
+      </BentoStack>
+    );
+  }
+
+  if (!isAdmin) return null;
+
+  const showSort = source !== 'upvotes';
   const sortSlot = (
-    <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'newest' | 'oldest')}>
-      <SelectTrigger className="h-11 w-[150px] rounded-full border-0 bg-muted text-sm font-semibold">
+    <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as SortOrder)}>
+      <SelectTrigger aria-label="Sort order" className="h-11 w-[150px] rounded-full border-0 bg-muted text-sm font-semibold">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -662,232 +750,123 @@ export default function AdminReviews() {
     </Select>
   );
 
-  // AD-007 card shape: quote/body, an "{author} · on {teacher} · {when}" attribution line, a
-  // badge (the status pill — the real record state, per AD-004), and right-aligned actions.
-  const reviewCards: QueueCardData[] = comments.map((comment) => {
-    const authorName = getCommentAuthorName(comment);
-    const authorInfo = getCommentAuthorInfo(comment);
-    const teacherName = comment.teachers_list?.name || `Teacher ${comment.teacher_id}`;
-    const attribution = comment.approved
-      ? `${authorName} · on ${teacherName} · published ${comment.approved_at ? formatDistanceToNow(new Date(comment.approved_at), { addSuffix: true }) : 'recently'}${comment.approver_name ? ` by ${comment.approver_name}` : ''}`
-      : [authorName, `on ${teacherName}`, authorInfo, formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })].filter(Boolean).join(' · ');
-
-    return {
-      id: comment.id,
-      quote: `"${comment.comment}"`,
-      attribution,
-      badge: <AdminStatusPill status={comment.approved ? 'live' : 'pending'} label={comment.approved ? 'Published' : 'Pending'} />,
-      actions: comment.approved
-        ? [{ label: 'Remove', tone: 'destructive', onClick: () => handleDeleteComment(comment.id) }]
-        : [{ label: 'Publish', tone: 'mint', onClick: () => handleApproveComment(comment.id) }],
-    };
-  });
-
-  const recommendationCards: QueueCardData[] = recommendations.map((rec) => {
-    const reviewedMeta = rec.approved_at
-      ? `reviewed by ${rec.approved_by ? reviewerNames[rec.approved_by] || 'an admin' : 'an admin'}, ${formatDistanceToNow(new Date(rec.approved_at), { addSuffix: true })}`
-      : formatDistanceToNow(new Date(rec.created_at), { addSuffix: true });
-
-    return {
-      id: rec.id,
-      quote: rec.notes || `Recommended: ${rec.teacher_name}`,
-      attribution: `${rec.recommender_name} · on ${rec.teacher_name} · ${reviewedMeta}`,
-      badge: <AdminStatusPill status={recStatus(rec.status)} label={rec.status.charAt(0).toUpperCase() + rec.status.slice(1)} />,
-      actions: [
-        ...(rec.status === 'pending'
-          ? [
-              { label: 'Mark as contacted', tone: 'mint' as const, onClick: () => handleQuickStatus(rec.id, 'contacted') },
-              { label: 'Dismiss', tone: 'muted' as const, onClick: () => handleQuickStatus(rec.id, 'rejected') },
-            ]
-          : []),
-        { label: 'Edit', tone: 'muted', onClick: () => handleEditRecommendation(rec) },
-        { label: 'Convert to application', tone: 'mint', onClick: () => handleConvertToApplication(rec) },
-      ],
-    };
-  });
-
-  const upvoteCards: QueueCardData[] = upvoteStats.map((stat, index) => ({
-    id: stat.teacher_id,
-    quote: stat.teacher_name,
-    attribution: `#${index + 1} by upvote count`,
-    badge: (
-      <span className="inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full bg-mint px-[10px] text-[12px] font-bold text-[#24603D] tabular-nums">
-        <ThumbsUp className="h-3 w-3" aria-hidden="true" />
-        {stat.upvote_count}
-      </span>
-    ),
-    actions: [
-      { label: 'View profile', tone: 'primary', onClick: () => window.open(`/tuition-teachers/${stat.teacher_slug}`, '_blank', 'noopener') },
-      { label: 'Clear upvotes', tone: 'destructive', onClick: () => handleClearUpvotes(stat) },
-    ],
-  }));
-
-  const activeCards = source === 'reviews' ? reviewCards : source === 'recommendations' ? recommendationCards : upvoteCards;
-  const activeLoading =
-    source === 'reviews' ? commentsLoading : source === 'recommendations' ? recsLoading : upvotesLoading;
-
-  const emptyCopy =
-    source === 'reviews'
-      ? commentFilter === 'pending'
-        ? 'No pending reviews to moderate.'
-        : commentFilter === 'approved'
-        ? 'No published reviews yet.'
-        : 'No reviews found.'
-      : source === 'recommendations'
-      ? 'No recommendations yet.'
-      : 'No upvotes yet.';
-
-  if (checkingAdmin) {
-    return (
-      <div className="min-h-screen bg-muted">
-        <div className="container pt-16 pb-16 text-center">
-          <div className="animate-pulse text-sm text-warm-label">Checking admin access…</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (adminGuardError) return <AdminGuardErrorState onRetry={retryAdminGuard} />;
-
-  if (!isAdmin) return null;
-
-  const editingRec = editingId ? recommendations.find((r) => r.id === editingId) : null;
+  const reviewEmpty =
+    commentFilter === 'pending'
+      ? { title: 'No reviews waiting', hint: 'You are all caught up. New reviews from parents land here.' }
+      : commentFilter === 'approved'
+      ? { title: 'No published reviews yet', hint: 'Publish a waiting review and it shows here.' }
+      : { title: 'No reviews found', hint: 'Parents have not written any reviews yet.' };
 
   return (
     <BentoStack className="min-h-screen bg-muted">
       <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
       <AdminPageIntroPanel page="reviews" />
+      {banner}
 
-      <BentoPanel fill="card" className="px-5 py-[18px] lg:px-5 lg:py-[18px]">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 px-[18px]">
-          <h2 className="text-[19px] font-extrabold tracking-[-0.03em] text-foreground">Reported reviews</h2>
-          <span aria-live="polite" aria-atomic="true" className="text-[13px] tabular-nums text-warm-meta">
-            {pendingReviewsCount + pendingRecsCount > 0 ? `${pendingReviewsCount + pendingRecsCount} waiting` : 'Nothing waiting'}
-          </span>
-        </div>
+      <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
+        <AdminPanelHeader
+          title={PAGE_TITLE[source]}
+          meta={
+            source === 'reviews'
+              ? waitingMeta(counts.pendingReviews)
+              : source === 'recommendations'
+              ? waitingMeta(counts.pendingRecommendations)
+              : upvotesSettled && !upvotesError
+              ? upvoteSummary(upvotes)
+              : undefined
+          }
+        />
 
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-[18px]">
-          {/* Segmented control: which underlying dataset populates the queue. AD-007 is
-              specifically about the Reviews source; Recommendations/Upvotes are real,
-              pre-existing sections of this merged page kept alongside it (not a browsing
-              view of "all reviews" — each is still its own bounded working queue/list). */}
-          <div className="flex flex-wrap gap-2">
-            {sourceTabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setSource(tab.key)}
-                className={cn(
-                  'inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-bold transition-colors',
-                  source === tab.key ? 'bg-panel text-background' : 'bg-muted text-warm-prose hover:bg-warm-hairline'
-                )}
-              >
-                {tab.label}
-                <span
-                  className={cn(
-                    'inline-flex h-[19px] min-w-[19px] items-center justify-center rounded-full px-[5px] text-[11px] font-bold tabular-nums',
-                    source === tab.key ? 'bg-brand text-foreground' : 'bg-card text-warm-secondary'
-                  )}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            ))}
+        <AdminTabs
+          label="What to moderate"
+          value={source}
+          onChange={setSource}
+          className="px-[18px]"
+          tabs={[
+            { key: 'reviews', label: 'Reviews', count: countOrUnknown(counts.pendingReviews) },
+            { key: 'recommendations', label: 'Recommendations', count: countOrUnknown(counts.pendingRecommendations) },
+            { key: 'upvotes', label: 'Upvotes' },
+          ]}
+        >
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            {source === 'reviews' ? (
+              <AdminFilterChips
+                label="Which reviews"
+                value={commentFilter}
+                onChange={(k) => setCommentFilter(k as CommentFilter)}
+                onClear={() => setCommentFilter('pending')}
+                defaultValue="pending"
+                chips={[
+                  { key: 'pending', label: 'Waiting', count: counts.pendingReviews, hint: 'Written by parents, not yet on the site.' },
+                  { key: 'approved', label: 'Published', count: counts.approvedReviews, hint: 'Already on the teacher\'s page.' },
+                  { key: 'all', label: 'All', count: allReviews },
+                ]}
+              />
+            ) : (
+              <span />
+            )}
+            {showSort ? sortSlot : <span className="text-[13px] font-semibold text-warm-secondary">Most upvotes first</span>}
           </div>
-          {sortSlot}
-        </div>
 
-        {/* AD-007 ⚠: reported (pending) is the primary queue a moderator clears — Approved/All
-            are real existing filters kept for working admins, demoted to a small secondary
-            control rather than the page's main view. */}
-        {source === 'reviews' && (
-          <div className="mb-4 flex flex-wrap gap-2 px-[18px]">
-            {(['pending', 'approved', 'all'] as const).map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setCommentFilter(key)}
-                className={commentFilter === key ? adminPrimaryBtnStyle : adminSecondaryBtnStyle}
-              >
-                {key === 'pending' ? 'Pending' : key === 'approved' ? 'Approved' : 'All'} (
-                {key === 'pending' ? pendingReviewsCount : key === 'approved' ? comments.filter((c) => c.approved).length : comments.length}
-                )
-              </button>
-            ))}
-          </div>
-        )}
-
-        {activeLoading ? (
-          <div className="space-y-2.5 px-[18px]">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-20 rounded-2xl bg-muted/60 animate-pulse" />
-            ))}
-          </div>
-        ) : activeCards.length === 0 ? (
-          <div className="mx-[18px] rounded-2xl bg-muted py-16 text-center">
-            <p className="text-sm text-warm-label">{emptyCopy}</p>
-          </div>
-        ) : (
-          <div className="px-[18px]">
-            <AdminQueueList cards={activeCards} />
-          </div>
-        )}
-
-        {source === 'reviews' && commentsHasMore && (
-          <div className="mt-6 flex justify-center">
-            <button
-              onClick={() => fetchComments(true)}
-              disabled={commentsLoadingMore}
-              className={`min-w-[140px] disabled:opacity-60 ${adminSecondaryBtnStyle}`}
-            >
-              {commentsLoadingMore ? 'Loading…' : 'Load more'}
-            </button>
-          </div>
-        )}
-
-        {source === 'recommendations' && editingRec && (
-          <div className={cn(adminPanelStyle, 'mx-[18px] mt-4 max-w-[560px] space-y-4 p-5')}>
-            <div className="text-sm font-bold text-foreground">Editing recommendation: {editingRec.teacher_name}</div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-warm-label">Status</label>
-                <Select value={editStatus} onValueChange={setEditStatus}>
-                  <SelectTrigger className={`h-auto border-0 ${adminFieldStyle}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="contacted">Contacted</SelectItem>
-                    <SelectItem value="onboarded">Onboarded</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-warm-label">Notes</label>
-                <Textarea
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  placeholder="Add notes..."
-                  rows={3}
-                  className={`border-0 ${adminFieldStyle}`}
-                />
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => handleSaveRecommendation(editingRec.id)} className={adminPrimaryBtnStyle}>
-                Save
-              </button>
-              <button onClick={() => setEditingId(null)} className={adminSecondaryBtnStyle}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
+          {source === 'reviews' ? (
+            <>
+              <SourcePanel
+                what="the reviews"
+                settled={commentsSettled}
+                error={commentsError}
+                cards={reviewCards}
+                emptyTitle={reviewEmpty.title}
+                emptyHint={reviewEmpty.hint}
+                emptyAction={commentFilter !== 'pending' ? { label: 'Show waiting reviews', onClick: () => setCommentFilter('pending') } : undefined}
+                onRetry={() => void fetchComments(false)}
+                dim={commentsBusy && commentsSettled}
+              />
+              {commentsHasMore && commentsSettled && !commentsError && comments.length > 0 ? (
+                <div className="mt-6 flex justify-center">
+                  <AdminPillButton variant="secondary" busy={commentsLoadingMore} className="min-w-[140px]" onClick={() => void fetchComments(true)}>
+                    {commentsLoadingMore ? 'Loading...' : 'Load more'}
+                  </AdminPillButton>
+                </div>
+              ) : null}
+            </>
+          ) : source === 'recommendations' ? (
+            <SourcePanel
+              what="the recommendations"
+              settled={recsSettled}
+              error={recsError}
+              cards={recommendationCards}
+              emptyTitle="No recommendations yet"
+              emptyHint="When a parent recommends a teacher, it shows here."
+              onRetry={() => void fetchRecs()}
+              dim={recsBusy && recsSettled}
+            />
+          ) : (
+            <SourcePanel
+              what="the upvotes"
+              settled={upvotesSettled}
+              error={upvotesError}
+              cards={upvoteCards}
+              emptyTitle="No upvotes yet"
+              emptyHint="Parents upvote teachers from their profile. The totals show here."
+              onRetry={() => void fetchUpvotes()}
+            />
+          )}
+        </AdminTabs>
       </BentoPanel>
 
       <AdminAuditNote />
       {confirmDialog}
     </BentoStack>
   );
+}
+
+export default function AdminReviews() {
+  if (DummyAdminReviews && isDummyMode()) {
+    return (
+      <Suspense fallback={null}>
+        <DummyAdminReviews />
+      </Suspense>
+    );
+  }
+  return <AdminReviewsPage />;
 }

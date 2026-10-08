@@ -1,18 +1,30 @@
-import { useCallback, useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast as sonnerToast } from 'sonner';
-import { ChevronDown, Search, UserPlus } from 'lucide-react';
-import { AdminPanelHeader, AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { ChevronDown } from 'lucide-react';
+import { AdminPanelHeader, AdminStatusPill, AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { AdminEmpty, AdminError } from '@/components/admin/AdminState';
+import { PEOPLE_NO_ACCOUNT, PeoplePicker } from '@/components/admin/PeoplePicker';
 import { useConfirm } from '@/components/ui/use-confirm';
+import { grantHod, revokeHod } from '@/lib/hod-admin-actions';
 import { addHodSteps, HOD_NOTE } from '@/lib/checker-onboarding';
-import { looksLikeEmail } from '@/lib/email-shape';
 import type { CheckerAdminApi } from '@/lib/checker-admin-api';
-import type { UserSearchRow } from '@/lib/checker-api';
 import type { HodAdminApi, HodRow } from '@/lib/hod-api';
+import type { ReviewerRow, TeacherReviewerAdminApi } from '@/lib/teacher-review-api';
 
-/* The HODs section of /admin/checkers: who leads the checkers. Search for a
-   person, press Make HOD, and they get the /hod screen. Admins always have it.
-   Same flow and look as the checkers list above it, with its own short guide. */
+/* The HODs view of /admin/checkers: who leads the verifiers, and who reviews
+   teachers.
+
+   - HODs are added by email through admin_add_hod. That is one obvious
+     action at the top: search, press Make HOD.
+   - Teacher reviewers are listed underneath, with the same flow, through the
+     existing hod_*_teacher_reviewer functions. Their grants and removals are
+     audited by the database functions themselves, so this page does not write
+     a second audit row for them.
+   - Making or removing an HOD is audited here (grant_hod, revoke_hod).
+
+   The lists are loaded by the page (one first-load gate for both views); this
+   component only shows them and, after a change, asks the page to reload them
+   quietly. */
 
 function HodGuide() {
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
@@ -34,83 +46,144 @@ function HodGuide() {
   );
 }
 
-export function HodSection({ hodApi, searchUsers }: { hodApi: HodAdminApi; searchUsers: CheckerAdminApi['searchUsers'] }) {
-  const [hods, setHods] = useState<HodRow[] | null>(null);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<UserSearchRow[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [adding, setAdding] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const { confirm, confirmDialog } = useConfirm();
+const when = (iso: string | null) => (iso ? formatDistanceToNow(new Date(iso), { addSuffix: true }) : 'Not recorded');
 
-  const load = useCallback(async () => {
-    try {
-      setHods(await hodApi.listHods());
-    } catch {
-      setHods([]);
-      sonnerToast.error('Failed to load the HOD list');
-    }
-  }, [hodApi]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
-    let cancelled = false;
-    setSearching(true);
-    const timer = setTimeout(() => {
-      searchUsers(q)
-        .then((r) => {
-          if (!cancelled) setResults(r);
-        })
-        .catch(() => {
-          if (!cancelled) setError('The search did not work. Try again.');
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, 250);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [query, searchUsers]);
-
+/** The HODs list, or the reason it is not there. A failed read is never "no HOD yet". */
+export function HodListBody({
+  hods,
+  error,
+  onRetry,
+  onRemove,
+}: {
+  hods: HodRow[] | null;
+  error: boolean;
+  onRetry: () => void;
+  onRemove: (h: HodRow) => void;
+}) {
   const active = (hods ?? []).filter((h) => h.active);
+  if (hods === null && error) return <AdminError what="the HOD list" onRetry={onRetry} className="mx-[18px]" />;
+  if (hods === null) return <div className="mx-[18px] h-14 rounded-2xl bg-muted" aria-hidden />;
+  const columns: AdminTableColumn[] = [
+    { key: 'who', label: 'HOD', width: '1.6fr', hint: 'A person who leads the verifiers.' },
+    { key: 'added', label: 'Added', width: '1fr', hint: 'When they became an HOD.' },
+  ];
+  const rows: AdminTableRow[] = active.map((h) => ({
+    id: h.user_id,
+    cells: [
+      <div key="who" className="min-w-0">
+        <p className="truncate font-semibold text-foreground">{h.name || h.email || 'Unnamed account'}</p>
+        {h.name && h.email ? <p className="truncate text-[12px] text-warm-label">{h.email}</p> : null}
+      </div>,
+      <span key="added" className="text-warm-meta">{when(h.granted_at)}</span>,
+    ],
+    actions: [{ label: 'Remove', tone: 'destructive', onClick: () => onRemove(h) }],
+  }));
+  return (
+    <>
+      {error ? <AdminError what="the latest HOD list" onRetry={onRetry} detail="The list below may be out of date." className="mx-[18px] mb-3" /> : null}
+      {active.length === 0 ? (
+        <AdminEmpty title="No HOD yet" hint="Admins can still open the HOD desk. Search above to make someone an HOD." />
+      ) : (
+        <AdminTable columns={columns} rows={rows} />
+      )}
+    </>
+  );
+}
 
-  async function add(email: string, key: string) {
-    const trimmed = email.trim();
-    if (!looksLikeEmail(trimmed)) {
-      setError('That person has no email on file. Ask them to update their profile.');
-      return;
-    }
-    setError(null);
-    setAdding(key);
+/** The teacher reviewers: who, when they were added, and whether they are active. */
+export function ReviewerListBody({
+  reviewers,
+  error,
+  onRetry,
+  onRemove,
+}: {
+  reviewers: ReviewerRow[] | null;
+  error: boolean;
+  onRetry: () => void;
+  onRemove: (r: ReviewerRow) => void;
+}) {
+  if (reviewers === null && error) return <AdminError what="the teacher reviewer list" onRetry={onRetry} className="mx-[18px]" />;
+  if (reviewers === null) return <div className="mx-[18px] h-14 rounded-2xl bg-muted" aria-hidden />;
+  const sorted = [...reviewers].sort((a, b) => Number(b.active) - Number(a.active));
+  const columns: AdminTableColumn[] = [
+    { key: 'who', label: 'Teacher reviewer', width: '1.6fr', hint: 'A person who can approve, reject and edit teachers without being an admin.' },
+    { key: 'added', label: 'Added', width: '1fr', hint: 'When they were given the role.' },
+    { key: 'status', label: 'Status', width: '0.8fr', hint: 'Removed people keep a record here but can no longer open the teacher review page.' },
+  ];
+  const rows: AdminTableRow[] = sorted.map((r) => ({
+    id: r.user_id,
+    cells: [
+      <div key="who" className="min-w-0">
+        <p className="truncate font-semibold text-foreground">{r.name || r.email || 'Unnamed account'}</p>
+        {r.name && r.email ? <p className="truncate text-[12px] text-warm-label">{r.email}</p> : null}
+      </div>,
+      <span key="added" className="text-warm-meta">{when(r.granted_at)}</span>,
+      <AdminStatusPill key="status" status={r.active ? 'live' : 'paused'} label={r.active ? 'Active' : 'Removed'} />,
+    ],
+    actions: r.active ? [{ label: 'Remove', tone: 'destructive', onClick: () => onRemove(r) }] : [],
+  }));
+  const anyActive = sorted.some((r) => r.active);
+  return (
+    <>
+      {error ? <AdminError what="the latest reviewer list" onRetry={onRetry} detail="The list below may be out of date." className="mx-[18px] mb-3" /> : null}
+      {sorted.length === 0 ? (
+        <AdminEmpty title="No teacher reviewers yet" hint="Search above to give someone the role." />
+      ) : (
+        <>
+          <AdminTable columns={columns} rows={rows} />
+          {!anyActive ? <p className="px-[18px] pt-2 text-[13px] text-warm-secondary">Nobody holds the role right now.</p> : null}
+        </>
+      )}
+    </>
+  );
+}
+
+export function HodSection({
+  hodApi,
+  reviewerApi,
+  searchUsers,
+  hods,
+  hodsError,
+  reviewers,
+  reviewersError,
+  onReload,
+  user,
+  actorName,
+}: {
+  hodApi: HodAdminApi;
+  reviewerApi: TeacherReviewerAdminApi;
+  searchUsers: CheckerAdminApi['searchUsers'];
+  hods: HodRow[] | null;
+  hodsError: boolean;
+  reviewers: ReviewerRow[] | null;
+  reviewersError: boolean;
+  /** Re-reads both lists without bringing the skeleton back. */
+  onReload: () => Promise<void>;
+  /** The signed-in admin, for the audit log. Null in dummy mode. */
+  user: { id: string } | null;
+  actorName: string;
+}) {
+  const { confirm, confirmDialog } = useConfirm();
+  const activeHods = (hods ?? []).filter((h) => h.active);
+  const activeReviewers = (reviewers ?? []).filter((r) => r.active);
+
+  const actor = user ? { id: user.id, name: actorName } : null;
+
+  async function addHod(email: string) {
     try {
-      await hodApi.addHod(trimmed);
-      setQuery('');
-      setResults([]);
-      sonnerToast.success(`${trimmed} is now an HOD`);
-      await load();
+      await grantHod(hodApi, email, actor);
     } catch (e) {
-      setError(
+      throw new Error(
         e instanceof Error && /no account|not found|sign up/i.test(e.message)
-          ? 'No Shikshaq account has that email yet. They may not have signed up, or they used a different email.'
+          ? PEOPLE_NO_ACCOUNT
           : 'Could not make that person an HOD. Check the email and try again.',
       );
-    } finally {
-      setAdding(null);
     }
+    sonnerToast.success(`${email} is now an HOD`);
+    await onReload();
   }
 
-  async function remove(h: HodRow) {
+  async function removeHod(h: HodRow) {
     const who = h.name ?? h.email ?? 'this person';
     const ok = await confirm({
       title: `Remove ${who} as an HOD?`,
@@ -119,120 +192,89 @@ export function HodSection({ hodApi, searchUsers }: { hodApi: HodAdminApi; searc
     });
     if (!ok) return;
     try {
-      await hodApi.removeHod(h.user_id);
-      sonnerToast.success(`${who} removed as an HOD`);
-      await load();
+      await revokeHod(hodApi, h, actor);
     } catch {
       sonnerToast.error('Failed to remove that HOD');
+      return;
     }
+    sonnerToast.success(`${who} removed as an HOD`);
+    await onReload();
   }
 
-  const columns: AdminTableColumn[] = [
-    { key: 'who', label: 'HOD', width: '1.6fr', hint: 'A person who leads the verifiers.' },
-    { key: 'added', label: 'Added', width: '1fr', hint: 'When they became an HOD.' },
-  ];
-  const tableRows: AdminTableRow[] = active.map((h) => ({
-    id: h.user_id,
-    cells: [
-      <div key="who" className="min-w-0">
-        <p className="truncate font-semibold text-foreground">{h.name || h.email || 'Unnamed account'}</p>
-        {h.name && h.email ? <p className="truncate text-[12px] text-warm-label">{h.email}</p> : null}
-      </div>,
-      <span key="added" className="text-warm-meta">
-        {h.granted_at ? formatDistanceToNow(new Date(h.granted_at), { addSuffix: true }) : '-'}
-      </span>,
-    ],
-    actions: [{ label: 'Remove', tone: 'destructive', onClick: () => remove(h) }],
-  }));
+  async function addReviewer(email: string) {
+    try {
+      await reviewerApi.add(email);
+    } catch (e) {
+      throw new Error(
+        e instanceof Error && /no account|not found|sign up/i.test(e.message)
+          ? PEOPLE_NO_ACCOUNT
+          : 'Could not make that person a teacher reviewer. Check the email and try again.',
+      );
+    }
+    sonnerToast.success(`${email} is now a teacher reviewer`);
+    // The database function writes its own audit row, so none is written here.
+    await onReload();
+  }
+
+  async function removeReviewer(r: ReviewerRow) {
+    const who = r.name ?? r.email ?? 'this person';
+    const ok = await confirm({
+      title: `Remove ${who} as a teacher reviewer?`,
+      description: 'They will no longer be able to open the teacher review page. Decisions they already made stay as they are.',
+      confirmLabel: 'Remove teacher reviewer',
+    });
+    if (!ok) return;
+    try {
+      await reviewerApi.remove(r.user_id);
+    } catch {
+      sonnerToast.error('Failed to remove that teacher reviewer');
+      return;
+    }
+    sonnerToast.success(`${who} removed as a teacher reviewer`);
+    await onReload();
+  }
 
   return (
-    <section aria-labelledby="hods-heading" className="mt-8" data-testid="hod-section">
+    <section aria-labelledby="hods-heading" data-testid="hod-section">
       <h2 id="hods-heading" className="sr-only">
-        HODs
+        HODs and teacher reviewers
       </h2>
       <HodGuide />
-      <AdminPanelHeader title="HODs" meta={hods ? `${active.length} ${active.length === 1 ? 'HOD' : 'HODs'}` : undefined} />
-      <div className="mb-4 px-[18px]">
-        <label className="flex max-w-md flex-col gap-1">
-          <span className="text-[12px] font-semibold text-warm-secondary">Find a person to make an HOD</span>
-          <span className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-label" aria-hidden />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setError(null);
-              }}
-              placeholder="Search by name or email"
-              aria-label="Search by name or email to make an HOD"
-              className="h-11 w-full rounded-full bg-muted pl-10 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
-            />
-          </span>
-        </label>
-        {query.trim().length >= 2 ? (
-          <ul className="mt-2 max-w-md space-y-1.5" aria-label="People found for HOD">
-            {searching ? (
-              <li className="text-[13px] text-warm-meta">Searching...</li>
-            ) : results.length === 0 ? (
-              <li className="rounded-xl bg-muted px-3 py-2.5 text-[13px] text-warm-secondary">
-                No account matches that.{' '}
-                {looksLikeEmail(query.trim()) ? (
-                  <button
-                    type="button"
-                    onClick={() => void add(query, 'typed')}
-                    disabled={adding !== null}
-                    className="font-bold text-brand-blue disabled:opacity-60"
-                  >
-                    {adding === 'typed' ? 'Adding...' : `Try adding ${query.trim()} anyway`}
-                  </button>
-                ) : (
-                  'Only people who have signed up on Shikshaq can be added.'
-                )}
-              </li>
-            ) : (
-              results.map((u) => {
-                const already = active.some((h) => h.user_id === u.user_id);
-                return (
-                  <li key={u.user_id} className="flex items-center justify-between gap-3 rounded-xl bg-muted px-3 py-2">
-                    <span className="min-w-0">
-                      <span className="block truncate text-[14px] font-semibold text-foreground">{u.full_name || 'Unnamed account'}</span>
-                      <span className="block truncate text-[12px] text-warm-meta">{u.email ?? 'No email on file'}</span>
-                    </span>
-                    {already ? (
-                      <span className="shrink-0 text-[12px] font-semibold text-warm-secondary">Already an HOD</span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => void add(u.email ?? '', u.user_id)}
-                        disabled={adding !== null}
-                        className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-brand px-4 text-sm font-semibold text-foreground transition-transform duration-150 active:scale-[0.97] disabled:opacity-50"
-                      >
-                        <UserPlus className="h-4 w-4" aria-hidden />
-                        {adding === u.user_id ? 'Adding...' : 'Make HOD'}
-                      </button>
-                    )}
-                  </li>
-                );
-              })
-            )}
-          </ul>
-        ) : null}
+      <AdminPanelHeader
+        title="HODs"
+        subtitle="They lead the verifiers and use the HOD desk."
+        meta={hods ? `${activeHods.length} ${activeHods.length === 1 ? 'HOD' : 'HODs'}` : undefined}
+      />
+      <PeoplePicker
+        label="Find a person to make an HOD"
+        ariaLabel="Search by name or email to make an HOD"
+        resultsLabel="People found for HOD"
+        searchUsers={searchUsers}
+        onAdd={addHod}
+        actionLabel={() => 'Make HOD'}
+        isAlready={(u) => activeHods.some((h) => h.user_id === u.user_id)}
+        alreadyLabel="Already an HOD"
+      />
+      <HodListBody hods={hods} error={hodsError} onRetry={() => void onReload()} onRemove={removeHod} />
+
+      <div className="mt-8" data-testid="reviewer-section">
+        <AdminPanelHeader
+          title="Teacher reviewers"
+          subtitle="They approve, reject and edit teachers on the teacher review page. They cannot pause a teacher or open papers."
+          meta={reviewers ? `${activeReviewers.length} active` : undefined}
+        />
+        <PeoplePicker
+          label="Find a person to make a teacher reviewer"
+          ariaLabel="Search by name or email to make a teacher reviewer"
+          resultsLabel="People found for teacher reviewer"
+          searchUsers={searchUsers}
+          onAdd={addReviewer}
+          actionLabel={() => 'Make teacher reviewer'}
+          isAlready={(u) => activeReviewers.some((r) => r.user_id === u.user_id)}
+          alreadyLabel="Already a teacher reviewer"
+        />
+        <ReviewerListBody reviewers={reviewers} error={reviewersError} onRetry={() => void onReload()} onRemove={removeReviewer} />
       </div>
-      {error ? (
-        <p role="alert" className="mb-3 px-[18px] text-[13px] text-destructive">
-          {error}
-        </p>
-      ) : null}
-      {hods === null ? (
-        <div className="h-14 animate-pulse rounded-2xl bg-muted" aria-label="Loading the HODs" role="status" />
-      ) : active.length === 0 ? (
-        <div className="rounded-2xl bg-muted p-8 text-center">
-          <p className="text-sm text-warm-label">No HOD yet. Admins can still open the HOD desk. Search above to add one.</p>
-        </div>
-      ) : (
-        <AdminTable columns={columns} rows={tableRows} />
-      )}
       {confirmDialog}
     </section>
   );

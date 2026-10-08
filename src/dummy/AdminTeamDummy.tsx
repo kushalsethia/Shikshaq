@@ -10,7 +10,7 @@ export default function AdminTeamDummy() {
       dummy
       banner={
         <div className="bg-brand px-6 py-2 text-center text-[13px] font-semibold text-foreground">
-          TEST BUILD -- dummy data, no sign-in
+          Test build: dummy data, no sign-in. Look up the ids fail or empty to see those states.
         </div>
       }
     />

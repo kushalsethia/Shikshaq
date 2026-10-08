@@ -19,6 +19,27 @@ const FAKE_PROGRESS: PaperProgressRow[] = [
   { audit_paper_id: 'dummy-audit-paper-3', live_bank_paper_id: null, subject: 'History & Civics', cls: 'IX', school: 'School not recorded', open_doubts: 0, cleared: 0, total: 0, pct_done: 0, last_activity: null, workers: [] },
 ];
 
+// 40 more made-up papers so Show more has something to show.
+const SUBJECTS = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Economics', 'Commerce', 'Geography', 'English'];
+const CLASSES = ['IX', 'X', 'XI', 'XII'];
+const GENERATED: PaperProgressRow[] = Array.from({ length: 40 }, (_, i) => {
+  const total = 12 + (i % 7) * 3;
+  const cleared = Math.min(total, 2 + ((i * 5) % total));
+  return {
+    audit_paper_id: `dummy-audit-paper-gen-${i}`,
+    live_bank_paper_id: null,
+    subject: SUBJECTS[i % SUBJECTS.length],
+    cls: CLASSES[i % CLASSES.length],
+    school: `Dummy School ${String.fromCharCode(65 + (i % 12))}`,
+    open_doubts: total - cleared,
+    cleared,
+    total,
+    pct_done: Math.round((cleared / total) * 100),
+    last_activity: new Date(Date.now() - i * 3600_000).toISOString(),
+    workers: i % 3 === 0 ? [] : ['Ananya Roy'],
+  };
+});
+
 const FAKE_HISTORY: QuestionHistoryRow[] = [
   { at: '2026-09-20T04:00:00Z', actor_kind: 'ai', actor_name: 'system', action: 'created', detail: null, before: null, after: ['ai_doubt'] },
   { at: '2026-09-20T04:00:01Z', actor_kind: 'ai', actor_name: 'system', action: 'ai_flagged', detail: 'The answer may have been typed into the question', before: null, after: ['ai_doubt'] },
@@ -34,6 +55,13 @@ async function delay<T>(value: T): Promise<T> {
 
 export const dummyTeamDashboardApi: TeamDashboardApi = {
   teamStats: () => delay(FAKE_STATS),
-  paperProgress: () => delay(FAKE_PROGRESS),
-  questionHistory: () => delay(FAKE_HISTORY),
+  paperProgress: () => delay([...FAKE_PROGRESS, ...GENERATED]),
+  // Two ids make the other states visible: "fail" cannot be read, "empty" has no history.
+  questionHistory: async (id: string) => {
+    if (id === 'fail') {
+      await delay(null);
+      throw new Error('Made-up failure');
+    }
+    return delay(id === 'empty' ? [] : FAKE_HISTORY);
+  },
 };
