@@ -23,7 +23,8 @@ describe('class strings', () => {
     for (const f of tsxFiles('src')) {
       const src = readFileSync(f, 'utf8');
       src.split(/\r?\n/).forEach((line, i) => {
-        if (/min-h-\d+[a-z]/.test(line)) bad.push(`${f.replace(/\\/g, '/')}:${i + 1}: ${line.trim().slice(0, 100)}`);
+        // a backtick before it means a comment quoting the typo (AdminPillButton.tsx does), not a class
+        if (/(?<!`)min-h-\d+[a-z]/.test(line)) bad.push(`${f.replace(/\\/g, '/')}:${i + 1}: ${line.trim().slice(0, 100)}`);
       });
     }
     expect(bad).toEqual([]);
