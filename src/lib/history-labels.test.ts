@@ -15,6 +15,7 @@ import {
   confidenceWords,
   historyLine,
   modelName,
+  relativeWords,
   shownChanges,
   valueWords,
   wordDiff,
@@ -86,6 +87,8 @@ const DB_ACTIONS = [
   'search_no_match_broad_resolve',
   // history_events(): uncatalogued actions arrive as 'other'
   'other',
+  // the admin audit trail (admin_audit_log), written from the Verifiers page
+  'grant_checker', 'revoke_checker', 'grant_hod', 'revoke_hod',
 ];
 
 const CHECKER_KINDS = ['haiku', 'haiku_paddle', 'haiku_pdf', 'sonnet', 'student', 'admin'];
@@ -248,6 +251,19 @@ describe('history labels cover every code', () => {
         }
       }
     }
+  });
+
+  it('words the HOD grant and revoke, and gives a relative time for the hover title', () => {
+    const now = new Date('2026-10-05T10:00:00Z');
+    expect(historyLine({ at: now.toISOString(), actor_kind: 'admin', actor_name: 'Priya Sharma', action: 'grant_hod' }, now).what).toBe('made someone an HOD');
+    expect(historyLine({ at: now.toISOString(), actor_kind: 'admin', actor_name: 'Priya Sharma', action: 'revoke_hod' }, now).what).toBe(
+      'removed someone as an HOD',
+    );
+    expect(relativeWords('2026-10-05T09:55:00Z', now)).toBe('5 minutes ago');
+    expect(relativeWords('not a date', now)).toBe('');
+    expect(historyLine({ at: now.toISOString(), actor_kind: 'student', actor_name: 'Rahul', action: 'checker_pass', undone: true }, now).what).toBe(
+      'said this question matches the page (undone)',
+    );
   });
 
   it('writes a check line for every checker kind and verdict', () => {

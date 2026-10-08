@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
+import { ChevronDown } from 'lucide-react';
 import { BentoPanel } from '@/components/layout/PageContainer';
 import { AdminPanelHeader } from '@/pages/admin/AdminTable';
+import { AdminEmpty, AdminError, AdminLoading } from '@/components/admin/AdminState';
+import { AdminPillButton, adminPillClass } from '@/components/admin/AdminPillButton';
 import { reportLoadError } from '@/lib/load-error';
+import { useRememberedOpen } from '@/lib/use-remembered-open';
 import { cn } from '@/lib/utils';
 import { realPaperRegistryApi } from '@/lib/paper-registry-api';
 import {
@@ -18,8 +22,8 @@ import {
   openCount,
   percent,
   questionsLine,
-  rowFacts,
-  rowTitle,
+  rowHeading,
+  rowSubline,
   stateCount,
   stateLabel,
   subjectOptions,
@@ -37,11 +41,21 @@ import {
 
    Reads public.paper_registry through two admin-only RPCs. Four states on
    purpose: loading (skeleton), empty ("The pipeline has not sent the list
-   yet"), error (what happened, with Retry) and the list itself. Not started
-   comes first everywhere: first tile, first bar slice, first rows. */
+   yet"), error (what happened, with Try again) and the list itself. Not
+   started comes first everywhere: first tile, first bar slice, first rows.
+
+   Admin rework, Batch 6: the panel mounts with the page and loads on its own
+   (it no longer waits for the stats). It tells the page its summary so the
+   "Needs attention" strip can show Not started, and it takes a state to
+   filter to when the strip asks for one. The state names are sentences, with a
+   legend under the pills because a hover title does not exist on a phone. */
 
 const PANEL = 'px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]';
 const CONTROL = 'h-11 rounded-xl bg-muted px-3 text-[14px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const TITLE = 'Papers: processed and not processed';
+const SCOPE = 'Every source PDF the desk knows about, started or not. This counts PDFs, not the papers on the site.';
+
+export type RegistrySummaryStatus = 'loading' | 'ok' | 'error';
 
 function StateBadge({ state }: { state: ProcessedState }) {
   const look = STATE_LOOK[state];
@@ -68,16 +82,46 @@ function Headline({ label, value, sub, tone, wide }: { label: string; value: num
   );
 }
 
+/** What each state means, always on screen (a hover title is no use on a phone). Open on a first visit, then as it was left. */
+function StateLegend({ counts }: { counts: (s: ProcessedState) => number }) {
+  const [open, setOpen] = useRememberedOpen('pipeline-state-legend');
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="inline-flex min-h-10 items-center gap-1 rounded-full px-1 text-[13px] font-bold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        What each state means
+        <ChevronDown className={cn('h-4 w-4 transition-transform duration-150 motion-reduce:transition-none', open && 'rotate-180')} aria-hidden />
+      </button>
+      {open ? (
+        <ul className="mt-1 grid gap-x-6 gap-y-1.5 sm:grid-cols-2" aria-label="What each state means">
+          {PROCESSED_STATES.map((s) => (
+            <li key={s} className="flex items-start gap-2 text-[13px] leading-[1.45] text-warm-secondary">
+              <span className={cn('mt-[5px] h-2.5 w-2.5 shrink-0 rounded-full', STATE_LOOK[s].bar)} aria-hidden />
+              <span>
+                <span className="font-bold text-foreground">{STATE_LOOK[s].label}</span> ({counts(s).toLocaleString()}): {STATE_LOOK[s].hint}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 function RowItem({ row }: { row: RegistryRow }) {
   const href = adminPaperHref(row);
-  const facts = rowFacts(row);
+  const sub = rowSubline(row);
   const qs = questionsLine(row);
   const showOpen = row.open_student != null || row.open_admin != null;
   return (
     <li className="flex flex-col gap-3 px-[18px] py-3.5 md:grid md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center md:gap-4">
       <div className="min-w-0">
-        <p className="break-words text-[15px] font-bold leading-snug text-foreground">{rowTitle(row)}</p>
-        <p className="mt-0.5 break-words text-[13px] text-warm-meta">{facts || 'Details not sent yet'}</p>
+        <p className="break-words text-[15px] font-bold leading-snug text-foreground">{rowHeading(row)}</p>
+        <p className="mt-0.5 break-words text-[13px] text-warm-meta">{sub || 'Details not sent yet'}</p>
         {qs ? <p className="mt-0.5 text-[13px] tabular-nums text-warm-meta">{qs}</p> : null}
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 md:justify-end">
@@ -98,19 +142,28 @@ function RowItem({ row }: { row: RegistryRow }) {
       </div>
       <div className="md:justify-self-end">
         {href ? (
-          <Link
-            to={href}
-            className="tap-44 inline-flex min-h-11 items-center justify-center rounded-full bg-muted px-4 text-[13px] font-bold text-foreground transition-colors duration-150 hover:bg-warm-hairline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-          >
+          <Link to={href} className={adminPillClass('secondary', 'md', 'px-4 text-foreground')}>
             Open paper
           </Link>
-        ) : null}
+        ) : (
+          <span className="text-[13px] text-warm-meta">Not in the library yet</span>
+        )}
       </div>
     </li>
   );
 }
 
-export function PaperRegistryPanel({ api = realPaperRegistryApi }: { api?: PaperRegistryApi }) {
+export function PaperRegistryPanel({
+  api = realPaperRegistryApi,
+  onSummary,
+  focus,
+}: {
+  api?: PaperRegistryApi;
+  /** Told whenever the summary changes, so the page can show Not started elsewhere. */
+  onSummary?: (summary: RegistrySummary | null, status: RegistrySummaryStatus) => void;
+  /** Filter the list to this state and scroll to it. A new `nonce` repeats the request. */
+  focus?: { state: ProcessedState | null; nonce: number } | null;
+}) {
   const [summary, setSummary] = useState<RegistrySummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState(false);
@@ -126,6 +179,7 @@ export function PaperRegistryPanel({ api = realPaperRegistryApi }: { api?: Paper
   const [moreLoading, setMoreLoading] = useState(false);
   const [listError, setListError] = useState(false);
   const requestId = useRef(0);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const loadSummary = useCallback(async () => {
     setSummaryLoading(true);
@@ -143,6 +197,16 @@ export function PaperRegistryPanel({ api = realPaperRegistryApi }: { api?: Paper
   useEffect(() => {
     void loadSummary();
   }, [loadSummary]);
+
+  useEffect(() => {
+    onSummary?.(summary, summaryError ? 'error' : summaryLoading && !summary ? 'loading' : 'ok');
+  }, [summary, summaryError, summaryLoading, onSummary]);
+
+  useEffect(() => {
+    if (!focus) return;
+    setStateFilter(focus.state);
+    panelRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  }, [focus]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setSearch(searchInput.trim()), 300);
@@ -190,11 +254,10 @@ export function PaperRegistryPanel({ api = realPaperRegistryApi }: { api?: Paper
 
   if (summaryLoading && !summary) {
     return (
-      <BentoPanel fill="card" className={PANEL}>
-        <AdminPanelHeader title="Papers: processed and not processed" />
-        <div className="grid animate-pulse grid-cols-1 gap-3 px-[18px] sm:grid-cols-3" aria-busy="true" aria-label="Loading the paper list">
-          {[...Array(3)].map((_, i) => <div key={i} className="h-24 rounded-2xl bg-muted" />)}
-          <div className="h-3 rounded-full bg-muted sm:col-span-3" />
+      <BentoPanel fill="card" className={PANEL} id="paper-registry">
+        <AdminPanelHeader title={TITLE} subtitle={SCOPE} />
+        <div className="px-[18px]">
+          <AdminLoading shape="tiles" rows={3} label="Loading the paper list" />
         </div>
       </BentoPanel>
     );
@@ -202,14 +265,10 @@ export function PaperRegistryPanel({ api = realPaperRegistryApi }: { api?: Paper
 
   if (summaryError || !summary) {
     return (
-      <BentoPanel fill="card" className={PANEL}>
-        <AdminPanelHeader title="Papers: processed and not processed" />
-        <div className="px-[18px]" role="alert">
-          <p className="text-sm text-foreground">Couldn't load the paper list.</p>
-          <button type="button" onClick={() => void loadSummary()}
-            className="tap-44 mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-brand underline-offset-2 hover:underline">
-            Try again
-          </button>
+      <BentoPanel fill="card" className={PANEL} id="paper-registry">
+        <AdminPanelHeader title={TITLE} subtitle={SCOPE} />
+        <div className="px-[18px]">
+          <AdminError what="the paper list" onRetry={() => void loadSummary()} />
         </div>
       </BentoPanel>
     );
@@ -217,14 +276,12 @@ export function PaperRegistryPanel({ api = realPaperRegistryApi }: { api?: Paper
 
   if (summary.total === 0) {
     return (
-      <BentoPanel fill="card" className={PANEL}>
-        <AdminPanelHeader title="Papers: processed and not processed" />
-        <div className="px-[18px]">
-          <p className="text-sm font-semibold text-foreground">The pipeline has not sent the list yet.</p>
-          <p className="mt-1 text-[13px] text-warm-meta">
-            Every PDF the desk knows about will show here, started or not, as soon as it syncs the list.
-          </p>
-        </div>
+      <BentoPanel fill="card" className={PANEL} id="paper-registry">
+        <AdminPanelHeader title={TITLE} subtitle={SCOPE} />
+        <AdminEmpty
+          title="The pipeline has not sent the list yet"
+          hint="Every PDF the desk knows about will show here, started or not, as soon as it syncs the list."
+        />
       </BentoPanel>
     );
   }
@@ -237,135 +294,134 @@ export function PaperRegistryPanel({ api = realPaperRegistryApi }: { api?: Paper
     : `${head.total.toLocaleString()} PDFs`;
 
   return (
-    <BentoPanel fill="card" className={PANEL}>
-      <AdminPanelHeader title="Papers: processed and not processed" meta={meta} />
+    <BentoPanel fill="card" className={cn(PANEL, 'scroll-mt-4')} id="paper-registry">
+      <div ref={panelRef} className="scroll-mt-4">
+        <AdminPanelHeader title={TITLE} subtitle={SCOPE} meta={meta} />
 
-      <div className="grid grid-cols-2 gap-3 px-[18px] sm:grid-cols-3">
-        <Headline wide tone="alert" label="Not started" value={head.notStarted}
-          sub={`${percent(head.notStarted, head.total)}% of all PDFs`} />
-        <Headline tone="plain" label="In progress" value={head.inProgress}
-          sub="read, loaded, checked or waiting" />
-        <Headline tone="good" label="On the site" value={head.live}
-          sub={`${percent(head.live, head.total)}% of all PDFs`} />
-      </div>
-
-      <div className="mt-4 px-[18px]">
-        <div
-          className="flex h-3 w-full overflow-hidden rounded-full bg-muted"
-          role="img"
-          aria-label={segments.map((s) => `${stateLabel(s.state)} ${s.count}`).join(', ')}
-        >
-          {segments.map((s) => (
-            <div key={s.state} className={STATE_LOOK[s.state].bar} style={{ width: `${s.widthPct}%` }} />
-          ))}
+        <div className="grid grid-cols-2 gap-3 px-[18px] sm:grid-cols-3">
+          <Headline wide tone="alert" label="Not started" value={head.notStarted}
+            sub={`${percent(head.notStarted, head.total)}% of all PDFs`} />
+          <Headline tone="plain" label="In progress" value={head.inProgress}
+            sub="read, loaded, checked or waiting" />
+          <Headline tone="good" label="Live" value={head.live}
+            sub={`${percent(head.live, head.total)}% of all PDFs`} />
         </div>
-        <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Filter by state">
-          {PROCESSED_STATES.map((s) => {
-            const n = stateCount(summary, s);
-            const on = stateFilter === s;
-            return (
-              <button
-                key={s}
-                type="button"
-                aria-pressed={on}
-                disabled={n === 0 && !on}
-                onClick={() => setStateFilter(on ? null : s)}
-                title={STATE_LOOK[s].hint}
-                className={cn(
-                  'tap-44 inline-flex min-h-11 items-center gap-2 rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:opacity-50',
-                  on ? 'bg-foreground text-background' : 'bg-muted text-foreground hover:bg-warm-hairline',
-                )}
-              >
-                <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', STATE_LOOK[s].bar)} aria-hidden />
-                {STATE_LOOK[s].label}
-                <span className="tabular-nums opacity-80">{n.toLocaleString()}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
-      <div className="mt-4 grid gap-2 px-[18px] sm:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]">
-        <label className="block min-w-0">
-          <span className="sr-only">Search by PDF name or paper id</span>
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search by PDF name or paper id"
-            className={cn(CONTROL, 'w-full placeholder:text-warm-meta')}
-          />
-        </label>
-        <label className="block min-w-0">
-          <span className="sr-only">Subject</span>
-          <select
-            value={subject ?? ''}
-            onChange={(e) => setSubject(e.target.value || null)}
-            className={cn(CONTROL, 'w-full')}
+        <div className="mt-4 px-[18px]">
+          <div
+            className="flex h-3 w-full overflow-hidden rounded-full bg-muted"
+            role="img"
+            aria-label={segments.map((s) => `${stateLabel(s.state)} ${s.count}`).join(', ')}
           >
-            <option value="">All subjects</option>
-            {subjects.map((s) => (
-              <option key={s.subject} value={s.subject}>{`${s.subject} (${s.count})`}</option>
+            {segments.map((s) => (
+              <div key={s.state} className={STATE_LOOK[s.state].bar} style={{ width: `${s.widthPct}%` }} />
             ))}
-          </select>
-        </label>
-      </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Filter by state">
+            {PROCESSED_STATES.map((s) => {
+              const n = stateCount(summary, s);
+              const on = stateFilter === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={n === 0 && !on}
+                  onClick={() => setStateFilter(on ? null : s)}
+                  title={STATE_LOOK[s].hint}
+                  className={cn(
+                    'tap-44 inline-flex min-h-11 items-center gap-2 rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:opacity-50',
+                    on ? 'bg-foreground text-background' : 'bg-muted text-foreground hover:bg-warm-hairline',
+                  )}
+                >
+                  <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', STATE_LOOK[s].bar)} aria-hidden />
+                  {STATE_LOOK[s].label}
+                  <span className="tabular-nums opacity-80">{n.toLocaleString()}</span>
+                </button>
+              );
+            })}
+          </div>
+          <StateLegend counts={(s) => stateCount(summary, s)} />
+        </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 px-[18px] text-[13px] text-warm-meta" aria-live="polite">
-        <span className="tabular-nums">
-          {listError
-            ? ''
-            : `Showing ${rows.length.toLocaleString()} of ${total.toLocaleString()}${filtered ? ' matching' : ''}`}
-        </span>
-        {filtered ? (
-          <button type="button" onClick={clearFilters}
-            className="tap-44 inline-flex min-h-11 items-center font-semibold text-brand underline-offset-2 hover:underline">
-            Clear filters
-          </button>
+        <div className="mt-4 grid gap-2 px-[18px] sm:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]">
+          <label className="block min-w-0">
+            <span className="sr-only">Search by PDF name or paper id</span>
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search by PDF name or paper id"
+              className={cn(CONTROL, 'w-full placeholder:text-warm-meta')}
+            />
+          </label>
+          <label className="block min-w-0">
+            <span className="sr-only">Subject</span>
+            <select
+              value={subject ?? ''}
+              onChange={(e) => setSubject(e.target.value || null)}
+              className={cn(CONTROL, 'w-full')}
+            >
+              <option value="">All subjects</option>
+              {subjects.map((s) => (
+                <option key={s.subject} value={s.subject}>{`${s.subject} (${s.count})`}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 px-[18px] text-[13px] text-warm-meta" aria-live="polite">
+          <span className="tabular-nums">
+            {listError
+              ? ''
+              : `Showing ${rows.length.toLocaleString()} of ${total.toLocaleString()}${filtered ? ' matching' : ''}`}
+          </span>
+          {filtered ? (
+            <button type="button" onClick={clearFilters}
+              className="tap-44 inline-flex min-h-10 items-center font-semibold text-brand underline-offset-2 hover:underline">
+              Clear filters
+            </button>
+          ) : null}
+        </div>
+
+        {listError ? (
+          <div className="px-[18px] pb-2">
+            <AdminError what="the paper list" onRetry={() => void fetchPage(0)} />
+          </div>
+        ) : rows.length === 0 && listLoading ? (
+          <div className="px-[18px]">
+            <AdminLoading shape="rows" rows={4} label="Loading papers" />
+          </div>
+        ) : rows.length === 0 ? (
+          <AdminEmpty
+            title="No papers match these filters"
+            action={filtered ? { label: 'Clear filters', onClick: clearFilters } : undefined}
+          />
+        ) : (
+          <ul className={cn('divide-y divide-warm-hairline transition-opacity duration-150', listLoading && 'opacity-50')}
+            aria-busy={listLoading}>
+            {rows.map((r) => <RowItem key={r.registry_key} row={r} />)}
+          </ul>
+        )}
+
+        {hasMore(total, rows.length) && !listError ? (
+          <div className="flex justify-center px-[18px] pt-3">
+            <AdminPillButton variant="secondary" busy={moreLoading} onClick={() => void fetchPage(rows.length)}>
+              {moreLoading ? 'Loading' : `Show more (${(total - rows.length).toLocaleString()} left)`}
+            </AdminPillButton>
+          </div>
+        ) : null}
+
+        {summary.excluded > 0 || summary.frozen > 0 ? (
+          <p className="mt-3 px-[18px] text-[13px] text-warm-meta">
+            {[
+              summary.frozen > 0 ? `${summary.frozen} on hold` : null,
+              summary.excluded > 0 ? `${summary.excluded} left out on purpose, not counted above` : null,
+            ].filter(Boolean).join('. ')}
+            .
+          </p>
         ) : null}
       </div>
-
-      {listError ? (
-        <div className="px-[18px] pb-2" role="alert">
-          <p className="text-sm text-foreground">Couldn't load the paper list.</p>
-          <button type="button" onClick={() => void fetchPage(0)}
-            className="tap-44 mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-brand underline-offset-2 hover:underline">
-            Try again
-          </button>
-        </div>
-      ) : rows.length === 0 && listLoading ? (
-        <div className="animate-pulse space-y-3 px-[18px]" aria-busy="true" aria-label="Loading papers">
-          {[...Array(4)].map((_, i) => <div key={i} className="h-14 rounded-2xl bg-muted" />)}
-        </div>
-      ) : rows.length === 0 ? (
-        <div className="px-[18px] pb-2">
-          <p className="text-sm text-foreground">No papers match these filters.</p>
-        </div>
-      ) : (
-        <ul className={cn('divide-y divide-warm-hairline transition-opacity duration-150', listLoading && 'opacity-50')}
-          aria-busy={listLoading}>
-          {rows.map((r) => <RowItem key={r.registry_key} row={r} />)}
-        </ul>
-      )}
-
-      {hasMore(total, rows.length) && !listError ? (
-        <div className="flex justify-center px-[18px] pt-3">
-          <button type="button" onClick={() => void fetchPage(rows.length)} disabled={moreLoading}
-            className="tap-44 inline-flex min-h-11 items-center justify-center rounded-full bg-muted px-5 text-[13px] font-bold text-foreground transition-colors duration-150 hover:bg-warm-hairline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:opacity-60">
-            {moreLoading ? 'Loading' : `Show more (${(total - rows.length).toLocaleString()} left)`}
-          </button>
-        </div>
-      ) : null}
-
-      {summary.excluded > 0 || summary.frozen > 0 ? (
-        <p className="mt-3 px-[18px] text-[13px] text-warm-meta">
-          {[
-            summary.frozen > 0 ? `${summary.frozen} on hold` : null,
-            summary.excluded > 0 ? `${summary.excluded} left out on purpose, not counted above` : null,
-          ].filter(Boolean).join('. ')}
-          .
-        </p>
-      ) : null}
     </BentoPanel>
   );
 }

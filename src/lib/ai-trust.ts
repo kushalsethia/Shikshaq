@@ -43,7 +43,8 @@ export function trustExplainer(minChecked = 100, minRate = 0.97, spotCheckEvery 
     '"AI fixed it" means the AI corrected the words, number or marks, usually a scanning misread. ' +
     'Verifiers check every one, and the big number is how often they agreed with no change. ' +
     `A card stops going to people only after it reaches ${Math.round(minRate * 100)}% over at least ${minChecked} checks and an admin switches it on. ` +
-    `Even then, 1 in ${spotCheckEvery} is still checked. A question the AI says probably has an issue always goes to a person.`
+    `Even then, 1 in ${spotCheckEvery} is still checked. A question the AI says probably has an issue always goes to a person. ` +
+    `On each card the black mark on the bar is the ${Math.round(minRate * 100)}% line it has to reach.`
   );
 }
 
@@ -108,10 +109,20 @@ export function formatRate(rate: number | null): string {
   return `${Number.isInteger(pct) ? pct.toFixed(0) : pct.toFixed(1)}%`;
 }
 
-/** "60 of 100 checks needed"; once enough have been done, "250 checks done (100 needed)". */
+/** One phrasing for the check count, below or above the minimum: "60 of 100 checks". A met minimum shows in the meter, not in different words. */
 export function checksNeeded(row: Pick<TrustRow, 'checked' | 'min_checked'>): string {
-  if (row.checked >= row.min_checked) return `${row.checked} checks done (${row.min_checked} needed)`;
-  return `${row.checked} of ${row.min_checked} checks needed`;
+  return `${row.checked} of ${row.min_checked} checks`;
+}
+
+/** The meter's text status, so the fill colour is not the only signal. */
+export function meterStatus(row: Pick<TrustRow, 'rate' | 'min_rate'>): 'Above the bar' | 'Below the bar' | 'No checks yet' {
+  if (row.rate === null) return 'No checks yet';
+  return row.rate >= row.min_rate ? 'Above the bar' : 'Below the bar';
+}
+
+/** "bar 97%", the label at the tick. */
+export function barLabel(row: Pick<TrustRow, 'min_rate'>): string {
+  return `bar ${Math.round(row.min_rate * 100)}%`;
 }
 
 /** Where the rate sits, 0 to 100, and where the bar is, for the progress track. */
@@ -138,17 +149,35 @@ export function trustStatus(row: Pick<TrustRow, 'trusted' | 'auto_off_at' | 'aut
 
 /** What the admin button does and whether it may be pressed (with the reason when it may not). */
 export function switchState(
-  row: Pick<TrustRow, 'trusted' | 'eligible' | 'checked' | 'rate' | 'min_checked' | 'min_rate'>,
+  row: Pick<TrustRow, 'trusted' | 'eligible' | 'checked' | 'rate' | 'min_checked' | 'min_rate'> & { auto_off_at?: string | null },
 ): { action: 'trust' | 'stop'; label: string; disabled: boolean; reason: string | null } {
   if (row.trusted) return { action: 'stop', label: 'Stop trusting', disabled: false, reason: null };
   if (row.eligible) return { action: 'trust', label: 'Trust', disabled: false, reason: null };
+  const needs = `needs ${row.min_checked} checks at ${Math.round(row.min_rate * 100)}% agreed. `;
+  const has = row.checked === 0 ? 'No checks yet.' : `It has ${row.checked} checks at ${formatRate(row.rate)} agreed.`;
   return {
     action: 'trust',
     label: 'Trust',
     disabled: true,
-    reason:
-      `Not earned yet: needs ${row.min_checked} checks at ${Math.round(row.min_rate * 100)}% agreed. ` +
-      (row.checked === 0 ? 'No checks yet.' : `It has ${row.checked} checks at ${formatRate(row.rate)} agreed.`),
+    // A level the system switched off was trusted once, so it is not "not earned yet".
+    reason: row.auto_off_at
+      ? `Switched off after it fell below the bar. Trusting again ${needs}${has}`
+      : `Not earned yet: ${needs}${has}`,
+  };
+}
+
+/** The words in the dialog before an admin trusts a level. This states product behaviour: the owner confirms it (plan O6). */
+export function trustConfirm(
+  row: Pick<TrustRow, 'level' | 'decision' | 'spot_check_every'>,
+): { title: string; description: string; confirmLabel: string } {
+  const what = `${LEVEL_LABEL[row.level]}, ${DECISION_LABEL[row.decision]}`;
+  return {
+    title: `Trust "${what}"?`,
+    description:
+      `From now on, only 1 in ${row.spot_check_every} of these AI answers goes to people to check. The rest go straight through. ` +
+      'A question the AI says probably has an issue still always goes to a person. ' +
+      'If people start correcting it too often it switches itself off, and you can stop trusting it at any time.',
+    confirmLabel: 'Trust this level',
   };
 }
 

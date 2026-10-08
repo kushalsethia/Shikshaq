@@ -33,6 +33,7 @@ export function ReviewQuestionCard({
   api,
   onSaved,
   canResolve = false,
+  passOnly = false,
   now,
 }: {
   row: ReviewRow;
@@ -43,6 +44,8 @@ export function ReviewQuestionCard({
   onSaved: () => void;
   /** Pass / Set aside / Reopen are offered only while the paper waits for approval. */
   canResolve?: boolean;
+  /** The paper is already approved: an open question can still be passed, but not set aside or reopened. */
+  passOnly?: boolean;
   now?: Date;
 }) {
   const [editing, setEditing] = useState(false);
@@ -53,6 +56,7 @@ export function ReviewQuestionCard({
   const [showVersions, setShowVersions] = useState(false);
   const [versionsKey, setVersionsKey] = useState(0);
   const pill = STATE_PILL[row.state];
+  const isOnSite = Boolean(row.live_bank_question_id);
   const why = row.state === 'open' ? adminFlagLines(row.flag_reasons, row.flag_detail) : [];
   const qName = label ? `question ${label}` : 'this question';
   const [asideOpen, setAsideOpen] = useState(false);
@@ -123,6 +127,11 @@ export function ReviewQuestionCard({
     >
       {editing ? (
         <div>
+          {isOnSite ? (
+            <p role="note" className="mb-3 rounded-[12px] bg-brand-subtle px-3 py-2 text-[13px] font-semibold text-brand-deep">
+              This question is on the live site. Saving changes it for visitors at once. Versions can put the earlier text back.
+            </p>
+          ) : null}
           <p className="mb-2 text-[13px] text-warm-secondary">{OCR_ONLY_REMINDER}</p>
           <div className="grid grid-cols-2 gap-2 sm:max-w-[320px]">
             <label className="flex flex-col gap-1 text-[12px] font-semibold text-warm-secondary">
@@ -197,7 +206,7 @@ export function ReviewQuestionCard({
               onClick={() => void save()}
               className="inline-flex min-h-11 items-center rounded-full bg-panel px-5 text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.96] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              {saving ? 'Saving...' : 'Save as a new version'}
+              {saving ? 'Saving...' : isOnSite ? 'Save and update the site' : 'Save as a new version'}
             </button>
             <button
               type="button"
@@ -208,9 +217,6 @@ export function ReviewQuestionCard({
               Cancel
             </button>
           </div>
-          {row.live_bank_question_id ? (
-            <p className="mt-2 text-[12px] text-warm-meta">This paper is live, so a saved change shows on the site at once.</p>
-          ) : null}
         </div>
       ) : (
         <QuestionBody
@@ -245,7 +251,7 @@ export function ReviewQuestionCard({
         </p>
       ) : null}
 
-      {!editing && canResolve ? (
+      {!editing && canResolve && !(passOnly && row.state !== 'open') ? (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           {row.state === 'open' ? (
             <>
@@ -254,25 +260,27 @@ export function ReviewQuestionCard({
                 disabled={resolving}
                 onClick={() => void resolve('pass')}
                 aria-label={`Pass ${qName}`}
-                className="inline-flex min-h-10 items-center rounded-full bg-mint px-3.5 text-[13px] font-bold text-[#24603D] transition-transform duration-150 hover:brightness-95 active:scale-[0.96] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex min-h-10 items-center rounded-full bg-mint px-3.5 text-[13px] font-bold text-success-subtle-text transition-transform duration-150 hover:brightness-95 active:scale-[0.96] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Pass
               </button>
-              <button
-                type="button"
-                disabled={resolving}
-                aria-expanded={asideOpen}
-                onClick={() => {
-                  setAsideOpen((v) => !v);
-                  setResolveError(null);
-                }}
-                aria-label={`Set ${qName} aside`}
-                className="inline-flex min-h-10 items-center rounded-full bg-[#F9E2E2] px-3.5 text-[13px] font-bold text-[#8C2A2A] transition-transform duration-150 hover:brightness-95 active:scale-[0.96] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Set aside
-              </button>
+              {passOnly ? null : (
+                <button
+                  type="button"
+                  disabled={resolving}
+                  aria-expanded={asideOpen}
+                  onClick={() => {
+                    setAsideOpen((v) => !v);
+                    setResolveError(null);
+                  }}
+                  aria-label={`Set ${qName} aside`}
+                  className="inline-flex min-h-10 items-center rounded-full bg-destructive/10 px-3.5 text-[13px] font-bold text-destructive transition-transform duration-150 hover:bg-destructive/15 active:scale-[0.96] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Set aside
+                </button>
+              )}
             </>
-          ) : (
+          ) : passOnly ? null : (
             <button
               type="button"
               disabled={resolving}
@@ -284,6 +292,9 @@ export function ReviewQuestionCard({
             </button>
           )}
           {resolving ? <span className="text-[13px] text-warm-meta">Saving...</span> : null}
+          {passOnly && row.state === 'open' ? (
+            <span className="text-[13px] text-warm-secondary">This paper is approved, so a question can be passed but not set aside.</span>
+          ) : null}
         </div>
       ) : null}
       {asideOpen && row.state === 'open' ? (

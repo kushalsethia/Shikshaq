@@ -4,7 +4,9 @@ import { toast as sonnerToast } from 'sonner';
 import { Loader2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { AdminPanelHeader, AdminStatusPill, AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { AdminPanelHeader, AdminStatusPill, AdminTable, AdminTableSkeleton, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { AdminEmpty, AdminError } from '@/components/admin/AdminState';
+import { formatFeeRange } from '@/lib/fee-range';
 import { DetailsForm } from '@/components/teacher-review/DetailsForm';
 import { detailsToTeacher, teacherToDetails, type DetailsValue } from '@/components/teacher-review/details-value';
 import { invalidateTeacherCache, removeCache } from '@/utils/cache';
@@ -12,7 +14,8 @@ import { TEACHERS_KEY, detailsProblem, teacherPatch, type ReviewTeacher, type Te
 
 /* Listed teachers: search, read the contacts, fix the details. A reviewer
    cannot pause, delete or re-photo a listing, and cannot change a teacher's
-   phone or email here; those stay with admin. */
+   phone or email here; those stay with admin. The fee range and the loading,
+   error and empty states are shared with the admin Listed teachers page. */
 
 function messageOf(e: unknown, fallback: string): string {
   const m = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : '';
@@ -83,8 +86,8 @@ export function TeachersTab({ api, scope }: { api: TeacherReviewApi; scope: stri
   const columns: AdminTableColumn[] = [
     { key: 'name', label: 'Teacher', width: '1.6fr' },
     { key: 'contact', label: 'Contact', width: '1.6fr' },
-    { key: 'subjects', label: 'Subjects', width: '1.4fr' },
-    { key: 'fee', label: 'Fee', width: '0.9fr' },
+    { key: 'subjects', label: 'Subjects', width: '1.4fr', wrap: true },
+    { key: 'fee', label: 'Fee per month', width: '1.2fr' },
     { key: 'status', label: 'Status', width: '0.9fr' },
   ];
   const rows: AdminTableRow[] = shown.map((t) => ({
@@ -96,7 +99,7 @@ export function TeachersTab({ api, scope }: { api: TeacherReviewApi; scope: stri
         <p className="truncate text-[12px] text-warm-label">{t.email_id ?? '-'}</p>
       </div>,
       t.subjects || '-',
-      t.min_fees !== null || t.max_fees !== null ? `Rs ${t.min_fees ?? '?'} to ${t.max_fees ?? '?'}` : '-',
+      formatFeeRange(t.min_fees, t.max_fees),
       <AdminStatusPill key="s" status={t.is_paused ? 'paused' : 'live'} label={t.is_paused ? 'Paused' : 'Live'} />,
     ],
     actions: [
@@ -113,9 +116,9 @@ export function TeachersTab({ api, scope }: { api: TeacherReviewApi; scope: stri
 
   return (
     <section aria-label="Listed teachers">
-      <AdminPanelHeader title="Listed teachers" meta={q.data ? `${teachers.length} on the site` : undefined} />
+      <AdminPanelHeader title="Listed teachers" subtitle="Pausing a teacher is admin only." />
       <div className="mb-4 px-[18px]">
-        <div className="relative w-fit max-w-full">
+        <div className="relative w-full sm:w-[320px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-label" aria-hidden />
           <input
             type="search"
@@ -123,23 +126,22 @@ export function TeachersTab({ api, scope }: { api: TeacherReviewApi; scope: stri
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, email, phone or subject"
             aria-label="Search listed teachers"
-            className="h-11 w-[320px] max-w-full rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="h-11 w-full max-w-full rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-brand"
           />
         </div>
       </div>
 
       {q.isPending ? (
-        <div className="h-40 animate-pulse rounded-2xl bg-muted" role="status" aria-label="Loading the teachers" />
-      ) : q.isError ? (
-        <div className="rounded-2xl bg-muted p-8 text-center">
-          <p className="text-sm text-warm-secondary">The teachers did not load.</p>
-          <button type="button" onClick={() => void q.refetch()} className="mt-2 text-sm font-semibold text-brand-blue">
-            Try again
-          </button>
-        </div>
+        <AdminTableSkeleton label="Loading the teachers" />
+      ) : q.isError && !q.data ? (
+        <AdminError what="the teachers" onRetry={() => void q.refetch()} className="mx-[18px]" />
       ) : shown.length === 0 ? (
-        <div className="rounded-2xl bg-muted p-12 text-center text-sm text-warm-label">
-          {search.trim() ? `No teacher matches "${search.trim()}".` : 'No teachers are listed yet.'}
+        <div className="mx-[18px] rounded-2xl bg-muted">
+          <AdminEmpty
+            title={search.trim() ? `No teacher matches "${search.trim()}".` : 'No teachers are listed yet.'}
+            hint={search.trim() ? 'Check the spelling, or search by phone number or email.' : 'Teachers appear here once an application is approved.'}
+            action={search.trim() ? { label: 'Clear search', onClick: () => setSearch('') } : undefined}
+          />
         </div>
       ) : (
         <AdminTable columns={columns} rows={rows} />
@@ -151,7 +153,7 @@ export function TeachersTab({ api, scope }: { api: TeacherReviewApi; scope: stri
             <>
               <DialogTitle className="mb-1 text-xl font-bold text-foreground">{open.title}</DialogTitle>
               <p className="mb-4 text-[13px] text-warm-secondary">
-                {open.phone_number ? `+91 ${open.phone_number}` : 'No phone'} · {open.email_id ?? 'No email'}. Contacts and the photo can only be changed by an admin.
+                {open.phone_number ? `+91 ${open.phone_number}` : 'No phone'} · {open.email_id ?? 'No email'}. Contacts, the photo and pausing can only be changed by an admin.
               </p>
               <DetailsForm value={form} onChange={setForm} idPrefix="teacher-edit" disabled={save.isPending} />
               <div className="mt-5 flex flex-wrap gap-2 border-t border-warm-hairline pt-4">

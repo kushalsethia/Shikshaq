@@ -11,6 +11,13 @@ describe('isFooterlessPath', () => {
     expect(isFooterlessPath('/checkers')).toBe(false);
   });
 
+  it('drops the footer on the work screens for the HOD and the teacher reviewers too', () => {
+    expect(isFooterlessPath('/hod')).toBe(true);
+    expect(isFooterlessPath('/teacher-review')).toBe(true);
+    expect(isFooterlessPath('/teacher-review/')).toBe(true);
+    expect(isFooterlessPath('/teacher-reviews')).toBe(false);
+  });
+
   it('keeps the checker out of the chromeless list, so its top nav stays', () => {
     expect(isChromelessPath('/checker')).toBe(false);
   });

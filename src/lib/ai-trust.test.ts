@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
+  barLabel,
   barPosition,
   buildTrustGrid,
   checksNeeded,
   DECISION_HINT,
   DECISION_LABEL,
   formatRate,
+  meterStatus,
   normaliseTrustRows,
   switchState,
+  trustConfirm,
   TRUST_EXPLAINER,
   trustExplainer,
   trustStatus,
@@ -24,9 +28,19 @@ describe('AI trust formatting', () => {
     expect(formatRate(null)).toBe('No checks yet');
   });
 
-  it('says how many checks are still needed, and when there are enough', () => {
-    expect(checksNeeded({ checked: 60, min_checked: 100 })).toBe('60 of 100 checks needed');
-    expect(checksNeeded({ checked: 250, min_checked: 100 })).toBe('250 checks done (100 needed)');
+  it('says the check count one way, below the minimum or above it', () => {
+    expect(checksNeeded({ checked: 60, min_checked: 100 })).toBe('60 of 100 checks');
+    expect(checksNeeded({ checked: 250, min_checked: 100 })).toBe('250 of 100 checks');
+    expect(checksNeeded({ checked: 0, min_checked: 100 })).toBe('0 of 100 checks');
+  });
+
+  it('labels the tick and says in text whether the rate is above the bar', () => {
+    expect(barLabel({ min_rate: 0.97 })).toBe('bar 97%');
+    expect(barLabel({ min_rate: 0.95 })).toBe('bar 95%');
+    expect(meterStatus({ rate: 0.98, min_rate: 0.97 })).toBe('Above the bar');
+    expect(meterStatus({ rate: 0.97, min_rate: 0.97 })).toBe('Above the bar');
+    expect(meterStatus({ rate: 0.91, min_rate: 0.97 })).toBe('Below the bar');
+    expect(meterStatus({ rate: null, min_rate: 0.97 })).toBe('No checks yet');
   });
 
   it('places the fill and the bar on a 0 to 100 track', () => {
@@ -58,6 +72,35 @@ describe('AI trust formatting', () => {
     expect(switchState({ trusted: true, eligible: false, checked: 300, rate: 0.9, ...base })).toMatchObject({ action: 'stop', disabled: false });
   });
 
+  it('a level the system switched off says so, and what trusting it again takes, not "not earned yet"', () => {
+    const off = switchState({ trusted: false, eligible: false, checked: 40, rate: 0.9, auto_off_at: '2026-10-07T00:00:00Z', ...base });
+    expect(off.disabled).toBe(true);
+    expect(off.reason).toBe(
+      'Switched off after it fell below the bar. Trusting again needs 100 checks at 97% agreed. It has 40 checks at 90% agreed.',
+    );
+    expect(off.reason).not.toContain('Not earned yet');
+    const offNone = switchState({ trusted: false, eligible: false, checked: 0, rate: null, auto_off_at: '2026-10-07T00:00:00Z', ...base });
+    expect(offNone.reason).toBe('Switched off after it fell below the bar. Trusting again needs 100 checks at 97% agreed. No checks yet.');
+    // a row that was never trusted keeps "Not earned yet"
+    const never = switchState({ trusted: false, eligible: false, checked: 40, rate: 0.9, auto_off_at: null, ...base });
+    expect(never.reason?.startsWith('Not earned yet:')).toBe(true);
+    // earned again: the button is back, with no reason
+    expect(switchState({ trusted: false, eligible: true, checked: 300, rate: 0.98, auto_off_at: '2026-10-07T00:00:00Z', ...base })).toMatchObject({
+      disabled: false,
+      reason: null,
+    });
+  });
+
+  it('asks before trusting a level, and states what that does', () => {
+    const c = trustConfirm({ level: 'high', decision: 'pass', spot_check_every: 20 });
+    expect(c.title).toBe('Trust "High confidence, AI said it was right"?');
+    expect(c.description).toContain('only 1 in 20 of these AI answers goes to people');
+    expect(c.description).toContain('probably has an issue');
+    expect(c.confirmLabel).toBe('Trust this level');
+    expect(trustConfirm({ level: 'low', decision: 'fix', spot_check_every: 10 }).description).toContain('1 in 10');
+    expect(`${c.title}${c.description}`).not.toMatch(/[–—]/);
+  });
+
   it('with no checks at all the reason does not say "0 checks at No checks yet"', () => {
     const none = switchState({ trusted: false, eligible: false, checked: 0, rate: null, ...base });
     expect(none.reason).toBe('Not earned yet: needs 100 checks at 97% agreed. No checks yet.');
@@ -74,6 +117,8 @@ describe('AI trust formatting', () => {
     expect(TRUST_EXPLAINER).toContain('at least 100 checks');
     expect(TRUST_EXPLAINER).not.toContain('200');
     expect(TRUST_EXPLAINER).toContain('probably has an issue');
+    // the bar rule is stated once, here, and the tick is explained here
+    expect(TRUST_EXPLAINER).toContain('the black mark on the bar is the 97% line');
     expect(TRUST_EXPLAINER).not.toMatch(/[–—]/);
   });
 
@@ -95,6 +140,28 @@ describe('AI trust formatting', () => {
   it('falls back to the bar of 100 checks when a row does not carry one', () => {
     const [row] = normaliseTrustRows([{ level: 'high', decision: 'pass', subject: null, checked: 3 }]);
     expect(row.min_checked).toBe(100);
+  });
+});
+
+describe('AI trust card', () => {
+  const src = readFileSync('src/components/hod/AiTrustTab.tsx', 'utf8');
+
+  it('asks before trusting, then saves with the same arguments as before; stopping stays one tap', () => {
+    const flip = src.slice(src.indexOf('async function flip()'), src.indexOf('return (\n    <div className="flex flex-col gap-3'));
+    expect(flip).toMatch(/if \(sw\.action === 'trust'\)/);
+    expect(flip.indexOf('await confirm(')).toBeGreaterThan(-1);
+    expect(flip.indexOf('await confirm(')).toBeLessThan(flip.indexOf('api.setAiTrust('));
+    expect(flip).toContain("api.setAiTrust(row.level, row.decision, sw.action === 'trust')");
+    expect(flip).toContain('if (!ok) return;');
+  });
+
+  it('draws the bar once in words, a real chevron, and no per-card "The bar is" line', () => {
+    expect(src).not.toContain('The bar is {');
+    expect(src).toContain('barLabel(row)');
+    expect(src).toContain('meterStatus(row)');
+    expect(src).toContain('<ChevronDown');
+    expect(src).toContain('motion-reduce:transition-none');
+    expect(src).not.toMatch(/>\s*v\s*<\/span>/);
   });
 });
 

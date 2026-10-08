@@ -3,28 +3,29 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import {
-  useAdminGuard,
-  AdminGuardErrorState,
-  adminToast,
-  adminPrimaryBtnStyle,
-  adminSecondaryBtnStyle,
-  adminDestructiveBtnStyle,
-} from '@/components/AdminConsole';
+import { useAdminGuard, AdminGuardErrorState, adminToast } from '@/components/AdminConsole';
+import { AdminPillButton, adminPillClass } from '@/components/admin/AdminPillButton';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
 import { AdminStatusPill } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { AdminDialog } from '@/components/admin/AdminDialog';
+import { AdminError } from '@/components/admin/AdminState';
 import { MathText } from '@/components/papers/math-text';
-import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
+import { useRefreshAdminCounts } from '@/pages/admin/useAdminSectionCounts';
 import { cn } from '@/lib/utils';
 import { displaySchool } from '@/lib/school-display';
 import { realApprovalApi } from '@/lib/admin-approval';
 import {
+  approveCopy,
+  isRecordOnly,
+  nextWaitingPaper,
+  resolveMode,
   reviewCounts,
   writeErrorWords,
   type ApprovalApi,
+  type ApprovalQueueRow,
   type PaperReview,
+  type ReviewPaper,
   type ReviewRow,
 } from '@/lib/admin-approval-shape';
 import { ReviewQuestionCard } from '@/components/admin/approval/ReviewQuestionCard';
@@ -46,42 +47,62 @@ const DummyPaperApproval = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminPaper
      sentences. Owner, 2026-10-02: "That this user edited this. And that user
      edited this." */
 
-type Action = 'approve' | 'reject' | 'unpublish' | 'restore';
+export type Action = 'approve' | 'reject' | 'unpublish' | 'restore';
 
-const ACTION_COPY: Record<Action, { title: string; body: string; button: string; busy: string; noteLabel: string; needsNote: boolean }> = {
-  approve: {
-    title: 'Approve this paper for launch?',
-    body: 'Passed questions go on the site straight away. Set-aside questions show as a short placeholder card with no text. You can take the paper off the site later.',
-    button: 'Approve for launch',
-    busy: 'Approving...',
-    noteLabel: 'Note (optional, shown in the history)',
-    needsNote: false,
-  },
-  reject: {
-    title: 'Send this paper back?',
-    body: 'The paper is not approved and stays off the site. Say what needs to change so the next person knows.',
-    button: 'Send back',
-    busy: 'Sending back...',
-    noteLabel: 'What needs to change',
-    needsNote: true,
-  },
-  unpublish: {
-    title: 'Take this paper off the site?',
-    body: 'Visitors stop seeing it at once. Nothing is deleted, and it can be put back.',
-    button: 'Take it off the site',
-    busy: 'Taking it off...',
-    noteLabel: 'Why',
-    needsNote: true,
-  },
-  restore: {
-    title: 'Put this paper back on the site?',
-    body: 'Visitors can read it again at once, with the questions as they are now. Set-aside questions still show as placeholder cards.',
-    button: 'Put it back',
-    busy: 'Putting it back...',
-    noteLabel: '',
-    needsNote: false,
-  },
-};
+interface ActionCopy {
+  title: string;
+  body: string;
+  button: string;
+  busy: string;
+  noteLabel: string;
+  needsNote: boolean;
+  toast: string;
+}
+
+/** The words for each decision. Approve and send back depend on whether the
+ *  paper is already on the site: approving then only records the yes, and
+ *  sending back does not take it down (admin_approve_paper, admin_reject_paper). */
+export function actionCopy(action: Action, paper: Pick<ReviewPaper, 'kind' | 'live_bank_paper_id'>): ActionCopy {
+  const recordOnly = isRecordOnly(paper);
+  switch (action) {
+    case 'approve': {
+      const c = approveCopy(recordOnly ? 'retro' : 'new');
+      return { ...c, noteLabel: 'Note (optional, shown in the history)', needsNote: false };
+    }
+    case 'reject':
+      return {
+        title: 'Send this paper back?',
+        body: recordOnly
+          ? 'The paper is marked as sent back in the history. Nothing on the site changes, so it stays up until you take it off. Say what needs to change so the next person knows.'
+          : 'The paper is not approved and stays off the site. Say what needs to change so the next person knows.',
+        button: 'Send back',
+        busy: 'Sending back...',
+        noteLabel: 'What needs to change',
+        needsNote: true,
+        toast: recordOnly ? 'Paper sent back. It stays on the site until you take it off.' : 'Paper sent back. It stays off the site.',
+      };
+    case 'unpublish':
+      return {
+        title: 'Take this paper off the site?',
+        body: 'Visitors stop seeing it at once. Nothing is deleted, and it can be put back.',
+        button: 'Take it off the site',
+        busy: 'Taking it off...',
+        noteLabel: 'Why',
+        needsNote: true,
+        toast: 'Paper taken off the site.',
+      };
+    case 'restore':
+      return {
+        title: 'Put this paper back on the site?',
+        body: 'Visitors can read it again at once, with the questions as they are now. Set-aside questions still show as placeholder cards.',
+        button: 'Put it back',
+        busy: 'Putting it back...',
+        noteLabel: '',
+        needsNote: false,
+        toast: 'Paper is back on the site.',
+      };
+  }
+}
 
 function depthMap(rows: ReviewRow[]): Map<string, number> {
   const byId = new Map(rows.map((r) => [r.id, r]));
@@ -135,6 +156,9 @@ export function AdminPaperApprovalPage({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // After an approve or send-back: what happened and which paper to open next.
+  const [done, setDone] = useState<{ words: string; next: ApprovalQueueRow | null } | null>(null);
+  const refreshCounts = useRefreshAdminCounts();
 
   usePageMeta(
     review ? `${review.paper.title} | Paper approval | Shikshaq Admin` : 'Paper approval | Shikshaq Admin',
@@ -149,7 +173,8 @@ export function AdminPaperApprovalPage({
         setReview(await api.review(auditPaperId));
       } catch (e) {
         if (import.meta.env.DEV) console.error('paper approval', e);
-        setLoadError(true);
+        // A quiet refresh that fails keeps the paper on screen.
+        if (!quiet) setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -160,7 +185,10 @@ export function AdminPaperApprovalPage({
   const guard = useAdminGuard(dummy ? null : user, { redirectOnDenied: !dummy });
   const isAdmin = dummy ? true : guard.isAdmin;
   const checkingAdmin = dummy ? false : guard.checkingAdmin;
-  const sectionCounts = useAdminSectionCounts();
+
+  useEffect(() => {
+    setDone(null);
+  }, [auditPaperId]);
 
   useEffect(() => {
     if (isAdmin) void load();
@@ -183,16 +211,32 @@ export function AdminPaperApprovalPage({
   const counts = useMemo(() => reviewCounts(rows), [rows]);
   const firstOpen = rows.find((r) => r.kind === 'question' && r.state === 'open');
 
-  const nav = buildAdminNav('ready', sectionCounts);
+  const nav = buildAdminNav('ready');
+
+  function ask(next: Action) {
+    setAction(next);
+    setNote('');
+    setActionError(null);
+  }
 
   function afterWrite() {
     setHistoryKey((k) => k + 1);
     void load(true);
+    refreshCounts();
+  }
+
+  /** The oldest other paper that is ready, so a run of approvals needs no trip back to the list. */
+  async function findNext(): Promise<ApprovalQueueRow | null> {
+    try {
+      return nextWaitingPaper(await api.queue(), auditPaperId);
+    } catch {
+      return null;
+    }
   }
 
   async function runAction() {
     if (!review || !action) return;
-    const copy = ACTION_COPY[action];
+    const copy = actionCopy(action, review.paper);
     if (copy.needsNote && !note.trim()) {
       setActionError('Write a short note first, so the history says why.');
       return;
@@ -202,16 +246,18 @@ export function AdminPaperApprovalPage({
     try {
       if (action === 'approve') {
         await api.approve(review.paper.audit_paper_id, note.trim());
-        adminToast(review.paper.kind === 'retro' ? 'Paper approved. It was already live.' : 'Paper approved. It is now on the site.');
+        adminToast(copy.toast);
+        setDone({ words: copy.toast, next: await findNext() });
       } else if (action === 'reject') {
         await api.reject(review.paper.audit_paper_id, note.trim());
-        adminToast('Paper sent back. It stays off the site.');
+        adminToast(copy.toast);
+        setDone({ words: copy.toast, next: await findNext() });
       } else if (action === 'unpublish' && review.paper.live_bank_paper_id) {
         await api.unpublish(review.paper.live_bank_paper_id, note.trim());
-        adminToast('Paper taken off the site.');
+        adminToast(copy.toast);
       } else if (action === 'restore' && review.paper.live_bank_paper_id) {
         await api.restorePaper(review.paper.live_bank_paper_id);
-        adminToast('Paper is back on the site.');
+        adminToast(copy.toast);
       }
       setAction(null);
       setNote('');
@@ -252,16 +298,11 @@ export function AdminPaperApprovalPage({
       <BentoStack className="min-h-screen bg-muted">
         <AdminHeader nav={nav} signedInEmail={signedIn} />
         {banner}
-        <BentoPanel fill="card" className="px-[18px] py-[18px]" role="alert">
-          <p className="text-sm text-foreground">This paper did not load. Check your internet and try again.</p>
-          <div className="mt-3 flex gap-2">
-            <button type="button" onClick={() => void load()} className={adminPrimaryBtnStyle}>
-              Try again
-            </button>
-            <Link to="/admin/paper-approvals" className={adminSecondaryBtnStyle}>
-              Back to the queue
-            </Link>
-          </div>
+        <BentoPanel fill="card" className="px-[18px] py-[18px]">
+          <AdminError what="this paper" onRetry={() => void load()} />
+          <Link to="/admin/paper-approvals" className={cn(adminPillClass('quiet'), 'mt-3')}>
+            Back to Ready to go live
+          </Link>
         </BentoPanel>
       </BentoStack>
     );
@@ -273,7 +314,8 @@ export function AdminPaperApprovalPage({
   const approved = paper.approval === 'approved';
   const wasLive = Boolean(paper.live_bank_paper_id) && !paper.is_published && (approved || paper.kind === 'retro');
   const rejected = paper.approval === 'rejected';
-  const copy = action ? ACTION_COPY[action] : null;
+  const copy = action ? actionCopy(action, paper) : null;
+  const mode = resolveMode(paper.approval);
   const meta = [paper.school ? displaySchool(paper.school) : null, paper.exam, paper.year].filter(Boolean).join(' · ');
 
   return (
@@ -281,13 +323,41 @@ export function AdminPaperApprovalPage({
       <AdminHeader nav={nav} signedInEmail={signedIn} />
       {banner}
 
+      {done ? (
+        <BentoPanel fill="card" className="px-[18px] py-[14px] lg:px-[18px] lg:py-[14px]">
+          <div role="status" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2" data-testid="after-decision">
+            <div className="min-w-0">
+              <p className="text-[15px] font-bold text-foreground">{done.words}</p>
+              <p className="text-[13px] text-warm-secondary">
+                {done.next ? (
+                  <>
+                    Next waiting paper:{' '}
+                    <Link
+                      to={`/admin/paper-approvals/${encodeURIComponent(done.next.audit_paper_id)}`}
+                      className="font-bold text-brand-blue hover:text-brand-blue-deep"
+                    >
+                      {done.next.title}
+                    </Link>
+                  </>
+                ) : (
+                  'No other paper is ready to approve.'
+                )}
+              </p>
+            </div>
+            <Link to="/admin/paper-approvals" className={adminPillClass('secondary', 'sm')}>
+              Back to the list
+            </Link>
+          </div>
+        </BentoPanel>
+      ) : null}
+
       <BentoPanel fill="card" className="px-[18px] py-[18px] lg:px-[18px] lg:py-[18px]">
         <Link
           to="/admin/paper-approvals"
-          className="tap-44 inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand-blue hover:text-brand-blue-deep"
+          className="inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-brand-blue hover:text-brand-blue-deep"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          All paper approvals
+          Back to Ready to go live
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -295,7 +365,9 @@ export function AdminPaperApprovalPage({
             {meta ? <p className="mt-0.5 text-[14px] text-warm-secondary">{meta}</p> : null}
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {paper.kind === 'retro' ? <AdminStatusPill status="live" label="Already live" /> : null}
+            {paper.kind === 'retro' ? (
+              open > 0 ? <AdminStatusPill status="pending" label={`Live, ${open} open`} /> : <AdminStatusPill status="live" label="Already live" />
+            ) : null}
             {approved ? <AdminStatusPill status="live" label="Approved" /> : null}
             {rejected ? <AdminStatusPill status="hidden" label="Sent back" /> : null}
             {wasLive ? <AdminStatusPill status="paused" label="Off the site" /> : null}
@@ -313,11 +385,15 @@ export function AdminPaperApprovalPage({
         {open > 0 ? (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-brand-subtle px-4 py-3 text-[14px] text-brand-deep" role="status">
             <span className="font-semibold">
-              {open === 1 ? '1 question is still open.' : `${open} questions are still open.`} Each must be passed or set aside before
-              this paper can be approved.
+              {open === 1 ? '1 question is still open.' : `${open} questions are still open.`}{' '}
+              {mode === 'full'
+                ? 'Each must be passed or set aside before this paper can be approved.'
+                : mode === 'pass-only'
+                  ? 'This paper is approved, so each one can be passed but not set aside.'
+                  : 'This paper was sent back, so its questions cannot be changed here.'}
             </span>
             {firstOpen ? (
-              <a href={`#q-${firstOpen.id}`} className="tap-44 font-bold underline underline-offset-2">
+              <a href={`#q-${firstOpen.id}`} className="inline-flex min-h-10 items-center font-bold underline underline-offset-2">
                 Go to the first one
               </a>
             ) : null}
@@ -325,61 +401,33 @@ export function AdminPaperApprovalPage({
         ) : null}
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={open > 0 || approved}
-            onClick={() => {
-              setAction('approve');
-              setNote('');
-              setActionError(null);
-            }}
-            className={cn(adminPrimaryBtnStyle, 'disabled:cursor-not-allowed disabled:opacity-50')}
+          <AdminPillButton
+            variant="primary"
+            disabled={open > 0 || approved || rejected}
+            onClick={() => ask('approve')}
+            className="disabled:cursor-not-allowed disabled:opacity-50"
             title={open > 0 ? 'Resolve the open questions first' : undefined}
           >
-            {approved ? 'Approved' : paper.kind === 'retro' ? 'Approve (already live)' : 'Approve for launch'}
-          </button>
+            {approved ? 'Approved' : isRecordOnly(paper) ? 'Approve (already live)' : 'Approve for launch'}
+          </AdminPillButton>
           {!approved ? (
-            <button
-              type="button"
-              onClick={() => {
-                setAction('reject');
-                setNote('');
-                setActionError(null);
-              }}
-              className={adminSecondaryBtnStyle}
-            >
-              Send back
-            </button>
-          ) : null}
-          {isLive ? (
-            <button
-              type="button"
-              onClick={() => {
-                setAction('unpublish');
-                setNote('');
-                setActionError(null);
-              }}
-              className={adminDestructiveBtnStyle}
-            >
-              Take off the site
-            </button>
+            <AdminPillButton variant="secondary" onClick={() => ask('reject')} disabled={rejected}>
+              {rejected ? 'Sent back' : 'Send back'}
+            </AdminPillButton>
           ) : null}
           {wasLive ? (
-            <button
-              type="button"
-              onClick={() => {
-                setAction('restore');
-                setNote('');
-                setActionError(null);
-              }}
-              className={adminSecondaryBtnStyle}
-            >
+            <AdminPillButton variant="secondary" onClick={() => ask('restore')}>
               Put back on the site
-            </button>
+            </AdminPillButton>
           ) : null}
-          <a href="#paper-history" className={cn(adminSecondaryBtnStyle, 'lg:hidden')}>
+          <a href="#paper-history" className={adminPillClass('secondary', 'md', 'lg:hidden')}>
             History
           </a>
+          {isLive ? (
+            <AdminPillButton variant="destructive" onClick={() => ask('unpublish')}>
+              Take off the site
+            </AdminPillButton>
+          ) : null}
         </div>
       </BentoPanel>
 
@@ -389,6 +437,12 @@ export function AdminPaperApprovalPage({
           <p className="mb-3 text-[13px] text-warm-secondary">
             Edit fixes a reading mistake and saves a new version. Versions shows every earlier one.
           </p>
+          {isLive ? (
+            <p role="note" className="mb-3 rounded-2xl bg-brand-subtle px-4 py-3 text-[14px] font-semibold text-brand-deep">
+              This paper is live. Saving an edit to a question that is on the site changes it for visitors at once. Each save is a
+              version, and Versions can put the earlier text back.
+            </p>
+          ) : null}
           {paper.general_instructions ? (
             <MathText text={paper.general_instructions} className="mb-3 text-[14px] leading-[1.55] text-warm-prose" />
           ) : null}
@@ -416,7 +470,8 @@ export function AdminPaperApprovalPage({
                   depth={depths.get(r.id) ?? 0}
                   api={api}
                   onSaved={afterWrite}
-                  canResolve={paper.approval === 'pending'}
+                  canResolve={mode !== 'none'}
+                  passOnly={mode === 'pass-only'}
                   now={now}
                 />
               );
@@ -435,18 +490,34 @@ export function AdminPaperApprovalPage({
 
       <AdminAuditNote />
 
-      <Dialog
-        open={action !== null}
+      <AdminDialog
+        open={action !== null && copy !== null}
         onOpenChange={(o) => {
           if (!o && !busy) setAction(null);
         }}
-      >
-        <DialogContent aria-describedby={undefined} className="w-full max-w-md rounded-bento bg-card p-6">
-          {copy ? (
+        title={copy?.title ?? ''}
+        size="sm"
+        footer={
+          copy ? (
             <>
-              <DialogTitle className="text-balance text-xl font-bold text-foreground">{copy.title}</DialogTitle>
-              <p className="mt-2 text-[14px] text-warm-secondary">{copy.body}</p>
-              {copy.noteLabel ? (
+              <AdminPillButton variant="secondary" onClick={() => setAction(null)} disabled={busy}>
+                Cancel
+              </AdminPillButton>
+              <AdminPillButton
+                variant={action === 'unpublish' ? 'destructive' : 'primary'}
+                busy={busy}
+                onClick={() => void runAction()}
+              >
+                {busy ? copy.busy : copy.button}
+              </AdminPillButton>
+            </>
+          ) : null
+        }
+      >
+        {copy ? (
+          <>
+            <p className="text-[14px] text-warm-secondary">{copy.body}</p>
+            {copy.noteLabel ? (
               <label className="mt-3 flex flex-col gap-1 text-[12px] font-semibold text-warm-secondary">
                 {copy.noteLabel}
                 <textarea
@@ -457,29 +528,15 @@ export function AdminPaperApprovalPage({
                   className="rounded-xl bg-muted px-3 py-2 text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 />
               </label>
-              ) : null}
-              {actionError ? (
-                <p role="alert" className="mt-2 text-[13px] text-destructive">
-                  {actionError}
-                </p>
-              ) : null}
-              <div className="mt-5 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void runAction()}
-                  disabled={busy}
-                  className={cn(action === 'unpublish' ? adminDestructiveBtnStyle : adminPrimaryBtnStyle, 'disabled:opacity-60')}
-                >
-                  {busy ? copy.busy : copy.button}
-                </button>
-                <button type="button" onClick={() => setAction(null)} disabled={busy} className={adminSecondaryBtnStyle}>
-                  Cancel
-                </button>
-              </div>
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+            ) : null}
+            {actionError ? (
+              <p role="alert" className="mt-2 text-[13px] text-destructive">
+                {actionError}
+              </p>
+            ) : null}
+          </>
+        ) : null}
+      </AdminDialog>
     </BentoStack>
   );
 }

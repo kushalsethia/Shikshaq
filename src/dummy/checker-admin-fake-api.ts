@@ -8,9 +8,12 @@ import type { UserSearchRow } from '@/lib/checker-api';
  * not real Shikshaq staff or checkers.
  */
 export function createFakeCheckerAdminApi(): CheckerAdminApi & { reset: () => void } {
-  let rows: CheckerAdminRow[] = [
+  // The ids match the made-up verifiers in hod-fake-api.ts, so the Details
+  // column joins: Asha and Nikhil are ready, Tara's details have expired and
+  // Imran has none yet.
+  const seed = (): CheckerAdminRow[] => [
     {
-      user_id: 'd1111111-0000-4000-8000-000000000001',
+      user_id: 'c1000000-0000-4000-8000-000000000001',
       email: 'asha.reviewer@example.com',
       full_name: 'Asha Reviewer',
       added_at: new Date(Date.now() - 12 * 24 * 3600 * 1000).toISOString(),
@@ -18,7 +21,7 @@ export function createFakeCheckerAdminApi(): CheckerAdminApi & { reset: () => vo
       checked_total: 812,
     },
     {
-      user_id: 'd1111111-0000-4000-8000-000000000002',
+      user_id: 'c1000000-0000-4000-8000-000000000002',
       email: 'nikhil.k@example.com',
       full_name: 'Nikhil K',
       added_at: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(),
@@ -26,17 +29,26 @@ export function createFakeCheckerAdminApi(): CheckerAdminApi & { reset: () => vo
       checked_total: 47,
     },
     {
-      user_id: 'd1111111-0000-4000-8000-000000000003',
-      email: 'no-name-yet@example.com',
+      user_id: 'c1000000-0000-4000-8000-000000000003',
+      email: 'tara.bose@example.com',
+      full_name: 'Tara Bose',
+      added_at: new Date(Date.now() - 40 * 24 * 3600 * 1000).toISOString(),
+      checked_today: 0,
+      checked_total: 9,
+    },
+    {
+      user_id: 'c1000000-0000-4000-8000-000000000005',
+      email: 'imran.s@example.com',
       full_name: null,
       added_at: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
       checked_today: 2,
       checked_total: 2,
     },
   ];
+  let rows: CheckerAdminRow[] = seed();
 
   function reset() {
-    rows = rows.slice(0, 2);
+    rows = seed();
   }
 
   // Made-up accounts that have signed up but are not checkers yet.

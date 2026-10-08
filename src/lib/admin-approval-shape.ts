@@ -546,3 +546,75 @@ export function writeErrorWords(e: unknown, fallback: string): string {
     return 'Someone else changed this question while you were editing. Reload to see their version, then try again.';
   return fallback;
 }
+
+// ---------------------------------------------------------------------------
+// Admin rework, Batch 4: one place for the words and rules the approval pages share
+
+export type RowTone = 'live' | 'pending' | 'paused';
+
+/** The one status every surface reads: the pill, the filter chips and the counts.
+ *  A paper already on the site with open questions says so ("Live, 2 open"), so it
+ *  is never shown as a plain green "Already live" next to questions that need a person. */
+export function rowStatus(r: Pick<ApprovalQueueRow, 'kind' | 'open'>): { tone: RowTone; label: string; ready: boolean } {
+  const ready = isReady(r);
+  if (r.kind === 'retro') {
+    return ready ? { tone: 'live', label: 'Live, ready', ready } : { tone: 'pending', label: `Live, ${r.open} open`, ready };
+  }
+  return ready ? { tone: 'pending', label: 'Ready', ready } : { tone: 'paused', label: `${r.open} open`, ready };
+}
+
+/** Approving a paper that is already on the site only records the yes
+ *  (admin_approve_paper: for a retro paper "approval is a record, nothing moves"). */
+export function isRecordOnly(p: Pick<ReviewPaper, 'kind' | 'live_bank_paper_id'>): boolean {
+  return p.kind === 'retro' || Boolean(p.live_bank_paper_id);
+}
+
+export interface ApproveCopy {
+  title: string;
+  body: string;
+  button: string;
+  busy: string;
+  toast: string;
+}
+
+export function approveCopy(kind: QueueKind): ApproveCopy {
+  if (kind === 'retro') {
+    return {
+      title: 'Record your approval?',
+      body: 'This paper is already on the site. Approving records your yes in the history. Nothing on the site changes.',
+      button: 'Record approval',
+      busy: 'Recording...',
+      toast: 'Approval recorded. The paper was already live, so nothing on the site changed.',
+    };
+  }
+  return {
+    title: 'Approve this paper for launch?',
+    body: 'Passed questions go on the site straight away. Set-aside questions show as a short placeholder card with no text. You can take the paper off the site later.',
+    button: 'Approve for launch',
+    busy: 'Approving...',
+    toast: 'Paper approved. It is now on the site.',
+  };
+}
+
+/** What an admin may do to a question on this paper (admin_set_question_state):
+ *  while the paper waits, pass, set aside or reopen; once approved, pass only
+ *  (a late pass); after a send-back, nothing. */
+export type ResolveMode = 'full' | 'pass-only' | 'none';
+
+export function resolveMode(approval: ReviewPaper['approval']): ResolveMode {
+  return approval === 'pending' ? 'full' : approval === 'approved' ? 'pass-only' : 'none';
+}
+
+/** The queue, oldest waiting first. Rows with no date go last. */
+export function oldestFirst<T extends Pick<ApprovalQueueRow, 'queued_at'>>(rows: T[]): T[] {
+  const t = (r: T) => (r.queued_at ? new Date(r.queued_at).getTime() : Number.POSITIVE_INFINITY);
+  return [...rows].sort((a, b) => t(a) - t(b));
+}
+
+/** The next paper to look at after a decision: the oldest ready one, not the one just done. */
+export function nextWaitingPaper<T extends Pick<ApprovalQueueRow, 'audit_paper_id' | 'queued_at' | 'open'>>(
+  rows: T[],
+  excludeId: string,
+): T | null {
+  return oldestFirst(rows).find((r) => r.audit_paper_id !== excludeId && isReady(r)) ?? null;
+}

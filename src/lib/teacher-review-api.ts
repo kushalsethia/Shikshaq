@@ -256,6 +256,20 @@ export function detailsProblem(d: {
   return null;
 }
 
+/** What an application's status is called on every screen that lists them (admin and reviewer alike). */
+export const APPLICATION_STATUS_LABEL: Record<ApplicationStatus, string> = {
+  pending: 'Waiting',
+  approved: 'Approved',
+  rejected: 'Rejected',
+};
+
+/** What was sent with an application, in plain words. */
+export function docsLabel(a: { hero_image_url: string | null; reference_name: string | null }): string {
+  if (a.hero_image_url) return 'Photo and references';
+  if (a.reference_name) return 'References only';
+  return 'No photo or references';
+}
+
 /** React Query keys, one place, scoped so the dummy and the real data never mix. */
 export const APPLICATIONS_KEY = (scope: string) => ['teacher-review', scope, 'applications'] as const;
 export const TEACHERS_KEY = (scope: string) => ['teacher-review', scope, 'teachers'] as const;

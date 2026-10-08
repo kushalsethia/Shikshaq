@@ -9,7 +9,8 @@ import { setDummyMode } from '@/lib/dummy-mode';
    solely through the PREVIEW_TOOLS-gated lazy import in admin/pipeline.tsx. */
 
 export default function AdminPipelineDummy() {
-  const [api] = useState(createFakePipelineApi);
+  // ?stats=error reaches the stats panels' error state.
+  const [api] = useState(() => createFakePipelineApi(new URLSearchParams(window.location.search).get('stats') === 'error' ? 'error' : 'full'));
   // ?registry=empty or ?registry=error reaches the other two panel states.
   const [registryApi] = useState(() => {
     const m = new URLSearchParams(window.location.search).get('registry');

@@ -32,11 +32,25 @@ import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 
 const KEY = 'shikshaq:dummy-mode';
 
-/** Pages that have a dummy mode, for the preview toggle. */
-export const DUMMY_PAGES: { path: string; label: string }[] = [
+interface DummyPageEntry {
+  path: string;
+  label: string;
+  /** Planned by the admin rework but not built yet. The preview toggle does not
+   *  offer it. The batch that builds the page's dummy deletes this one flag. */
+  dormant?: true;
+}
+
+const ALL_DUMMY_PAGES: DummyPageEntry[] = [
   { path: '/checker', label: 'Verify papers (dummy)' },
   { path: '/hod', label: 'HOD desk (dummy)' },
   { path: '/teacher-review', label: 'Review teachers (dummy)' },
+  { path: '/admin', label: 'Admin: needs you now (dummy)' },
+  { path: '/admin/approvals', label: 'Admin: teacher applications (dummy)' },
+  { path: '/admin/teachers', label: 'Admin: listed teachers (dummy)' },
+  { path: '/admin/reviews', label: 'Admin: reviews (dummy)' },
+  { path: '/admin/feedback', label: 'Admin: visitor feedback (dummy)' },
+  { path: '/admin/audit', label: 'Admin: admin actions (dummy)' },
+  { path: '/admin/papers', label: 'Admin: student uploads (dummy)' },
   { path: '/admin/library', label: 'Admin: library (dummy)' },
   { path: '/admin/admin-queue', label: 'Admin: admin queue (dummy)' },
   { path: '/admin/checkers', label: 'Admin: checkers (dummy)' },
@@ -46,6 +60,9 @@ export const DUMMY_PAGES: { path: string; label: string }[] = [
   { path: '/admin/paper-approvals', label: 'Admin: ready to go live (dummy)' },
   { path: '/admin/checker-log', label: 'Admin: checker log (dummy)' },
 ];
+
+/** Pages that have a dummy mode, for the preview toggle. */
+export const DUMMY_PAGES: { path: string; label: string }[] = ALL_DUMMY_PAGES.filter((p) => !p.dormant).map(({ path, label }) => ({ path, label }));
 
 function readParam(): string | null {
   try {

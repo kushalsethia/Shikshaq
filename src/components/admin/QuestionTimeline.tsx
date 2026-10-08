@@ -1,7 +1,7 @@
 import { format } from 'date-fns';
 import { buildTimeline } from '@/lib/question-timeline';
 import type { QuestionHistoryRow } from '@/lib/team-dashboard-api';
-import { DebugId } from '@/components/DebugId';
+import { AdminError } from '@/components/admin/AdminState';
 import { cn } from '@/lib/utils';
 
 /**
@@ -10,33 +10,38 @@ import { cn } from '@/lib/utils';
  * caller fetches the rows (admin_question_history via
  * team-dashboard-api.ts) and passes them in, so this same component works
  * for the real page and for dummy-mode fixtures.
+ *
+ * It has no heading of its own: it sits in an AdminDialog titled "History for
+ * question {id}". Three states are told apart: loading, a failed read (with
+ * Try again), and a successful read that found nothing. A failed read must
+ * never read as "no history".
  */
 export function QuestionTimeline({
-  questionId,
   rows,
   loading,
+  error,
+  onRetry,
 }: {
-  questionId: string;
   rows: QuestionHistoryRow[];
   loading?: boolean;
+  /** The read failed. Shown instead of the empty message. */
+  error?: boolean;
+  onRetry?: () => void;
 }) {
   const timeline = buildTimeline(rows);
 
   return (
     <div>
-      <div className="mb-3 flex items-center gap-2">
-        <h3 className="text-[15px] font-bold text-foreground">Question history</h3>
-        <DebugId label="question" value={questionId} />
-      </div>
-
       {loading ? (
-        <div className="space-y-2">
+        <div className="space-y-2" role="status" aria-label="Loading the history">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-14 animate-pulse rounded-2xl bg-muted" />
+            <div key={i} className="h-14 animate-pulse rounded-2xl bg-muted motion-reduce:animate-none" />
           ))}
         </div>
+      ) : error ? (
+        <AdminError what="this question's history" onRetry={onRetry ?? (() => undefined)} />
       ) : timeline.length === 0 ? (
-        <p className="rounded-2xl bg-muted p-4 text-[13px] text-warm-label">
+        <p className="rounded-2xl bg-muted p-4 text-[13px] text-warm-secondary">
           Nothing logged yet for this question. Anything from before this dashboard shipped has no history here.
         </p>
       ) : (

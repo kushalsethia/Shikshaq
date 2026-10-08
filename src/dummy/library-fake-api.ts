@@ -43,8 +43,11 @@ export function createFakeLibraryApi(): LibraryApi {
     { paper_id: 'a60001', hidden_reason: null, hidden_at: null, hidden_by: null, with_students: 2, with_admin: 3, ready: false },
     { paper_id: 'a70001', hidden_reason: 'Published with no questions; the pipeline hid it.', hidden_at: '2026-09-29T09:00:00Z', hidden_by: 'The pipeline', with_students: 0, with_admin: 0, ready: false },
   ];
+  let nextRevision = 10;
   const revisions: RevisionRow[] = [
     { id: 1, table_name: 'bank_papers', row_id: 'a40001', action: 'admin_hide', field: 'is_published', before: true, after: false, actor: 'Priya Sharma', source: 'admin', reason: extras[2].hidden_reason, created_at: '2026-09-30T09:00:00Z' },
+    { id: 2, table_name: 'bank_papers', row_id: 'a20001', action: 'admin_edit', field: 'year', before: '2022', after: '2023', actor: 'Arjun Mehta', source: 'admin', reason: null, created_at: '2026-09-28T11:30:00Z' },
+    { id: 3, table_name: 'bank_papers', row_id: 'a20001', action: 'live_apply', field: null, before: null, after: null, actor: 'The pipeline', source: 'pipeline', reason: null, created_at: '2026-09-27T08:00:00Z' },
   ];
   return {
     async papers() {
@@ -56,6 +59,7 @@ export function createFakeLibraryApi(): LibraryApi {
     async hide(id, reason) {
       const p = papers.find((x) => x.paper_id === id);
       if (p) p.is_published = false;
+      revisions.unshift({ id: nextRevision++, table_name: 'bank_papers', row_id: id, action: 'admin_hide', field: 'is_published', before: true, after: false, actor: 'You', source: 'admin', reason, created_at: new Date().toISOString() });
       const e = extras.find((x) => x.paper_id === id);
       if (e) {
         e.hidden_reason = reason;
@@ -65,9 +69,10 @@ export function createFakeLibraryApi(): LibraryApi {
     async restore(id) {
       const p = papers.find((x) => x.paper_id === id);
       if (p) p.is_published = true;
+      revisions.unshift({ id: nextRevision++, table_name: 'bank_papers', row_id: id, action: 'admin_restore', field: 'is_published', before: false, after: true, actor: 'You', source: 'admin', reason: null, created_at: new Date().toISOString() });
     },
-    async history() {
-      return revisions.map((r) => ({ ...r }));
+    async history(id) {
+      return revisions.filter((r) => r.row_id === id).map((r) => ({ ...r }));
     },
     async undo() {
       /* nothing to undo in the preview */

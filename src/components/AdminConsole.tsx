@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { InfoTip } from '@/components/admin/AdminHelp';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -219,14 +219,16 @@ export function AdminPill({ tone, children }: { tone: AdminPillTone; children: R
    just with a min-h-11 (44px) tap target per Rule 4, and the same 4-tone
    palette as AD-004's status pills so a "destructive" button always reads
    as the tinted rose, never solid red. */
-export const adminPrimaryBtnStyle =
-  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-0 bg-panel px-5 text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.97]';
+const ADMIN_BTN_FOCUS =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
 
-export const adminSecondaryBtnStyle =
-  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-muted px-5 text-[13px] font-bold text-warm-secondary transition-transform duration-150 active:scale-[0.97]';
+export const adminPrimaryBtnStyle = `inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-0 bg-panel px-5 text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.97] ${ADMIN_BTN_FOCUS}`;
 
-export const adminDestructiveBtnStyle =
-  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#F9E2E2] px-5 text-[13px] font-bold text-[#8C2A2A] transition-transform duration-150 active:scale-[0.97]';
+export const adminSecondaryBtnStyle = `inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-muted px-5 text-[13px] font-bold text-warm-secondary transition-transform duration-150 active:scale-[0.97] ${ADMIN_BTN_FOCUS}`;
+
+/* Tokens, not raw hex: destructive/10 with text-destructive is 5.9:1 on the
+   card fill. */
+export const adminDestructiveBtnStyle = `inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-destructive/10 px-5 text-[13px] font-bold text-destructive transition-transform duration-150 active:scale-[0.97] ${ADMIN_BTN_FOCUS}`;
 
 /**
  * Single toast system for the admin console (see _rules.md #19 and
@@ -256,21 +258,27 @@ export function adminToast(message: string, opts?: { description?: string; undo?
 export const adminFieldStyle = 'min-h-[48px] rounded-xl bg-muted';
 
 /**
- * Squircle stat-tile row for admin console headers — the same device the dashboards use
- * (learning-education-squircles reference: a different flat token fill per tile). Admin pages
- * are internal tools so this stays a small, single-row summary rather than the dashboards'
- * bigger hero treatment — but a page of nothing but rows and pills reads as flat, and this is
- * a free device to reuse since it only ever renders numbers each page has already fetched.
+ * Squircle stat-tile row for admin console headers. Internal tools, so a small
+ * single-row summary rather than a hero treatment.
+ *
+ * THE ONE-NUMBER RULE. A number appears once per screen. The nav badge is the
+ * headline count; filter chips carry the per-view counts; a tile is only for a
+ * figure NEITHER of those shows (a total, an average, a duration). Before adding
+ * a tile, check that a chip or the nav badge does not already say it, and delete
+ * any header sentence that repeats it. An unknown value is "?", never 0.
+ *
+ * Two columns on a phone, one row from `sm` up.
  */
 export function AdminStatTiles({ stats }: { stats: { label: string; value: number | string; hint?: string }[] }) {
   const fills = ['bg-card', 'bg-brand-blue-subtle', 'bg-muted', 'bg-mint'];
+  const cols = stats.length > 4 && stats.length % 3 === 0 ? 3 : Math.min(stats.length, 4);
   return (
     <div
-      className="mb-[18px] grid gap-2.5"
-      style={{ gridTemplateColumns: `repeat(${stats.length > 4 && stats.length % 3 === 0 ? 3 : Math.min(stats.length, 4)}, minmax(0,1fr))` }}
+      className="mb-[18px] grid grid-cols-2 gap-2.5 sm:[grid-template-columns:repeat(var(--stat-cols),minmax(0,1fr))]"
+      style={{ '--stat-cols': cols } as CSSProperties}
     >
       {stats.map((st, i) => (
-        <div key={st.label} className={`rounded-2xl px-4 py-3.5 ${fills[i % fills.length]}`}>
+        <div key={st.label} className={`min-w-0 rounded-2xl px-4 py-3.5 ${fills[i % fills.length]}`}>
           <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[.02em] text-warm-label">
             {st.label}
             {st.hint ? <InfoTip text={st.hint} label={st.label} /> : null}

@@ -15,6 +15,9 @@ import {
   kolkataDay,
   normaliseCheckerRow,
   normaliseDayLog,
+  otherActionWords,
+  sinceWords,
+  totalOf,
   type LogDay,
   type LogEvent,
 } from './checker-log';
@@ -119,6 +122,56 @@ describe('checker log shapes', () => {
     expect(log.days[0].counts.fixed).toBe(1);
     expect(log.days[0].events[0].paper_title).toBe('T');
     expect(log.days[1].counts.passed).toBe(2);
+  });
+});
+
+describe('admin rework: the logs', () => {
+  const NOW = new Date('2026-10-05T10:00:00Z');
+
+  it('shows the year in Since only for an earlier year', () => {
+    expect(sinceWords('2026-03-02T06:00:00Z', NOW)).toBe('2 Mar');
+    expect(sinceWords('2025-03-02T06:00:00Z', NOW)).toBe('2 Mar 2025');
+    expect(sinceWords(null, NOW)).toBe('Not recorded');
+    expect(sinceWords('nonsense', NOW)).toBe('Not recorded');
+  });
+
+  it('a taken-back pass does not count as a question checked', () => {
+    const events = [ev('checker_pass', 'q1', 'p1'), { ...ev('checker_pass', 'q2', 'p2'), undone: true }];
+    const counts = countEvents(events.filter((e) => !e.undone));
+    expect(daySentence({ name: 'Rahul Das', role: 'student' }, { day: '2026-10-02', counts, events }, 2026)).toBe(
+      'Friday 2 Oct: Rahul checked 1 question on 1 paper, passed 1.',
+    );
+    const allBack = [{ ...ev('checker_pass', 'q1', 'p1'), undone: true }];
+    expect(daySentence({ name: 'Rahul Das', role: 'student' }, { day: '2026-10-02', counts: countEvents([]), events: allBack }, 2026)).toBe(
+      'Friday 2 Oct: Rahul took back everything they did.',
+    );
+  });
+
+  it('names what the "other" bucket mostly holds, and says nothing when it cannot', () => {
+    expect(otherActionWords([{ action: 'locate_page' }, { action: 'locate_page' }, { action: 'load' }])).toBe(
+      'looked for this question on the scanned pages',
+    );
+    expect(otherActionWords([{ action: 'checker_pass' }])).toBeNull();
+    expect(otherActionWords([{ action: 'brand_new_code' }])).toBeNull();
+    expect(otherActionWords([{ action: 'locate_page', undone: true }])).toBeNull();
+  });
+
+  it('the fixture marks some passes as taken back, and the history line says so', async () => {
+    const api = createFakeCheckerLogApi(0);
+    const today = kolkataDay(FIXTURE_NOW);
+    const log = await api.dayLog(FIXTURE_ACTOR_KEY, addDays(today, -89), today);
+    const events = log.days.flatMap((d) => d.events);
+    const undone = events.filter((e) => e.undone);
+    expect(undone.length).toBeGreaterThan(0);
+    expect(historyLine(undone[0], FIXTURE_NOW).line).toContain('(undone)');
+    // the day's counts leave out what was taken back, like the server's
+    for (const d of log.days) expect(totalOf(d.counts)).toBe(d.events.filter((e) => !e.undone).length);
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <HistoryList<LogEvent> events={undone.slice(0, 1)} now={FIXTURE_NOW} paperFor={() => null} />
+      </MemoryRouter>,
+    );
+    expect(text(html)).toContain('(undone)');
   });
 });
 
