@@ -399,6 +399,10 @@ begin
     raise exception 'The fees are not valid' using errcode = '22023';
   end if;
 
+  -- protect_teacher_fields reverts Title and Sir/Ma'am for anyone who is not an
+  -- admin. This flag (transaction-local, only settable from SQL, not through
+  -- the API) lets the trigger accept those two from this function alone.
+  perform set_config('shikshaq.reviewer_edit', 'on', true);
   update public."Shikshaqmine" set
     "Title" = case when p_patch ? 'title' then btrim(p_patch ->> 'title') else "Title" end,
     "Sir/Ma'am?" = case when p_patch ? 'sir_maam' then p_patch ->> 'sir_maam' else "Sir/Ma'am?" end,
@@ -418,11 +422,56 @@ begin
     "Min Fees" = v_min,
     "Max Fees" = v_max
   where id = p_id;
+  perform set_config('shikshaq.reviewer_edit', 'off', true);
 
   perform public.reviewer_log('edit', 'teacher', p_id::text, v_label,
     'changed: ' || (select string_agg(k, ', ' order by k) from jsonb_object_keys(p_patch) k));
 end;
 $$;
+
+-- protect_teacher_fields (trigger on "Shikshaqmine"): unchanged for admins and
+-- teachers. A teacher reviewer editing through reviewer_update_teacher (the
+-- flag above) may change Title and Sir/Ma'am; Slug, EXPANDED and Email ID stay
+-- protected for them too. Without this the trigger silently reverted a
+-- reviewer's rename while the audit log said it changed.
+create or replace function public.protect_teacher_fields()
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+declare
+  v_reviewer boolean := coalesce(current_setting('shikshaq.reviewer_edit', true), '') = 'on'
+                        and public.is_teacher_reviewer();
+begin
+  if public.is_admin() then
+    return new;
+  end if;
+
+  if not v_reviewer and old."Title" is distinct from new."Title" then
+    new."Title" := old."Title";
+  end if;
+
+  if old."Slug" is distinct from new."Slug" then
+    new."Slug" := old."Slug";
+  end if;
+
+  if not v_reviewer and old."Sir/Ma'am?" is distinct from new."Sir/Ma'am?" then
+    new."Sir/Ma'am?" := old."Sir/Ma'am?";
+  end if;
+
+  if old."EXPANDED" is distinct from new."EXPANDED" then
+    new."EXPANDED" := old."EXPANDED";
+  end if;
+
+  if old."Email ID" is distinct from new."Email ID" then
+    new."Email ID" := old."Email ID";
+  end if;
+
+  return new;
+end;
+$function$;
+revoke all on function public.protect_teacher_fields() from public, anon, authenticated;
 
 -- ---------------------------------------------------------------- approving
 
