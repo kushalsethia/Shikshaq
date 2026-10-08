@@ -35,7 +35,9 @@ export const isVerified = (p: PaperQueueRow) => p.is_published && !p.needs_revie
 export function matchesFilter(p: PaperQueueRow, f: PaperFilter): boolean {
   switch (f) {
     case 'needs_review':
-      return p.needs_review;
+      // On the site with questions still unchecked. A hidden paper that is
+      // flagged belongs to Hidden, not here, so the two never overlap.
+      return p.is_published && p.needs_review;
     case 'escalated':
       return p.escalated_count > 0;
     case 'hidden':

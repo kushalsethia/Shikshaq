@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, lazy, Suspense, type ReactNode } from 'react';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import { useSearchParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { toast as sonnerToast } from 'sonner';
@@ -150,8 +151,9 @@ export function AdminCheckersPage({
   dummy?: boolean;
   banner?: ReactNode;
 }) {
+  usePageMeta('Verifiers | Shikshaq Admin', 'Who can verify papers, and their details.');
   const { user, profile } = useAuth();
-  const actorName = profile?.full_name || user?.email || 'Signed-in admin';
+  const actorName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'Signed-in admin';
   const [searchParams, setSearchParams] = useSearchParams();
   const view: View = searchParams.get('view') === 'hods' ? 'hods' : 'verifiers';
 
@@ -310,7 +312,7 @@ export function AdminCheckersPage({
   if (firstLoad) {
     return (
       <BentoStack className="min-h-screen bg-muted">
-        <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
+        <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
         <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
           <div className="px-[18px]">
             <AdminLoading shape="table" label="Loading the verifiers" />
@@ -325,7 +327,7 @@ export function AdminCheckersPage({
 
   return (
     <BentoStack className="min-h-screen bg-muted">
-      <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
+      <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
       {banner}
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
@@ -409,8 +411,7 @@ export function AdminCheckersPage({
         {detailsFor ? (
           <div data-testid="verifier-details-panel">
             <p className="mb-3 text-pretty text-[13px] leading-[1.5] text-warm-secondary">
-              Papers go to a verifier to match these details, and never above their grade. Until details are saved, papers are still given with no class limit.
-              Expired details stop new papers until you renew them.
+              A verifier can also fill in their own details. With no details, or no grade, they still get papers with no class limit, as if they were in Class 12. Once a grade is saved, papers are never given above it. Expired details get no new papers until you renew them.
             </p>
             <VerifierProfileForm
               key={detailsFor.user_id}

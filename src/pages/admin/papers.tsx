@@ -26,6 +26,7 @@ import {
 import { Loader2, Plus, Search, Upload, X, FileText } from 'lucide-react';
 import { SUBJECTS, CLASSES, BOARDS, EXAM_TYPES } from '@/utils/searchFacets';
 import { cn } from '@/lib/utils';
+import { HIDE_REASON_NOTE } from '@/lib/admin-hints';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
@@ -1031,7 +1032,7 @@ export function AdminPapersPage({
         }
       >
         <Label htmlFor="hide-reason" className="mb-1.5 block text-[14px] font-semibold text-foreground">
-          Reason <span className="font-normal text-warm-meta">(required, kept in the admin audit log)</span>
+          Reason <span className="font-normal text-warm-meta">{HIDE_REASON_NOTE}</span>
         </Label>
         <Textarea
           id="hide-reason"

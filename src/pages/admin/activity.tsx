@@ -63,7 +63,7 @@ export function AdminActivityPage({
 }) {
   usePageMeta('Question changes | Shikshaq admin', 'Who checked or edited what, newest first.');
   const { user, profile } = useAuth();
-  const actorName = profile?.full_name || user?.email || 'Signed-in admin';
+  const actorName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'Signed-in admin';
   const guard = useAdminGuard(dummy ? null : user, { redirectOnDenied: !dummy });
   const isAdmin = dummy ? true : guard.isAdmin;
   const checkingAdmin = dummy ? false : guard.checkingAdmin;
@@ -129,7 +129,7 @@ export function AdminActivityPage({
   if (checkingAdmin) {
     return (
       <BentoStack className="min-h-screen bg-muted">
-        <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
+        <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
         <BentoPanel fill="card" className="px-[18px] py-[18px] lg:px-[18px] lg:py-[18px]">
           <AdminLoading shape="rows" rows={5} label="Loading the activity" />
         </BentoPanel>
@@ -144,7 +144,7 @@ export function AdminActivityPage({
 
   return (
     <BentoStack className="min-h-screen bg-muted">
-      <AdminHeader nav={nav} signedInEmail={dummy ? 'dummy admin' : user?.email ?? actorName} />
+      <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
       <AdminPageIntroPanel page="activity" />
       {banner}
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">

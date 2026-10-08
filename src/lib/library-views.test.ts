@@ -30,6 +30,19 @@ describe('library views', () => {
     expect(counts.ready).toBe(1);
   });
 
+  it('keeps Needs review to papers on the site: a hidden flagged paper is only in Hidden', () => {
+    const rows = [
+      row({ paper_id: 'a', needs_review: true }),
+      row({ paper_id: 'b', needs_review: true, is_published: false }),
+      row({ paper_id: 'c', is_published: false }),
+    ];
+    expect(viewRows(rows, 'needs_review').map((p) => p.paper_id)).toEqual(['a']);
+    expect(viewRows(rows, 'hidden').map((p) => p.paper_id)).toEqual(['b', 'c']);
+    const counts = viewCounts(rows);
+    expect(counts.needs_review).toBe(1);
+    expect(counts.hidden).toBe(2);
+  });
+
   it('says why a paper is hidden, and never leaves it blank', () => {
     const rows = withExtras(papers, extras);
     expect(hiddenWhy(rows[2], true)).toBe('Duplicate upload (Priya)');

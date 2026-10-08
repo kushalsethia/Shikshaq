@@ -39,7 +39,7 @@ export function AdminAuditPage({
 }) {
   usePageMeta('Admin actions | Shikshaq admin', 'Every change an admin made, with who and when.');
   const { user, profile } = useAuth();
-  const signedInName = profile?.full_name || user?.email || 'Signed-in admin';
+  const signedInName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'Signed-in admin';
   // null = not read yet, which is different from an empty log.
   const [rows, setRows] = useState<AuditRow[] | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -72,7 +72,7 @@ export function AdminAuditPage({
   if (checkingAdmin) {
     return (
       <BentoStack className="min-h-screen bg-muted">
-        <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
+        <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? signedInName} />
         <BentoPanel fill="card" className="px-[18px] py-[18px] lg:px-[18px] lg:py-[18px]">
           <AdminLoading shape="table" rows={8} label="Loading the admin actions" />
         </BentoPanel>
@@ -85,7 +85,7 @@ export function AdminAuditPage({
 
   return (
     <BentoStack className="min-h-screen bg-muted">
-      <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
+      <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? signedInName} />
       <AdminPageIntroPanel page="audit" />
       {banner}
       <AuditPanel rows={rows} loadError={loadError} onRetry={() => void load()} searchQuery={searchQuery} onSearch={setSearchQuery} />
