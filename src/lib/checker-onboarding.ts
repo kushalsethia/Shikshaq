@@ -176,4 +176,4 @@ export function addHodSteps(origin: string): string[] {
 }
 
 export const HOD_NOTE =
-  'An HOD does not need to be a checker. Removing an HOD only takes away the HOD view; their earlier decisions stay. Admins can always open the HOD view.';
+  'An HOD does not need to be a checker. Removing an HOD only takes away the HOD desk; their earlier decisions stay. Admins can always open the HOD desk.';

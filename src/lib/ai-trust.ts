@@ -2,8 +2,11 @@
  * The "AI trust" meter on the HOD view (20261007120000_ai_trust_levels.sql).
  *
  * Everything the AI settles goes to a person until a confidence level has
- * earned the bar: 97% passed with no edit, over at least 200 checks. A
- * question the AI marks "probably has an issue" always goes to a person.
+ * earned the bar: 97% of verifiers agreeing with no change, over enough checks
+ * (100 at the moment). The bar itself lives in the database, ai_trust_bar(),
+ * and arrives on every row as min_rate and min_checked, so no sentence here
+ * hard-codes the number of checks. A question the AI marks "probably has an
+ * issue" always goes to a person.
  * This file shapes ai_trust_meter() rows and words the numbers; it is pure.
  *
  * Checkers never see the AI's confidence (it would bias them), so nothing
@@ -24,11 +27,27 @@ export const LEVEL_LABEL: Record<TrustLevel, string> = {
 
 export const DECISION_LABEL: Record<TrustDecision, string> = {
   pass: 'AI said it was right',
-  fix: 'AI changed the words',
+  fix: 'AI fixed it',
 };
 
-export const TRUST_EXPLAINER =
-  'Everything the AI settles goes to a person to check. A level stops going to people only after it earns 97% over at least 200 checks, and an admin then switches it on. Even then, 1 in 20 is still checked. A question the AI says probably has an issue always goes to a person.';
+/** One line under each card title: what that kind of AI decision is. */
+export const DECISION_HINT: Record<TrustDecision, string> = {
+  pass: 'The AI kept the question as read.',
+  fix: 'The AI corrected the words, number or marks, usually a scanning misread.',
+};
+
+/** The explainer at the top of the tab, built from the bar so it never goes stale. */
+export function trustExplainer(minChecked = 100, minRate = 0.97, spotCheckEvery = 20): string {
+  return (
+    'Each card is one kind of AI decision at one confidence level. "AI said it was right" means the AI kept the question as read. ' +
+    '"AI fixed it" means the AI corrected the words, number or marks, usually a scanning misread. ' +
+    'Verifiers check every one, and the big number is how often they agreed with no change. ' +
+    `A card stops going to people only after it reaches ${Math.round(minRate * 100)}% over at least ${minChecked} checks and an admin switches it on. ` +
+    `Even then, 1 in ${spotCheckEvery} is still checked. A question the AI says probably has an issue always goes to a person.`
+  );
+}
+
+export const TRUST_EXPLAINER = trustExplainer();
 
 export interface TrustRow {
   level: TrustLevel;
@@ -75,7 +94,7 @@ export function normaliseTrustRows(raw: unknown): TrustRow[] {
       auto_off_at: str(r.auto_off_at),
       auto_off_reason: str(r.auto_off_reason),
       min_rate: num(r.min_rate, 0.97),
-      min_checked: num(r.min_checked, 200),
+      min_checked: num(r.min_checked, 100),
       spot_check_every: num(r.spot_check_every, 20),
     });
   }
@@ -89,7 +108,7 @@ export function formatRate(rate: number | null): string {
   return `${Number.isInteger(pct) ? pct.toFixed(0) : pct.toFixed(1)}%`;
 }
 
-/** "120 of 200 checks needed"; once enough have been done, "250 checks done (200 needed)". */
+/** "60 of 100 checks needed"; once enough have been done, "250 checks done (100 needed)". */
 export function checksNeeded(row: Pick<TrustRow, 'checked' | 'min_checked'>): string {
   if (row.checked >= row.min_checked) return `${row.checked} checks done (${row.min_checked} needed)`;
   return `${row.checked} of ${row.min_checked} checks needed`;
@@ -127,7 +146,9 @@ export function switchState(
     action: 'trust',
     label: 'Trust',
     disabled: true,
-    reason: `Not earned yet: needs ${row.min_checked} checks at ${Math.round(row.min_rate * 100)}% right. It has ${row.checked} checks at ${formatRate(row.rate)}.`,
+    reason:
+      `Not earned yet: needs ${row.min_checked} checks at ${Math.round(row.min_rate * 100)}% agreed. ` +
+      (row.checked === 0 ? 'No checks yet.' : `It has ${row.checked} checks at ${formatRate(row.rate)} agreed.`),
   };
 }
 
@@ -140,7 +161,7 @@ export interface TrustCell {
   subjects: TrustRow[];
 }
 
-/** The 3 by 2 grid, High to Low down the side, "AI said it was right" then "AI changed the words" across. */
+/** The 3 by 2 grid, High to Low down the side, "AI said it was right" then "AI fixed it" across. */
 export function buildTrustGrid(rows: TrustRow[]): TrustCell[][] {
   return TRUST_LEVELS.map((level) =>
     TRUST_DECISIONS.map((decision) => {

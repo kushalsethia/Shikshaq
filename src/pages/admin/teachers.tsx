@@ -30,39 +30,15 @@ import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, t
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 
 import { fetchAdminContacts } from '@/lib/teacher-contact';
+import { AREAS, BOARDS, CLASSES, CLASS_SIZE, MODE_OF_TEACHING, SIR_MAAM, SUBJECTS } from '@/lib/teacher-options';
 /* Handoff 09i AD-005 "Teachers" — one of the 5 sections of the admin
    console redesign. Renders AdminHeader (pill tab row) directly, not the
    superseded AdminRail/AdminToolbar sidebar, plus its own BentoPanel body.
    Queries/mutations are ported from the legacy src/pages/AdminTeachers.tsx
    (Shikshaqmine table) rather than rewritten. */
 
-// Constants matching FilterPanel / legacy AdminTeachers.tsx
-const SUBJECTS = [
-  'Accounts', 'ACT', 'AP', 'Bengali', 'Biology', 'Business Studies', 'CA', 'CAT', 'Chemistry',
-  'CLAT', 'Commerce', 'Computers', 'Drawing & Painting', 'Economics', 'English', 'Environmental Science',
-  'Geography', 'Hindi', 'History & Civics', 'Home Science', 'JEE', 'Legal Studies', 'Maths',
-  'NEET', 'NMAT', 'Physics', 'Political Science', 'Psychology', 'SAT', 'Science',
-  'Sanskrit', 'Social Studies', 'Sociology'
-];
+// The option lists live in one place so the teacher review page offers the same choices.
 
-const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
-
-const BOARDS = ['ICSE/ISC', 'CBSE', 'IGCSE', 'IB', 'State', 'N/A'];
-
-const AREAS = [
-  'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba',
-  'New Alipore', 'Southern Avenue', 'Tollygunge', 'Hazra',
-  'Baguihati', 'Belur', 'Howrah', 'Joka', 'Newtown', 'Rajarhat', 'Salt Lake', 'Science City',
-  'Dum Dum', 'Entally', 'Girish Park', 'Nagarbazar', 'Sealdah', 'Shyam Bazar', 'Tangra',
-  'Camac Street', 'College Street', 'Elgin', 'Minto Park', 'Park Street', 'Park Circus',
-  'Kankurgachi', 'Laketown', 'Phoolbagan', 'Ultadanga',
-  'Anandapur', 'Parnasree', 'Rabindra Nagar',
-  'Hooghly'
-].sort();
-
-const MODE_OF_TEACHING = ['Online', 'Offline'];
-const CLASS_SIZE = ['Group', 'Solo'];
-const SIR_MAAM = ['Sir', "Ma'am"];
 
 /* Exactly the column subset migration 20260918100000 grants `authenticated`
    on Shikshaqmine -- everything except the contact columns (Email ID, Phone

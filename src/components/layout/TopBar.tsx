@@ -2,8 +2,8 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Heart, Shield, GraduationCap, Users,
-  BookMarked, CheckSquare, ClipboardList, type LucideIcon,
+  Heart, GraduationCap, Users,
+  BookMarked, type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -17,7 +17,9 @@ import { useExitPresence } from "@/hooks/useExitPresence";
 import { useIsAdminBadge } from "@/hooks/useIsAdminBadge";
 import { useIsCheckerBadge } from "@/hooks/useIsCheckerBadge";
 import { useIsHodBadge } from "@/hooks/useIsHodBadge";
-import { roleLinks } from "@/lib/role-home";
+import { useIsTeacherReviewerBadge } from "@/hooks/useIsTeacherReviewerBadge";
+import { roleGroups } from "@/lib/role-home";
+import { LINK_ICON, TEAM_STYLE } from "@/components/layout/team-style";
 import {
   BROWSE_PATH,
   getDashboardLink,
@@ -71,9 +73,9 @@ export function TopBar({ className }: { className?: string }) {
   const isAdmin = useIsAdminBadge();
   const isChecker = useIsCheckerBadge();
   const isHod = useIsHodBadge();
-  // One link per staff role (My work, HOD view, Admin), not a list of admin pages: the admin menu itself holds those.
-  const staffLinks = roleLinks({ isAdmin, isHod, isChecker });
-  const STAFF_ICON = { 'my-work': CheckSquare, hod: ClipboardList, admin: Shield } as const;
+  const isTeacherReviewer = useIsTeacherReviewerBadge();
+  // One section per team the person belongs to, one link per role in it (not a list of admin pages: the admin menu itself holds those).
+  const staffGroups = roleGroups({ isAdmin, isHod, isChecker, isTeacherReviewer });
   const [menuOpen, setMenuOpen] = useState(false);
   const menuPresence = useExitPresence(menuOpen);
   const initial = (user?.email?.charAt(0) || "?").toUpperCase();
@@ -206,9 +208,21 @@ export function TopBar({ className }: { className?: string }) {
                       {role === "student" && (
                         <TopBarMenuLink to="/my-teachers" icon={BookMarked} label="My teachers" onClick={() => setMenuOpen(false)} />
                       )}
-                      {staffLinks.length > 0 && <hr className="border-border" />}
-                      {staffLinks.map((l) => (
-                        <TopBarMenuLink key={l.key} to={l.to} icon={STAFF_ICON[l.key]} label={l.label} onClick={() => setMenuOpen(false)} />
+                      {staffGroups.map((g) => (
+                        <div key={g.team} role="group" aria-label={g.label} className="grid gap-1">
+                          <hr className="border-border" />
+                          <div className={cn("px-3 pt-1 text-[11px] font-bold uppercase tracking-[0.08em]", TEAM_STYLE[g.team].label)}>{g.label}</div>
+                          {g.links.map((l) => (
+                            <TopBarMenuLink
+                              key={l.key}
+                              to={l.to}
+                              icon={LINK_ICON[l.key]}
+                              label={l.label}
+                              chip={TEAM_STYLE[g.team].chip}
+                              onClick={() => setMenuOpen(false)}
+                            />
+                          ))}
+                        </div>
                       ))}
                       <hr className="border-border" />
                       <button
@@ -242,14 +256,20 @@ export function TopBar({ className }: { className?: string }) {
   );
 }
 
-function TopBarMenuLink({ to, icon: Icon, label, onClick }: { to: string; icon: LucideIcon; label: string; onClick: () => void }) {
+function TopBarMenuLink({ to, icon: Icon, label, onClick, chip }: { to: string; icon: LucideIcon; label: string; onClick: () => void; chip?: string }) {
   return (
     <Link
       to={to}
       onClick={onClick}
       className="flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
-      <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
+      {chip ? (
+        <span className={cn("flex h-7 w-7 flex-none items-center justify-center rounded-full", chip)}>
+          <Icon className="h-4 w-4" aria-hidden />
+        </span>
+      ) : (
+        <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
+      )}
       {label}
     </Link>
   );

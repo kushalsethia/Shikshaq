@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  HelpCircle, MessageCircleQuestion, Menu, Shield, User,
-  FileText, BookOpen, School, CheckSquare, ClipboardList, type LucideIcon,
+  HelpCircle, MessageCircleQuestion, Menu, User,
+  FileText, BookOpen, School, type LucideIcon,
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -15,12 +15,15 @@ import { useSearchExpanded } from '@/hooks/useSearchExpanded';
 import { useIsAdminBadge } from '@/hooks/useIsAdminBadge';
 import { useIsCheckerBadge } from '@/hooks/useIsCheckerBadge';
 import { useIsHodBadge } from '@/hooks/useIsHodBadge';
+import { useIsTeacherReviewerBadge } from '@/hooks/useIsTeacherReviewerBadge';
 import { useSiteCounts } from '@/hooks/useSiteCounts';
 import {
   Sheet, SheetClose, SheetContent, SheetGrabHandle, SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { getDashboardLink, type UserRole } from '@/lib/nav-config';
+import { roleGroups } from '@/lib/role-home';
+import { LINK_ICON, TEAM_STYLE } from '@/components/layout/team-style';
 import { Button } from '@/components/ui/button';
 
 const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2';
@@ -140,6 +143,8 @@ export function Navbar() {
   const isAdmin = useIsAdminBadge();
   const isChecker = useIsCheckerBadge();
   const isHod = useIsHodBadge();
+  const isTeacherReviewer = useIsTeacherReviewerBadge();
+  const staffGroups = roleGroups({ isAdmin, isHod, isChecker, isTeacherReviewer });
   const userRole = (profile?.role as UserRole) || null;
   const dashboardLink = getDashboardLink(userRole);
   const { teachersCount, papersCount, papersReadCount } = useNavMenuCounts(menuOpen, user?.id);
@@ -338,11 +343,27 @@ export function Navbar() {
                 <SheetMenuRow to="/subjects" icon={BookOpen} label="Subjects" hairline />
                 <SheetMenuRow to="/schools" icon={School} label="Schools" hairline />
                 <SheetMenuRow to="/faq" icon={MessageCircleQuestion} label="FAQ" hairline />
-                <SheetMenuRow to="/more" icon={HelpCircle} label="Help" hairline={isChecker || isHod || isAdmin} />
-                {isChecker && <SheetMenuRow to="/checker" icon={CheckSquare} label="My work" hairline={isHod || isAdmin} />}
-                {isHod && <SheetMenuRow to="/hod" icon={ClipboardList} label="HOD view" hairline={isAdmin} />}
-                {isAdmin && <SheetMenuRow to="/admin" icon={Shield} label="Admin" />}
+                <SheetMenuRow to="/more" icon={HelpCircle} label="Help" />
               </div>
+
+              {/* One block per staff team the person belongs to, each with its
+                  own label and accent (team-style.ts). Nothing shows for a
+                  team they are not in. */}
+              {staffGroups.map((g) => (
+                <div key={g.team} role="group" aria-label={g.label} className="mt-2 rounded-[24px] bg-muted p-1.5">
+                  <div className={`px-3 pb-1 pt-2.5 text-[12px] font-bold uppercase tracking-[0.08em] ${TEAM_STYLE[g.team].label}`}>{g.label}</div>
+                  {g.links.map((l, i) => (
+                    <SheetMenuRow
+                      key={l.key}
+                      to={l.to}
+                      icon={LINK_ICON[l.key]}
+                      label={l.label}
+                      chip={TEAM_STYLE[g.team].chip}
+                      hairline={i < g.links.length - 1}
+                    />
+                  ))}
+                </div>
+              ))}
 
               {/* Handoff O-007: account block -- signed in gets a real "{n}
                   saved · {m} papers" row (never a placeholder; each half
@@ -417,14 +438,20 @@ export function Navbar() {
 /* Handoff O-007: secondary-row group inside the bg-muted p-1.5 wrapper  -- 
  * min-h-[52px], 18px leading glyph, 15.5px/600 label, 16px trailing arrow,
  * hairlines between (not on the last row). */
-function SheetMenuRow({ to, icon: Icon, label, hairline = false }: { to: string; icon: LucideIcon; label: string; hairline?: boolean }) {
+function SheetMenuRow({ to, icon: Icon, label, hairline = false, chip }: { to: string; icon: LucideIcon; label: string; hairline?: boolean; chip?: string }) {
   return (
     <SheetClose asChild>
       <Link
         to={to}
         className={`flex min-h-[52px] items-center gap-3 px-3 text-foreground ${hairline ? 'shadow-[inset_0_-1px_0_hsl(var(--border))]' : ''} ${FOCUS_RING}`}
       >
-        <Icon className="h-[18px] w-[18px] text-warm-secondary" strokeWidth={2} aria-hidden="true" />
+        {chip ? (
+          <span className={`flex h-8 w-8 flex-none items-center justify-center rounded-full ${chip}`}>
+            <Icon className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden="true" />
+          </span>
+        ) : (
+          <Icon className="h-[18px] w-[18px] text-warm-secondary" strokeWidth={2} aria-hidden="true" />
+        )}
         <span className="flex-1 text-[16px] font-semibold">{label}</span>
         <ArrowIcon />
       </Link>
