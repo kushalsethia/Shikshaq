@@ -62,6 +62,13 @@ describe('pickBlock: what the HOD cannot pick, before pressing', () => {
     expect(pickBlock(prof({ expired: true }), 'X')).toBe('details expired');
     expect(pickBlock(prof({ expired: true, grade: null }), 'X')).toBe('details expired');
   });
+  it('a plain integer compare still works at both new ends (20261008130000)', () => {
+    // Under grade 6 is 5: classes up to V, nothing above.
+    expect(pickBlock(prof({ grade: 5 }), 'V')).toBeNull();
+    expect(pickBlock(prof({ grade: 5 }), 'VI')).toBe('paper above their class');
+    // UG and Beyond UG (13 to 17) sit above every paper class.
+    for (const g of [13, 14, 15, 16, 17]) expect(pickBlock(prof({ grade: g }), 'XII')).toBeNull();
+  });
   it('allows any paper to a verifier with no details or no grade (20261008100000)', () => {
     expect(pickBlock(undefined, 'XII')).toBeNull();
     expect(pickBlock(prof({ grade: null }), 'XII')).toBeNull();
@@ -91,13 +98,19 @@ describe('20261008100000 verifier self details and hand-out without details', ()
 });
 
 describe('dummy verifier can fill in their own details', () => {
-  it('saves name, grade, school and board; refuses grade 13; keeps valid until', async () => {
+  it('saves name, grade, school and board; accepts 13 to 17, refuses 0 and 18; keeps valid until', async () => {
     const api = createFakeCheckerApi();
     const before = await api.myProfile();
     await api.setMyProfile({ full_name: 'Ria', grade: 9, school: 'Hill School', board: 'CBSE' });
     const after = await api.myProfile();
     expect(after).toMatchObject({ full_name: 'Ria', grade: 9, school: 'Hill School', board: 'CBSE', valid_until: before?.valid_until });
-    await expect(api.setMyProfile({ full_name: null, grade: 13, school: null, board: null })).rejects.toBeTruthy();
+    for (const g of [13, 16, 17]) {
+      await api.setMyProfile({ full_name: null, grade: g, school: null, board: null });
+      expect((await api.myProfile())?.grade).toBe(g);
+    }
+    for (const g of [0, 18]) {
+      await expect(api.setMyProfile({ full_name: null, grade: g, school: null, board: null })).rejects.toBeTruthy();
+    }
     await api.setMyProfile({ full_name: null, grade: null, school: null, board: null });
     expect((await api.myProfile())?.grade).toBeNull();
   });

@@ -7,6 +7,7 @@ import {
 } from '@/lib/checker-api';
 import type { RawOption } from '@/lib/checker-options';
 import { paperLabel } from '@/lib/checker-progress';
+import { isVerifierGrade } from '@/lib/verifier-papers';
 import type { PaperPage } from '@/lib/paper-pages';
 import { normaliseTrustRows, type TrustDecision, type TrustLevel, type TrustRow } from '@/lib/ai-trust';
 
@@ -249,12 +250,12 @@ export function normaliseVerifierProfile(raw: unknown): HodVerifierProfile | nul
     name: str(r.name),
     active: r.active !== false,
     full_name: str(r.full_name),
-    grade: grade >= 1 && grade <= 12 ? grade : null,
+    grade: isVerifierGrade(grade) ? grade : null,
     school: str(r.school),
     board: str(r.board),
     valid_until: str(r.valid_until),
     expired: r.expired === true,
-    missing: r.missing === true || grade < 1 || grade > 12,
+    missing: r.missing === true || !isVerifierGrade(grade),
     preferred_subjects: strList(r.preferred_subjects),
     requested_subjects: strList(r.requested_subjects),
     requested_at: str(r.requested_at),
@@ -303,7 +304,7 @@ export interface ProfileInput {
 export function profileInputProblem(i: { full_name: string; grade: string | number; school: string; board: string; valid_until: string }): string | null {
   if (!i.full_name.trim()) return 'Enter their name.';
   const g = Number(i.grade);
-  if (!Number.isInteger(g) || g < 1 || g > 12) return 'Grade must be a whole number from 1 to 12.';
+  if (!isVerifierGrade(g)) return 'Pick their grade.';
   if (!i.school.trim()) return 'Enter their school.';
   if (!i.board.trim()) return 'Pick their board.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(i.valid_until)) return 'Pick the date these details are valid until.';
