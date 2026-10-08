@@ -137,11 +137,6 @@ const STATIC_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
      they must be listed here too — an internally linked page absent from the
      sitemap is discoverable but slow to be recrawled. */
   { loc: '/submit-a-paper', changefreq: 'monthly', priority: 0.5 },
-  /* The one paper rendered as real questions rather than a PDF embed: 41
-     indexable questions of ICSE Class X Maths, which is the only page on this
-     site carrying exam-question text. Weekly is wrong (it never changes) but
-     0.7 reflects that it is the strongest long-tail asset here. */
-  { loc: '/past-papers/icse-2025-maths', changefreq: 'yearly', priority: 0.7 },
   /* Reading. The index plus one page per article, expanded from the same
      generated chapter stats the pages themselves render, so an article added
      by re-running generate-blog-stats is in the sitemap the next build without
