@@ -23,7 +23,7 @@ import type {
 } from '@/lib/hod-api';
 import type { PaperPage } from '@/lib/paper-pages';
 import type { TrustRow } from '@/lib/ai-trust';
-import { isVerifierGrade } from '@/lib/verifier-papers';
+import { formatGrade, isVerifierGrade } from '@/lib/verifier-papers';
 import { dummyPageDataUrl, dummyPictureDataUrl } from '@/dummy/checker-fixtures';
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -298,7 +298,7 @@ export function createFakeHodApi(): FakeHodApi {
     // 20261008100000: no details or no grade = no class limit.
     if (!p || p.missing || p.grade === null) return null;
     const need = cls ? GRADE_OF[cls] : undefined;
-    if (need && need > p.grade) return `This paper is Class ${need}; the verifier is in Class ${p.grade}`;
+    if (need && need > p.grade) return `This paper is Class ${need}; the verifier is in ${formatGrade(p.grade)}`;
     return null;
   }
 

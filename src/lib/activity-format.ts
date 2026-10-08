@@ -12,6 +12,7 @@ const ACTION_WORDS: Record<string, string> = {
   checker_split: 'Split a question in two',
   checker_ask_help: 'Asked for help',
   verifier_undo: 'Undid their last answer',
+  verifier_or_separator: 'Marked a row as just the OR between two questions',
   check_pass: 'Check: looks right',
   check_fix: 'Check: needs a fix',
   check_printed_typo: 'Check: printed typo',
