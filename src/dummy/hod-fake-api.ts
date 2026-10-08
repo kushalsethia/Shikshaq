@@ -293,8 +293,9 @@ export function createFakeHodApi(): FakeHodApi {
   /** The rules verifier_can_take applies, as the sentence it would raise (or null). */
   function cannotTake(userId: string, cls: string | null): string | null {
     const p = profiles[userId];
-    if (!p || p.missing || p.grade === null) return 'This verifier has no grade recorded yet';
-    if (p.expired) return `This verifier's details expired on ${p.valid_until}; update them first`;
+    if (p?.expired) return `This verifier's details expired on ${p.valid_until}; update them first`;
+    // 20261008100000: no details or no grade = no class limit.
+    if (!p || p.missing || p.grade === null) return null;
     const need = cls ? GRADE_OF[cls] : undefined;
     if (need && need > p.grade) return `This paper is Class ${need}; the verifier is in Class ${p.grade}`;
     return null;

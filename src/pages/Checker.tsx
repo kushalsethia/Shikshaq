@@ -15,6 +15,7 @@ import { CheckerSkeleton, Chip, Modal } from '@/components/checker/CheckerBits';
 import { VerifyScreen } from '@/components/checker/VerifyScreen';
 import { MathText } from '@/components/papers/math-text';
 import { isBlankBody } from '@/lib/checker-body';
+import { BOARDS } from '@/lib/hod-api';
 import { CHIP, actionToneClass } from '@/lib/checker-button-styles';
 import { CHECKER_HELP_PATH, CHECKER_PRACTICE_PATH } from '@/lib/checker-onboarding';
 import { GIVEN_BY_HOD, paperLabel } from '@/lib/checker-progress';
@@ -323,11 +324,47 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ full_name: '', grade: '', school: '', board: '' });
+  const [formError, setFormError] = useState<string | null>(null);
 
   if (profileQuery.isLoading) return null;
   const p = profileQuery.data ?? normaliseProfile(null);
   const status = profileStatus(p);
   const notice = profileNotice(status);
+
+  function startEditing() {
+    setForm({
+      full_name: p?.full_name ?? '',
+      grade: p?.grade != null ? String(p.grade) : '',
+      school: p?.school ?? '',
+      board: p?.board ?? '',
+    });
+    setFormError(null);
+    setMessage(null);
+    setEditing(true);
+  }
+
+  async function saveDetails() {
+    setBusy(true);
+    setFormError(null);
+    try {
+      await api.setMyProfile({
+        full_name: form.full_name.trim() || null,
+        grade: form.grade ? Number(form.grade) : null,
+        school: form.school.trim() || null,
+        board: form.board || null,
+      });
+      setEditing(false);
+      setMessage('Details saved.');
+      void profileQuery.refetch();
+    } catch (err) {
+      const raw = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : '';
+      setFormError(raw || 'Could not save that. Try again in a moment.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function send() {
     const list = parseSubjectList(text);
@@ -355,18 +392,100 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
       <h2 id="my-details-title" className="text-[15px] font-bold text-foreground">
         My details
       </h2>
-      <p className="text-[12px] text-warm-meta">Set by your HOD. You cannot change these here.</p>
-      {notice ? (
+      <p className="text-[12px] text-warm-meta">You can fill these in. Your HOD can change them too.</p>
+      {notice && !editing ? (
         <p role="status" className="mt-2 rounded-xl bg-brand-subtle px-3 py-2 text-[13px] font-semibold text-foreground">
           {notice}
         </p>
       ) : null}
-      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-4">
-        <Fact label="Grade" value={formatGrade(p?.grade ?? null)} />
-        <Fact label="School" value={p?.school ?? 'Not set'} />
-        <Fact label="Board" value={p?.board ?? 'Not set'} />
-        <Fact label="Valid until" value={formatValidUntil(p?.valid_until ?? null)} />
-      </dl>
+      {editing ? (
+        <form
+          className="mt-3 grid gap-3 text-[13px] sm:grid-cols-2"
+          data-testid="my-details-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void saveDetails();
+          }}
+        >
+          <label className="grid gap-1">
+            <span className="font-semibold text-foreground">Your name</span>
+            <input
+              value={form.full_name}
+              onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+              autoComplete="name"
+              className="min-h-[44px] rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            />
+          </label>
+          <label className="grid gap-1">
+            <span className="font-semibold text-foreground">Grade</span>
+            <select
+              value={form.grade}
+              onChange={(e) => setForm({ ...form, grade: e.target.value })}
+              className="min-h-[44px] rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <option value="">Not given</option>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((g) => (
+                <option key={g} value={g}>
+                  Grade {g}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1">
+            <span className="font-semibold text-foreground">School</span>
+            <input
+              value={form.school}
+              onChange={(e) => setForm({ ...form, school: e.target.value })}
+              className="min-h-[44px] rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            />
+          </label>
+          <label className="grid gap-1">
+            <span className="font-semibold text-foreground">Board</span>
+            <select
+              value={form.board}
+              onChange={(e) => setForm({ ...form, board: e.target.value })}
+              className="min-h-[44px] rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <option value="">Not given</option>
+              {(form.board && !BOARDS.includes(form.board) ? [form.board, ...BOARDS] : BOARDS).map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="text-[12px] text-warm-meta sm:col-span-2">
+            With a grade, you only get papers for your class or below. The valid-until date and preferred subjects are set by your HOD.
+          </p>
+          {formError ? (
+            <p role="alert" className="rounded-xl bg-destructive/10 px-3 py-2 text-[13px] text-destructive sm:col-span-2" data-testid="my-details-error">
+              {formError}
+            </p>
+          ) : null}
+          <div className="flex gap-2 sm:col-span-2">
+            <ActionButton tone="dark" onClick={() => void saveDetails()} disabled={busy}>
+              {busy ? 'Saving...' : 'Save my details'}
+            </ActionButton>
+            <ActionButton tone="muted" onClick={() => setEditing(false)} disabled={busy}>
+              Cancel
+            </ActionButton>
+          </div>
+        </form>
+      ) : (
+        <>
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-4">
+            <Fact label="Grade" value={formatGrade(p?.grade ?? null)} />
+            <Fact label="School" value={p?.school ?? 'Not set'} />
+            <Fact label="Board" value={p?.board ?? 'Not set'} />
+            <Fact label="Valid until" value={formatValidUntil(p?.valid_until ?? null)} />
+          </dl>
+          <div className="mt-3">
+            <ActionButton tone={status === 'missing' ? 'dark' : 'muted'} onClick={startEditing}>
+              {status === 'missing' ? 'Fill in my details' : 'Edit my details'}
+            </ActionButton>
+          </div>
+        </>
+      )}
       <div className="mt-3 text-[13px]">
         <p className="font-semibold text-foreground">Preferred subjects</p>
         <p className="text-warm-secondary">{p && p.preferred_subjects.length > 0 ? p.preferred_subjects.join(', ') : 'None set by your HOD yet.'}</p>

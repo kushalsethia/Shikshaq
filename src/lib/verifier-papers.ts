@@ -228,7 +228,7 @@ export function formatValidUntil(iso: string | null): string {
 }
 
 export function profileNotice(status: ProfileStatus): string | null {
-  if (status === 'missing') return 'Your HOD has not filled in your details yet (grade, school and board), so no papers can be given to you. Ask your HOD.';
+  if (status === 'missing') return 'Add your grade, school and board below. Papers are given to you either way, but with your grade you only get papers for your class or below.';
   if (status === 'expired') return 'Your details have expired, so no new papers are being given to you. Ask your HOD to refresh them.';
   return null;
 }

@@ -102,8 +102,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   /** Why someone holds nothing, when it is not just "nothing to give out". */
   const whyIdle = (id: string): string | null => {
     const p = profileOf(id);
-    if (!profilesQ.data) return null;
-    if (!p || p.missing || p.grade == null) return 'No grade, school and board yet, so no papers are given to them. Add them on Verifiers.';
+    if (!profilesQ.data || !p) return null;
     if (p.expired) return 'Their details have expired, so no new papers are given to them. Update them on Verifiers.';
     return null;
   };
@@ -242,8 +241,9 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
           </button>
         </div>
         <p className="mb-2 text-[13px] text-warm-secondary">
-          Papers go to verifiers automatically, a whole paper to one verifier and never above their grade. A paper whose class is not known goes only to Class 12
-          verifiers. A paper with nothing done on it for 7 days comes back here by itself.
+          Papers go to verifiers automatically, a whole paper to one verifier and never above their grade. A verifier with no grade recorded can get any
+          paper. A paper whose class is not known goes only to Class 12 verifiers or those with no grade. A paper with nothing done on it for 7 days comes back
+          here by itself.
         </p>
         {unassignedQ.isError ? (
           <LoadError what="The list of free papers" onRetry={() => void unassignedQ.refetch()} />

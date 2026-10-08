@@ -318,6 +318,19 @@ export async function verifierMyProfile(): Promise<VerifierProfile | null> {
   return normaliseProfile(data);
 }
 
+/** The verifier's own name, grade, school and board (verifier_set_my_profile,
+ *  20261008100000). Grade may be blank. The HOD can still change them; the
+ *  valid-until date and preferred subjects stay the HOD's. */
+export async function verifierSetMyProfile(input: { full_name: string | null; grade: number | null; school: string | null; board: string | null }): Promise<void> {
+  const { error } = await supabase.rpc('verifier_set_my_profile' as never, {
+    p_full_name: input.full_name,
+    p_grade: input.grade,
+    p_school: input.school,
+    p_board: input.board,
+  } as never);
+  if (error) throw error;
+}
+
 /** Ask the HOD for preferred subjects (verifier_request_subjects). Only an HOD can set them. */
 export async function verifierRequestSubjects(subjects: string[]): Promise<void> {
   const { error } = await supabase.rpc('verifier_request_subjects' as never, { p_subjects: subjects } as never);
@@ -373,6 +386,7 @@ export interface CheckerApi {
   paperQuestions: typeof verifierPaperQuestions;
   nextInPaper: typeof verifierNextInPaper;
   myProfile: typeof verifierMyProfile;
+  setMyProfile: typeof verifierSetMyProfile;
   requestSubjects: typeof verifierRequestSubjects;
   myAssignment: typeof checkerMyAssignment;
   returnPaper: typeof checkerReturnPaper;
@@ -399,6 +413,7 @@ export const realCheckerApi: CheckerApi = {
   paperQuestions: verifierPaperQuestions,
   nextInPaper: verifierNextInPaper,
   myProfile: verifierMyProfile,
+  setMyProfile: verifierSetMyProfile,
   requestSubjects: verifierRequestSubjects,
   myAssignment: checkerMyAssignment,
   returnPaper: checkerReturnPaper,

@@ -337,7 +337,7 @@ export function AdminCheckersPage({
               Details for {detailsFor.label}
             </h3>
             <p className="mb-2 text-[13px] text-warm-secondary">
-              Papers are given to a verifier by these details, and never above their grade. Until they are filled in, no papers are given.
+              Papers are given to a verifier by these details, and never above their grade. The verifier can also fill them in; without a grade there is no class limit.
             </p>
             <VerifierProfileForm
               key={detailsFor.user_id}

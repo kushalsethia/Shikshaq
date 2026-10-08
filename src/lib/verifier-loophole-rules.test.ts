@@ -57,12 +57,49 @@ describe('pickBlock: what the HOD cannot pick, before pressing', () => {
     expect(pickBlock(prof({}), 'IX')).toBeNull();
     expect(pickBlock(prof({}), 'unknown')).toBeNull();
   });
-  it('blocks above the grade, no profile, missing grade, expired', () => {
+  it('blocks above a recorded grade and expired details only', () => {
     expect(pickBlock(prof({}), 'XII')).toBe('paper above their class');
-    expect(pickBlock(undefined, 'X')).toBe('no grade yet');
-    expect(pickBlock(prof({ grade: null }), 'X')).toBe('no grade yet');
-    expect(pickBlock(prof({ missing: true }), 'X')).toBe('no grade yet');
     expect(pickBlock(prof({ expired: true }), 'X')).toBe('details expired');
+    expect(pickBlock(prof({ expired: true, grade: null }), 'X')).toBe('details expired');
+  });
+  it('allows any paper to a verifier with no details or no grade (20261008100000)', () => {
+    expect(pickBlock(undefined, 'XII')).toBeNull();
+    expect(pickBlock(prof({ grade: null }), 'XII')).toBeNull();
+    expect(pickBlock(prof({ missing: true, grade: null }), 'XII')).toBeNull();
+  });
+});
+
+describe('20261008100000 verifier self details and hand-out without details', () => {
+  const s = readFileSync(resolve(__dirname, '../../supabase/migrations/20261008100000_verifier_self_details.sql'), 'utf8');
+  it('lets a verifier set their own details but not the valid-until date', () => {
+    expect(s).toContain('create or replace function public.verifier_set_my_profile(');
+    expect(s).toContain('if not public.is_paper_checker() then');
+    expect(s).toMatch(/do update\s+set full_name = excluded\.full_name, grade = excluded\.grade, school = excluded\.school,\s+board = excluded\.board, updated_by/);
+    expect(s).not.toMatch(/valid_until = excluded\.valid_until/);
+    expect(s).toContain("'verifier_set_my_profile'");
+  });
+  it('hands out papers without a profile, no grade = no class limit, expired still blocked', () => {
+    expect(s).toContain('left join public.verifier_profiles vp on vp.user_id = pc.user_id');
+    expect(s).toContain('coalesce(vp.grade, 12)');
+    expect(s).toContain('vp.valid_until is null or vp.valid_until >= current_date');
+    expect(s).toContain("raise exception 'patch did not apply'");
+  });
+  it('closes the functions to anon', () => {
+    expect(s).toContain('revoke all on function %s from public, anon, authenticated');
+    expect(s).not.toMatch(/grant execute[^;]*\banon\b/);
+  });
+});
+
+describe('dummy verifier can fill in their own details', () => {
+  it('saves name, grade, school and board; refuses grade 13; keeps valid until', async () => {
+    const api = createFakeCheckerApi();
+    const before = await api.myProfile();
+    await api.setMyProfile({ full_name: 'Ria', grade: 9, school: 'Hill School', board: 'CBSE' });
+    const after = await api.myProfile();
+    expect(after).toMatchObject({ full_name: 'Ria', grade: 9, school: 'Hill School', board: 'CBSE', valid_until: before?.valid_until });
+    await expect(api.setMyProfile({ full_name: null, grade: 13, school: null, board: null })).rejects.toBeTruthy();
+    await api.setMyProfile({ full_name: null, grade: null, school: null, board: null });
+    expect((await api.myProfile())?.grade).toBeNull();
   });
 });
 
