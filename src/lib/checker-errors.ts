@@ -71,3 +71,21 @@ export function checkerErrorAdvice(err: unknown): CheckerErrorAdvice {
  *  the queue was empty when it was not. */
 export const LOAD_FAILED_TITLE = 'Could not load the next question';
 export const LOAD_FAILED_NOTE = 'Check your internet, then try again.';
+
+/** Shown after a successful Undo (verifier_undo_last). */
+export const UNDONE_NOTE = 'Undone. Here is that question again.';
+
+/**
+ * What the verifier reads when Undo is refused or fails. The server's refusals
+ * (errcode 22023) are already plain sentences ("Your last answer was more than
+ * 30 minutes ago, ..."), so they are shown as they are; anything else gets a
+ * generic line.
+ */
+export function undoErrorMessage(err: unknown): string {
+  const { code, text } = parts(err);
+  if (code === '22023' && text.trim() !== '') return text.trim();
+  if (code === '42501' || /not authorized/i.test(text)) {
+    return 'Your account cannot check papers right now. Sign in again, or ask an admin.';
+  }
+  return 'Could not undo that. Check your internet and try again.';
+}

@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import type { CheckerApi } from '@/lib/checker-api';
 import { describeLanes } from '@/lib/checker-lanes';
 import { contextHeading, partLabel, type QuestionContext } from '@/lib/checker-context';
-import { canSplitAt, splitHalves } from '@/lib/checker-body';
+import { canSplitAt, splitOrPlan, SPLIT_OR_NOTE } from '@/lib/checker-body';
 import { CHIP } from '@/lib/checker-button-styles';
 
 /* Small pieces the verify screen and the page around it share: a signed
@@ -175,20 +175,27 @@ export function SplitPreview({ body, at }: { body: string; at: number | null }) 
       </p>
     );
   }
-  const { first, second } = splitHalves(body, at);
+  const { first, second, orSeparator } = splitOrPlan(body, at);
   const tail = Array.from(first.trimEnd()).slice(-60).join('');
   const head = Array.from(second.trimStart()).slice(0, 60).join('');
   return (
-    <div className="mt-2 grid gap-2 text-[13px] sm:grid-cols-2">
-      <div className="rounded-xl bg-muted p-2">
-        <p className="font-semibold text-foreground">First question ends with</p>
-        <p className="break-words text-warm-secondary">...{tail}</p>
+    <>
+      <div className="mt-2 grid gap-2 text-[13px] sm:grid-cols-2">
+        <div className="rounded-xl bg-muted p-2">
+          <p className="font-semibold text-foreground">First question ends with</p>
+          <p className="break-words text-warm-secondary">...{tail}</p>
+        </div>
+        <div className="rounded-xl bg-muted p-2">
+          <p className="font-semibold text-foreground">Second question starts with</p>
+          <p className="break-words text-warm-secondary">{head}...</p>
+        </div>
       </div>
-      <div className="rounded-xl bg-muted p-2">
-        <p className="font-semibold text-foreground">Second question starts with</p>
-        <p className="break-words text-warm-secondary">{head}...</p>
-      </div>
-    </div>
+      {orSeparator ? (
+        <p className="mt-2 text-[13px] leading-snug text-warm-secondary" data-testid="split-or-note">
+          {SPLIT_OR_NOTE}
+        </p>
+      ) : null}
+    </>
   );
 }
 

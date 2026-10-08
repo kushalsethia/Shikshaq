@@ -123,7 +123,7 @@ export const CHECKER_RULES: CheckerRule[] = [
   },
   {
     title: 'Two questions in one box',
-    body: 'If the typed text is really two questions joined together, and you are offered Split here, tap where the second one starts and press Split here.',
+    body: 'If the typed text is really two questions joined together, press "Split here, these look like two questions", tap where the second one starts and press Split here. If the two are joined by the word OR, tap just before or just after that OR: the OR is left out and the two questions are kept together as an either/or pair. A row that is only the word OR has its own button, "This is just the OR between two questions".',
   },
 ];
 
@@ -135,6 +135,7 @@ export const ACTION_LABELS: Record<CheckerAction, string> = {
   split: 'Split here',
   help: 'Ask the HOD',
   skip: 'Skip this question',
+  undo: 'Undo last',
 };
 
 /** One row per action, in the order the shortcuts file lists them, with the

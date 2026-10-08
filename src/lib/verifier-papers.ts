@@ -40,6 +40,8 @@ export interface MyPaper {
   remaining: number;
   /** Questions of this paper currently with the HOD. */
   with_hod: number;
+  /** Of `remaining`, how many the verifier skipped. They stay on the paper for later. */
+  skipped: number;
 }
 
 export function normaliseMyPapers(raw: unknown): MyPaper[] {
@@ -62,6 +64,7 @@ export function normaliseMyPapers(raw: unknown): MyPaper[] {
       done: count(r.done),
       remaining: count(r.remaining),
       with_hod: count(r.with_hod),
+      skipped: count(r.skipped),
     });
   }
   return out;
@@ -81,6 +84,18 @@ export function paperCardProgress(p: Pick<MyPaper, 'total' | 'done' | 'remaining
   const done = Math.min(p.done, total);
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
   return { label: `${done} of ${total} done`, percent, finished: p.remaining === 0 };
+}
+
+/** "3 skipped" on a paper card: they stay on the paper for the verifier to come back to. */
+export function skippedLabel(n: number): string {
+  return `${n} skipped`;
+}
+
+/** What the verifier reads when only skipped questions are left on a paper. */
+export function skippedNote(n: number): string {
+  return n === 1
+    ? 'You skipped 1 question on this paper. It stays here for later.'
+    : `You skipped ${n} questions on this paper. They stay here for later.`;
 }
 
 /** Unfinished papers first (fewest left first, so almost-done papers surface), finished ones last. */

@@ -174,8 +174,8 @@ describe('7 Oct edge-case fixes', () => {
   });
 });
 
-describe('dummy verifier: a skipped question comes back at the end of its paper', () => {
-  it('serves the rest first, then the skipped ones earliest first, and keeps counting them', async () => {
+describe('dummy verifier: a skipped question waits for later', () => {
+  it('serves the rest first, then only on request the skipped ones earliest first, and keeps counting them', async () => {
     const api = createFakeCheckerApi();
     const [paper] = await api.myPapers();
     const first = await api.nextInPaper(paper.paper_id);
@@ -187,14 +187,18 @@ describe('dummy verifier: a skipped question comes back at the end of its paper'
     const [after] = await api.myPapers();
     expect(after.remaining).toBe(paper.remaining);
 
-    // Skip everything else; the first skipped must come round again first.
-    const seen = new Set([first!.id]);
+    // Skip everything else. Skipped questions wait (20261008160000): nothing
+    // is served until the verifier asks for the skipped ones, and then the
+    // first skipped one comes first.
     let q = second;
-    while (q && !seen.has(q.id)) {
-      seen.add(q.id);
+    let guard = 0;
+    while (q && guard++ < 50) {
       await api.skipQuestion(q.id);
       q = await api.nextInPaper(paper.paper_id);
     }
-    expect(q?.id).toBe(first!.id);
+    expect(q).toBeNull();
+    expect((await api.nextInPaper(paper.paper_id, { includeSkipped: true }))?.id).toBe(first!.id);
+    const [last] = await api.myPapers();
+    expect(last.skipped).toBe(last.remaining);
   });
 });
