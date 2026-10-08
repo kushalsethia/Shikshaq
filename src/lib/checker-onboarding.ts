@@ -89,7 +89,7 @@ export const WALKTHROUGH_STEPS: WalkthroughStep[] = [
   {
     target: 'skip',
     title: 'Skip this question',
-    body: 'Press this if you cannot decide, for example the picture is too blurry. It will not come back to you for a day, and you move to the next question.',
+    body: 'Press this to skip the question for now. It will come back to you after a day, and you currently move to the next question.',
   },
 ];
 
