@@ -69,8 +69,12 @@ describe('verifier undo migration: what it refuses', () => {
   });
 
   it('refuses a paper that went for approval or was published', () => {
-    expect(body).toContain('paper_passed');
     expect(body).toContain("approval_state in ('awaiting', 'approved')");
+    // paper_passed alone turns true on the very last answer, which is the one
+    // most often undone; only a live_copy paper (pushed to the library at once)
+    // refuses on it.
+    expect(body).toMatch(/coalesce\(v_paper\.paper_passed, false\) and v_paper\.source = 'live_copy'/);
+    expect(body).not.toMatch(/if coalesce\(v_paper\.paper_passed, false\)\s+or/);
   });
 
   it('locks the assignment, the log row and the question, and one undo at a time per person', () => {
