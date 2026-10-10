@@ -1,0 +1,102 @@
+/* The Questions box on /questions (Editor.tsx). A textarea can't style parts of its text, so an exact copy of the text
+   sits behind it and carries the underlines. The two must lay text out identically: same font, size, line height,
+   padding, wrapping and width, which is why this lives in CSS rather than in utility classes on two elements. */
+
+.gq-editor {
+  position: relative;
+}
+
+.gq-editor textarea,
+.gq-backdrop-in {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0;
+  padding: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  tab-size: 4;
+}
+
+.gq-editor textarea {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 380px;
+  resize: vertical;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: hsl(var(--foreground));
+  caret-color: hsl(var(--foreground));
+  outline: none;
+}
+
+.gq-editor textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.gq-editor textarea:focus-visible {
+  box-shadow: 0 0 0 2px hsl(var(--brand));
+}
+
+.gq-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background: hsl(var(--muted));
+  pointer-events: none;
+}
+
+.gq-backdrop-in {
+  color: transparent;
+}
+
+.gq-mark {
+  border-radius: 2px;
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
+  /* the underline waits half a second, so a line being fixed doesn't flicker */
+  animation: gq-mark-in 260ms ease-out 450ms both;
+}
+
+.gq-mark.error {
+  text-decoration-color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.14);
+}
+
+.gq-mark.warn {
+  text-decoration-color: hsl(var(--brand));
+  background: hsl(var(--brand) / 0.18);
+}
+
+@keyframes gq-mark-in {
+  from {
+    text-decoration-color: transparent;
+    background-color: transparent;
+  }
+}
+
+@media (max-width: 640px) {
+  .gq-editor textarea {
+    height: 300px;
+  }
+
+  .gq-editor textarea,
+  .gq-backdrop-in {
+    font-size: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gq-mark {
+    animation-delay: 0ms;
+  }
+}

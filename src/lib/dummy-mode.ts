@@ -44,6 +44,8 @@ const ALL_DUMMY_PAGES: DummyPageEntry[] = [
   { path: '/checker', label: 'Verify papers (dummy)' },
   { path: '/hod', label: 'HOD desk (dummy)' },
   { path: '/teacher-review', label: 'Review teachers (dummy)' },
+  { path: '/questions', label: 'Write questions (dummy)' },
+  { path: '/revise', label: 'Revise (dummy)' },
   { path: '/admin', label: 'Admin: needs you now (dummy)' },
   { path: '/admin/approvals', label: 'Admin: teacher applications (dummy)' },
   { path: '/admin/teachers', label: 'Admin: listed teachers (dummy)' },

@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   HelpCircle, MessageCircleQuestion, Menu, User,
-  FileText, BookOpen, School, type LucideIcon,
+  FileText, BookOpen, School, PenLine, Puzzle, type LucideIcon,
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -342,6 +342,8 @@ export function Navbar() {
               <div className="mt-2 rounded-[24px] bg-muted p-1.5">
                 <SheetMenuRow to="/subjects" icon={BookOpen} label="Subjects" hairline />
                 <SheetMenuRow to="/schools" icon={School} label="Schools" hairline />
+                <SheetMenuRow to="/questions" icon={PenLine} label="Write questions" hairline />
+                <SheetMenuRow to="/revise" icon={Puzzle} label="Revise" hairline />
                 <SheetMenuRow to="/faq" icon={MessageCircleQuestion} label="FAQ" hairline />
                 <SheetMenuRow to="/more" icon={HelpCircle} label="Help" />
               </div>

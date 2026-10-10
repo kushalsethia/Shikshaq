@@ -1,5 +1,5 @@
 /**
- * A question row, as the formatter makes it, the HoD desk reviews it and the game_bank table stores it, and the
+ * A question row, as /questions makes it, the HOD reviews it and the game_bank table stores it, and the
  * three ways it is exported (CSV, JSON, a tab table for Google Sheets). Also the shapes of the question bank
  * (batches, questions with their status) and the page's own copy of a status change, which undo relies on.
  * The database calls are in ./api.ts; the tables and functions are in

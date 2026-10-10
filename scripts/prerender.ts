@@ -52,6 +52,7 @@ import { ROUTE_META, blogDescription } from '../src/content/route-meta';
 import { BLOG_ARTICLES, BLOG_PATH, BLOG_SUBJECT_NAMES, BLOG_SUBJECTS } from '../src/content/blog';
 import { FAQ_ITEMS } from '../src/content/faq-items';
 import { DEFAULT_TITLE, DEFAULT_DESCRIPTION } from '../src/lib/seo-defaults';
+import { GAME_PAGES_META } from '../src/content/game-pages-meta';
 import {
   countSubjectTeachers,
   localityFacts,
@@ -79,6 +80,9 @@ const DIST = path.join(__dirname, '..', 'dist');
 const TEMPLATE_PATH = path.join(DIST, 'index.html');
 /* The neutral SPA fallback. See the long comment above writeAppShell(). */
 const SHELL_PATH = path.join(DIST, 'app-shell.html');
+/* The instructions chatbots read at /questions. People never see them: they land in the #prerender block, which
+   src/main.tsx removes before React starts. */
+const GAME_QUESTION_INSTRUCTIONS = path.join(__dirname, '..', 'src', 'content', 'game-question-instructions.html');
 const PAGE = 1000;
 
 /* Same reasoning as scripts/generate-sitemap.ts: nobody on this team can read
@@ -967,6 +971,28 @@ function siteRoutes(
       '<h1>The papers, counted</h1>',
       `<p>${esc(blogIntro)}</p>`,
       links(BLOG_ARTICLES.map((a) => ({ href: `${BLOG_PATH}/${a.slug}`, label: a.title }))),
+    ].join(''),
+  });
+
+  /* /questions: a chatbot sent here by a teacher ("Copy chatbot prompt") fetches the page without running JavaScript,
+     so the body is its instructions for writing questions in the format the page reads. */
+  write('/questions', {
+    ...GAME_PAGES_META.questions,
+    schemas: [],
+    body: fs.readFileSync(GAME_QUESTION_INSTRUCTIONS, 'utf8'),
+  });
+
+  write('/revise', {
+    ...GAME_PAGES_META.revise,
+    schemas: [],
+    body: [
+      '<h1>Revise with a puzzle</h1>',
+      '<p>Pick your class, subject, chapter and the topics you studied, then play a short puzzle made from them: '
+        + 'a crossword, a word search, matching or fill in the blank.</p>',
+      links([
+        { href: '/past-papers', label: 'Free past papers' },
+        { href: '/questions', label: 'Teachers: write questions' },
+      ]),
     ].join(''),
   });
 
