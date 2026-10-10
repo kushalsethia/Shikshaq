@@ -1,0 +1,104 @@
+/* The two letter grids on /revise (word search and crossword) and the "wrong" shake every game uses. The grids size
+   their squares from the screen width and the number of columns, which utility classes can't express cleanly. */
+
+@keyframes revise-shake {
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+.revise-shake {
+  animation: revise-shake 360ms ease;
+}
+
+/* ---------------------------------------------------------------- word search */
+
+.revise-ws-grid {
+  --cell: min(36px, calc((100vw - 56px) / var(--n)));
+  display: grid;
+  grid-template-columns: repeat(var(--n), var(--cell));
+  border-radius: 16px;
+  background-color: hsl(var(--card));
+  background-image:
+    linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+  box-shadow: inset 0 0 0 1px hsl(var(--border));
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.revise-ws-cell {
+  display: grid;
+  place-items: center;
+  width: var(--cell);
+  height: var(--cell);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+  font-size: calc(var(--cell) * 0.48);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+/* ---------------------------------------------------------------- crossword */
+
+.revise-cw-grid {
+  --cell: min(38px, calc((100vw - 56px) / var(--cols)));
+  display: grid;
+  grid-template-columns: repeat(var(--cols), var(--cell));
+  width: max-content;
+  padding: 1px 0 0 1px;
+}
+
+.revise-cw-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--cell);
+  height: var(--cell);
+  margin: -1px 0 0 -1px;
+  padding: 0;
+  border: 1px solid hsl(var(--foreground));
+  border-radius: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+  font-size: calc(var(--cell) * 0.52);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.revise-cw-cell.block {
+  border-color: transparent;
+  background: transparent;
+}
+
+.revise-cw-n {
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: calc(var(--cell) * 0.27);
+  line-height: 1;
+}
+
+/* catches keys and phone keyboards for the crossword; never seen */
+.revise-cw-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .revise-shake {
+    animation: none;
+  }
+}

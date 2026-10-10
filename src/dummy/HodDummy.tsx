@@ -3,6 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { HodPage } from '@/pages/Hod';
 import { createFakeHodApi } from '@/dummy/hod-fake-api';
 import { createFakeTeacherReviewerAdminApi } from '@/dummy/teacher-review-fake-api';
+import { sharedFakeGameApi } from '@/dummy/game-questions-fake-api';
+import { GAME_KEYS } from '@/lib/game-questions/api';
 import { setDummyMode } from '@/lib/dummy-mode';
 
 /* /hod in dummy mode (D75): the real HodPage against made-up checkers, papers
@@ -33,7 +35,9 @@ export default function HodDummy() {
         type="button"
         onClick={() => {
           api.reset();
+          sharedFakeGameApi.reset();
           void qc.invalidateQueries({ queryKey: ['hod', 'dummy'] });
+          void qc.invalidateQueries({ queryKey: GAME_KEYS.all('dummy') });
         }}
         className="min-h-9 rounded-full bg-fuchsia-800 px-3 font-bold text-fuchsia-50 hover:bg-fuchsia-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
       >
@@ -52,5 +56,5 @@ export default function HodDummy() {
     </div>
   );
 
-  return <HodPage api={api} dummy banner={banner} dummyRoles={{ isAdmin: admin, isChecker: true }} reviewerApi={reviewerApi} />;
+  return <HodPage api={api} dummy banner={banner} dummyRoles={{ isAdmin: admin, isChecker: true }} reviewerApi={reviewerApi} gameApi={sharedFakeGameApi} />;
 }

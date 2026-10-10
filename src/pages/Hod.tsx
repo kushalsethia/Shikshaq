@@ -12,9 +12,11 @@ import { ESCALATIONS_KEY, EscalationsTab } from '@/components/hod/EscalationsTab
 import { HistoryTab } from '@/components/hod/HistoryTab';
 import { VerifiersTab } from '@/components/hod/VerifiersTab';
 import { TeacherReviewersTab } from '@/components/hod/TeacherReviewersTab';
+import { GameQuestionsTab } from '@/components/hod/GameQuestionsTab';
 import { CHIP } from '@/lib/checker-button-styles';
 import { realHodApi, type HodApi } from '@/lib/hod-api';
 import type { TeacherReviewerAdminApi } from '@/lib/teacher-review-api';
+import { GAME_KEYS, realGameQuestionsApi, type GameQuestionsApi } from '@/lib/game-questions/api';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 import { cn } from '@/lib/utils';
@@ -52,6 +54,8 @@ export interface HodTabProps {
   canSwitchTrust: boolean;
   /** The teacher reviewers tab; the real one when left out (dummy mode passes a fake). */
   reviewerApi?: TeacherReviewerAdminApi;
+  /** The Questions tab; the real one when left out (dummy mode passes a fake). */
+  gameApi?: GameQuestionsApi;
 }
 
 export interface HodTabDef {
@@ -69,7 +73,11 @@ export const TABS: HodTabDef[] = [
   { key: 'history', label: 'History', hint: 'What HODs, admins and verifiers did.', Component: HistoryTab },
   { key: 'ai-trust', label: 'AI trust', hint: 'How often people agree with the AI, level by level.', Component: AiTrustTab },
   { key: 'teacher-reviewers', label: 'Teacher reviewers', hint: 'Who is on the teachers team: add or remove people who approve and edit teachers.', Component: TeacherReviewersTab },
+  { key: 'questions', label: 'Questions', hint: 'Questions teachers wrote for the revision games: approve them or send them back.', Component: GameQuestionsTab },
 ];
+
+/* Someone given the Questions tab only (game_hods, not a paper HOD or an admin) sees just that tab. */
+const QUESTIONS_ONLY = TABS.filter((t) => t.key === 'questions');
 
 export function HodPage({
   api,
@@ -77,6 +85,7 @@ export function HodPage({
   banner,
   dummyRoles,
   reviewerApi,
+  gameApi = realGameQuestionsApi,
 }: {
   api: HodApi;
   dummy?: boolean;
@@ -84,6 +93,7 @@ export function HodPage({
   /** Dummy mode has no sign-in, so the roles the page would read are given here. */
   dummyRoles?: { isAdmin: boolean; isChecker: boolean };
   reviewerApi?: TeacherReviewerAdminApi;
+  gameApi?: GameQuestionsApi;
 }) {
   usePageMeta('HOD desk | Shikshaq', 'What verifiers sent up, how each verifier is doing and who holds which paper.');
   const { user, loading: authLoading } = useAuth();
@@ -94,7 +104,9 @@ export function HodPage({
   const isAdmin = dummy ? Boolean(dummyRoles?.isAdmin) : adminBadge;
   const isChecker = dummy ? Boolean(dummyRoles?.isChecker) : checkerBadge;
 
-  const [allowed, setAllowed] = useState<boolean | null>(null);
+  // A paper HOD (admins count) gets every tab; someone given the Questions tab only gets that one.
+  const [access, setAccess] = useState<'all' | 'questions' | 'none' | null>(null);
+  const allowed = access === null ? null : access !== 'none';
   useEffect(() => {
     if (!dummy) {
       if (authLoading) return;
@@ -104,26 +116,34 @@ export function HodPage({
       }
     }
     let cancelled = false;
-    api.isHod().then((ok) => {
-      if (!cancelled) setAllowed(ok);
+    Promise.all([api.isHod(), gameApi.isHod()]).then(([paper, questions]) => {
+      if (!cancelled) setAccess(paper ? 'all' : questions ? 'questions' : 'none');
     });
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading, navigate, api, dummy]);
+  }, [user, authLoading, navigate, api, gameApi, dummy]);
 
   const [params, setParams] = useSearchParams();
   const requested = params.get('tab');
-  const active = TABS.find((t) => t.key === requested) ?? TABS[0];
+  const tabs = access === 'questions' ? QUESTIONS_ONLY : TABS;
+  const active = tabs.find((t) => t.key === requested) ?? tabs[0];
 
   const escalationsQ = useQuery({
     queryKey: ESCALATIONS_KEY(scope),
     queryFn: () => api.escalations(),
-    enabled: allowed === true,
+    enabled: access === 'all',
     staleTime: 15_000,
     refetchOnMount: true,
   });
   const waiting = escalationsQ.data?.length ?? 0;
+  const questionsQ = useQuery({
+    queryKey: GAME_KEYS.waiting(scope),
+    queryFn: () => gameApi.waitingCount(),
+    enabled: allowed === true,
+    staleTime: 15_000,
+  });
+  const questionsWaiting = questionsQ.data ?? 0;
 
   if ((!dummy && authLoading) || allowed === null) {
     return (
@@ -180,7 +200,7 @@ export function HodPage({
         </div>
 
         <div role="tablist" aria-label="HOD desk" className="mb-5 flex max-w-full flex-wrap items-center gap-1 rounded-[20px] bg-muted p-1 sm:inline-flex sm:rounded-full">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button
               key={t.key}
               role="tab"
@@ -204,12 +224,17 @@ export function HodPage({
                   {waiting}
                 </span>
               ) : null}
+              {t.key === 'questions' && questionsWaiting > 0 ? (
+                <span className="inline-flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-brand px-[5px] text-[11px] font-bold tabular-nums text-foreground">
+                  {questionsWaiting}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
 
         <div role="tabpanel" id="hod-panel" aria-labelledby={`hod-tab-${active.key}`}>
-          <active.Component api={api} scope={scope} canSwitchTrust={isAdmin} reviewerApi={reviewerApi} />
+          <active.Component api={api} scope={scope} canSwitchTrust={isAdmin} reviewerApi={reviewerApi} gameApi={gameApi} />
         </div>
       </BentoPanel>
     </BentoStack>
