@@ -124,6 +124,40 @@ well as a laptop. Mistakes must be cheap and say so in plain words:
 - **What the computer changed** and its first reading are shown only when the row
   has them (`raw_ocr`, `source.edit_log`); older rows show nothing extra.
 
+## 8. The papers route (`/admin/pipeline`)
+
+The owner's picture of where every paper is. `PipelineRoute.tsx` draws it from
+one admin RPC, `admin_pipeline_route()`; the maths and the words are in
+`src/lib/pipeline-route.ts`. The rules:
+
+- **Numbers first, motion second.** Every stop is a real list item with its
+  count as text; lanes, parcels, the dashed elbow and the live dot are
+  `aria-hidden`. Under `prefers-reduced-motion` the parcels, the dash march,
+  the ping and the number count all stop and the numbers stay.
+- **Calm, and honest about flow.** A lane shows 1 to 4 parcels, crossing in 3
+  to 7 seconds, scaled on a log of the count flowing in (`laneMotion`). Nothing
+  flowing means a faint, still lane. Parcels animate `transform` and `opacity`
+  only.
+- **No layout shift.** A changed number counts to its new value
+  (`tweenValue`); while it counts, the final number is laid invisibly in the
+  same cell so the width never moves.
+- **Never a false zero.** A payload that is not the route throws, so the page
+  keeps the last numbers and says "Could not refresh, showing the last
+  numbers." in a quiet status line. With nothing yet to show it is a plain
+  error with Try again, never a row of zeros.
+- **Refresh by itself.** Every 20 seconds while the tab is visible, nothing
+  while it is hidden, straight away on return or focus, one read at a time
+  (`createPoller`). "Updated 12 seconds ago" ticks on its own.
+- **The siding never joins the counts.** Papers left out on purpose (the Maths
+  hold) hang off the first stop with their own count. The desk, swarm and
+  checker stops count papers already on the desk, so the stops are not meant to
+  add up; the page says so.
+- **Phone first.** One column, top to bottom, lanes between cards. Two rows of
+  five from `lg`. No horizontal scroll at 375px.
+- **A stop leads somewhere only if a list exists.** Filter stops open the paper
+  list below (folded away until needed); the rest link to Checkers, Admin queue,
+  Ready to go live or Library. A stop with no list has no link.
+
 ## Severity
 
 - **P0**: broken, wrong or untrue (bug, false number, dead flow).

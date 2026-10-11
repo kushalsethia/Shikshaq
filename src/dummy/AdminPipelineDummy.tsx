@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AdminPipelinePage } from '@/pages/admin/pipeline';
 import { createFakePipelineApi } from '@/dummy/pipeline-fake-api';
 import { createFakePaperRegistryApi } from '@/dummy/paper-registry-fake-api';
+import { createFakePipelineRouteApi } from '@/dummy/pipeline-route-fake-api';
 import { setDummyMode } from '@/lib/dummy-mode';
 
 /* /admin/pipeline in dummy mode (D75): the real page against made-up
@@ -15,6 +16,12 @@ export default function AdminPipelineDummy() {
   const [registryApi] = useState(() => {
     const m = new URLSearchParams(window.location.search).get('registry');
     return createFakePaperRegistryApi(m === 'empty' || m === 'error' ? m : 'full');
+  });
+
+  // ?route=error, ?route=flaky (every third read fails) or ?route=empty reach the route's other states.
+  const [routeApi] = useState(() => {
+    const m = new URLSearchParams(window.location.search).get('route');
+    return createFakePipelineRouteApi(m === 'error' || m === 'flaky' || m === 'empty' ? m : 'full');
   });
 
   const banner = (
@@ -37,5 +44,5 @@ export default function AdminPipelineDummy() {
     </div>
   );
 
-  return <AdminPipelinePage api={api} registryApi={registryApi} dummy banner={banner} />;
+  return <AdminPipelinePage api={api} registryApi={registryApi} routeApi={routeApi} dummy banner={banner} />;
 }

@@ -540,8 +540,29 @@ export default {
           "75%": { opacity: "1" },
           "100%": { opacity: "0", transform: "translateY(-13px)" },
         },
+        /* The papers route on /admin/pipeline (docs/CRAFT.md §8). A parcel
+           travels one lane: opacity and transform only. --lane-len is the
+           lane's length, set on the lane; --route-dur is how long a crossing
+           takes, set from the count flowing through it. */
+        routeDotY: {
+          "0%": { opacity: "0", transform: "translateY(0)" },
+          "15%, 85%": { opacity: "1" },
+          "100%": { opacity: "0", transform: "translateY(calc(var(--lane-len, 2rem) - 0.5rem))" },
+        },
+        routeDotX: {
+          "0%": { opacity: "0", transform: "translateX(0)" },
+          "15%, 85%": { opacity: "1" },
+          "100%": { opacity: "0", transform: "translateX(calc(var(--lane-len, 2.25rem) - 0.5rem))" },
+        },
+        /* The dashed elbow between the two rows: the dashes march along it. */
+        routeDash: {
+          to: { strokeDashoffset: "-12" },
+        },
       },
       animation: {
+        "route-dot-y": "routeDotY var(--route-dur, 5s) linear infinite",
+        "route-dot-x": "routeDotX var(--route-dur, 5s) linear infinite",
+        "route-dash": "routeDash calc(var(--route-dur, 5s) / 5) linear infinite",
         "rail-nudge": "rail-nudge 0.9s cubic-bezier(0.16, 1, 0.3, 1) 1",
         "pull-bounce": "pull-bounce 0.26s cubic-bezier(0.34, 1.56, 0.64, 1) 1",
         /* Exactly two pulses, once — not a loop, since "refreshing" is a
