@@ -1,5 +1,6 @@
 import {
   REVIEWS_PAGE_SIZE,
+  commentsStart,
   type CommentFilter,
   type Recommendation,
   type ReviewComment,
@@ -106,12 +107,12 @@ export function createFakeReviewsAdminApi(opts: { failing?: ReviewsFakeSource[] 
     [...rows].sort((a, b) => (sort === 'newest' ? b.created_at.localeCompare(a.created_at) : a.created_at.localeCompare(b.created_at)));
 
   return {
-    async comments({ filter, sort, page }: { filter: CommentFilter; sort: SortOrder; page: number }) {
+    async comments({ filter, sort, page, offset }: { filter: CommentFilter; sort: SortOrder; page: number; offset?: number }) {
       await wait();
       if (failing.has('reviews')) throw new Error('Made-up failure');
       const pool = comments.filter((c) => (filter === 'pending' ? !c.approved : filter === 'approved' ? c.approved : true));
       const ordered = sorted(pool, sort);
-      const from = page * REVIEWS_PAGE_SIZE;
+      const from = commentsStart(page, offset);
       const rows = ordered.slice(from, from + REVIEWS_PAGE_SIZE);
       return { rows: rows.map((r) => ({ ...r })), hasMore: rows.length === REVIEWS_PAGE_SIZE };
     },

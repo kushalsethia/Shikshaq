@@ -17,7 +17,7 @@ import { AdminEmpty, AdminError, AdminLoading, errorSentence } from '@/component
 import { AdminPillButton, adminPillClass } from '@/components/admin/AdminPillButton';
 import { readRememberedOpen, writeRememberedOpen } from '@/lib/use-remembered-open';
 import { AdminHeaderView, CountsRetry, buildAdminNav, groupBadge, isAdminPath, navBadge } from '@/pages/admin/shell';
-import { AdminRowActions, AdminStatusPill, AdminTable, AdminPanelHeader } from '@/pages/admin/AdminTable';
+import { AdminRowActions, AdminStatusPill, AdminTable, AdminPanelHeader, rowSubject } from '@/pages/admin/AdminTable';
 import { overviewRows, allClear } from '@/pages/admin/index';
 import { adminGuardStep } from '@/components/AdminConsole';
 import type { User } from '@supabase/supabase-js';
@@ -310,6 +310,17 @@ describe('AdminTable additions are off by default', () => {
     const linked = render({}, { href: '/admin/x' });
     expect(linked).toContain('href="/admin/x"');
     expect(linked).toContain('lucide-chevron-right');
+  });
+
+  it('names the row after each action, for screen readers only', () => {
+    const acts = [{ label: 'Edit', tone: 'primary' as const, onClick: () => {} }];
+    const html = renderToStaticMarkup(<AdminRowActions actions={acts} subject="Ananya Roy" />);
+    expect(html).toContain('Edit<span class="sr-only"> Ananya Roy</span>');
+    expect(renderToStaticMarkup(<AdminRowActions actions={acts} />)).not.toContain('sr-only');
+    expect(rowSubject({ cells: ['Ananya Roy', 'x'] })).toBe('Ananya Roy');
+    expect(rowSubject({ subject: 'Chosen', cells: ['Other'] })).toBe('Chosen');
+    expect(rowSubject({ cells: [<b key="a">node</b>] })).toBeUndefined();
+    expect(rowSubject({ cells: ['x'.repeat(100)] })?.length).toBe(60);
   });
 
   it('stacks row actions only when asked', () => {

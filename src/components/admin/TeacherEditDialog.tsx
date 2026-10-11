@@ -13,7 +13,7 @@ import { AdminPillButton } from '@/components/admin/AdminPillButton';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
 import { AREAS, BOARDS, CLASSES, CLASS_SIZE, MODE_OF_TEACHING, SIR_MAAM, SUBJECTS } from '@/lib/teacher-options';
-import { buildTeacherUpdate, closeWithGuard, formIsDirty, initialTeacherForm, publicProfilePath, sanitizeImageUrl, type TeacherData, type TeacherForm } from '@/lib/admin-teachers';
+import { CONTACTS_FAILED_WORDS, buildTeacherUpdate, closeWithGuard, contactsFailed, formIsDirty, initialTeacherForm, publicProfilePath, sanitizeImageUrl, type TeacherData, type TeacherForm } from '@/lib/admin-teachers';
 
 /* The edit form for a listed teacher, in six groups: Identity, Teaching, Where
    and fees, Contact, Photo and video, Reviews. Save and Cancel stay on screen
@@ -90,6 +90,9 @@ export function TeacherEditDialog({ teacher, saving, onSave, onClose, uploadHero
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const teacherId = teacher?.id ?? null;
+  // The contact details did not load: the three fields would show blanks that are
+  // not the real values, so they are locked until the page is reloaded.
+  const noContacts = contactsFailed(teacher);
 
   // Start the form from the teacher whenever a different one is opened. Saving
   // the same teacher again (a refreshed row) must not wipe what is being typed.
@@ -321,17 +324,22 @@ export function TeacherEditDialog({ teacher, saving, onSave, onClose, uploadHero
             </Group>
 
             <Group title="Contact" hint="Only staff see these. Parents reach the teacher through the site.">
+              {noContacts ? (
+                <p role="alert" className="text-[13px] font-semibold text-destructive md:col-span-2">
+                  {CONTACTS_FAILED_WORDS}
+                </p>
+              ) : null}
               <div>
                 <Label htmlFor="phoneNumber">Phone number</Label>
-                <Input id="phoneNumber" value={form['Phone Number'] || ''} onChange={(e) => set('Phone Number', e.target.value)} className={FIELD} />
+                <Input id="phoneNumber" value={form['Phone Number'] || ''} disabled={noContacts} onChange={(e) => set('Phone Number', e.target.value)} className={FIELD} />
               </div>
               <div>
                 <Label htmlFor="emailId">Email</Label>
-                <Input id="emailId" type="email" value={form['Email ID'] || ''} onChange={(e) => set('Email ID', e.target.value)} className={FIELD} />
+                <Input id="emailId" type="email" value={form['Email ID'] || ''} disabled={noContacts} onChange={(e) => set('Email ID', e.target.value)} className={FIELD} />
               </div>
               <div className="md:col-span-2">
                 <Label htmlFor="link">WhatsApp link</Label>
-                <Input id="link" value={form.Link || ''} onChange={(e) => set('Link', e.target.value)} className={FIELD} />
+                <Input id="link" value={form.Link || ''} disabled={noContacts} onChange={(e) => set('Link', e.target.value)} className={FIELD} />
               </div>
             </Group>
 

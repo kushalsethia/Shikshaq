@@ -190,3 +190,12 @@ describe('keyboard focus follows the accept steps', () => {
     expect(focusAfterStep('idle', 'idle')).toBeNull();
   });
 });
+
+describe('one paper, one read of its pages, however many questions show them', () => {
+  it('the questions of a paper share a memoised page read and picture link', async () => {
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync('src/pages/admin/admin-queue.tsx', 'utf8');
+    expect(src).toContain('paperPages: memoizeAsync(api.paperPages)');
+    expect(src).toContain('<PagePicture q={q} api={pagesApi}');
+  });
+});

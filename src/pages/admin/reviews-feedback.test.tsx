@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom/server';
@@ -39,10 +40,12 @@ import {
   afterPublish,
   afterRemove,
   canConvert,
+  commentsStart,
   contactHref,
   convertConfirmed,
   countsAfterPublish,
   realReviewsAdminApi,
+  stampDecision,
   upvoteSummary,
   type Recommendation,
   type ReviewComment,
@@ -237,6 +240,29 @@ describe('counts and reads', () => {
     await realReviewsAdminApi.comments({ filter: 'all', sort: 'newest', page: 2 });
     const range = calls.find((x) => x.op === 'range');
     expect(range?.args).toEqual([2 * REVIEWS_PAGE_SIZE, 3 * REVIEWS_PAGE_SIZE - 1]);
+  });
+
+  it('"Load more" starts after the rows already held, not at a page multiple', async () => {
+    expect(commentsStart(1, undefined)).toBe(REVIEWS_PAGE_SIZE);
+    // 50 loaded, 3 published away, so 47 are held: the next read starts at 47, not 50.
+    expect(commentsStart(1, 47)).toBe(47);
+    expect(commentsStart(0, 0)).toBe(0);
+    await realReviewsAdminApi.comments({ filter: 'pending', sort: 'newest', page: 1, offset: 47 });
+    const range = calls.find((x) => x.op === 'range');
+    expect(range?.args).toEqual([47, 47 + REVIEWS_PAGE_SIZE - 1]);
+  });
+
+  it('a decided recommendation shows who decided it and when', () => {
+    const rec = { status: 'pending' as const, approved_by: null, approved_at: null, notes: 'n' };
+    const out = stampDecision(rec, 'contacted', 'admin-1', '2026-10-11T10:00:00.000Z');
+    expect(out).toMatchObject({ status: 'contacted', approved_by: 'admin-1', approved_at: '2026-10-11T10:00:00.000Z', notes: 'n' });
+    expect(stampDecision({ ...rec, approved_by: 'old' }, 'rejected', null, '2026-10-11T10:00:00.000Z').approved_by).toBe('old');
+  });
+
+  it('every review row action goes through the one-at-a-time guard', () => {
+    const src = readFileSync('src/pages/admin/reviews.tsx', 'utf8');
+    for (const key of ['c:${comment.id}', 'r:${rec.id}', 'u:${stat.teacher_id}']) expect(src).toContain('runBusy(`' + key + '`');
+    expect(src).toContain('disabled: busy(`c:${comment.id}`)');
   });
 
   it('words the upvote totals', () => {

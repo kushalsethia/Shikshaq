@@ -9,9 +9,11 @@ vi.mock('@/lib/admin-debug', () => ({
   useAdminDebugOn: () => false,
 }));
 
-import { TeachersBody } from '@/pages/admin/teachers';
+import { TeachersBody, mergeContact } from '@/pages/admin/teachers';
 import {
+  CONTACTS_FAILED_WORDS,
   buildTeacherUpdate,
+  contactsFailed,
   closeWithGuard,
   countsByTeacherView,
   filterTeachers,
@@ -217,5 +219,35 @@ describe('the fake used in dummy mode', () => {
     expect((await api.fetchOne(list[0].id))?.Title).toBe('Renamed (made up)');
     expect(JSON.stringify(list)).not.toMatch(/[–—]/);
     await expect(api.uploadHero(1, new File([], 'x.png'))).rejects.toThrow();
+  });
+});
+
+describe('a failed contact read is said out loud and never written back', () => {
+  it('a row marked contactsFailed is recognised, an ordinary row is not', () => {
+    expect(contactsFailed({ __contactsFailed: true })).toBe(true);
+    expect(contactsFailed({})).toBe(false);
+    expect(contactsFailed(null)).toBe(false);
+    expect(CONTACTS_FAILED_WORDS).not.toMatch(/[\u2013\u2014]/);
+  });
+
+  it('the marker is never part of what a save writes', () => {
+    const update = buildTeacherUpdate({ ...teacher({ id: 1 }), __contactsFailed: true });
+    expect(Object.keys(update).some((k) => k.startsWith('__'))).toBe(false);
+  });
+
+  it('with the contacts unread, phone, email and link are left out of the save entirely', () => {
+    const update = buildTeacherUpdate({ ...teacher({ id: 1, 'Phone Number': '', 'Email ID': '', Link: '' }), __contactsFailed: true });
+    expect('Phone Number' in update).toBe(false);
+    expect('Email ID' in update).toBe(false);
+    expect('Link' in update).toBe(false);
+    expect(update.Subjects).toBe('Maths');
+  });
+
+  it('mergeContact marks every row when the read failed and none when it worked', () => {
+    const row = { id: 7, Title: 'T' };
+    expect(contactsFailed(mergeContact(row, new Map(), true))).toBe(true);
+    expect(contactsFailed(mergeContact(row, new Map(), false))).toBe(false);
+    const merged = mergeContact(row, new Map([[7, { phoneNumber: '9', link: null, emailId: null }]]), false);
+    expect(merged['Phone Number']).toBe('9');
   });
 });

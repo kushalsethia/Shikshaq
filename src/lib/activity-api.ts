@@ -58,6 +58,26 @@ function rows<T>(data: unknown): T[] {
   return ((data ?? []) as unknown) as T[];
 }
 
+/**
+ * The cursor for "Show older". The server reads rows strictly BEFORE the cursor,
+ * so passing the last row's own timestamp would drop any other row that shares
+ * that exact instant and did not fit on the previous page. One microsecond past
+ * it makes the server include them; rows already shown are removed by their
+ * stream and id. Timestamps arrive with microseconds, so this is exact. A value
+ * that is not a timestamp is returned unchanged.
+ */
+export function olderCursor(at: string): string {
+  const m = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-]\d{2}(?::?\d{2})?)$/.exec(at);
+  if (!m) return at;
+  const tz = m[3] === 'Z' ? 'Z' : m[3].length === 3 ? `${m[3]}:00` : m[3].includes(':') ? m[3] : `${m[3].slice(0, 3)}:${m[3].slice(3)}`;
+  const wholeSecond = Date.parse(`${m[1]}${tz}`);
+  if (Number.isNaN(wholeSecond)) return at;
+  const micros = Number((m[2] ?? '').padEnd(6, '0').slice(0, 6)) + 1;
+  const carry = micros >= 1_000_000 ? 1000 : 0;
+  const seconds = new Date(wholeSecond + carry).toISOString().slice(0, 19);
+  return `${seconds}.${String(micros % 1_000_000).padStart(6, '0')}Z`;
+}
+
 export async function adminActivityFeed(scope: ActivityScope, before: string | null, limit = 200): Promise<ActivityRow[]> {
   const { data, error } = await supabase.rpc('admin_activity_feed' as never, {
     p_limit: limit,
