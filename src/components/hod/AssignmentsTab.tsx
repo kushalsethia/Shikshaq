@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { EmptyNote, ListSkeleton, LoadError, ago } from '@/components/hod/HodShared';
 import { PROFILES_KEY, TEAM_KEY } from '@/components/hod/VerifiersTab';
 import { useConfirm } from '@/components/ui/use-confirm';
+import { useAuth } from '@/lib/auth-context';
 import { actionToneClass } from '@/lib/checker-button-styles';
 import { paperLabel } from '@/lib/checker-progress';
 import { formatGrade } from '@/lib/verifier-papers';
@@ -91,6 +92,9 @@ function PickVerifier({
 
 export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  /** The HOD's own id, for "Assign to me". In dummy mode there is no sign-in, so a fixed fake id stands in. */
+  const myId = user?.id ?? (scope === 'dummy' ? 'dummy-me' : null);
   const { confirm, confirmDialog } = useConfirm();
   const [busy, setBusy] = useState(false);
   /** The server's reason for the last refusal, kept on screen (a toast is gone too fast to read). */
@@ -159,6 +163,16 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {myId && a.user_id !== myId ? (
+            <button
+              type="button"
+              disabled={busy}
+              className={actionToneClass('brand')}
+              onClick={() => void act(() => api.assignPaper(a.paper_id, myId), () => 'Moved to you. Open it from My papers.')}
+            >
+              Take it myself
+            </button>
+          ) : null}
           <PickVerifier
             label="Move to another verifier"
             buttonLabel="Move"
@@ -261,15 +275,27 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
                     {p.cls ? '' : ' · class not known'}
                   </p>
                 </div>
-                <PickVerifier
-                  label="Assign to"
-                  buttonLabel="Assign"
-                  busy={busy}
-                  options={verifiers}
-                  paperClass={p.cls}
-                  profileOf={profileOf}
-                  onPick={(uid) => void act(() => api.assignPaper(p.paper_id, uid), () => `Given to ${nameOf(uid)}.`)}
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  {myId ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className={actionToneClass('brand')}
+                      onClick={() => void act(() => api.assignPaper(p.paper_id, myId), () => 'Given to you. Open it from My papers.')}
+                    >
+                      Assign to me
+                    </button>
+                  ) : null}
+                  <PickVerifier
+                    label="Assign to"
+                    buttonLabel="Assign"
+                    busy={busy}
+                    options={verifiers}
+                    paperClass={p.cls}
+                    profileOf={profileOf}
+                    onPick={(uid) => void act(() => api.assignPaper(p.paper_id, uid), () => `Given to ${nameOf(uid)}.`)}
+                  />
+                </div>
               </li>
             ))}
           </ul>
