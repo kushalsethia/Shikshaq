@@ -139,7 +139,7 @@ export default function MathFieldEditor({ initialLatex, display, onDone, onCance
         }
       }}
     >
-      <p className="mb-2 text-[12px] font-semibold text-warm-meta">Edit the maths -- no code, just how it looks</p>
+      <p className="mb-2 text-[12px] font-semibold text-warm-meta">Edit the maths. No code, just how it looks.</p>
 
       <div className="mb-2 flex flex-wrap gap-1">
         {TOOLBAR.map((b) => (

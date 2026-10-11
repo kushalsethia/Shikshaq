@@ -88,6 +88,7 @@ export function PageImageViewer({
         ref={scroller}
         className="max-h-[56vh] w-full overflow-auto rounded-[10px] border border-warm-hairline bg-white lg:max-h-[68vh]"
         tabIndex={0}
+        role="region"
         aria-label="The scanned page. Scroll to move around."
       >
         <div className="relative" style={{ width: `${zoom * 100}%` }}>

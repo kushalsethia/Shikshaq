@@ -114,8 +114,15 @@ describe('describeEditLog', () => {
     expect(hidden).toBe(20);
   });
 
+  it('totals every change, also the ones past the cap, for the count badge', () => {
+    const source = { edit_log: Array.from({ length: 60 }, (_, i) => ({ kind: 'fixed_ocr_word', from: `a${i}`, to: `b${i}` })) };
+    expect(describeEditLog(source).total).toBe(60);
+    const repeats = { edit_log: [{ kind: 'joined_lines' }, { kind: 'joined_lines' }, { kind: 'moved_marks' }] };
+    expect(describeEditLog(repeats).total).toBe(3);
+  });
+
   it('is empty for a row with no log', () => {
-    expect(describeEditLog(null)).toEqual({ lines: [], hidden: 0 });
+    expect(describeEditLog(null)).toEqual({ lines: [], hidden: 0, total: 0 });
   });
 });
 

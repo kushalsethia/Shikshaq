@@ -109,7 +109,9 @@ function rpcRows<T>(data: unknown): T[] {
 
 export async function isPaperChecker(): Promise<boolean> {
   const { data, error } = await supabase.rpc('is_paper_checker' as never);
-  if (error) return false;
+  // A failed call is "could not check", never "not a verifier": throw so the
+  // page can offer a retry instead of locking a real verifier out.
+  if (error) throw error;
   return Boolean(data);
 }
 

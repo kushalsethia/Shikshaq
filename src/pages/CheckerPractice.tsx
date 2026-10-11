@@ -9,7 +9,7 @@ import { BodyEditor } from '@/components/checker/BodyEditor';
 import { PanelTabs, PrintedFrame, TypedFrame, type PanelId } from '@/components/checker/Panels';
 import { ChangesSection, MarksInsideHint, QuestionChips, ToolsRow } from '@/components/checker/TypedBits';
 import { MathText } from '@/components/papers/math-text';
-import { toolById, type CheckerToolId } from '@/lib/checker-tools';
+import { toolBlockedByUnsavedEdit, toolById, type CheckerToolId } from '@/lib/checker-tools';
 import {
   canSplitAt,
   codePointOffset,
@@ -161,6 +161,14 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
     if (feedback) return;
     if (!available) {
       setToolNote(toolById(id).unavailable);
+      return;
+    }
+    // Same rule as the real checker: Split and the OR tool never run on top of
+    // a Fix it draft with changes in it.
+    const edited = q ? bodyDraft !== q.body || marksDraft !== (q.marks === null ? '' : String(q.marks)) : false;
+    const blocked = toolBlockedByUnsavedEdit(id, mode, edited);
+    if (blocked) {
+      setToolNote(blocked);
       return;
     }
     setToolNote(null);
@@ -437,7 +445,7 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
                   <ActionButton tone="mint" onClick={() => answer({ action: 'pass' })}>
                     Looks right
                   </ActionButton>
-                  <ActionButton tone="dark" onClick={() => setMode('fix')}>
+                  <ActionButton tone="dark" onClick={() => startFix('fix')}>
                     Fix it
                   </ActionButton>
                   <ActionButton tone="brand" onClick={() => answer({ action: 'help' })}>

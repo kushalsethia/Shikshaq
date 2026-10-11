@@ -35,7 +35,8 @@ export function TypedFrame({
   return (
     <section
       id="verify-panel-typed"
-      aria-label="What the computer typed"
+      role="tabpanel"
+      aria-labelledby="verify-tab-typed"
       data-panel="typed"
       className={cn('min-w-0 flex-col rounded-[20px] border border-warm-hairline bg-card p-3 sm:p-4', panelClass ?? 'flex', className)}
     >
@@ -65,7 +66,8 @@ export function PrintedFrame({
   return (
     <section
       id="verify-panel-printed"
-      aria-label="The printed paper"
+      role="tabpanel"
+      aria-labelledby="verify-tab-printed"
       data-panel="printed"
       className={cn(
         'min-w-0 flex-col rounded-[20px] border-2 border-brand bg-brand-subtle p-2.5 shadow-card-bone',

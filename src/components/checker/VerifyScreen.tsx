@@ -7,7 +7,7 @@ import { OptionList } from '@/components/checker/OptionList';
 import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
 import { PanelTabs, PrintedFrame, TypedFrame, type PanelId } from '@/components/checker/Panels';
 import { ChangesSection, MarksInsideHint, QuestionChips, ToolsRow } from '@/components/checker/TypedBits';
-import { toolById, type CheckerToolId } from '@/lib/checker-tools';
+import { toolBlockedByUnsavedEdit, toolById, type CheckerToolId } from '@/lib/checker-tools';
 import { CheckerSkeleton, Callout, CheckGuidance, Modal, SplitPreview, WholeQuestion, useSignedUrl } from '@/components/checker/CheckerBits';
 import { Undo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -56,7 +56,7 @@ import { ActionButton } from '@/components/checker/CheckerButtons';
 import { CheckerWalkthrough } from '@/components/checker/CheckerWalkthrough';
 import { CHECKER_PRACTICE_PATH, CHECKER_TOUR_PARAM, hasSeenWalkthrough, markWalkthroughSeen } from '@/lib/checker-onboarding';
 import { paperLabel, paperProgress } from '@/lib/checker-progress';
-import { skippedNote } from '@/lib/verifier-papers';
+import { loadGate, skippedNote } from '@/lib/verifier-papers';
 
 /* The verify screen ("Start verifying"): one question of one paper at a time.
    The question and its details are on the left; the picture of the printed
@@ -152,6 +152,7 @@ export function VerifyScreen({
     placeholderData: keepPreviousData,
   });
   const paperRow = papersQuery.data?.find((p) => p.paper_id === paperId) ?? null;
+  const paperGate = loadGate(papersQuery);
   const progress = paperRow ? paperProgress({ done_count: paperRow.done, remaining_count: paperRow.remaining, total_count: paperRow.total }) : null;
   // Skipped questions stay on the paper for later. When nothing but skipped
   // ones are left, the screen says so instead of looping them back.
@@ -490,6 +491,13 @@ export function VerifyScreen({
       setNotice({ text: toolById(id).unavailable, tone: 'warn' });
       return;
     }
+    // Split and the OR tool act on the stored question, so a Fix it draft
+    // with changes in it must be saved or cancelled first, not lost.
+    const blocked = toolBlockedByUnsavedEdit(id, mode, edited);
+    if (blocked) {
+      setNotice({ text: blocked, tone: 'warn' });
+      return;
+    }
     if (id === 'fix') startFix('fix');
     else if (id === 'formula') {
       startFix('formula');
@@ -694,6 +702,18 @@ export function VerifyScreen({
             <p className="text-lg font-semibold text-foreground">{LOAD_FAILED_TITLE}</p>
             <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
             <ActionButton tone="mint" onClick={() => void questionQuery.refetch()}>
+              Try again
+            </ActionButton>
+          </div>
+        ) : !question && !includeSkipped && !paperRow && paperGate === 'loading' ? (
+          // The list that says how many are skipped has not arrived. Do not
+          // say "Paper finished" until it has.
+          <CheckerSkeleton />
+        ) : !question && !includeSkipped && !paperRow && paperGate === 'error' ? (
+          <div className="flex flex-col items-center gap-2 py-16 text-center" role="alert">
+            <p className="text-lg font-semibold text-foreground">Could not load your papers</p>
+            <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
+            <ActionButton tone="mint" onClick={() => void papersQuery.refetch()}>
               Try again
             </ActionButton>
           </div>

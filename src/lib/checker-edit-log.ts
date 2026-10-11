@@ -125,7 +125,7 @@ export function describeEdit(entry: EditEntry): EditLine {
 
 /** The list the screen shows: one line per change that names a word, and one
  *  line (with a count) for repeats of a change that does not. */
-export function describeEditLog(source: unknown): { lines: EditLine[]; hidden: number } {
+export function describeEditLog(source: unknown): { lines: EditLine[]; hidden: number; total: number } {
   const lines: EditLine[] = [];
   for (const entry of readEditLog(source)) {
     const line = describeEdit(entry);
@@ -134,7 +134,10 @@ export function describeEditLog(source: unknown): { lines: EditLine[]; hidden: n
     else lines.push(line);
   }
   const shown = lines.slice(0, MAX_SHOWN);
-  return { lines: shown.map((l) => (l.count > 1 ? { ...l, text: `${l.label} (${l.count} times)` } : l)), hidden: lines.length - shown.length };
+  // `total` is every change the computer made, also the ones past the cap, so a
+  // count badge never understates what the list is a part of.
+  const total = lines.reduce((n, l) => n + l.count, 0);
+  return { lines: shown.map((l) => (l.count > 1 ? { ...l, text: `${l.label} (${l.count} times)` } : l)), hidden: lines.length - shown.length, total };
 }
 
 /** The computer's first raw reading, or null when the row has none (older rows)
