@@ -135,6 +135,18 @@ export function totalOf(c: DayCounts): number {
   return COUNT_KEYS.reduce((s, k) => s + c[k], 0);
 }
 
+/** The header numbers for a range: how many actions, and on how many days there
+ *  were any. A day that holds only taken-back work has a card but no actions, so
+ *  it is not counted as a day with actions. */
+export function rangeSummary(days: { counts: DayCounts; events: unknown[] }[]): { total: number; daysWithActions: number; cardDays: number } {
+  const total = days.reduce((s, d) => s + totalOf(d.counts), 0);
+  return {
+    total,
+    daysWithActions: days.filter((d) => totalOf(d.counts) > 0).length,
+    cardDays: days.filter((d) => totalOf(d.counts) > 0 || d.events.length > 0).length,
+  };
+}
+
 export type LogEvent = HistoryEvent & { paper_title: string | null; paper_audit_id: string | null };
 
 export interface LogDay {

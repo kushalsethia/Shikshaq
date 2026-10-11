@@ -17,8 +17,10 @@ import { AdminEmpty, AdminError, AdminLoading, errorSentence } from '@/component
 import { AdminPillButton, adminPillClass } from '@/components/admin/AdminPillButton';
 import { readRememberedOpen, writeRememberedOpen } from '@/lib/use-remembered-open';
 import { AdminHeaderView, CountsRetry, buildAdminNav, groupBadge, isAdminPath, navBadge } from '@/pages/admin/shell';
-import { AdminRowActions, AdminStatusPill, AdminTable, AdminPanelHeader } from '@/pages/admin/AdminTable';
+import { AdminRowActions, AdminStatusPill, AdminTable, AdminPanelHeader, rowSubject } from '@/pages/admin/AdminTable';
 import { overviewRows, allClear } from '@/pages/admin/index';
+import { adminGuardStep } from '@/components/AdminConsole';
+import type { User } from '@supabase/supabase-js';
 import type { AdminCountsState } from '@/pages/admin/useAdminSectionCounts';
 
 /* No jsdom here, so these render to markup and, for clicks, walk the element
@@ -310,6 +312,17 @@ describe('AdminTable additions are off by default', () => {
     expect(linked).toContain('lucide-chevron-right');
   });
 
+  it('names the row after each action, for screen readers only', () => {
+    const acts = [{ label: 'Edit', tone: 'primary' as const, onClick: () => {} }];
+    const html = renderToStaticMarkup(<AdminRowActions actions={acts} subject="Ananya Roy" />);
+    expect(html).toContain('Edit<span class="sr-only"> Ananya Roy</span>');
+    expect(renderToStaticMarkup(<AdminRowActions actions={acts} />)).not.toContain('sr-only');
+    expect(rowSubject({ cells: ['Ananya Roy', 'x'] })).toBe('Ananya Roy');
+    expect(rowSubject({ subject: 'Chosen', cells: ['Other'] })).toBe('Chosen');
+    expect(rowSubject({ cells: [<b key="a">node</b>] })).toBeUndefined();
+    expect(rowSubject({ cells: ['x'.repeat(100)] })?.length).toBe(60);
+  });
+
   it('stacks row actions only when asked', () => {
     const acts = [{ label: 'Approve', tone: 'primary' as const, onClick: () => {} }];
     expect(renderToStaticMarkup(<AdminRowActions actions={acts} />)).not.toContain('flex-wrap');
@@ -330,6 +343,21 @@ describe('AdminTable additions are off by default', () => {
   });
 });
 
+describe('the admin guard does not bounce a signed-in admin on a cold load', () => {
+  const someone = { id: 'u1' } as unknown as User;
+  it('waits while the saved session is still being restored', () => {
+    expect(adminGuardStep(null, true)).toBe('wait');
+    expect(adminGuardStep(undefined, true)).toBe('wait');
+  });
+  it('only treats nobody as signed out once the restore has finished', () => {
+    expect(adminGuardStep(null, false)).toBe('signed-out');
+  });
+  it('checks the admin list for any user it has, loading or not', () => {
+    expect(adminGuardStep(someone, true)).toBe('check');
+    expect(adminGuardStep(someone, false)).toBe('check');
+  });
+});
+
 describe('Needs you now rows', () => {
   it('sorts waiting rows first (biggest tie-broken by queue order), then unreadable, then clear', () => {
     const rows = overviewRows({ counts: { paperApprovals: 0, adminQueue: 41, approvals: 4, reviews: 2 }, failed: ['submissions'] });
@@ -340,6 +368,20 @@ describe('Needs you now rows', () => {
       ['submissions', 'unknown'],
       ['ready', 'clear'],
     ]);
+  });
+
+  it('puts the biggest waiting pile first, even when a smaller queue comes earlier in the list', () => {
+    const rows = overviewRows({ counts: { paperApprovals: 2, adminQueue: 41, approvals: 7, reviews: 0, submissions: 0 }, failed: [] });
+    expect(rows.slice(0, 3).map((r) => [r.key, r.count])).toEqual([
+      ['admin-queue', 41],
+      ['applications', 7],
+      ['ready', 2],
+    ]);
+  });
+
+  it('keeps queue order when two piles are the same size', () => {
+    const rows = overviewRows({ counts: { paperApprovals: 3, adminQueue: 3, approvals: 3, reviews: 0, submissions: 0 }, failed: [] });
+    expect(rows.slice(0, 3).map((r) => r.key)).toEqual(['ready', 'admin-queue', 'applications']);
   });
 
   it('never calls an unreadable count clear', () => {

@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { realApprovalApi } from '@/lib/admin-approval';
 import { normaliseReviewRow, paperTitleFrom, type ApprovalApi, type ReviewRow } from '@/lib/admin-approval-shape';
-import { adminEscalationQueue, adminResolveEscalation, checkerPictureUrl, paperPagePictures, type EscalationRow } from '@/lib/checker-api';
+import { adminEscalationQueue, adminResolveEscalation, checkerPictureUrl, isMissingFunctionError, paperPagePictures, type EscalationRow } from '@/lib/checker-api';
 import type { PaperPage } from '@/lib/paper-pages';
 
 /* The Admin queue: questions whose checking ended with "an admin must decide"
@@ -84,15 +84,24 @@ async function rpc(fn: string, args?: Record<string, unknown>) {
   return supabase.rpc(fn as never, (args ?? {}) as never);
 }
 
+/** What the papers read means. Null ONLY when the server does not have
+ *  admin_queue_papers yet (the page says so). Any other failure throws, so the page
+ *  shows an error with Try again instead of blaming a missing update. Pure. */
+export function queuePapersFromRpc(res: { data: unknown; error: { code?: string | null } | null }): QueuePaper[] | null {
+  if (res.error) {
+    if (isMissingFunctionError(res.error)) return null;
+    throw res.error;
+  }
+  return ((Array.isArray(res.data) ? res.data : []) as unknown[]).map(normaliseQueuePaper).filter((p): p is QueuePaper => p !== null);
+}
+
 export const realAdminQueueApi: AdminQueueApi = {
   editQuestion: realApprovalApi.editQuestion,
   questionHistory: realApprovalApi.questionHistory,
   revertQuestion: realApprovalApi.revertQuestion,
   setQuestionState: realApprovalApi.setQuestionState,
   async papers() {
-    const { data, error } = await rpc('admin_queue_papers');
-    if (error) return null; // not on the server yet: the page says so
-    return ((Array.isArray(data) ? data : []) as unknown[]).map(normaliseQueuePaper).filter((p): p is QueuePaper => p !== null);
+    return queuePapersFromRpc(await rpc('admin_queue_papers'));
   },
   async questions(auditPaperId) {
     const { data, error } = await rpc('admin_queue_questions', { p_audit_paper_id: auditPaperId });

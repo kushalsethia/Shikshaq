@@ -73,7 +73,10 @@ export interface CommentsPage {
 }
 
 export interface ReviewsAdminApi {
-  comments(opts: { filter: CommentFilter; sort: SortOrder; page: number }): Promise<CommentsPage>;
+  /** `offset`, when given, is where to start reading (the number of rows already held
+   *  for this filter), and wins over `page`. Paging by held rows keeps "Load more"
+   *  correct on the Waiting filter, where publishing a review removes it from the list. */
+  comments(opts: { filter: CommentFilter; sort: SortOrder; page: number; offset?: number }): Promise<CommentsPage>;
   recommendations(sort: SortOrder): Promise<Recommendation[]>;
   upvoteStats(): Promise<UpvoteStat[]>;
   /** Independent of the loaded page and of the filter. */
@@ -100,9 +103,25 @@ function head(r: { count: number | null; error: unknown }): number | undefined {
   return r.error ? undefined : typeof r.count === 'number' ? r.count : undefined;
 }
 
+/** A recommendation right after an admin decided it: the status, and who decided and
+ *  when, so its card stops reading "Sent ..." while the badge already says otherwise. */
+export function stampDecision<T extends { status: RecommendationStatus; approved_by: string | null; approved_at: string | null }>(
+  rec: T,
+  status: RecommendationStatus,
+  adminId: string | null,
+  nowIso: string,
+): T {
+  return { ...rec, status, approved_by: adminId ?? rec.approved_by, approved_at: nowIso };
+}
+
+/** Where a read of reviews starts: the rows already held when known, else the page's start. */
+export function commentsStart(page: number, offset?: number): number {
+  return typeof offset === 'number' && offset >= 0 ? offset : page * REVIEWS_PAGE_SIZE;
+}
+
 export const realReviewsAdminApi: ReviewsAdminApi = {
-  async comments({ filter, sort, page }) {
-    const from = page * REVIEWS_PAGE_SIZE;
+  async comments({ filter, sort, page, offset }) {
+    const from = commentsStart(page, offset);
     const to = from + REVIEWS_PAGE_SIZE - 1;
     let query = supabase
       .from('teacher_comments')

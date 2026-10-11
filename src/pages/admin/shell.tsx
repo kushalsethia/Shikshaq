@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { ADMIN_GROUPS, ADMIN_PAGES, type AdminGroupKey, type AdminPageKey } from '@/lib/admin-hints';
 import { adminPrefetchProps } from '@/lib/admin-prefetch';
 import { supabase } from '@/integrations/supabase/client';
+import { setAdminConfirmed } from '@/lib/admin-confirmed';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 import { useAdminCountsState, type AdminCountField, type AdminCountsState } from '@/pages/admin/useAdminSectionCounts';
@@ -118,7 +119,10 @@ function Badge({ badge, on }: { badge: NonNullable<NavBadge>; on: boolean }) {
           <span className="sr-only">count unavailable</span>
         </>
       ) : (
-        badge.n
+        <>
+          {badge.n}
+          <span className="sr-only"> waiting</span>
+        </>
       )}
     </span>
   );
@@ -171,6 +175,8 @@ function AccountMenu({ email }: { email: string }) {
   const canSignOut = !(PREVIEW_TOOLS && isDummyMode());
   const initial = email.trim().charAt(0).toUpperCase() || 'A';
   async function signOut() {
+    // Stop the nav counts and forget who was confirmed before the session goes.
+    setAdminConfirmed(null);
     try {
       await supabase.auth.signOut();
     } catch {

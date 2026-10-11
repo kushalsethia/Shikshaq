@@ -9,8 +9,9 @@ vi.mock('@/lib/admin-debug', () => ({
   useAdminDebugOn: () => false,
 }));
 
-import { buildPaperPayload, listView, mapSubmittedExamType, missingPaperFields, statusWords, submittedReviewDefaults, type FormState } from '@/pages/admin/papers';
+import { ApprovedNotLiveError, buildPaperPayload, listView, realPapersApi, mapSubmittedExamType, missingPaperFields, statusWords, submittedReviewDefaults, type FormState } from '@/pages/admin/papers';
 import { createFakePapersApi } from '@/dummy/papers-fake-api';
+import { supabase } from '@/integrations/supabase/client';
 
 const FORM: FormState = {
   title: ' Prelims 2025 ',
@@ -122,6 +123,69 @@ describe('hide, restore, approve and reject keep their writes (G6)', () => {
   });
 });
 
+describe('approving an upload never leaves a live paper behind a pending upload', () => {
+  const target = {
+    id: 'sub-1', school: 'Sample Hill School', subject: 'Physics', board: 'ICSE', class: '10', exam_type: 'Prelim / Pre-board', year: '2025',
+    file_paths: [], status: 'pending', created_at: '2026-10-01T00:00:00Z',
+  } as unknown as Parameters<typeof realPapersApi.approveSubmission>[0]['target'];
+  const input = { target, title: 'Physics Prelims', board: 'ICSE', cls: '10', examType: 'Prelims', year: '2025', reviewerId: 'admin-1' };
+
+  /** Records each write in order; `failOn` names the one that errors. */
+  function wire(failOn: 'review' | 'live' | null) {
+    const log: string[] = [];
+    vi.mocked(supabase.from).mockImplementation(((table: string) => {
+      if (table === 'papers') {
+        return {
+          insert: (row: { is_published: boolean }) => {
+            log.push(`insert papers published=${row.is_published}`);
+            return { select: () => ({ single: () => Promise.resolve({ data: { id: 'paper-1' }, error: null }) }) };
+          },
+          update: (row: { is_published: boolean }) => ({
+            eq: () => {
+              log.push(`update papers published=${row.is_published}`);
+              return Promise.resolve({ error: failOn === 'live' ? { message: 'boom' } : null });
+            },
+          }),
+          delete: () => ({
+            eq: () => {
+              log.push('delete papers');
+              return Promise.resolve({ error: null });
+            },
+          }),
+        };
+      }
+      return {
+        update: (row: { status: string }) => ({
+          eq: () => {
+            log.push(`update submission ${row.status}`);
+            return Promise.resolve({ error: failOn === 'review' ? { message: 'boom' } : null });
+          },
+        }),
+      };
+    }) as unknown as typeof supabase.from);
+    return log;
+  }
+
+  it('creates a draft, marks the upload approved, and only then goes live', async () => {
+    const log = wire(null);
+    const out = await realPapersApi.approveSubmission(input);
+    expect(log).toEqual(['insert papers published=false', 'update submission approved', 'update papers published=true']);
+    expect(out.paperId).toBe('paper-1');
+  });
+
+  it('if the upload cannot be marked approved, nothing went live and the draft is removed', async () => {
+    const log = wire('review');
+    await expect(realPapersApi.approveSubmission(input)).rejects.toThrow();
+    expect(log).toEqual(['insert papers published=false', 'update submission approved', 'delete papers']);
+    expect(log.some((l) => l.includes('published=true'))).toBe(false);
+  });
+
+  it('if going live fails, the upload stays approved and the error says the paper is a draft', async () => {
+    wire('live');
+    await expect(realPapersApi.approveSubmission(input)).rejects.toBeInstanceOf(ApprovedNotLiveError);
+  });
+});
+
 describe('the Student uploads page source', () => {
   const src = readFileSync('src/pages/admin/papers.tsx', 'utf8');
 
@@ -140,5 +204,29 @@ describe('the Student uploads page source', () => {
 
   it('reads papers and uploads with explicit column lists', () => {
     expect(src).not.toMatch(/\.select\(\s*['"`]\*['"`]/);
+  });
+
+  it('the PDF picker can be reached by keyboard (visually hidden, not display:none)', () => {
+    expect(src).toMatch(/type="file"[\s\S]{0,120}className="sr-only"/);
+    expect(src).not.toMatch(/type="file"[\s\S]{0,120}className="hidden"/);
+  });
+
+  it('Publish and Save as draft wait for a PDF that is still uploading', () => {
+    expect(src).toMatch(/if \(uploadingFile\) \{[\s\S]{0,120}return;/);
+    expect(src).toContain("disabled={saving === 'publish' || uploadingFile}");
+    expect(src).toContain("disabled={saving === 'draft' || uploadingFile}");
+  });
+
+  it('a failed publish clears the form link to the PDF it just deleted', () => {
+    expect(src).toMatch(/removeUploaded\(formData\.file_url\);[\s\S]{0,200}handleChange\('file_url', null\)/);
+  });
+
+  it('Approve and publish is closed for an upload with no files', () => {
+    expect(src).toContain('reviewTarget.file_paths.length === 0}');
+    expect(src).toMatch(/file_paths\.length === 0\) \{\s*adminToast\(/);
+  });
+
+  it('late signed links for an earlier upload are dropped', () => {
+    expect(src).toContain('signGuard.current.isCurrent(token)');
   });
 });

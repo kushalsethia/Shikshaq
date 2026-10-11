@@ -14,7 +14,7 @@ import { AdminFilterChips } from '@/components/admin/AdminFilterChips';
 import { AdminPillButton, adminPillClass } from '@/components/admin/AdminPillButton';
 import { DebugId } from '@/components/DebugId';
 import { DebugFacts } from '@/components/admin/DebugFacts';
-import { realActivityApi, type ActivityApi, type ActivityRow, type ActivityScope, type VersionedTable } from '@/lib/activity-api';
+import { olderCursor, realActivityApi, type ActivityApi, type ActivityRow, type ActivityScope, type VersionedTable } from '@/lib/activity-api';
 import {
   actionWords,
   actorText,
@@ -106,10 +106,12 @@ export function AdminActivityPage({
     setLoadingMore(true);
     setError(null);
     try {
-      const older = await api.feed(scope, rows[rows.length - 1].at, PAGE);
+      const older = await api.feed(scope, olderCursor(rows[rows.length - 1].at), PAGE);
       const seen = new Set(rows.map((r) => `${r.stream}:${r.event_id}`));
-      setRows([...rows, ...older.filter((r) => !seen.has(`${r.stream}:${r.event_id}`))]);
-      setDone(older.length < PAGE);
+      const fresh = older.filter((r) => !seen.has(`${r.stream}:${r.event_id}`));
+      setRows([...rows, ...fresh]);
+      // Nothing new means the page was only rows already shown: there is no more.
+      setDone(older.length < PAGE || fresh.length === 0);
     } catch {
       setError('Could not load older activity. Try again.');
     } finally {

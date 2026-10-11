@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -11,7 +12,7 @@ vi.mock('@/lib/admin-debug', () => ({
 }));
 
 import { adminLibraryExtras, isMissingFunctionError } from '@/lib/checker-api';
-import { LibraryExtrasNotice, extrasState, libraryListState } from '@/pages/admin/library';
+import { LibraryExtrasNotice, extrasState, libraryCountsUnknown, libraryListState } from '@/pages/admin/library';
 import { createFakeLibraryApi } from '@/dummy/library-fake-api';
 
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -99,6 +100,26 @@ describe('the Library list never turns a failed read into "no papers"', () => {
     expect(libraryListState({ loading: false, error: false, shown: 3, view: 'live' })).toBe('rows');
     expect(libraryListState({ loading: false, error: false, shown: 0, view: 'hidden' })).toBe('empty-view');
     expect(libraryListState({ loading: false, error: false, shown: 0, view: 'all' })).toBe('empty-library');
+  });
+});
+
+describe('the Library chips never show a false 0 for a failed read', () => {
+  it('a failed read hides the counts, loading with nothing hides them, a loaded list shows them', () => {
+    expect(libraryCountsUnknown({ loading: false, error: true, rows: 0 })).toBe(true);
+    expect(libraryCountsUnknown({ loading: true, error: false, rows: 0 })).toBe(true);
+    expect(libraryCountsUnknown({ loading: false, error: false, rows: 0 })).toBe(false);
+    expect(libraryCountsUnknown({ loading: false, error: false, rows: 12 })).toBe(false);
+  });
+});
+
+describe('the Library hide dialog starts every paper with an empty reason', () => {
+  it('the Hide button, Cancel and dismiss all go through the helpers that clear it', () => {
+    const src = readFileSync('src/pages/admin/library.tsx', 'utf8');
+    expect(src).toContain('onClick: () => openHide(p)');
+    expect(src).not.toMatch(/onClick: \(\) => setHideTarget/);
+    expect(src).toContain('onClick={closeHide}');
+    expect(src).toMatch(/function openHide[\s\S]*?setHideReason\(''\)/);
+    expect(src).toMatch(/function closeHide[\s\S]*?setHideReason\(''\)/);
   });
 });
 

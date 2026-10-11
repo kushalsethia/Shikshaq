@@ -129,7 +129,7 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
     key: 'ready',
     label: 'Ready to go live',
     path: '/admin/paper-approvals',
-    short: 'Papers that finished checking and wait for your yes before visitors see them.',
+    short: 'Papers waiting for your yes. The count includes any that still have a question open.',
     purpose:
       'New papers are never published automatically. When every question on a paper has been checked, it waits here as To approve. You read it as visitors will, fix anything, and approve it. Papers already live that still need your yes are here too.',
     flow: 'Open a paper marked To approve, read it, then approve it. A paper with Open questions cannot be approved yet. Switch to Already decided to see what was approved or rejected, by whom and why.',
@@ -344,7 +344,7 @@ export const TIPS = {
   'queue.papers': 'How many different papers the questions waiting for an admin belong to.',
   'queue.shown': 'How many are on this page of the list.',
   // Ready to go live
-  'ready.waiting': 'Papers that finished checking and are waiting for you.',
+  'ready.waiting': 'Papers waiting for you. Some may still have a question to pass or set aside.',
   'ready.ready': 'Papers with no open questions. These can be approved now.',
   'ready.open': 'Papers that still have questions to pass or set aside. They cannot be approved yet.',
   'ready.live': 'Papers already on the site that have not had your yes yet.',

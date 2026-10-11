@@ -24,9 +24,12 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
+import { getAdminConfirmed, setAdminConfirmed } from '@/lib/admin-confirmed';
 import {
   ADMIN_COUNTS_KEY,
   ADMIN_COUNT_FIELDS,
+  adminCountsKey,
+  useAdminCountsState,
   deriveCountsState,
   fetchAdminCounts,
   resetAdminCountsMemory,
@@ -145,5 +148,41 @@ describe('useRefreshAdminCounts', () => {
     );
     refresh();
     expect(spy).toHaveBeenCalledWith({ queryKey: ADMIN_COUNTS_KEY });
+  });
+});
+
+describe('the counts wait for a confirmed admin and are kept per person', () => {
+  it('the cache key starts with the shared key, so refreshing it still reaches every admin entry', () => {
+    const key = adminCountsKey('admin-1');
+    expect([...key].slice(0, ADMIN_COUNTS_KEY.length)).toEqual([...ADMIN_COUNTS_KEY]);
+    expect(adminCountsKey('admin-1')).not.toEqual(adminCountsKey('admin-2'));
+    const qc = new QueryClient();
+    qc.setQueryData(adminCountsKey('admin-1'), { counts: {}, failed: [] });
+    qc.removeQueries({ queryKey: ADMIN_COUNTS_KEY });
+    expect(qc.getQueryData(adminCountsKey('admin-1'))).toBeUndefined();
+  });
+
+  it('shows nothing until the guard confirms an admin, and the confirmation clears', () => {
+    const qc = new QueryClient();
+    let state: ReturnType<typeof useAdminCountsState> | undefined;
+    function Probe() {
+      state = useAdminCountsState();
+      return null;
+    }
+    const render = () =>
+      renderToStaticMarkup(
+        <QueryClientProvider client={qc}>
+          <Probe />
+        </QueryClientProvider>,
+      );
+    setAdminConfirmed(null);
+    qc.setQueryData(adminCountsKey('admin-1'), { counts: { approvals: 4 }, failed: [] });
+    render();
+    expect(state?.status).toBe('loading');
+    expect(state?.counts).toEqual({});
+    setAdminConfirmed('admin-1');
+    expect(getAdminConfirmed()).toBe('admin-1');
+    setAdminConfirmed(null);
+    expect(getAdminConfirmed()).toBeNull();
   });
 });

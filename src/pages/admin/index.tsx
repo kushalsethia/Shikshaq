@@ -46,7 +46,8 @@ export interface OverviewRow {
   state: 'waiting' | 'unknown' | 'clear';
 }
 
-/** The rows, sorted: waiting first (queue order), then unknown, then clear. Pure. */
+/** The rows, sorted: waiting first (biggest pile first, queue order on a tie),
+ *  then unknown, then clear. Pure. */
 export function overviewRows(state: Pick<AdminCountsState, 'counts' | 'failed'>): OverviewRow[] {
   const rows: OverviewRow[] = QUEUES.map(({ key, field }) => {
     const copy = ADMIN_PAGES[key];
@@ -55,7 +56,10 @@ export function overviewRows(state: Pick<AdminCountsState, 'counts' | 'failed'>)
     return { key, label: copy.label, path: copy.path, meaning: copy.short, count: typeof count === 'number' ? count : undefined, state: rowState };
   });
   const rank = { waiting: 0, unknown: 1, clear: 2 } as const;
-  return rows.map((r, i) => ({ r, i })).sort((a, b) => rank[a.r.state] - rank[b.r.state] || a.i - b.i).map((x) => x.r);
+  return rows
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => rank[a.r.state] - rank[b.r.state] || (b.r.count ?? 0) - (a.r.count ?? 0) || a.i - b.i)
+    .map((x) => x.r);
 }
 
 /** True only when every count was read and every one is 0. */
@@ -68,6 +72,7 @@ function CountChip({ row }: { row: OverviewRow }) {
     return (
       <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-brand px-2.5 text-[13px] font-bold tabular-nums text-foreground">
         {row.count}
+        <span className="sr-only"> waiting</span>
       </span>
     );
   }

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronDown, Image as ImageIcon } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -17,6 +17,7 @@ import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
 import { ReviewQuestionCard } from '@/components/admin/approval/ReviewQuestionCard';
 import { MathText } from '@/components/papers/math-text';
 import { cn } from '@/lib/utils';
+import { memoizeAsync } from '@/lib/memoize-async';
 import { displaySchool } from '@/lib/school-display';
 import { kidSentence } from '@/lib/checker-kid-reasons';
 import { realAdminQueueApi, type AdminQueueApi, type QueuePaper, type QueueQuestion } from '@/lib/admin-queue';
@@ -39,7 +40,7 @@ const DummyAdminQueue = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminQueueDum
 type Tab = 'waiting' | 'help';
 
 export const QUEUE_UNAVAILABLE_WORDS =
-  'The list of waiting questions is not available right now. The count on the tab is still correct. Try again later.';
+  'The list of waiting questions is not available on this server yet. Try again later.';
 
 function PagePicture({ q, api, auditPaperId }: { q: QueueQuestion; api: AdminQueueApi; auditPaperId: string }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -88,6 +89,12 @@ function PaperQuestions({ auditPaperId, api, onChanged }: { auditPaperId: string
   const qc = useQueryClient();
   const key = ['admin', 'queue', 'questions', auditPaperId];
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: key, queryFn: () => api.questions(auditPaperId), staleTime: 30_000 });
+  // Many questions of one paper can show the whole paper. Read its pages, and
+  // sign each picture link, once for all of them.
+  const pagesApi = useMemo<AdminQueueApi>(
+    () => ({ ...api, paperPages: memoizeAsync(api.paperPages), pictureUrl: memoizeAsync(api.pictureUrl, (u) => u !== null) }),
+    [api],
+  );
   if (isLoading) return <AdminLoading shape="cards" rows={2} label="Loading questions" className="px-1 py-2" />;
   if (isError) return <AdminError what="these questions" onRetry={() => void refetch()} className="my-2" />;
   if (!data?.length) return <p className="py-3 text-[14px] text-warm-secondary">Nothing is waiting on this paper any more.</p>;
@@ -95,7 +102,7 @@ function PaperQuestions({ auditPaperId, api, onChanged }: { auditPaperId: string
     <div className="space-y-3">
       {data.map((q) => (
         <div key={q.row.id}>
-          <PagePicture q={q} api={api} auditPaperId={auditPaperId} />
+          <PagePicture q={q} api={pagesApi} auditPaperId={auditPaperId} />
           <ul>
             <ReviewQuestionCard
               row={q.row}
@@ -167,7 +174,7 @@ export function WaitingListView({
             <button
               type="button"
               aria-expanded={isOpen}
-              aria-controls={panelId}
+              aria-controls={isOpen ? panelId : undefined}
               onClick={() => onToggle(p.audit_paper_id)}
               className="flex w-full min-h-14 flex-wrap items-center gap-x-3 gap-y-2 rounded-[18px] px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
@@ -201,6 +208,15 @@ export type AcceptStep = 'idle' | 'confirm' | 'busy' | 'failed';
 
 export const ACCEPT_FAILED_WORDS = 'Nothing changed. Try again.';
 
+/** Which button should take keyboard focus after the card moves from one step
+ *  to another. The button that was pressed disappears, so without this focus
+ *  falls to the top of the page. Null when focus should stay where it is. */
+export function focusAfterStep(from: AcceptStep, to: AcceptStep): 'confirm' | 'accept' | null {
+  if (from === 'idle' && to === 'confirm') return 'confirm';
+  if (from === 'confirm' && to === 'idle') return 'accept';
+  return null;
+}
+
 /** Where an admin opens the paper to decide this question: the review page, scrolled to it. */
 export const helpPaperHref = (e: Pick<EscalationRow, 'paper_id' | 'question_id'>): string =>
   `/admin/paper-approvals/${encodeURIComponent(e.paper_id)}#q-${e.question_id}`;
@@ -232,6 +248,15 @@ export function HelpCardView({
   const meta = [e.school ? displaySchool(e.school) : 'School not recorded', e.subject, e.cls ? `Class ${e.cls}` : null]
     .filter(Boolean)
     .join(', ');
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const acceptRef = useRef<HTMLButtonElement>(null);
+  const prevStep = useRef<AcceptStep>(step);
+  useEffect(() => {
+    const target = focusAfterStep(prevStep.current, step);
+    prevStep.current = step;
+    if (target === 'confirm') confirmRef.current?.focus();
+    else if (target === 'accept') acceptRef.current?.focus();
+  }, [step]);
   return (
     <li className="rounded-[18px] bg-muted p-4" data-testid="help-card">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -256,7 +281,7 @@ export function HelpCardView({
         <div className="mt-3 rounded-xl bg-card px-3 py-3" role="group" aria-label="Confirm accepting this question">
           <p className="text-[14px] text-foreground">Accept this question exactly as it is? It counts as passed and leaves this list.</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <AdminPillButton variant="primary" size="sm" busy={step === 'busy'} onClick={onConfirm}>
+            <AdminPillButton ref={confirmRef} variant="primary" size="sm" busy={step === 'busy'} onClick={onConfirm}>
               {step === 'busy' ? 'Accepting...' : 'Yes, accept it'}
             </AdminPillButton>
             <AdminPillButton variant="secondary" size="sm" disabled={step === 'busy'} onClick={onCancel}>
@@ -269,7 +294,7 @@ export function HelpCardView({
           <Link to={helpPaperHref(e)} className={adminPillClass('secondary', 'sm')}>
             Open the paper
           </Link>
-          <AdminPillButton variant="secondary" size="sm" onClick={onAsk}>
+          <AdminPillButton ref={acceptRef} variant="secondary" size="sm" onClick={onAsk}>
             Accept as-is
           </AdminPillButton>
         </div>

@@ -76,7 +76,17 @@ export interface AdminRowAction {
  *  `stack` lets the pills wrap onto a second line below `sm` (and left-aligns
  *  them there) instead of forcing one wide row on a phone. Put the primary
  *  action first. */
-export function AdminRowActions({ actions, stack = false }: { actions: AdminRowAction[]; stack?: boolean }) {
+/** The name a row's buttons are about, so a screen reader hears "Edit Ananya Roy"
+ *  and not "Edit" fifty times. An explicit `subject` wins; otherwise the first
+ *  cell, when it is plain text. Clipped so a long quote stays one short phrase. */
+export function rowSubject(row: { subject?: string; cells?: ReactNode[] }): string | undefined {
+  const raw = row.subject ?? (typeof row.cells?.[0] === 'string' ? (row.cells[0] as string) : undefined);
+  const text = raw?.replace(/\s+/g, ' ').trim();
+  if (!text) return undefined;
+  return text.length > 60 ? `${text.slice(0, 57)}...` : text;
+}
+
+export function AdminRowActions({ actions, stack = false, subject }: { actions: AdminRowAction[]; stack?: boolean; subject?: string }) {
   return (
     <div className={cn('flex shrink-0 items-center gap-1.5', stack ? 'flex-wrap justify-start sm:flex-nowrap sm:justify-end' : 'justify-end')}>
       {actions.map((action) => (
@@ -91,6 +101,7 @@ export function AdminRowActions({ actions, stack = false }: { actions: AdminRowA
           )}
         >
           {action.label}
+          {subject ? <span className="sr-only"> {subject}</span> : null}
         </button>
       ))}
     </div>
@@ -125,6 +136,9 @@ export interface AdminTableRow {
   /** Makes the whole row a link (the first cell is the link, stretched over
    *  the row) with a quiet chevron on the right. Row actions stay clickable. */
   href?: string;
+  /** What the row is about, read after each action's label by screen readers.
+   *  Defaults to the first cell when that is plain text. */
+  subject?: string;
 }
 
 export interface AdminTableProps {
@@ -218,7 +232,7 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
 
             {readOnly ? null : (
               <span role="cell" className={cn(row.href && 'relative z-10')}>
-                <AdminRowActions actions={row.actions ?? []} />
+                <AdminRowActions actions={row.actions ?? []} subject={rowSubject(row)} />
               </span>
             )}
             {hasHref ? (
@@ -270,7 +284,7 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
 
             {readOnly ? null : row.actions?.length ? (
               <div className={cn(row.href && 'relative z-10')}>
-                <AdminRowActions actions={row.actions} stack />
+                <AdminRowActions actions={row.actions} stack subject={rowSubject(row)} />
               </div>
             ) : null}
           </div>
