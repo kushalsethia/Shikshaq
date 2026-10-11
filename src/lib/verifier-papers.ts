@@ -224,10 +224,12 @@ export function normaliseProfile(raw: unknown): VerifierProfile | null {
  *  A failed read must never be treated as "no rows" or "no details yet": the
  *  profile save is a full overwrite, and "Paper finished" must not appear
  *  while the list that says what is left has not arrived. */
-export function loadGate(q: { isLoading: boolean; isError: boolean; data?: unknown }): 'loading' | 'error' | 'ready' {
-  if (q.isLoading) return 'loading';
-  if (q.isError && q.data === undefined) return 'error';
-  return 'ready';
+export function loadGate(q: { isError: boolean; data?: unknown }): 'loading' | 'error' | 'ready' {
+  // Ready only once there is an answer (null is an answer: "no row yet"). A
+  // query that has neither data nor an error is still on its way, whatever
+  // its fetch flags say, so the blank case can never be mistaken for a result.
+  if (q.data !== undefined) return 'ready';
+  return q.isError ? 'error' : 'loading';
 }
 
 /** The sign-in page's `redirect` target for the verifier screens: the page the

@@ -20,11 +20,12 @@ describe('the verifier home when a read fails', () => {
   });
 
   it('loadGate: a failed first read is an error, a failed refetch with old data is not', () => {
-    expect(loadGate({ isLoading: true, isError: false, data: undefined })).toBe('loading');
-    expect(loadGate({ isLoading: false, isError: true, data: undefined })).toBe('error');
-    expect(loadGate({ isLoading: false, isError: true, data: { grade: 9 } })).toBe('ready');
-    // "No profile row yet" is a real answer (null), not a failure.
-    expect(loadGate({ isLoading: false, isError: false, data: null })).toBe('ready');
+    expect(loadGate({ isError: false, data: undefined })).toBe('loading');
+    expect(loadGate({ isError: true, data: undefined })).toBe('error');
+    expect(loadGate({ isError: true, data: { grade: 9 } })).toBe('ready');
+    // "No profile row yet" is a real answer (null), not a failure and not "still loading".
+    expect(loadGate({ isError: false, data: null })).toBe('ready');
+    expect(loadGate({ isError: false, data: [] })).toBe('ready');
   });
 
   it('isPaperChecker throws on an RPC error instead of saying "not a verifier"', async () => {
