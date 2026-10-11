@@ -21,6 +21,7 @@ import {
   type FeedRow,
   type PipelineApi,
   type PipelineStats,
+  readPipeline,
 } from '@/lib/pipeline-stats';
 import { realPipelineApi } from '@/lib/pipeline-api';
 import { PaperRegistryPanel, type RegistrySummaryStatus } from '@/components/admin/PaperRegistryPanel';
@@ -79,7 +80,7 @@ function Tile({
   tone?: Tone;
   /** Makes the tile a link to the list behind the number. */
   to?: string;
-  /** Makes the tile a button (scrolls or filters in this page). */
+  /** Makes the tile a button (scrolls or filters in this page). Its body is spans only: a button cannot hold a div or a p. */
   onClick?: () => void;
   /** 'unknown' shows "?": a number that did not load is never shown as 0. */
   state?: 'ok' | 'loading' | 'unknown';
@@ -87,16 +88,16 @@ function Tile({
   const t = TONE[tone];
   const body = (
     <>
-      <div className="flex items-start justify-between gap-2">
-        <p className={cn('text-[12px] font-semibold uppercase tracking-wide', t.label)}>{label}</p>
+      <span className="flex items-start justify-between gap-2">
+        <span className={cn('block text-[12px] font-semibold uppercase tracking-wide', t.label)}>{label}</span>
         {to || onClick ? <ArrowRight className={cn('mt-0.5 h-4 w-4 shrink-0', t.label)} aria-hidden /> : null}
-      </div>
+      </span>
       {state === 'loading' ? (
-        <div className="mt-2 h-7 w-16 animate-pulse rounded-lg bg-card/60 motion-reduce:animate-none" role="status" aria-label={`Loading ${label}`} />
+        <span className="mt-2 block h-7 w-16 animate-pulse rounded-lg bg-card/60 motion-reduce:animate-none" role="status" aria-label={`Loading ${label}`} />
       ) : (
-        <p className={cn('mt-1 text-2xl font-bold tabular-nums', t.value)}>{state === 'unknown' ? '?' : value}</p>
+        <span className={cn('mt-1 block text-2xl font-bold tabular-nums', t.value)}>{state === 'unknown' ? '?' : value}</span>
       )}
-      {sub ? <p className={cn('mt-0.5 text-[13px]', t.sub)}>{state === 'unknown' ? 'Did not load' : sub}</p> : null}
+      {sub ? <span className={cn('mt-0.5 block text-[13px]', t.sub)}>{state === 'unknown' ? 'Did not load' : sub}</span> : null}
     </>
   );
   const box = cn('block min-h-[78px] w-full min-w-0 rounded-2xl px-4 py-3 text-left', t.box);
@@ -156,7 +157,7 @@ function StackLegend({ counts }: { counts: { verified: number; needs_review: num
 }
 
 /** 30 small bars for one daily series, drawn as plain SVG (no chart library). */
-function DayBars({ points, field, label, barClass }: {
+export function DayBars({ points, field, label, barClass }: {
   points: DailyPoint[];
   field: 'papers_added' | 'desk_papers' | 'questions_cleared';
   label: string;
@@ -186,7 +187,7 @@ function DayBars({ points, field, label, barClass }: {
       </svg>
       <div className="mt-1 flex justify-between text-[12px] text-warm-label">
         <span>{points[0] ? format(new Date(points[0].day), 'd MMM') : ''}</span>
-        <span>today</span>
+        <span>{points.length ? format(new Date(points[points.length - 1].day), 'd MMM') : ''}</span>
       </div>
     </div>
   );
@@ -203,7 +204,6 @@ export function AttentionStrip({
   notStarted,
   registryStatus,
   onShowNotStarted,
-  onShowRegistry,
   onRetry,
 }: {
   stats: PipelineStats | null;
@@ -212,7 +212,6 @@ export function AttentionStrip({
   notStarted: number | null;
   registryStatus: RegistrySummaryStatus;
   onShowNotStarted: () => void;
-  onShowRegistry: () => void;
   onRetry: () => void;
 }) {
   const q = stats?.queues;
@@ -221,7 +220,7 @@ export function AttentionStrip({
   const regState: 'ok' | 'loading' | 'unknown' = registryStatus === 'ok' && notStarted !== null ? 'ok' : registryStatus === 'loading' ? 'loading' : 'unknown';
   return (
     <BentoPanel fill="card" className={PANEL}>
-      <AdminPanelHeader title="Needs attention" subtitle="Where work is waiting. Each number opens the list behind it." />
+      <AdminPanelHeader title="Needs attention" subtitle="Where work is waiting. A number with an arrow opens the list behind it." />
       <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-4" data-testid="needs-attention">
         <Tile
           label="Not started"
@@ -251,7 +250,6 @@ export function AttentionStrip({
           value={desk?.new_scans.toLocaleString()}
           sub="papers read from fresh scans"
           state={statState}
-          onClick={onShowRegistry}
         />
       </div>
       {status === 'error' ? (
@@ -322,9 +320,11 @@ export function AdminPipelinePage({
   const signedInName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'Signed-in admin';
   const [stats, setStats] = useState<PipelineStats | null>(null);
   const [feed, setFeed] = useState<FeedRow[]>([]);
+  // The log can fail on its own without blanking the numbers; a failed read is never shown as "no activity".
+  const [feedFailed, setFeedFailed] = useState(false);
   const [status, setStatus] = useState<StatsStatus>('loading');
   const [registry, setRegistry] = useState<{ summary: RegistrySummary | null; status: RegistrySummaryStatus }>({ summary: null, status: 'loading' });
-  const [focus, setFocus] = useState<{ state: ProcessedState | null; nonce: number } | null>(null);
+  const [focus, setFocus] = useState<{ states: ProcessedState[]; nonce: number } | null>(null);
   // The paper list and the library numbers are folded away under the route. A stop that filters the list opens the fold.
   const [foldOpen, setFoldOpen] = useState(false);
 
@@ -345,9 +345,10 @@ export function AdminPipelinePage({
   async function load() {
     setStatus('loading');
     try {
-      const [s, f] = await Promise.all([api.stats(), api.feed(40)]);
+      const { stats: s, feed: f } = await readPipeline(api, 40);
       setStats(s);
-      setFeed(f);
+      setFeed(f ?? []);
+      setFeedFailed(f === null);
       setStatus('ok');
     } catch (e) {
       if (import.meta.env.DEV) console.error('pipeline stats', e);
@@ -356,9 +357,9 @@ export function AdminPipelinePage({
   }
 
   const onSummary = useCallback((summary: RegistrySummary | null, st: RegistrySummaryStatus) => setRegistry({ summary, status: st }), []);
-  const showRegistry = (state: ProcessedState | null) => {
+  const showRegistry = (states: ProcessedState[]) => {
     setFoldOpen(true);
-    setFocus({ state, nonce: Date.now() });
+    setFocus({ states, nonce: Date.now() });
   };
 
   // The list may have been folded a moment ago, so scroll once the fold has opened.
@@ -461,8 +462,7 @@ export function AdminPipelinePage({
           status={status}
           notStarted={registry.summary ? headlineCounts(registry.summary).notStarted : null}
           registryStatus={registry.status}
-          onShowNotStarted={() => showRegistry('not_started')}
-          onShowRegistry={() => showRegistry(null)}
+          onShowNotStarted={() => showRegistry(['not_started'])}
           onRetry={() => void load()}
         />
 
@@ -548,7 +548,7 @@ export function AdminPipelinePage({
           title="Activity"
           subtitle="The latest things the desk, the AI and people did."
           meta={stats ? `most recent ${feed.length}` : undefined}
-          status={status}
+          status={status === 'ok' && feedFailed ? 'error' : status}
           what="the activity"
           onRetry={() => void load()}
           shape="table"

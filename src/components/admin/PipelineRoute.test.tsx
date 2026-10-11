@@ -124,7 +124,7 @@ describe('the route with the example payload', () => {
 
   it('stops that filter the list are real buttons, with a label that says what they show', () => {
     expect(html).toMatch(/<button type="button"[^>]*>In the folder<span class="sr-only">\. Show every paper in the list<\/span>/);
-    expect(t).toContain('Show the not started papers in the list');
+    expect(t).toContain('Show the not started papers and the reading queue in the list');
   });
 
   it('says when it was updated, and has a live dot and a Refresh button', () => {
@@ -247,13 +247,13 @@ describe('clicking a stop', () => {
     const onShow = vi.fn();
     const card = StopCard({ stop: stop('waiting'), animate: false, onShowRegistry: onShow });
     findButton(card)?.onClick?.();
-    expect(onShow).toHaveBeenCalledWith('not_started');
+    expect(onShow).toHaveBeenCalledWith(['not_started', 'ocr_queued']);
   });
 
   it('the folder stop shows every paper', () => {
     const onShow = vi.fn();
     findButton(StopCard({ stop: stop('folder'), animate: false, onShowRegistry: onShow }))?.onClick?.();
-    expect(onShow).toHaveBeenCalledWith(null);
+    expect(onShow).toHaveBeenCalledWith([]);
   });
 
   it('a stop with nowhere to go has no button and no link', () => {

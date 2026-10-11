@@ -13,7 +13,7 @@ vi.mock('@/lib/admin-debug', () => ({
 
 import { AuditPanel } from '@/pages/admin/audit';
 import { ActivityItem } from '@/pages/admin/activity';
-import { AttentionStrip, StatsPanel } from '@/pages/admin/pipeline';
+import { AttentionStrip, DayBars, StatsPanel } from '@/pages/admin/pipeline';
 import { describeAction } from '@/lib/audit-describe';
 import { AUDIT_LIMIT, type AuditRow } from '@/lib/audit-api';
 import { createFakeAuditApi } from '@/dummy/audit-fake-api';
@@ -160,7 +160,7 @@ describe('pipeline panels', () => {
 
   it('a stats number that did not load is "?", never 0, and offers Try again', async () => {
     const html = wrap(
-      <AttentionStrip stats={null} status="error" notStarted={46} registryStatus="ok" onShowNotStarted={noop} onShowRegistry={noop} onRetry={noop} />,
+      <AttentionStrip stats={null} status="error" notStarted={46} registryStatus="ok" onShowNotStarted={noop} onRetry={noop} />,
     );
     const t = text(html);
     expect(t).toContain('Needs attention');
@@ -173,7 +173,7 @@ describe('pipeline panels', () => {
   it('the strip is a set of links to the lists behind the numbers', async () => {
     const stats = await createFakePipelineApi('full', 0).stats();
     const html = wrap(
-      <AttentionStrip stats={stats} status="ok" notStarted={46} registryStatus="ok" onShowNotStarted={noop} onShowRegistry={noop} onRetry={noop} />,
+      <AttentionStrip stats={stats} status="ok" notStarted={46} registryStatus="ok" onShowNotStarted={noop} onRetry={noop} />,
     );
     expect(html).toContain('href="/admin/admin-queue"');
     expect(html).toContain('href="/admin/team"');
@@ -187,7 +187,7 @@ describe('pipeline panels', () => {
 
   it('while the numbers load, tiles show a placeholder, not a number', () => {
     const html = wrap(
-      <AttentionStrip stats={null} status="loading" notStarted={null} registryStatus="loading" onShowNotStarted={noop} onShowRegistry={noop} onRetry={noop} />,
+      <AttentionStrip stats={null} status="loading" notStarted={null} registryStatus="loading" onShowNotStarted={noop} onRetry={noop} />,
     );
     expect(html).toContain('role="status"');
     expect(text(html)).not.toContain(' 0 ');
@@ -213,5 +213,48 @@ describe('pipeline panels', () => {
     expect(page.indexOf('<AttentionStrip')).toBeGreaterThan(-1);
     expect(page.indexOf('<AttentionStrip')).toBeLessThan(page.indexOf('<PaperRegistryPanel'));
     expect(page.indexOf('<PaperRegistryPanel')).toBeLessThan(page.indexOf('title="Papers library"'));
+  });
+
+  it('New scans has no list behind it, so it is a plain tile and the strip does not claim otherwise', async () => {
+    const stats = await createFakePipelineApi('full', 0).stats();
+    const html = wrap(<AttentionStrip stats={stats} status="ok" notStarted={46} registryStatus="ok" onShowNotStarted={() => {}} onRetry={() => {}} />);
+    const scans = html.slice(html.indexOf('New scans') - 200);
+    expect(scans).toContain('papers read from fresh scans');
+    // the three tiles with a list behind them: Not started (button) and the two links
+    expect((html.match(/<button/g) ?? []).length).toBe(1);
+    expect((html.match(/<a /g) ?? []).length).toBe(2);
+    expect(text(html)).not.toContain('Each number opens');
+  });
+
+  it('a tile that is a button holds only phrasing content: no div or p inside the button', async () => {
+    const stats = await createFakePipelineApi('full', 0).stats();
+    for (const props of [{ status: 'ok' as const }, { status: 'loading' as const }]) {
+      const html = wrap(
+        <AttentionStrip stats={props.status === 'ok' ? stats : null} status={props.status} notStarted={46} registryStatus={props.status}
+          onShowNotStarted={() => {}} onRetry={() => {}} />,
+      );
+      for (const button of html.match(/<button[\s\S]*?<\/button>/g) ?? []) {
+        expect(button).not.toMatch(/<(div|p|h\d|ul)[ >]/);
+      }
+    }
+  });
+
+  it('the last bar of a chart is labelled with its date, not "today"', () => {
+    const points = [
+      { day: '2026-10-01', papers_added: 1, desk_papers: 0, questions_cleared: 0 },
+      { day: '2026-10-12', papers_added: 2, desk_papers: 0, questions_cleared: 0 },
+    ];
+    const t = text(wrap(<DayBars points={points} field="papers_added" label="Papers added" barClass="x" />));
+    expect(t).toContain('1 Oct');
+    expect(t).toContain('12 Oct');
+    expect(t).not.toContain('today');
+  });
+
+  it('a failed activity log shows the error with Try again, not "No activity recorded yet"', () => {
+    const src = readFileSync('src/pages/admin/pipeline.tsx', 'utf8');
+    expect(src).toMatch(/status=\{status === 'ok' && feedFailed \? 'error' : status\}\s+what="the activity"/);
+    const html = wrap(<StatsPanel title="Activity" status="error" what="the activity" onRetry={() => {}}><p>No activity recorded yet</p></StatsPanel>);
+    expect(text(html)).toContain('The activity did not load.');
+    expect(text(html)).not.toContain('No activity recorded yet');
   });
 });
