@@ -109,6 +109,20 @@ well as a laptop. Mistakes must be cheap and say so in plain words:
   only the word. The preview says the OR is left out.
 - The help page, the first-visit tour and the practice round all teach these
   three, and the practice round stays local (no network, nothing saved).
+- **Two sides that cannot be mixed up** (owner, 11 October 2026: "not clear as
+  to which is the picture"). The typed words sit in a plain neutral card with the
+  chip "Typed by the computer"; the printed paper sits in a brand-framed box with
+  the chip "Photo of the printed paper". On a phone they are two big tabs, Typed
+  and Printed (Printed first), over the same question. Question number and marks
+  are chips at the top of the typed card and become boxes in Fix mode.
+- **The tools are in words, always visible**: Fix the words, Split into two
+  questions, Edit a formula, This is just the OR, each with a one-line
+  explanation on hover and focus (`src/lib/checker-tools.ts`, also on the Help page).
+- **The box on the printed page is only drawn when it can be trusted**
+  (`src/lib/checker-highlight.ts`): a verified page, a matched crop, a bbox that
+  fits the page. Otherwise the page shows with no box and says nothing about one.
+- **What the computer changed** and its first reading are shown only when the row
+  has them (`raw_ocr`, `source.edit_log`); older rows show nothing extra.
 
 ## Severity
 

@@ -297,3 +297,80 @@ export const FIX_RULE_NOTE =
   'Make it match the printed paper exactly: fix wrong letters, numbers or symbols, and add words that are missing. Do not reword it, fix its grammar or make it better, even if the paper has a mistake.';
 export const BIG_EDIT_WARNING =
   "You changed a lot. Only fix reading mistakes so it matches the paper exactly. If the words are too broken to fix, press Ask the HOD instead.";
+
+/* ---------------------------------------------------------------------------
+   Marks left inside the text. The pipeline is meant to lift "[3]" out of the
+   words and into the Marks box, but some rows still carry it ("Find x. [3]",
+   "(2 marks)", "$[1 \times 10 = 10]$"). Owner, 11 Oct 2026: "the marks is right
+   there in the square bracket ... these are patterns that you need to fix".
+
+   Nothing here rewrites words. findMarksInBody() only recognises ONE marks
+   token at the very end of the text, and moveMarksOut() cuts exactly those
+   characters out; every other character stays, which the tests prove by
+   putting the token back. Anything unclear (two tokens, a token in the middle,
+   a word glued to the bracket as in the code "a[5]") is left alone. */
+
+const MARKS_NUM = String.raw`\d{1,3}(?:\.\d{1,2})?`;
+const MARKS_TIMES = String.raw`(?:x|X|×|\\times|\\cdot|\*)`;
+// The printed shapes, each with the number that is the marks in a capture group.
+const MARKS_PLAIN = [
+  String.raw`\[\s*(${MARKS_NUM})\s*(?:marks?)?\s*\]`,
+  String.raw`\(\s*(${MARKS_NUM})\s*marks?\s*\)`,
+  String.raw`\[\s*${MARKS_NUM}\s*${MARKS_TIMES}\s*${MARKS_NUM}\s*=\s*(${MARKS_NUM})\s*\]`,
+];
+// Each shape may be wrapped in maths delimiters: $[3]$ or \([3]\).
+const MARKS_SHAPES = MARKS_PLAIN.flatMap((p) => [
+  String.raw`\$\s*${p}\s*\$`,
+  String.raw`\\\(\s*${p}\s*\\\)`,
+  p,
+]);
+
+export interface MarksInBody {
+  /** The marks the token states. */
+  marks: number;
+  /** The exact characters of the token, delimiters included. */
+  token: string;
+  /** Code unit range of the token in the body (slice-ready). */
+  start: number;
+  end: number;
+}
+
+/** The single marks token at the end of a body, or null. Null as well when the
+ *  body holds more than one marks-looking token (marks per part: leave them),
+ *  when the token is not the last thing in the text, or when it is glued to a
+ *  word like code (a[5]). */
+export function findMarksInBody(body: string | null | undefined): MarksInBody | null {
+  const text = body ?? '';
+  if (!text) return null;
+  const re = new RegExp(MARKS_SHAPES.join('|'), 'g');
+  const found: { start: number; end: number; marks: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    // The marks number is whichever capture group matched.
+    const raw = m.slice(1).find((g) => g !== undefined);
+    found.push({ start: m.index, end: m.index + m[0].length, marks: raw === undefined ? NaN : Number(raw) });
+  }
+  if (found.length !== 1) return null;
+  const hit = found[0];
+  if (!Number.isFinite(hit.marks) || !(hit.marks > 0) || hit.marks > 200) return null;
+  if (text.slice(hit.end).trim() !== '') return null; // must be the last thing
+  const before = hit.start > 0 ? text[hit.start - 1] : '';
+  if (before && /[A-Za-z0-9_\])]/.test(before)) return null; // a[5], f(x)[2]: not marks
+  return { marks: hit.marks, token: text.slice(hit.start, hit.end), start: hit.start, end: hit.end };
+}
+
+/** True when a body still carries its marks inside the words. */
+export function hasMarksInBody(body: string | null | undefined): boolean {
+  return findMarksInBody(body) !== null;
+}
+
+/** The body with just the marks token cut out, and the marks it stated.
+ *  `body` is the original with exactly `token` removed: nothing else moves. */
+export function moveMarksOut(body: string): { body: string; marks: number; token: string } | null {
+  const hit = findMarksInBody(body);
+  if (!hit) return null;
+  return { body: body.slice(0, hit.start) + body.slice(hit.end), marks: hit.marks, token: hit.token };
+}
+
+export const MARKS_INSIDE_HINT = 'The marks are inside the text. Move them to the Marks box.';
+export const MARKS_MOVE_BUTTON = 'Move marks out';

@@ -21,6 +21,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   ),
 }));
 
+import { findMarksInBody, moveMarksOut } from '@/lib/checker-body';
 import {
   ACTION_NAMES,
   PRACTICE_QUESTIONS,
@@ -130,9 +131,9 @@ function rightAnswer(q: PracticeQuestion): PracticeAnswer {
 }
 
 describe('practice questions', () => {
-  it('has 5 to 10 questions, each with its own id', () => {
+  it('has 5 to 12 questions, each with its own id', () => {
     expect(PRACTICE_QUESTIONS.length).toBeGreaterThanOrEqual(5);
-    expect(PRACTICE_QUESTIONS.length).toBeLessThanOrEqual(10);
+    expect(PRACTICE_QUESTIONS.length).toBeLessThanOrEqual(12);
     expect(new Set(PRACTICE_QUESTIONS.map((q) => q.id)).size).toBe(PRACTICE_QUESTIONS.length);
   });
 
@@ -212,6 +213,36 @@ describe('practice questions', () => {
     expect(evaluatePracticeAnswer(q, { action: 'skip' }).correct).toBe(true);
     expect(evaluatePracticeAnswer(q, { action: 'skip' }, true).correct).toBe(false);
     expect(evaluatePracticeAnswer(q, { action: 'help' }, true).correct).toBe(true);
+  });
+
+  it('teaches Move marks out: marks typed inside the words are a Fix it, and both must be put right', () => {
+    const q = PRACTICE_QUESTIONS.find((x) => x.id === 'practice-10')!;
+    expect(q.correct).toBe('fix');
+    expect(findMarksInBody(q.body)?.marks).toBe(q.fixedMarks);
+    // What the Move marks out button produces is exactly the right answer.
+    const moved = moveMarksOut(q.body)!;
+    expect(evaluatePracticeAnswer(q, { action: 'fix', body: moved.body, marks: moved.marks }).correct).toBe(true);
+    // Only the words fixed, marks box still empty: wrong, and it names the marks.
+    const half = evaluatePracticeAnswer(q, { action: 'fix', body: moved.body, marks: null });
+    expect(half.correct).toBe(false);
+    expect(half.explanation).toMatch(/marks/);
+    // Only the marks typed, token still in the words: wrong, and it names the words.
+    const other = evaluatePracticeAnswer(q, { action: 'fix', body: q.body, marks: 1 });
+    expect(other.correct).toBe(false);
+    expect(other.explanation).toContain(q.fixedBody!);
+  });
+
+  it('teaches What the computer changed and Edit a formula: a wrong change in the list, a formula to put right', () => {
+    const q = PRACTICE_QUESTIONS.find((x) => x.id === 'practice-11')!;
+    expect(q.rawOcr).toBeTruthy();
+    expect(q.editLog?.some((e) => e.kind === 'fixed_ocr_word')).toBe(true);
+    expect(q.body).toContain('$');
+    expect(evaluatePracticeAnswer(q, rightAnswer(q)).correct).toBe(true);
+    // The keypad rewrites spacing and braces; that is still the same formula.
+    const keypad = evaluatePracticeAnswer(q, { action: 'fix', body: '11. Solve: $x^{2}-5x+6=0$', marks: 2 });
+    expect(keypad.correct).toBe(true);
+    // The wrong formula left as it is stays wrong.
+    expect(evaluatePracticeAnswer(q, { action: 'fix', body: q.body, marks: 2 }).correct).toBe(false);
   });
 
   it('Undo last is local: the fake only remembers which answer was taken back', () => {

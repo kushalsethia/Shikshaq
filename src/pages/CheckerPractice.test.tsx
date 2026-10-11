@@ -17,7 +17,7 @@ describe('practice round screen', () => {
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*data-testid="practice-undo"|<button[^>]*data-testid="practice-undo"[^>]*disabled=""/);
   });
 
-  it('starts on the first question of nine', () => {
-    expect(html).toContain('Question 1 of 9');
+  it('starts on the first question of eleven', () => {
+    expect(html).toContain('Question 1 of 11');
   });
 });

@@ -8,7 +8,8 @@
  * drift from what the Fix screen tells a checker.
  */
 
-import { FIX_RULE_NOTE } from '@/lib/checker-body';
+import { FIX_RULE_NOTE, MARKS_MOVE_BUTTON } from '@/lib/checker-body';
+import { CHECKER_TOOLS } from '@/lib/checker-tools';
 import { TYPO_CHECKBOX_LABEL, TYPO_RULE_NOTE } from '@/lib/checker-save';
 import { CHECKER_SHORTCUTS, type CheckerAction } from '@/lib/checker-shortcuts';
 
@@ -49,7 +50,7 @@ export function markWalkthroughSeen(userId: string): void {
 
 export interface WalkthroughStep {
   /** Matches `data-tour="..."` on the real element in Checker.tsx. */
-  target: 'paper' | 'picture' | 'question' | 'pass' | 'fix' | 'help' | 'skip' | 'undo';
+  target: 'paper' | 'picture' | 'question' | 'tools' | 'changes' | 'pass' | 'fix' | 'help' | 'skip' | 'undo';
   title: string;
   body: string;
 }
@@ -63,13 +64,23 @@ export const WALKTHROUGH_STEPS: WalkthroughStep[] = [
   },
   {
     target: 'picture',
-    title: 'This is the printed page',
-    body: 'It is the picture of the real paper. It is always right. Your job is to make the typed words match it.',
+    title: 'This is the printed paper',
+    body: 'The orange box holds a photo of the real paper. It is always right. When the whole page is shown, a box on it marks where the computer found this question. Your job is to make the typed words match the photo. On a phone, use the Typed and Printed tabs to switch.',
   },
   {
     target: 'question',
     title: 'This is what the computer typed',
-    body: 'Read it against the picture, slowly. Look at the words, the numbers and the marks.',
+    body: 'Read it against the photo, slowly. The question number and the marks are at the top. Look at the words, the numbers and the marks.',
+  },
+  {
+    target: 'tools',
+    title: 'The tools',
+    body: 'Fix the words, Split into two questions, Edit a formula, and This is just the OR. Point at one to see what it does. Each one opens the right box for you.',
+  },
+  {
+    target: 'changes',
+    title: 'What the computer changed',
+    body: 'Open this to see what the computer tidied up, and to look at its very first reading. If a change made the words differ from the paper, fix it.',
   },
   {
     target: 'pass',
@@ -128,7 +139,15 @@ export const CHECKER_RULES: CheckerRule[] = [
   },
   {
     title: 'Two questions in one box',
-    body: 'If the typed text is really two questions joined together, press "Split here, these look like two questions", tap where the second one starts and press Split here. If the two are joined by the word OR, tap just before or just after that OR: the OR is left out and the two questions are kept together as an either/or pair. A row that is only the word OR has its own button, "This is just the OR between two questions".',
+    body: 'If the typed text is really two questions joined together, press "Split into two questions", tap where the second one starts and press Split here. If the two are joined by the word OR, tap just before or just after that OR: the OR is left out and the two questions are kept together as an either/or pair. A row that is only the word OR has its own button, "This is just the OR".',
+  },
+  {
+    title: 'Marks go in the Marks box',
+    body: `If the marks are written inside the typed words, like [3] at the end, a note says so. Press ${MARKS_MOVE_BUTTON}. It takes just the marks out of the words and puts the number in the Marks box. Nothing else changes.`,
+  },
+  {
+    title: 'Fix formulas with the formula keypad',
+    body: 'Press Edit a formula to change a fraction, a power or a root without typing any code. Select some words first to turn them into a formula. A box under the keypad shows how readers will see it.',
   },
 ];
 
@@ -146,20 +165,33 @@ export const CHECKER_HELP_EXTRAS: CheckerRule[] = [
   },
   {
     title: 'Split at the OR',
-    body: 'When two questions are joined by the word OR, press "Split here, these look like two questions" and tap just before or just after the OR. The word OR is left out, and the two questions are kept together as an either/or pair. Nothing else in the words changes.',
+    body: 'When two questions are joined by the word OR, press "Split into two questions" and tap just before or just after the OR. The word OR is left out, and the two questions are kept together as an either/or pair. Nothing else in the words changes.',
   },
   {
     title: 'This is just the OR',
-    body: 'If a row contains only the word OR and nothing else, press "This is just the OR between two questions". The row is set aside, and the question above and the one below are linked as an either/or pair.',
+    body: 'If a row contains only the word OR and nothing else, press "This is just the OR". The row is set aside, and the question above and the one below are linked as an either/or pair.',
+  },
+  {
+    title: 'What the computer changed',
+    body: 'Under the typed words, "What the computer changed" lists what the computer tidied up before you got the question, like joining broken lines or fixing a word. "Show the computer\'s first reading" shows what it read from the picture before it tidied anything. Older questions do not have this. Always check against the printed paper, not against this list.',
+  },
+  {
+    title: 'The box on the printed page',
+    body: 'When the whole page is shown, a box on it marks where the computer found the question. It can be a little off, so read the whole area. If there is no box, the computer does not know where the question is, so find it yourself.',
   },
 ];
+
+/* ---- the tools, read from checker-tools.ts ------------------------------- */
+
+/** One entry per tool under the typed words, for the help page. */
+export const CHECKER_TOOL_RULES: CheckerRule[] = CHECKER_TOOLS.map((t) => ({ title: t.label, body: t.help }));
 
 /* ---- the shortcut table, read from checker-shortcuts.ts ---------------- */
 
 export const ACTION_LABELS: Record<CheckerAction, string> = {
   pass: 'Looks right',
   fix: 'Fix it',
-  split: 'Split here',
+  split: 'Split into two questions',
   help: 'Ask the HOD',
   skip: 'Skip this question',
   undo: 'Undo last',

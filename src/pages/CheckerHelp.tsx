@@ -7,6 +7,7 @@ import {
   CHECKER_PATH,
   CHECKER_PRACTICE_PATH,
   CHECKER_RULES,
+  CHECKER_TOOL_RULES,
   CHECKER_TOUR_PARAM,
   shortcutRows,
 } from '@/lib/checker-onboarding';
@@ -39,7 +40,22 @@ export default function CheckerHelp() {
           ))}
         </ol>
 
-        <h2 className="mb-2 mt-6 text-[16px] font-bold text-foreground">Taking back, skipping and OR</h2>
+        <h2 id="tools" className="mb-1 mt-6 scroll-mt-24 text-[16px] font-bold text-foreground">
+          The tools under the typed words
+        </h2>
+        <p className="mb-2 text-[13px] text-warm-secondary">
+          They are always on the screen, in words. Point at one, or tab to it, and a line says what it does.
+        </p>
+        <ul className="flex flex-col gap-2" data-testid="checker-tools-help">
+          {CHECKER_TOOL_RULES.map((r) => (
+            <li key={r.title} className="rounded-[12px] bg-muted p-3">
+              <p className="text-[14px] font-semibold text-foreground">{r.title}</p>
+              <p className="mt-0.5 text-pretty text-[14px] leading-snug text-warm-secondary">{r.body}</p>
+            </li>
+          ))}
+        </ul>
+
+        <h2 className="mb-2 mt-6 text-[16px] font-bold text-foreground">Taking back, skipping, OR and more</h2>
         <ul className="flex flex-col gap-2" data-testid="checker-help-extras">
           {CHECKER_HELP_EXTRAS.map((r) => (
             <li key={r.title} className="rounded-2xl bg-muted p-3">
@@ -65,7 +81,7 @@ export default function CheckerHelp() {
             </div>
           ))}
         </div>
-        <p className="mt-2 text-[12px] text-warm-meta">Split here only appears on a question that looks like two joined together.</p>
+        <p className="mt-2 text-[12px] text-warm-meta">Split into two questions only works on a question that has words to split.</p>
 
         <div className="mt-6 flex flex-wrap items-center gap-2.5">
           <Link to={CHECKER_PRACTICE_PATH} className={actionToneClass('brand')}>

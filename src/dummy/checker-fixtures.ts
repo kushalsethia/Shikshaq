@@ -76,7 +76,23 @@ export function dummyQuestions(): CheckerQuestion[] {
       marks: 3,
       body: '6. Find the value of $k$ if the points $(2, 3)$, $(4, k)$ and $(6, -3)$ are collinear.',
       flag_reasons: ['snippet_unaligned', 'display_number_missing'],
-      source: { page: 3, page_verified: true, align_score: 0.41, snippet_object: 'dummy/q-not-shown.png' },
+      // A doubtful match: the page is shown, but with no box drawn on it. It also
+      // carries the new pipeline data: the computer's first reading and its change log.
+      raw_ocr: '6. Find the value of k if the points (2, 3),\n(4, k) and (6, -3) are coll1near. [3]',
+      source: {
+        page: 3,
+        page_verified: true,
+        align_score: 0.41,
+        snippet_object: 'dummy/q-not-shown.png',
+        dpi: 72,
+        bbox: [44, 134, 552, 180],
+        edit_log: [
+          { kind: 'joined_lines', from: '(2, 3),\n(4, k)', to: '(2, 3), (4, k)' },
+          { kind: 'fixed_ocr_word', from: 'coll1near', to: 'collinear' },
+          { kind: 'moved_marks', from: '[3]', to: '' },
+          { kind: 'normalised_format', from: '', to: '' },
+        ],
+      },
     }),
     // Lost text (PLAN_ROUND27 3.9): the words were lost, the AI transcribed the
     // page into flag_detail ("| suggestion: {...}"). The student sees that text
@@ -112,7 +128,8 @@ export function dummyQuestions(): CheckerQuestion[] {
       body: '7. A bag holds 4 red and 6 blue marbles. One is drawn at random. (i) What is the chance it is red? [1] (ii) What is the chance it is not blue? [1]',
       flag_reasons: ['marks_mismatch', 'figure_missing', 'chapter_unresolved'],
       flag_detail: JSON.stringify({ marks_mismatch: 'The marks may not match the paper.' }),
-      source: { page: 3, page_verified: true },
+      // An older row: no first reading and no change log. The page is shown with a box.
+      source: { page: 3, page_verified: true, dpi: 72, bbox: [44, 206, 552, 274] },
     }),
     // A trusted crop AND a verified page (owner round 24: the verified page
     // sits beside every question that has one). The made-up "printed paper"
@@ -123,10 +140,23 @@ export function dummyQuestions(): CheckerQuestion[] {
       display_number: '8',
       marks: 2,
       version: 3,
-      body: 'Factorise compleetly: $3x^2 - 12$',
+      body: 'Factorise compleetly: $3x^2 - 12$ [2]',
       flag_reasons: ['spelling_suspect'],
       flag_detail: JSON.stringify({ spelling_suspect: 'Computer check: "compleetly" may be misspelt on the paper itself.' }),
-      source: { page: 3, page_verified: true, align_score: 0.96, snippet_object: 'dummy/q-factorise.png' },
+      // The marks are still inside the text ("[2]"), so the screen offers Move marks out.
+      raw_ocr: 'Factorise compleetly: 3x^2 - l2\n[2]',
+      source: {
+        page: 3,
+        page_verified: true,
+        align_score: 0.96,
+        snippet_object: 'dummy/q-factorise.png',
+        dpi: 72,
+        bbox: [44, 300, 552, 324],
+        edit_log: [
+          { kind: 'fixed_ocr_word', from: 'l2', to: '12' },
+          { kind: 'joined_lines', from: 'l2\n[2]', to: '12 [2]' },
+        ],
+      },
     }),
     q({
       id: 'd0000001-0000-4000-8000-000000000001',
