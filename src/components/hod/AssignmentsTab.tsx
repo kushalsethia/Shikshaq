@@ -4,7 +4,9 @@ import { toast } from 'sonner';
 import { EmptyNote, ListSkeleton, LoadError, ago } from '@/components/hod/HodShared';
 import { PROFILES_KEY, TEAM_KEY } from '@/components/hod/VerifiersTab';
 import { useConfirm } from '@/components/ui/use-confirm';
+import { useAuth } from '@/lib/auth-context';
 import { actionToneClass } from '@/lib/checker-button-styles';
+import { capUnassigned, UNASSIGNED_SHOWN } from '@/lib/hod-desk';
 import { paperLabel } from '@/lib/checker-progress';
 import { formatGrade } from '@/lib/verifier-papers';
 import {
@@ -91,12 +93,17 @@ function PickVerifier({
 
 export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  /** The HOD's own id, for "Assign to me". In dummy mode there is no sign-in, so a fixed fake id stands in. */
+  const myId = user?.id ?? (scope === 'dummy' ? 'dummy-me' : null);
   const { confirm, confirmDialog } = useConfirm();
   const [busy, setBusy] = useState(false);
+  /** Set while the slow hand-out runs, so the button says what is happening. */
+  const [giving, setGiving] = useState(false);
   /** The server's reason for the last refusal, kept on screen (a toast is gone too fast to read). */
   const [refusal, setRefusal] = useState<string | null>(null);
   const assignmentsQ = useQuery({ queryKey: ASSIGNMENTS_KEY(scope), queryFn: () => api.assignments(), staleTime: 10_000, refetchOnMount: true });
-  const unassignedQ = useQuery({ queryKey: UNASSIGNED_KEY(scope), queryFn: () => api.unassignedPapers(200), staleTime: 10_000, refetchOnMount: true });
+  const unassignedQ = useQuery({ queryKey: UNASSIGNED_KEY(scope), queryFn: () => api.unassignedPapers(UNASSIGNED_SHOWN + 1), staleTime: 10_000, refetchOnMount: true });
   const teamQ = useQuery({ queryKey: TEAM_KEY(scope), queryFn: () => api.team(), staleTime: 15_000, refetchOnMount: true });
   const profilesQ = useQuery({ queryKey: PROFILES_KEY(scope), queryFn: () => api.profiles(), staleTime: 15_000, refetchOnMount: true });
   const profileOf = (id: string) => (profilesQ.data ?? []).find((p) => p.user_id === id);
@@ -121,6 +128,8 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
     } catch (err) {
       const raw = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : '';
       setRefusal(raw || 'That did not work. Try again.');
+      // A refusal often means the lists on screen are out of date.
+      refresh();
     } finally {
       setBusy(false);
     }
@@ -141,12 +150,25 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
     await act(() => api.unassign(a.assignment_id), () => 'Paper taken back.');
   }
 
-  if (assignmentsQ.isLoading || unassignedQ.isLoading) return <ListSkeleton label="Loading assignments" />;
+  /** Moving a paper takes it from its holder, so ask first, naming who loses it (like Unassign does). */
+  async function reassign(a: HodAssignment, toId: string, toName: string, done: string) {
+    const ok = await confirm({
+      title: `Move ${paperLabel(a)} from ${a.checker_name ?? 'this verifier'} to ${toName}?`,
+      description: `${a.checker_name ?? 'They'} will no longer have this paper. Work already done on it stays.`,
+      confirmLabel: 'Move it',
+    });
+    if (!ok) return;
+    await act(() => api.assignPaper(a.paper_id, toId), () => done);
+  }
+
+  if (assignmentsQ.isLoading || unassignedQ.isLoading || teamQ.isLoading) return <ListSkeleton label="Loading assignments" />;
   if (assignmentsQ.isError) return <LoadError what="The assignments" onRetry={() => void assignmentsQ.refetch()} />;
+  // Without the team every picker would be empty and read as "nobody to give it to".
+  if (teamQ.isError) return <LoadError what="The list of verifiers" onRetry={() => void teamQ.refetch()} />;
 
   const groups = groupByVerifier(assignmentsQ.data ?? []);
   const idle = verifiers.filter((m) => !groups.some((g) => g.user_id === m.user_id));
-  const free = unassignedQ.data ?? [];
+  const { shown: free, more: moreFree } = capUnassigned(unassignedQ.data ?? []);
 
   const row = (a: HodAssignment) => (
     <li key={a.assignment_id} className="rounded-2xl bg-card p-3" data-testid="assignment-row">
@@ -159,6 +181,16 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {myId && a.user_id !== myId ? (
+            <button
+              type="button"
+              disabled={busy}
+              className={actionToneClass('brand')}
+              onClick={() => void reassign(a, myId, 'you', 'Moved to you. Open it from My papers.')}
+            >
+              Take it myself
+            </button>
+          ) : null}
           <PickVerifier
             label="Move to another verifier"
             buttonLabel="Move"
@@ -166,7 +198,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
             options={verifiers.filter((m) => m.user_id !== a.user_id)}
             paperClass={a.cls}
             profileOf={profileOf}
-            onPick={(uid) => void act(() => api.assignPaper(a.paper_id, uid), () => `Moved to ${nameOf(uid)}.`)}
+            onPick={(uid) => void reassign(a, uid, nameOf(uid), `Moved to ${nameOf(uid)}.`)}
           />
           <button type="button" disabled={busy} onClick={() => void unassign(a)} className={actionToneClass('muted')}>
             Unassign
@@ -178,6 +210,14 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
 
   return (
     <div className="space-y-8">
+      {profilesQ.isError ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-muted px-4 py-3 text-[14px] text-foreground" data-testid="profiles-error">
+          <span>Grades and details did not load, so the pickers cannot grey out verifiers who are below a paper's class. The server still checks each move.</span>
+          <button type="button" onClick={() => void profilesQ.refetch()} className="tap-44 font-semibold text-brand-blue">
+            Try again
+          </button>
+        </div>
+      ) : null}
       {refusal ? (
         <div role="alert" className="flex items-start justify-between gap-3 rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive" data-testid="assign-refusal">
           <span>{refusal}</span>
@@ -230,15 +270,17 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
           <button
             type="button"
             disabled={busy}
+            aria-busy={giving || undefined}
             className={actionToneClass('mint')}
-            onClick={() =>
+            onClick={() => {
+              setGiving(true);
               void act(
                 () => api.distribute(),
                 (n) => (Number(n) > 0 ? `Gave out ${n} ${Number(n) === 1 ? 'paper' : 'papers'}.` : 'Nothing could be given out by the rules right now.'),
-              )
-            }
+              ).finally(() => setGiving(false));
+            }}
           >
-            Give out papers now
+            {giving ? 'Giving out papers...' : 'Give out papers now'}
           </button>
         </div>
         <p className="mb-2 text-[13px] text-warm-secondary">
@@ -251,6 +293,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         ) : free.length === 0 ? (
           <EmptyNote>Every paper with questions waiting has a verifier.</EmptyNote>
         ) : (
+          <>
           <ul className="space-y-2">
             {free.map((p: UnassignedPaper) => (
               <li key={p.paper_id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-muted p-3" data-testid="free-paper">
@@ -261,18 +304,36 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
                     {p.cls ? '' : ' · class not known'}
                   </p>
                 </div>
-                <PickVerifier
-                  label="Assign to"
-                  buttonLabel="Assign"
-                  busy={busy}
-                  options={verifiers}
-                  paperClass={p.cls}
-                  profileOf={profileOf}
-                  onPick={(uid) => void act(() => api.assignPaper(p.paper_id, uid), () => `Given to ${nameOf(uid)}.`)}
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  {myId ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className={actionToneClass('brand')}
+                      onClick={() => void act(() => api.assignPaper(p.paper_id, myId), () => 'Given to you. Open it from My papers.')}
+                    >
+                      Assign to me
+                    </button>
+                  ) : null}
+                  <PickVerifier
+                    label="Assign to"
+                    buttonLabel="Assign"
+                    busy={busy}
+                    options={verifiers}
+                    paperClass={p.cls}
+                    profileOf={profileOf}
+                    onPick={(uid) => void act(() => api.assignPaper(p.paper_id, uid), () => `Given to ${nameOf(uid)}.`)}
+                  />
+                </div>
               </li>
             ))}
           </ul>
+          {moreFree ? (
+            <p className="mt-2 rounded-2xl bg-muted px-4 py-3 text-[13px] text-warm-secondary" data-testid="free-more">
+              More papers than these have no verifier. This list shows the first {UNASSIGNED_SHOWN}, in subject and class order. Give some out and the rest come into view.
+            </p>
+          ) : null}
+          </>
         )}
       </section>
       {confirmDialog}

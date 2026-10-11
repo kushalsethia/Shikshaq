@@ -5,7 +5,21 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { ActionButton } from '@/components/checker/CheckerButtons';
 import { CHIP, actionToneClass } from '@/lib/checker-button-styles';
 import { cn } from '@/lib/utils';
-import { canSplitAt, codePointOffset, isOrOnlyBody, FIX_RULE_NOTE, FIX_RULE_TITLE, OR_ONLY_BUTTON, OR_ONLY_NOTE } from '@/lib/checker-body';
+import { BodyEditor } from '@/components/checker/BodyEditor';
+import { PanelTabs, PrintedFrame, TypedFrame, type PanelId } from '@/components/checker/Panels';
+import { ChangesSection, MarksInsideHint, QuestionChips, ToolsRow } from '@/components/checker/TypedBits';
+import { MathText } from '@/components/papers/math-text';
+import { toolBlockedByUnsavedEdit, toolById, type CheckerToolId } from '@/lib/checker-tools';
+import {
+  canSplitAt,
+  codePointOffset,
+  isOrOnlyBody,
+  moveMarksOut,
+  FIX_RULE_NOTE,
+  FIX_RULE_TITLE,
+  OR_ONLY_BUTTON,
+  OR_ONLY_NOTE,
+} from '@/lib/checker-body';
 import { matchCheckerKeyboardEvent, shortcutHint } from '@/lib/checker-shortcuts';
 import { CHECKER_HELP_PATH, CHECKER_PATH } from '@/lib/checker-onboarding';
 import {
@@ -50,8 +64,15 @@ export default function CheckerPractice() {
 export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart: () => void }) {
   const questions = useMemo(() => api.questions(), [api]);
   const [mode, setMode] = useState<Mode>('check');
+  const [panel, setPanel] = useState<PanelId>('printed');
+  const [fixTool, setFixTool] = useState<'fix' | 'formula'>('fix');
+  const [formulaReq, setFormulaReq] = useState<{ n: number; pending: boolean }>({ n: 0, pending: false });
+  const [editorKey, setEditorKey] = useState(0);
+  const [toolNote, setToolNote] = useState<string | null>(null);
   const [bodyDraft, setBodyDraft] = useState(questions[0].body);
   const [marksDraft, setMarksDraft] = useState(questions[0].marks === null ? '' : String(questions[0].marks));
+  // The question number box is only there to look like the real screen; practice marks the words and the marks.
+  const [numberDraft, setNumberDraft] = useState('');
   const [splitAt, setSplitAt] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<PracticeResult | null>(null);
   const [done, setDone] = useState<Done[]>([]);
@@ -84,6 +105,9 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
     setMarksDraft(q.marks === null ? '' : String(q.marks));
     setSplitAt(null);
     setMode('check');
+    setFixTool('fix');
+    setFormulaReq((r) => ({ ...r, pending: false }));
+    setToolNote(null);
   }, [q?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function answer(a: PracticeAnswer) {
@@ -118,9 +142,60 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
     }
   }
 
+  function startFix(tool: 'fix' | 'formula' = 'fix') {
+    setSplitAt(null);
+    setFixTool(tool);
+    setMode('fix');
+    setPanel('typed');
+    setToolNote(null);
+  }
+
+  function startSplit() {
+    setMode('split');
+    setPanel('typed');
+    setToolNote(null);
+  }
+
+  /** One of the four tools under the typed words. */
+  function pickTool(id: CheckerToolId, available: boolean) {
+    if (feedback) return;
+    if (!available) {
+      setToolNote(toolById(id).unavailable);
+      return;
+    }
+    // Same rule as the real checker: Split and the OR tool never run on top of
+    // a Fix it draft with changes in it.
+    const edited = q ? bodyDraft !== q.body || marksDraft !== (q.marks === null ? '' : String(q.marks)) : false;
+    const blocked = toolBlockedByUnsavedEdit(id, mode, edited);
+    if (blocked) {
+      setToolNote(blocked);
+      return;
+    }
+    setToolNote(null);
+    if (id === 'fix') startFix('fix');
+    else if (id === 'formula') {
+      startFix('formula');
+      setFormulaReq((r) => ({ n: r.n + 1, pending: true }));
+    } else if (id === 'split') {
+      if (mode === 'split') cancelEdit();
+      else startSplit();
+    } else answer({ action: 'or_only' });
+  }
+
+  function moveMarks() {
+    const moved = moveMarksOut(bodyDraft);
+    if (!moved) return;
+    setBodyDraft(moved.body);
+    setMarksDraft(String(moved.marks));
+    setEditorKey((k) => k + 1);
+    startFix(fixTool);
+  }
+
   function cancelEdit() {
     if (!q) return;
     setMode('check');
+    setFixTool('fix');
+    setFormulaReq((r) => ({ ...r, pending: false }));
     setSplitAt(null);
     setBodyDraft(q.body);
     setMarksDraft(q.marks === null ? '' : String(q.marks));
@@ -156,8 +231,8 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
       if (action === 'split' && !q.offersSplit) return;
       e.preventDefault();
       if (action === 'pass') answer({ action: 'pass' });
-      else if (action === 'fix') setMode('fix');
-      else if (action === 'split') setMode('split');
+      else if (action === 'fix') startFix('fix');
+      else if (action === 'split') startSplit();
       else if (action === 'help') answer({ action: 'help' });
       else if (action === 'skip') answer({ action: 'skip' });
     }
@@ -224,31 +299,49 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
           </div>
         ) : q ? (
           <>
-            <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="flex min-w-0 flex-col">
-                <p className="mb-1 text-[12px] text-warm-meta">The printed page</p>
-                <div className="rounded-2xl bg-white p-2">
-                  <img
-                    src={picture}
-                    alt={q.blurry ? 'the printed question, too blurry to read' : `the printed question: ${q.printed.join(' ')}`}
-                    className="mx-auto block h-auto max-w-full"
-                  />
-                </div>
-              </div>
+            <PanelTabs value={panel} onChange={setPanel} />
+            <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+              <TypedFrame panelClass={panel === 'typed' ? 'flex' : 'hidden lg:flex'}>
+                <QuestionChips
+                  number={q.body.match(/^\s*(\d+)\./)?.[1] ?? null}
+                  marks={q.marks}
+                  editing={mode === 'fix'}
+                  numberDraft={numberDraft}
+                  marksDraft={marksDraft}
+                  onNumber={setNumberDraft}
+                  onMarks={setMarksDraft}
+                  marksInvalid={false}
+                />
 
-              <div className="flex min-w-0 flex-col">
+                {mode === 'check' && isOrOnlyBody(q.body) && !feedback ? (
+                  <div className="mb-3 rounded-[12px] bg-brand-subtle px-3 py-2" data-testid="practice-or-only">
+                    <p className="text-[13px] leading-snug text-foreground">{OR_ONLY_NOTE}</p>
+                    <button
+                      type="button"
+                      onClick={() => answer({ action: 'or_only' })}
+                      className="tap-44 mt-2 rounded-full bg-card px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    >
+                      {OR_ONLY_BUTTON}
+                    </button>
+                  </div>
+                ) : null}
+
+                {mode !== 'split' && !feedback ? (
+                  <MarksInsideHint body={bodyDraft} currentMarks={marksDraft} onMove={moveMarks} />
+                ) : null}
+
                 {mode === 'fix' ? (
                   <div>
-                    <div className="mb-2 rounded-2xl bg-brand-subtle px-3 py-2">
+                    <div className="mb-2 rounded-[12px] bg-brand-subtle px-3 py-2">
                       <p className="text-[13px] font-semibold text-foreground">{FIX_RULE_TITLE}</p>
                       <p className="text-[13px] leading-snug text-warm-secondary">{FIX_RULE_NOTE}</p>
                     </div>
-                    <textarea
+                    <BodyEditor
+                      key={`${q.id}-${editorKey}`}
                       value={bodyDraft}
-                      onChange={(e) => setBodyDraft(e.target.value)}
-                      rows={4}
-                      aria-label="The typed question"
-                      className="w-full rounded-2xl bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      onChange={setBodyDraft}
+                      formulaRequest={formulaReq.pending ? formulaReq.n : 0}
+                      onFormulaHandled={() => setFormulaReq((r) => ({ ...r, pending: false }))}
                     />
                   </div>
                 ) : mode === 'split' ? (
@@ -264,7 +357,7 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
                       onSelect={(e) => setSplitAt(codePointOffset(e.currentTarget.value, e.currentTarget.selectionStart))}
                       rows={5}
                       aria-label="Tap where the second question starts"
-                      className="w-full rounded-2xl bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      className="w-full rounded-[12px] bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     />
                     <p className="mt-2 text-[13px] text-warm-meta">
                       {splitAt === null
@@ -275,60 +368,46 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
                     </p>
                   </div>
                 ) : (
-                  <div data-testid="practice-typed" className="rounded-2xl bg-muted p-4">
-                    <p className="mb-1 text-[12px] font-semibold text-warm-meta">What the computer typed</p>
-                    <p className="break-words text-[16px] leading-relaxed text-foreground">{q.body}</p>
+                  <div data-testid="practice-typed" data-tour="question" className="rounded-[12px] border border-warm-hairline bg-white p-4">
+                    <MathText text={bodyDraft} className="break-words text-[17px] leading-relaxed text-foreground" />
                   </div>
                 )}
 
-                {mode === 'check' && isOrOnlyBody(q.body) && !feedback ? (
-                  <div className="mt-2 rounded-2xl bg-brand-subtle px-3 py-2" data-testid="practice-or-only">
-                    <p className="text-[13px] leading-snug text-foreground">{OR_ONLY_NOTE}</p>
-                    <button
-                      type="button"
-                      onClick={() => answer({ action: 'or_only' })}
-                      className="tap-44 mt-2 rounded-full bg-card px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                    >
-                      {OR_ONLY_BUTTON}
-                    </button>
-                  </div>
+                {toolNote ? (
+                  <p role="status" className="mt-2 text-[13px] text-warm-secondary">
+                    {toolNote}
+                  </p>
                 ) : null}
 
-                {mode === 'check' && q.offersSplit && !feedback ? (
-                  <button
-                    type="button"
-                    onClick={() => setMode('split')}
-                    className="tap-44 mt-2 self-start rounded-full bg-brand-subtle px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                  >
-                    Split here, these look like two questions
-                  </button>
-                ) : null}
+                <ToolsRow
+                  active={mode === 'split' ? 'split' : mode === 'fix' ? fixTool : null}
+                  available={{ fix: true, split: q.offersSplit, formula: true, or: isOrOnlyBody(q.body) }}
+                  onPick={pickTool}
+                  busy={Boolean(feedback)}
+                  helpLink={false}
+                />
 
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <label className="flex items-center gap-2 text-[13px] font-medium text-warm-secondary">
-                    Marks
-                    <input
-                      inputMode="decimal"
-                      value={marksDraft}
-                      onChange={(e) => setMarksDraft(e.target.value)}
-                      disabled={mode !== 'fix'}
-                      placeholder={mode === 'fix' ? 'e.g. 2' : 'none'}
-                      className="min-h-[44px] w-20 rounded-xl bg-muted px-3 py-1 text-center text-[16px] tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-70"
-                    />
-                  </label>
-                </div>
+                <ChangesSection key={q.id} source={q.editLog ? { edit_log: q.editLog } : null} rawOcr={q.rawOcr} />
 
                 {feedback ? (
                   <div
                     role="status"
                     data-testid="practice-feedback"
-                    className={cn('mt-3 rounded-2xl p-3', feedback.correct ? 'bg-mint' : 'bg-destructive/10')}
+                    className={cn('mt-3 rounded-[12px] p-3', feedback.correct ? 'bg-mint' : 'bg-destructive/10')}
                   >
                     <p className="text-[15px] font-bold text-foreground">{feedback.headline}</p>
                     <p className="mt-0.5 text-pretty text-[14px] leading-snug text-foreground">{feedback.explanation}</p>
                   </div>
                 ) : null}
-              </div>
+              </TypedFrame>
+
+              <PrintedFrame panelClass={panel === 'printed' ? 'flex' : 'hidden lg:flex'} className="lg:sticky lg:top-24" tourId="picture">
+                <img
+                  src={picture}
+                  alt={q.blurry ? 'the printed question, too blurry to read' : `the printed question: ${q.printed.join(' ')}`}
+                  className="mx-auto block h-auto max-w-full"
+                />
+              </PrintedFrame>
             </div>
 
             <div className="sticky bottom-0 z-10 -mx-1 mt-5 flex flex-wrap items-center gap-2.5 border-t border-warm-hairline bg-card px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-4">
@@ -366,7 +445,7 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
                   <ActionButton tone="mint" onClick={() => answer({ action: 'pass' })}>
                     Looks right
                   </ActionButton>
-                  <ActionButton tone="dark" onClick={() => setMode('fix')}>
+                  <ActionButton tone="dark" onClick={() => startFix('fix')}>
                     Fix it
                   </ActionButton>
                   <ActionButton tone="brand" onClick={() => answer({ action: 'help' })}>

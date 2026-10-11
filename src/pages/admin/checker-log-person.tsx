@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -11,6 +11,7 @@ import { AdminFilterChips } from '@/components/admin/AdminFilterChips';
 import { AdminPillButton, adminPillClass } from '@/components/admin/AdminPillButton';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { cn } from '@/lib/utils';
+import { createLatestGuard } from '@/lib/latest-guard';
 import { realCheckerLogApi } from '@/lib/checker-log-api';
 import {
   COUNT_KEYS,
@@ -23,6 +24,7 @@ import {
   heatLevel,
   kolkataDay,
   otherActionWords,
+  rangeSummary,
   totalOf,
   type CheckerDayLog,
   type CheckerLogApi,
@@ -152,12 +154,18 @@ export function AdminCheckerLogPersonPage({
   const { user, profile } = useAuth();
   const signedIn = dummy ? 'admin@example.com' : user?.email ?? profile?.full_name ?? 'Signed-in admin';
   const [range, setRange] = useState<(typeof RANGES)[number]>(30);
-  const [log, setLog] = useState<CheckerDayLog | null>(null);
+  // The log and the range it was read for travel together, so the header and
+  // the strip never describe 30 days of data as "the last 90".
+  const [loaded, setLoaded] = useState<{ log: CheckerDayLog; range: (typeof RANGES)[number] } | null>(null);
+  const log = loaded?.log ?? null;
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const loadGuard = useRef(createLatestGuard());
 
   const today = kolkataDay(now ?? new Date());
-  const from = addDays(today, -(range - 1));
+  const requestFrom = addDays(today, -(range - 1));
+  const shownRange = loaded?.range ?? range;
+  const from = addDays(today, -(shownRange - 1));
   const thisYear = Number(today.slice(0, 4));
 
   usePageMeta(log ? `${log.actor.name} | Checker log | Shikshaq Admin` : 'Checker log | Shikshaq Admin', 'One checker\'s work, day by day.');
@@ -168,21 +176,26 @@ export function AdminCheckerLogPersonPage({
   const sectionCounts = useAdminSectionCounts();
 
   const load = useCallback(async () => {
+    // Only the newest request may write: a slow answer for an earlier range is dropped.
+    const token = loadGuard.current.next();
     setLoading(true);
     setLoadError(false);
     try {
-      setLog(await api.dayLog(actorKey, from, today));
+      const result = await api.dayLog(actorKey, requestFrom, today);
+      if (loadGuard.current.isCurrent(token)) setLoaded({ log: result, range });
     } catch (e) {
       if (import.meta.env.DEV) console.error('checker day log', e);
-      setLoadError(true);
+      if (loadGuard.current.isCurrent(token)) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (loadGuard.current.isCurrent(token)) setLoading(false);
     }
-  }, [api, actorKey, from, today]);
+  }, [api, actorKey, requestFrom, today, range]);
 
   useEffect(() => {
     if (isAdmin) void load();
     else if (!checkingAdmin) setLoading(false);
+    const guard = loadGuard.current;
+    return () => guard.cancel();
   }, [isAdmin, checkingAdmin, load]);
 
   const nav = buildAdminNav('checker-log', sectionCounts);
@@ -192,7 +205,7 @@ export function AdminCheckerLogPersonPage({
   const max = useMemo(() => Math.max(0, ...(log?.days ?? []).map((d) => totalOf(d.counts))), [log]);
   // A day with only taken-back actions still has a card, so the "(undone)" rows can be read.
   const activeDays = (log?.days ?? []).filter((d) => totalOf(d.counts) > 0 || d.events.length > 0);
-  const rangeTotal = activeDays.reduce((s, d) => s + totalOf(d.counts), 0);
+  const { total: rangeTotal, daysWithActions } = rangeSummary(log?.days ?? []);
 
   if (checkingAdmin || (loading && !log)) {
     return (
@@ -230,7 +243,7 @@ export function AdminCheckerLogPersonPage({
       <AdminHeader nav={nav} signedInEmail={signedIn} />
       {banner}
 
-      <BentoPanel fill="card" className="px-[18px] py-[18px] lg:px-[18px] lg:py-[18px]">
+      <BentoPanel fill="card" className="px-[18px] py-[18px] lg:px-[18px] lg:py-[18px]" aria-busy={loading || undefined}>
         <Link
           to="/admin/checker-log"
           className="tap-44 inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-brand-blue hover:text-brand-blue-deep"
@@ -243,7 +256,7 @@ export function AdminCheckerLogPersonPage({
             <h1 className="text-balance text-[22px] font-extrabold leading-tight tracking-[-0.03em] text-foreground">{log.actor.name}</h1>
             <p className="mt-0.5 text-[14px] text-warm-secondary">
               {ROLE_LABELS[log.actor.role]} · {rangeTotal.toLocaleString()} {rangeTotal === 1 ? 'action' : 'actions'} on{' '}
-              {activeDays.length} of the last {range} days
+              {daysWithActions} of the last {shownRange} days
             </p>
           </div>
           <AdminFilterChips
@@ -259,7 +272,8 @@ export function AdminCheckerLogPersonPage({
             {strip.map((d) => {
               const day = byDay.get(d);
               const total = day ? totalOf(day.counts) : 0;
-              const label = `${dayWords(d, thisYear)}: ${total ? `${total} ${total === 1 ? 'action' : 'actions'}` : 'nothing'}`;
+              const undoneOnly = !total && !!day && day.events.length > 0;
+              const label = `${dayWords(d, thisYear)}: ${total ? `${total} ${total === 1 ? 'action' : 'actions'}` : undoneOnly ? 'only undone actions' : 'nothing'}`;
               const cls = cn('block h-[18px] w-[18px] rounded-[6px]', HEAT_CLASS[heatLevel(total, max)], d === today && 'ring-2 ring-inset ring-panel');
               return (
                 <span key={d} role="listitem">
@@ -296,8 +310,8 @@ export function AdminCheckerLogPersonPage({
           </ol>
         ) : (
           <div className="rounded-2xl bg-muted p-5 text-center">
-            <p className="text-[15px] font-semibold text-foreground">Nothing recorded in the last {range} days.</p>
-            {range < RANGES[RANGES.length - 1] ? (
+            <p className="text-[15px] font-semibold text-foreground">Nothing recorded in the last {shownRange} days.</p>
+            {shownRange < RANGES[RANGES.length - 1] ? (
               <AdminPillButton className="mt-3" onClick={() => setRange(RANGES[RANGES.length - 1])}>
                 Look further back
               </AdminPillButton>

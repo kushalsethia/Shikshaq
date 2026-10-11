@@ -461,6 +461,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** True while the saved session is still being restored on a cold load. Safe
+ *  outside a provider (false), so shared guards and their tests need no wrapper. */
+export function useAuthLoading(): boolean {
+  return useContext(AuthContext)?.loading ?? false;
+}
+
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

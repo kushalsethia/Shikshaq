@@ -27,9 +27,13 @@ export function useSignedUrl(api: CheckerApi, key: string, path: string): string
       return;
     }
     let cancelled = false;
-    api.pictureUrl(path).then((url) => {
-      if (!cancelled) setState({ key, url });
-    });
+    // A rejection takes the same road as "no picture", not a skeleton forever.
+    api
+      .pictureUrl(path)
+      .catch(() => null)
+      .then((url) => {
+        if (!cancelled) setState({ key, url });
+      });
     return () => {
       cancelled = true;
     };
@@ -199,7 +203,8 @@ export function SplitPreview({ body, at }: { body: string; at: number | null }) 
   );
 }
 
-/* A dialog: Escape and the backdrop close it, focus goes inside. */
+/* A dialog: Escape and the backdrop close it, focus goes inside, Tab stays
+   inside, and focus goes back to the button that opened it when it closes. */
 export function Modal({
   onClose,
   labelledBy,
@@ -210,11 +215,45 @@ export function Modal({
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  // Read during the first render, before an autoFocus inside the dialog can
+  // move focus: this is the button that opened it. Restored once, on close.
+  const openerRef = useRef<HTMLElement | null>(null);
+  if (openerRef.current === null && typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+    openerRef.current = document.activeElement;
+  }
+  useEffect(() => {
+    const opener = openerRef.current;
+    return () => {
+      if (opener && opener.isConnected && opener !== document.body) opener.focus({ preventScroll: true });
+    };
+  }, []);
   useEffect(() => {
     const el = ref.current;
     if (el && !el.contains(document.activeElement)) el.focus();
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !el) return;
+      const focusable = Array.from(el.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+      if (focusable.length === 0) {
+        e.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (!active || !el.contains(active) || active === el) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

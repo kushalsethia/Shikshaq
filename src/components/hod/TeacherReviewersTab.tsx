@@ -21,13 +21,16 @@ export function TeacherReviewersSection({ api }: { api: TeacherReviewerAdminApi 
   const [email, setEmail] = useState('');
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The list itself failed to load: not the same thing as an empty team. */
+  const [loadFailed, setLoadFailed] = useState(false);
   const { confirm, confirmDialog } = useConfirm();
 
   const load = useCallback(async () => {
     try {
       setRows(await api.list());
+      setLoadFailed(false);
     } catch {
-      setRows([]);
+      setLoadFailed(true);
       sonnerToast.error('Failed to load the teacher reviewers');
     }
   }, [api]);
@@ -119,7 +122,14 @@ export function TeacherReviewersSection({ api }: { api: TeacherReviewerAdminApi 
       ) : null}
 
       <div className="mt-5">
-        {rows === null ? (
+        {loadFailed && rows === null ? (
+          <div role="alert" className="rounded-2xl bg-destructive/10 px-4 py-4 text-[14px] text-foreground" data-testid="reviewers-load-error">
+            <p>The teacher reviewers did not load. This is not the same as nobody being on the team.</p>
+            <button type="button" onClick={() => void load()} className="tap-44 mt-1 font-semibold text-brand-blue">
+              Try again
+            </button>
+          </div>
+        ) : rows === null ? (
           <div className="h-14 animate-pulse rounded-2xl bg-muted" role="status" aria-label="Loading the teacher reviewers" />
         ) : active.length === 0 ? (
           <p className="rounded-2xl bg-muted px-4 py-8 text-center text-[14px] text-warm-secondary">
@@ -138,6 +148,7 @@ export function TeacherReviewersSection({ api }: { api: TeacherReviewerAdminApi 
                 </div>
                 <button
                   type="button"
+                  aria-label={`Remove ${r.name || r.email || 'this person'}`}
                   onClick={() => void remove(r)}
                   className="tap-44 rounded-full bg-card px-4 text-[13px] font-semibold text-destructive transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >

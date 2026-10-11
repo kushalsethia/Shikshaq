@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
@@ -26,7 +26,9 @@ import {
   normaliseProfile,
   PAPER_LIMIT_NOTE,
   paperCardProgress,
+  checkerSignInPath,
   parseSubjectList,
+  loadGate,
   profileNotice,
   profileStatus,
   QUESTION_STATE_LABEL,
@@ -78,6 +80,7 @@ export function CheckerPage({
   usePageMeta('My papers | Shikshaq', 'Verify one question at a time against the printed paper.');
   const { user, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const scope = dummy ? 'dummy' : 'live';
   const [params, setParams] = useSearchParams();
   const paperId = params.get('paper');
@@ -87,11 +90,17 @@ export function CheckerPage({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const [allowed, setAllowed] = useState<boolean | null>(null);
+  // True when the access check itself could not be answered (offline, a server
+  // error). That is not the same as "not a verifier", and must not say so.
+  const [accessFailed, setAccessFailed] = useState(false);
+  const [accessAttempt, setAccessAttempt] = useState(0);
+  const here = location.pathname + location.search;
   useEffect(() => {
     if (!dummy) {
       if (authLoading) return;
       if (!user) {
-        navigate('/auth?redirect=' + encodeURIComponent('/checker'));
+        // Come back to the paper or question that was opened, not just the list.
+        navigate('/auth?redirect=' + encodeURIComponent(checkerSignInPath(here)));
         return;
       }
     }
@@ -102,12 +111,18 @@ export function CheckerPage({
         if (!cancelled) setAllowed(ok);
       })
       .catch(() => {
-        if (!cancelled) setAllowed(false);
+        if (!cancelled) setAccessFailed(true);
       });
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading, navigate, api, dummy]);
+  }, [user, authLoading, navigate, api, dummy, here, accessAttempt]);
+
+  function retryAccess() {
+    setAccessFailed(false);
+    setAllowed(null);
+    setAccessAttempt((n) => n + 1);
+  }
 
   const statsQuery = useQuery({
     queryKey: ['checker-my-stats', scope],
@@ -115,6 +130,25 @@ export function CheckerPage({
     enabled: allowed === true,
     staleTime: 30 * 1000,
   });
+
+  if (accessFailed) {
+    return (
+      <BentoStack className="min-h-screen bg-muted">
+        <BentoPanel fill="card" edge="top" className="mx-auto max-w-lg py-24 text-center">
+          {banner}
+          <h1 className="text-balance text-xl font-bold text-foreground">We could not check your access</h1>
+          <p role="alert" className="mt-2 text-[14px] text-warm-secondary">
+            This is probably your connection. Nothing has changed on your account. Check it and try again.
+          </p>
+          <div className="mt-4 flex justify-center">
+            <ActionButton tone="dark" onClick={retryAccess}>
+              Try again
+            </ActionButton>
+          </div>
+        </BentoPanel>
+      </BentoStack>
+    );
+  }
 
   if ((!dummy && authLoading) || allowed === null) {
     return (
@@ -159,12 +193,15 @@ export function CheckerPage({
                 HOD desk
               </Link>
             ) : null}
-            <span
-              className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold tabular-nums text-warm-secondary"
-              aria-label={`Verified today ${statsQuery.data?.today_count ?? 0}, in total ${statsQuery.data?.total_count ?? 0}`}
-            >
-              Today {statsQuery.data?.today_count ?? 0} · Total {statsQuery.data?.total_count ?? 0}
-            </span>
+            {statsQuery.data ? (
+              <span className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold tabular-nums text-warm-secondary" data-testid="my-counts">
+                Today {statsQuery.data.today_count} · Total {statsQuery.data.total_count}
+              </span>
+            ) : statsQuery.isError ? null : (
+              <span className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-warm-meta" data-testid="my-counts">
+                Counting...
+              </span>
+            )}
             <Chip onClick={() => setMenuOpen(true)} tone="brand">
               Menu
             </Chip>
@@ -334,7 +371,11 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
   const [form, setForm] = useState({ full_name: '', grade: '', school: '', board: '' });
   const [formError, setFormError] = useState<string | null>(null);
 
-  if (profileQuery.isLoading) return null;
+  const cardState = loadGate(profileQuery);
+  if (cardState === 'loading') return null;
+  // Saving is a full overwrite, so a form opened from a failed read would blank
+  // the verifier's real details. Show no form until the read has worked.
+  if (cardState === 'error') return <ProfileLoadError onRetry={() => void profileQuery.refetch()} />;
   const p = profileQuery.data ?? normaliseProfile(null);
   const status = profileStatus(p);
   const notice = profileNotice(status);
@@ -531,6 +572,24 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
           {message}
         </p>
       ) : null}
+    </section>
+  );
+}
+
+export function ProfileLoadError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <section aria-labelledby="my-details-title" className="rounded-2xl bg-muted p-4" data-testid="profile-card">
+      <h2 id="my-details-title" className="text-[15px] font-bold text-foreground">
+        My details
+      </h2>
+      <p role="alert" className="mt-2 rounded-xl bg-destructive/10 px-3 py-2 text-[13px] text-destructive" data-testid="profile-load-error">
+        Could not load your details. They have not been changed. Check your connection and try again.
+      </p>
+      <div className="mt-3">
+        <ActionButton tone="muted" onClick={onRetry}>
+          Try again
+        </ActionButton>
+      </div>
     </section>
   );
 }

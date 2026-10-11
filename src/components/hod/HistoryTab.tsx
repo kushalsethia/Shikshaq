@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { EmptyNote, ListSkeleton, LoadError } from '@/components/hod/HodShared';
+import { historyView } from '@/lib/hod-desk';
 import { ACTION_LABELS, markUndone } from '@/lib/history-labels';
 import { HISTORY_ROLES, memberName, roleWord, type HistoryRow, type HodApi } from '@/lib/hod-api';
 import { TEAM_KEY } from '@/components/hod/VerifiersTab';
@@ -50,6 +51,7 @@ export function HistoryTab({ api, scope }: { api: HodApi; scope: string }) {
   });
 
   const rowsAll = q.data?.pages.flat() ?? [];
+  const view = historyView({ isLoading: q.isLoading, isError: q.isError, rowCount: rowsAll.length });
   const select = 'min-h-10 rounded-full bg-muted px-3 text-[13px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand';
 
   return (
@@ -78,11 +80,11 @@ export function HistoryTab({ api, scope }: { api: HodApi; scope: string }) {
         </label>
       </div>
 
-      {q.isLoading ? (
+      {view === 'loading' ? (
         <ListSkeleton label="Loading history" />
-      ) : q.isError ? (
+      ) : view === 'error' ? (
         <LoadError what="The history" onRetry={() => void q.refetch()} />
-      ) : rowsAll.length === 0 ? (
+      ) : view === 'empty' ? (
         <EmptyNote>Nothing has been recorded for that choice yet.</EmptyNote>
       ) : (
         <>
@@ -99,10 +101,15 @@ export function HistoryTab({ api, scope }: { api: HodApi; scope: string }) {
               </li>
             ))}
           </ol>
+          {q.isError ? (
+            <p role="alert" className="mt-3 rounded-2xl bg-destructive/10 px-4 py-3 text-center text-[13px] text-foreground">
+              The older history did not load. What is above is still here.
+            </p>
+          ) : null}
           {q.hasNextPage ? (
             <div className="mt-4 text-center">
               <button type="button" className={actionToneClass('muted')} disabled={q.isFetchingNextPage} onClick={() => void q.fetchNextPage()}>
-                {q.isFetchingNextPage ? 'Loading...' : 'Load older'}
+                {q.isFetchingNextPage ? 'Loading...' : q.isError ? 'Try again' : 'Load older'}
               </button>
             </div>
           ) : null}

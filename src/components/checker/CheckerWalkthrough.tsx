@@ -26,7 +26,16 @@ function find(step: WalkthroughStep): HTMLElement | null {
   return document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
 }
 
-export function CheckerWalkthrough({ onClose, onPractice }: { onClose: () => void; onPractice: () => void }) {
+export function CheckerWalkthrough({
+  onClose,
+  onPractice,
+  onShowTarget,
+}: {
+  onClose: () => void;
+  onPractice: () => void;
+  /** Called as each step starts, so a phone can switch to the side (Typed or Printed) the step is about. */
+  onShowTarget?: (target: WalkthroughStep['target']) => void;
+}) {
   const [steps] = useState<WalkthroughStep[]>(() => WALKTHROUGH_STEPS.filter((s) => find(s) !== null));
   const [i, setI] = useState(0);
   const [box, setBox] = useState<Box | null>(null);
@@ -51,14 +60,24 @@ export function CheckerWalkthrough({ onClose, onPractice }: { onClose: () => voi
   // screen (the action footer is sticky).
   useEffect(() => {
     if (!step) return;
-    const el = find(step);
-    if (el && (step.target === 'picture' || step.target === 'question')) {
-      el.scrollIntoView({ block: 'nearest', behavior: 'auto' });
-    }
-    measure();
-    const raf = requestAnimationFrame(measure);
+    onShowTarget?.(step.target);
+    const show = () => {
+      const el = find(step);
+      if (el && (step.target === 'picture' || step.target === 'question' || step.target === 'tools' || step.target === 'changes')) {
+        el.scrollIntoView({ block: step.target === 'picture' || step.target === 'question' ? 'nearest' : 'center', behavior: 'auto' });
+      }
+      measure();
+    };
+    show();
+    // The side may have just switched (phone tabs): measure again once it has shown.
+    const raf = requestAnimationFrame(show);
+    const later = window.setTimeout(show, 80);
     nextRef.current?.focus({ preventScroll: true });
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(later);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, measure]);
 
   useEffect(() => {
@@ -72,7 +91,30 @@ export function CheckerWalkthrough({ onClose, onPractice }: { onClose: () => voi
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      // The shield stops taps, not the keyboard: keep Tab inside the card so
+      // Enter can never land on "Looks right" underneath while the tour is open.
+      const card = cardRef.current;
+      if (!card) return;
+      const focusable = Array.from(card.querySelectorAll<HTMLElement>('button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (!active || !card.contains(active)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

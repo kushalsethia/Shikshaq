@@ -7,6 +7,7 @@ import { AdminError, AdminLoading } from '@/components/admin/AdminState';
 import { AdminStatusPill } from '@/pages/admin/AdminTable';
 import { displaySchool } from '@/lib/school-display';
 import { cn } from '@/lib/utils';
+import { createLatestGuard } from '@/lib/latest-guard';
 import {
   canUpdate,
   confirmWords,
@@ -126,6 +127,7 @@ export function UpdateLivePapersView({
                         type="button"
                         disabled={!canUpdate(r) || busy}
                         onClick={() => onAsk(r.audit_paper_id)}
+                        aria-label={`Update live paper: ${r.title}`}
                         title={canUpdate(r) ? undefined : 'Pass or set aside every question first.'}
                         className={cn(adminPrimaryBtnStyle, 'disabled:cursor-not-allowed disabled:opacity-50')}
                       >
@@ -187,6 +189,7 @@ export function UpdateLivePapersView({
                       <button
                         type="button"
                         onClick={() => onConfirm(r.audit_paper_id)}
+                        aria-label={busy ? `Updating ${r.title}` : `Yes, update the live paper: ${r.title}`}
                         disabled={busy}
                         className={cn(adminPrimaryBtnStyle, 'disabled:opacity-60')}
                       >
@@ -240,19 +243,27 @@ export function UpdateLivePapers({
   const onLoadedRef = useRef(onLoaded);
   onLoadedRef.current = onLoaded;
 
+  // Only the newest expand may write the list, so a slow answer for paper A
+  // cannot land under paper B.
+  const openGuard = useRef(createLatestGuard());
+
   function toggleOpen(id: string) {
     if (expandedId === id) {
+      openGuard.current.cancel();
       setExpandedId(null);
       return;
     }
+    const token = openGuard.current.next();
     setExpandedId(id);
     setOpenList('loading');
     api
       .openQuestions(id)
-      .then((list) => setOpenList(list))
+      .then((list) => {
+        if (openGuard.current.isCurrent(token)) setOpenList(list);
+      })
       .catch((e) => {
         if (import.meta.env.DEV) console.error('live paper open questions', e);
-        setOpenList('error');
+        if (openGuard.current.isCurrent(token)) setOpenList('error');
       });
   }
 

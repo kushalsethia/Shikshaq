@@ -5,6 +5,9 @@ import { MathText } from '@/components/papers/math-text';
 import { BodyEditor } from '@/components/checker/BodyEditor';
 import { OptionList } from '@/components/checker/OptionList';
 import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
+import { PanelTabs, PrintedFrame, TypedFrame, type PanelId } from '@/components/checker/Panels';
+import { ChangesSection, MarksInsideHint, QuestionChips, ToolsRow } from '@/components/checker/TypedBits';
+import { toolBlockedByUnsavedEdit, toolById, type CheckerToolId } from '@/lib/checker-tools';
 import { CheckerSkeleton, Callout, CheckGuidance, Modal, SplitPreview, WholeQuestion, useSignedUrl } from '@/components/checker/CheckerBits';
 import { Undo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -40,6 +43,7 @@ import {
   canSplitAt,
   bigEdit,
   stripLeadingNumberPrefix,
+  moveMarksOut,
   FIX_RULE_TITLE,
   FIX_RULE_NOTE,
   BIG_EDIT_WARNING,
@@ -52,7 +56,7 @@ import { ActionButton } from '@/components/checker/CheckerButtons';
 import { CheckerWalkthrough } from '@/components/checker/CheckerWalkthrough';
 import { CHECKER_PRACTICE_PATH, CHECKER_TOUR_PARAM, hasSeenWalkthrough, markWalkthroughSeen } from '@/lib/checker-onboarding';
 import { paperLabel, paperProgress } from '@/lib/checker-progress';
-import { skippedNote } from '@/lib/verifier-papers';
+import { loadGate, skippedNote } from '@/lib/verifier-papers';
 
 /* The verify screen ("Start verifying"): one question of one paper at a time.
    The question and its details are on the left; the picture of the printed
@@ -148,6 +152,7 @@ export function VerifyScreen({
     placeholderData: keepPreviousData,
   });
   const paperRow = papersQuery.data?.find((p) => p.paper_id === paperId) ?? null;
+  const paperGate = loadGate(papersQuery);
   const progress = paperRow ? paperProgress({ done_count: paperRow.done, remaining_count: paperRow.remaining, total_count: paperRow.total }) : null;
   // Skipped questions stay on the paper for later. When nothing but skipped
   // ones are left, the screen says so instead of looping them back.
@@ -212,6 +217,15 @@ export function VerifyScreen({
   const english = question ? englishContext(question.source) : null;
 
   const [mode, setMode] = useState<Mode>('check');
+  // Phone only: which side is showing. Both always hold the same question.
+  const [panel, setPanel] = useState<PanelId>('printed');
+  // Which tool opened Fix it ("Fix the words" or "Edit a formula"), for the pressed look.
+  const [fixTool, setFixTool] = useState<'fix' | 'formula'>('fix');
+  // "Edit a formula": a number that goes up with every press, and whether the
+  // editor still has to act on it.
+  const [formulaReq, setFormulaReq] = useState<{ n: number; pending: boolean }>({ n: 0, pending: false });
+  // Bumped when the text is changed from outside the editor (Move marks out).
+  const [editorKey, setEditorKey] = useState(0);
   const [bodyDraft, setBodyDraft] = useState('');
   const [numberDraft, setNumberDraft] = useState('');
   const [marksDraft, setMarksDraft] = useState('');
@@ -233,6 +247,8 @@ export function VerifyScreen({
   useEffect(() => {
     if (question) {
       setMode('check');
+      setFixTool('fix');
+      setFormulaReq((r) => ({ ...r, pending: false }));
       setBodyDraft(lost ?? question.body ?? '');
       setNumberDraft(question.display_number ?? '');
       setMarksDraft(question.marks != null ? String(question.marks) : '');
@@ -450,7 +466,56 @@ export function VerifyScreen({
     setSplitAt(null);
     setPrintedTypo(false);
     setTypoNote('');
+    setFormulaReq((r) => ({ ...r, pending: false }));
+    setFixTool('fix');
     setMode('check');
+  }
+
+  /** Open Fix it, and show the typed side (the only side you can type on). */
+  function startFix(tool: 'fix' | 'formula' = 'fix') {
+    setSplitAt(null);
+    setFixTool(tool);
+    setMode('fix');
+    setPanel('typed');
+  }
+
+  function startSplit() {
+    setMode('split');
+    setPanel('typed');
+  }
+
+  /** One of the four tools under the typed words. */
+  function pickTool(id: CheckerToolId, available: boolean) {
+    if (submitting) return;
+    if (!available) {
+      setNotice({ text: toolById(id).unavailable, tone: 'warn' });
+      return;
+    }
+    // Split and the OR tool act on the stored question, so a Fix it draft
+    // with changes in it must be saved or cancelled first, not lost.
+    const blocked = toolBlockedByUnsavedEdit(id, mode, edited);
+    if (blocked) {
+      setNotice({ text: blocked, tone: 'warn' });
+      return;
+    }
+    if (id === 'fix') startFix('fix');
+    else if (id === 'formula') {
+      startFix('formula');
+      setFormulaReq((r) => ({ n: r.n + 1, pending: true }));
+    } else if (id === 'split') {
+      if (mode === 'split') cancelEdit();
+      else startSplit();
+    } else void doOrSeparator();
+  }
+
+  /** Cut the marks token out of the words and put its number in the Marks box. */
+  function moveMarks() {
+    const moved = moveMarksOut(bodyDraft);
+    if (!moved) return;
+    setBodyDraft(moved.body);
+    setMarksDraft(String(moved.marks));
+    setEditorKey((k) => k + 1);
+    startFix(fixTool);
   }
 
   function onSplitCaret(el: HTMLTextAreaElement) {
@@ -500,10 +565,10 @@ export function VerifyScreen({
         void doPass();
       } else if (action === 'fix') {
         e.preventDefault();
-        setMode('fix');
+        startFix('fix');
       } else if (action === 'split' && splitOffered) {
         e.preventDefault();
-        setMode('split');
+        startSplit();
       } else if (action === 'help') {
         e.preventDefault();
         setHelpOpen(true);
@@ -522,8 +587,6 @@ export function VerifyScreen({
 
   const metaChips = question
     ? [
-        question.display_number ? `Question ${question.display_number}` : null,
-        question.marks != null ? `${question.marks} ${question.marks === 1 ? 'mark' : 'marks'}` : null,
         question.subject,
         question.cls ? `Class ${question.cls}` : null,
         question.school,
@@ -642,6 +705,18 @@ export function VerifyScreen({
               Try again
             </ActionButton>
           </div>
+        ) : !question && !includeSkipped && !paperRow && paperGate === 'loading' ? (
+          // The list that says how many are skipped has not arrived. Do not
+          // say "Paper finished" until it has.
+          <CheckerSkeleton />
+        ) : !question && !includeSkipped && !paperRow && paperGate === 'error' ? (
+          <div className="flex flex-col items-center gap-2 py-16 text-center" role="alert">
+            <p className="text-lg font-semibold text-foreground">Could not load your papers</p>
+            <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
+            <ActionButton tone="mint" onClick={() => void papersQuery.refetch()}>
+              Try again
+            </ActionButton>
+          </div>
         ) : !question && !includeSkipped && skippedCount > 0 && paperRow != null && paperRow.remaining <= skippedCount ? (
           // Only skipped questions are left. They stay on this paper for
           // later; the verifier can go to other papers or go through them now.
@@ -677,9 +752,9 @@ export function VerifyScreen({
             </div>
           </div>
         ) : (
-          // Desktop: the question on the left, the picture of the printed page on the right.
-          // Phone (one column): the question first, then the picture, so the words to check
-          // are not pushed below a whole A4 page. The picture follows the question.
+          // Desktop: what the computer typed on the left, the photo of the printed
+          // paper on the right, in a strongly framed box so they cannot be mixed up.
+          // Phone: two big tabs, Typed and Printed, both always on the same question.
           <div className="min-h-0">
             <ul className="mb-3 flex flex-wrap gap-1.5" aria-label="About this question" data-testid="question-meta">
               {metaChips.map((c) => (
@@ -689,15 +764,30 @@ export function VerifyScreen({
               ))}
             </ul>
             {/* How to check: quiet guidance above the pair, never a card. The
-                comparison below (what we have, the printed paper) is the job. */}
+                comparison below (what the computer typed, the printed paper) is the job. */}
             {hasPicture && laneSummary && (laneSummary.blocks.length > 0 || laneSummary.unmapped.length > 0) ? (
               <CheckGuidance summary={laneSummary} />
             ) : whatToCheckLine.line ? (
               <CheckGuidance line={whatToCheckLine.line} detail={whatToCheckLine.detail} />
             ) : null}
-          <div className="grid min-h-0 grid-cols-1 gap-5 lg:grid-cols-2">
-            {/* Left: the question, with its details in plain sight. */}
-            <div className="flex min-w-0 flex-col">
+
+            <PanelTabs value={panel} onChange={setPanel} />
+
+          <div className="grid min-h-0 grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+            {/* Left: what the computer typed, with its details in plain sight. */}
+            <TypedFrame panelClass={panel === 'typed' ? 'flex' : 'hidden lg:flex'}>
+              <QuestionChips
+                number={mode === 'fix' ? numberDraft || null : (question.display_number ?? null)}
+                marks={question.marks ?? null}
+                editing={mode === 'fix'}
+                numberDraft={numberDraft}
+                marksDraft={marksDraft}
+                onNumber={setNumberDraft}
+                onMarks={setMarksDraft}
+                marksInvalid={marksInvalid}
+                disabled={submitting}
+              />
+
               {lost ? (
                 <Callout tone="warn" title={LOST_TEXT_TITLE}>
                   {LOST_TEXT_NOTE}
@@ -724,11 +814,15 @@ export function VerifyScreen({
                 </Callout>
               ) : null}
 
+              {mode !== 'split' && !blank ? (
+                <MarksInsideHint body={bodyDraft} currentMarks={marksDraft} onMove={moveMarks} disabled={submitting} />
+              ) : null}
+
               {context ? <WholeQuestion context={context} /> : null}
 
               {/* W14: the passage an English question is about. */}
               {english?.passage ? (
-                <div className="mb-2 rounded-2xl bg-muted px-4 py-3">
+                <div className="mb-2 rounded-[12px] bg-muted px-4 py-3">
                   <p className="mb-1 text-[12px] font-semibold text-warm-meta">{passageHeading(english.passage.kind)}</p>
                   <div className="max-h-[40vh] overflow-y-auto">
                     <MathText text={english.passage.text} className="text-[14px] leading-relaxed text-foreground" />
@@ -738,22 +832,16 @@ export function VerifyScreen({
               {english?.setText ? <p className="mb-2 text-[12px] text-warm-secondary">From: {english.setText}</p> : null}
 
               {question.instructions ? (
-                <div className="mb-2 rounded-2xl bg-muted px-4 py-2">
+                <div className="mb-2 rounded-[12px] bg-muted px-4 py-2">
                   <MathText text={question.instructions} className="text-[14px] italic leading-relaxed text-warm-secondary" />
                 </div>
               ) : null}
 
-              {context ? (
-                <p className="mb-1 text-[13px] font-semibold text-foreground">The part you are checking</p>
-              ) : blank && !lost && mode === 'check' ? null : (
-                // Same label style as "The printed paper" on the right, so the
-                // eye reads the two as a pair.
-                <p className="mb-1 text-[12px] text-warm-meta">What we have</p>
-              )}
+              {context ? <p className="mb-1 text-[13px] font-semibold text-foreground">The part you are checking</p> : null}
 
               {mode === 'fix' ? (
                 <div>
-                  <div className="mb-2 rounded-2xl bg-brand-subtle px-3 py-2">
+                  <div className="mb-2 rounded-[12px] bg-brand-subtle px-3 py-2">
                     <p className="text-[13px] font-semibold text-foreground">
                       {printedTypo ? TYPO_RULE_TITLE : FIX_RULE_TITLE}
                     </p>
@@ -761,11 +849,18 @@ export function VerifyScreen({
                       {printedTypo ? TYPO_RULE_NOTE : FIX_RULE_NOTE}
                     </p>
                   </div>
-                  <BodyEditor value={bodyDraft} onChange={setBodyDraft} disabled={submitting} />
+                  <BodyEditor
+                    key={editorKey}
+                    value={bodyDraft}
+                    onChange={setBodyDraft}
+                    disabled={submitting}
+                    formulaRequest={formulaReq.pending ? formulaReq.n : 0}
+                    onFormulaHandled={() => setFormulaReq((r) => ({ ...r, pending: false }))}
+                  />
                   {/* Owner round 24: a student may correct a typo printed on
                       the paper. Off by default; the printed version is kept
                       in version history and an admin can put it back. */}
-                  <label className="tap-44 mt-2 flex cursor-pointer items-start gap-2.5 rounded-2xl bg-muted px-3 py-2.5 text-[14px] text-foreground">
+                  <label className="tap-44 mt-2 flex cursor-pointer items-start gap-2.5 rounded-[12px] bg-muted px-3 py-2.5 text-[14px] text-foreground">
                     <input
                       type="checkbox"
                       checked={printedTypo}
@@ -784,7 +879,7 @@ export function VerifyScreen({
                         onChange={(e) => setTypoNote(e.target.value)}
                         disabled={submitting}
                         placeholder="e.g. the paper printed 'teh' for 'the'"
-                        className="min-h-[44px] rounded-xl bg-muted px-3 py-2 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        className="min-h-[44px] rounded-[12px] bg-muted px-3 py-2 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
                       />
                     </label>
                   ) : null}
@@ -808,67 +903,39 @@ export function VerifyScreen({
                     onSelect={(e) => onSplitCaret(e.currentTarget)}
                     rows={8}
                     aria-label="Tap where the second question starts"
-                    className="w-full rounded-2xl bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    className="w-full rounded-[12px] bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
                   />
                   <SplitPreview body={bodyDraft} at={splitAt} />
                 </div>
               ) : blank && !lost ? null : (
-                <div data-tour="question" className="rounded-2xl border border-warm-hairline bg-card p-4">
+                <div data-tour="question" className="rounded-[12px] border border-warm-hairline bg-white p-4">
                   {lost ? <p className="mb-2 text-[12px] font-semibold text-warm-meta">{LOST_TEXT_HEADING}</p> : null}
-                  <MathText text={bodyDraft} className="break-words text-[16px] leading-relaxed text-foreground" />
+                  <MathText text={bodyDraft} className="break-words text-[17px] leading-relaxed text-foreground" />
                   <OptionList options={question.options} />
                 </div>
               )}
 
-              {mode === 'check' && splitOffered && (
-                <button
-                  type="button"
-                  onClick={() => setMode('split')}
-                  className="tap-44 mt-2 self-start rounded-full bg-brand-subtle px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                >
-                  Split here, these look like two questions
-                </button>
-              )}
+              <ToolsRow
+                active={mode === 'split' ? 'split' : mode === 'fix' ? fixTool : null}
+                available={{ fix: true, split: splitOffered, formula: true, or: orOnly }}
+                onPick={pickTool}
+                busy={submitting}
+              />
 
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-[13px] font-medium text-warm-secondary">
-                  Question number
-                  <input
-                    value={numberDraft}
-                    onChange={(e) => setNumberDraft(e.target.value)}
-                    disabled={mode !== 'fix'}
-                    placeholder={mode === 'fix' ? 'e.g. 5' : 'none'}
-                    className="min-h-[40px] w-24 rounded-xl bg-muted px-3 py-1 text-center text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-70"
-                  />
-                </label>
-                <label className="flex items-center gap-2 text-[13px] font-medium text-warm-secondary">
-                  Marks
-                  <input
-                    inputMode="decimal"
-                    value={marksDraft}
-                    onChange={(e) => setMarksDraft(e.target.value)}
-                    disabled={mode !== 'fix'}
-                    placeholder={mode === 'fix' ? 'e.g. 2' : 'none'}
-                    aria-invalid={marksInvalid || undefined}
-                    className={cn(
-                      'min-h-[40px] w-20 rounded-xl bg-muted px-3 py-1 text-center text-[14px] tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-70',
-                      marksInvalid && 'ring-2 ring-destructive',
-                    )}
-                  />
-                </label>
-              </div>
-            </div>
-            {/* Right: the printed page and the picture of this question. */}
-            <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
+              <ChangesSection key={question.id} source={question.source} rawOcr={question.raw_ocr} />
+            </TypedFrame>
+
+            {/* Right: the photo of the printed paper, in its own strong frame. */}
+            <PrintedFrame panelClass={panel === 'printed' ? 'flex' : 'hidden lg:flex'} className="lg:sticky lg:top-24" tourId="picture">
               {viewPath && cropShown !== null ? (
                 <div className="flex min-w-0 flex-col">
-                  <p className="mb-1 text-[12px] text-warm-meta">{pictureHeading(cropShown ? picturePlan : null)}</p>
+                  <p className="mb-1 text-[12px] font-semibold text-warm-secondary">{pictureHeading(cropShown ? picturePlan : null)}</p>
                   {picturePlan?.mayMissParts && cropShown ? (
                     <p className="mb-2 text-[13px] leading-snug text-warm-secondary">{PICTURE_MAY_MISS_PARTS}</p>
                   ) : null}
-                  <div data-tour="picture" className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-2xl border border-warm-hairline bg-white p-2 lg:max-h-[60vh]">
+                  <div className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-[10px] border border-warm-hairline bg-white p-2 lg:max-h-[60vh]">
                     {cropShown === undefined ? (
-                      <div className="h-40 animate-pulse rounded-[14px] bg-muted" aria-label="Loading the picture" />
+                      <div className="h-40 animate-pulse rounded-[8px] bg-muted" aria-label="Loading the picture" />
                     ) : (
                       // Natural size, never stretched past it: a small crop blown
                       // up to the panel width turned into a few giant blurry words.
@@ -885,7 +952,7 @@ export function VerifyScreen({
               ) : null}
 
               {!picturePlanKey ? (
-                <div className="h-40 animate-pulse rounded-2xl bg-muted" aria-label="Loading the picture" />
+                <div className="h-40 animate-pulse rounded-[10px] bg-muted" aria-label="Loading the picture" />
               ) : null}
 
               {/* The whole verified page: behind a tap when there is a crop,
@@ -901,15 +968,16 @@ export function VerifyScreen({
                 </button>
               ) : null}
               {pagePlan && pageOpen && pageShown !== null ? (
-                <div data-tour={hasCrop ? undefined : 'picture'} className="flex min-w-0 flex-col">
-                  <p className="mb-1 text-[12px] text-warm-meta">{PAGE_HEADING}</p>
+                <div className="flex min-w-0 flex-col">
+                  <p className="mb-1 text-[12px] font-semibold text-warm-secondary">{PAGE_HEADING}</p>
                   {pageShown === undefined ? (
-                    <div className="h-72 animate-pulse rounded-2xl bg-muted" aria-label="Loading the printed page" />
+                    <div className="h-72 animate-pulse rounded-[10px] bg-muted" aria-label="Loading the printed page" />
                   ) : (
                     <PageImageViewer
                       src={pageShown}
                       alt={`the whole printed page ${pagePlan.page}, as scanned`}
                       note={pagePlan.note}
+                      source={question.source}
                       onError={() => setPageFailed(pagePlanKey)}
                     />
                   )}
@@ -919,8 +987,8 @@ export function VerifyScreen({
               {picturePlanKey && !hasPicture && pictureUrl !== undefined && (pagePath === '' || pageUrl !== undefined) ? (
                 // No crop and no page matched this question, or both failed
                 // to load: show the whole paper as a page-flip, never a dead end.
-                <div className="flex min-w-0 flex-col" data-tour="picture">
-                  <p className="mb-1 text-[12px] text-warm-meta">{pictureHeading(null)}</p>
+                <div className="flex min-w-0 flex-col">
+                  <p className="mb-1 text-[12px] font-semibold text-warm-secondary">{pictureHeading(null)}</p>
                   <PaperPageFlip
                     paperId={question.paper_id}
                     loadPages={api.paperPages}
@@ -929,7 +997,7 @@ export function VerifyScreen({
                   />
                 </div>
               ) : null}
-            </div>
+            </PrintedFrame>
 
           </div>
           </div>
@@ -968,7 +1036,7 @@ export function VerifyScreen({
                         : 'Looks right'}
                 </ActionButton>
                 {mode === 'check' ? (
-                  <ActionButton tourId="fix" tone="dark" onClick={() => setMode('fix')} disabled={submitting}>
+                  <ActionButton tourId="fix" tone="dark" onClick={() => startFix('fix')} disabled={submitting}>
                     Fix it
                   </ActionButton>
                 ) : (
@@ -992,6 +1060,11 @@ export function VerifyScreen({
 
       {tourOpen && question ? (
         <CheckerWalkthrough
+          onShowTarget={(target) => {
+            // On a phone only one side shows at a time: bring up the side a step is about.
+            if (target === 'picture') setPanel('printed');
+            else if (target === 'question' || target === 'tools' || target === 'changes') setPanel('typed');
+          }}
           onClose={closeTour}
           onPractice={() => {
             closeTour();

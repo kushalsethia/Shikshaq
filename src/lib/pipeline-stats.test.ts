@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { paperState, pct, seriesMax, seriesTotal, type DailyPoint } from './pipeline-stats';
+import { paperState, pct, readPipeline, seriesMax, seriesTotal, type DailyPoint, type PipelineApi, type PipelineStats } from './pipeline-stats';
 
 const days: DailyPoint[] = [
   { day: '2026-10-01', papers_added: 3, desk_papers: 25, questions_cleared: 0 },
@@ -23,5 +23,24 @@ describe('pipeline stats helpers', () => {
     expect(paperState({ published: false, needs_review: false })).toBe('Hidden');
     expect(paperState({ published: true, needs_review: true })).toBe('Needs review');
     expect(paperState({ published: true, needs_review: false })).toBe('Verified');
+  });
+});
+
+describe('readPipeline', () => {
+  const stats = { generated_at: 'x' } as unknown as PipelineStats;
+
+  it('hands back the numbers and the log when both read', async () => {
+    const api: PipelineApi = { stats: async () => stats, feed: async () => [] };
+    expect(await readPipeline(api, 40)).toEqual({ stats, feed: [] });
+  });
+
+  it('a failed log is null, not an empty list, and the numbers still come back', async () => {
+    const api: PipelineApi = { stats: async () => stats, feed: async () => { throw new Error('refused'); } };
+    expect(await readPipeline(api, 40)).toEqual({ stats, feed: null });
+  });
+
+  it('a failed stats read still fails the whole read', async () => {
+    const api: PipelineApi = { stats: async () => { throw new Error('refused'); }, feed: async () => [] };
+    await expect(readPipeline(api, 40)).rejects.toThrow('refused');
   });
 });

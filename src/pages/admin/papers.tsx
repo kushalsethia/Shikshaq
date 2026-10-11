@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type DragEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
@@ -26,6 +26,7 @@ import {
 import { Loader2, Plus, Search, Upload, X, FileText } from 'lucide-react';
 import { SUBJECTS, CLASSES, BOARDS, EXAM_TYPES } from '@/utils/searchFacets';
 import { cn } from '@/lib/utils';
+import { createLatestGuard } from '@/lib/latest-guard';
 import { HIDE_REASON_NOTE } from '@/lib/admin-hints';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
@@ -104,6 +105,18 @@ export interface PaperPayload {
   is_published: boolean;
 }
 
+/** The upload is marked approved but the paper could not be switched to live.
+ *  It exists as a draft; Restore on the Papers list brings it live. */
+export class ApprovedNotLiveError extends Error {
+  constructor(
+    public paperId: string,
+    public reviewedAt: string,
+  ) {
+    super('Upload approved, but the paper is still a draft');
+    this.name = 'ApprovedNotLiveError';
+  }
+}
+
 export interface ApproveInput {
   target: SubmissionRow;
   title: string;
@@ -146,6 +159,27 @@ export function mapSubmittedExamType(raw: string | null): string {
   if (key.startsWith('annual') || key.startsWith('final')) return 'Final';
   if (key.startsWith('unit')) return 'Unit Test';
   return EXAM_TYPES[0];
+}
+
+/* What the approve dialog opens with for a submission. A value the sender did
+   not give ("Not sure" is stored as null), or one this site has no slot for
+   (the public form offers Class UG and Exam "Other"; papers has neither), comes
+   back as '' rather than as the first option. Defaulting it quietly to ICSE,
+   Class 1 and Prelims let a submission go live with a board, class or exam the
+   reviewer never chose. '' leaves the Select on its placeholder and keeps
+   Approve switched off until a person picks. */
+export function submittedReviewDefaults(s: {
+  board: string | null;
+  class: string | null;
+  exam_type: string | null;
+}): { board: string; cls: string; examType: string } {
+  const key = (s.exam_type ?? '').trim().toLowerCase();
+  const examKnown = ['prelim', 'half', 'annual', 'final', 'unit'].some((k) => key.startsWith(k));
+  return {
+    board: s.board && BOARDS.includes(s.board) ? s.board : '',
+    cls: s.class && PAPER_CLASSES.includes(s.class) ? s.class : '',
+    examType: examKnown ? mapSubmittedExamType(s.exam_type) : '',
+  };
 }
 
 function submissionStatusTone(status: SubmissionRow['status']): AdminStatus {
@@ -309,19 +343,38 @@ export const realPapersApi: PapersApi = {
         exam_type: EXAM_TYPES.includes(examType) ? examType : EXAM_TYPES[0],
         year: Number.isFinite(yearNum) && yearNum >= 2000 && yearNum <= 2100 ? yearNum : new Date().getFullYear(),
         file_url,
-        is_published: true,
+        /* Created as a draft and only made live once the upload is marked
+           approved. The other order could leave a live paper behind an upload
+           that still reads Pending when the second write failed. */
+        is_published: false,
       })
       .select('id')
       .single();
     if (insertError) throw insertError;
+    const paperId: string | null = inserted?.id ?? null;
 
     const reviewedAt = new Date().toISOString();
     const { error: reviewError } = await supabase
       .from('paper_submissions')
       .update({ status: 'approved', reviewed_at: reviewedAt, reviewed_by: reviewerId })
       .eq('id', target.id);
-    if (reviewError) throw reviewError;
-    return { paperId: inserted?.id ?? null, reviewedAt };
+    if (reviewError) {
+      // Nothing went live. Remove the draft so a retry does not leave a twin.
+      if (paperId) {
+        try {
+          await supabase.from('papers').delete().eq('id', paperId);
+        } catch {
+          /* best effort: a leftover draft is hidden and harmless */
+        }
+      }
+      throw reviewError;
+    }
+
+    if (paperId) {
+      const { error: liveError } = await supabase.from('papers').update({ is_published: true }).eq('id', paperId);
+      if (liveError) throw new ApprovedNotLiveError(paperId, reviewedAt);
+    }
+    return { paperId, reviewedAt };
   },
 
   async rejectSubmission(id, reason, reviewerId) {
@@ -412,6 +465,7 @@ export function AdminPapersPage({
   const [restoreBusyId, setRestoreBusyId] = useState<string | null>(null);
 
   const [reviewTarget, setReviewTarget] = useState<SubmissionRow | null>(null);
+  const signGuard = useRef(createLatestGuard());
   const [reviewFileUrls, setReviewFileUrls] = useState<{ path: string; url: string | null }[]>([]);
   const [reviewFilesLoading, setReviewFilesLoading] = useState(false);
   const [approveTitle, setApproveTitle] = useState('');
@@ -540,6 +594,10 @@ export function AdminPapersPage({
   const missing = missingPaperFields(formData);
 
   async function handleSave(publish: boolean) {
+    if (uploadingFile) {
+      adminToast('Wait for the PDF to finish uploading');
+      return;
+    }
     setAttempted(true);
     if (missing.length > 0) {
       adminToast('Fill in the fields marked Required');
@@ -567,8 +625,14 @@ export function AdminPapersPage({
       /* The PDF, if any, already made it to storage before this insert ran --
          clean it up so a failed publish doesn't leave an orphaned file nothing
          in `papers` will ever reference. */
-      if (formData.file_url) void api.removeUploaded(formData.file_url);
-      adminToast('Failed to save paper');
+      if (formData.file_url) {
+        void api.removeUploaded(formData.file_url);
+        // The stored file is gone, so the form must not keep pointing at it.
+        handleChange('file_url', null);
+        adminToast('Failed to save paper', { description: 'The PDF was removed again. Upload it once more, then publish.' });
+      } else {
+        adminToast('Failed to save paper');
+      }
     } finally {
       setSaving(null);
     }
@@ -648,26 +712,36 @@ export function AdminPapersPage({
   async function openReview(submission: SubmissionRow) {
     setReviewTarget(submission);
     setApproveTitle(`${submission.subject}${submission.exam_type ? ` ${submission.exam_type}` : ''}`.trim());
-    setApproveBoard(submission.board && BOARDS.includes(submission.board) ? submission.board : BOARDS[0]);
-    setApproveClass(submission.class && PAPER_CLASSES.includes(submission.class) ? submission.class : PAPER_CLASSES[0]);
-    setApproveExamType(mapSubmittedExamType(submission.exam_type));
+    const defaults = submittedReviewDefaults(submission);
+    setApproveBoard(defaults.board);
+    setApproveClass(defaults.cls);
+    setApproveExamType(defaults.examType);
     const yearNum = Number(submission.year);
     setApproveYear(String(Number.isFinite(yearNum) && yearNum >= 2000 && yearNum <= 2100 ? yearNum : new Date().getFullYear()));
     setShowReject(false);
     setRejectReason('');
     setReviewFileUrls(submission.file_paths.map((path) => ({ path, url: null })));
-    if (submission.file_paths.length === 0) return;
+    // Only the upload now open may receive its links; an earlier one that
+    // answers late is dropped.
+    const token = signGuard.current.next();
+    if (submission.file_paths.length === 0) {
+      setReviewFilesLoading(false);
+      return;
+    }
     setReviewFilesLoading(true);
     try {
-      setReviewFileUrls(await api.signSubmissionFiles(submission.file_paths));
+      const signed = await api.signSubmissionFiles(submission.file_paths);
+      if (signGuard.current.isCurrent(token)) setReviewFileUrls(signed);
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error signing submission files:', error);
     } finally {
-      setReviewFilesLoading(false);
+      if (signGuard.current.isCurrent(token)) setReviewFilesLoading(false);
     }
   }
 
   function closeReview() {
+    signGuard.current.cancel();
+    setReviewFilesLoading(false);
     setReviewTarget(null);
     setReviewFileUrls([]);
     setApproveTitle('');
@@ -683,6 +757,14 @@ export function AdminPapersPage({
     if (!reviewTarget || !actorId) return;
     if (!approveTitle.trim()) {
       adminToast('A title is required to publish this paper');
+      return;
+    }
+    if (!approveBoard || !approveClass || !approveExamType) {
+      adminToast('Choose the board, class and exam type before publishing');
+      return;
+    }
+    if (reviewTarget.file_paths.length === 0) {
+      adminToast('This upload has no files, so there is nothing to publish. Reject it instead.');
       return;
     }
     const target = reviewTarget;
@@ -726,7 +808,20 @@ export function AdminPapersPage({
       closeReview();
     } catch (error) {
       if (import.meta.env.DEV) console.error('Approve submission error:', error);
-      adminToast('Failed to approve this upload');
+      if (error instanceof ApprovedNotLiveError) {
+        // The upload is approved and the paper exists, only as a draft.
+        setSubmissions((prev) =>
+          prev.map((s) => (s.id === target.id ? { ...s, status: 'approved', reviewed_at: error.reviewedAt, reviewed_by: actorId } : s)),
+        );
+        refreshCounts();
+        void loadPapers(true);
+        closeReview();
+        adminToast('Upload approved, but the paper is not live yet', {
+          description: 'It is saved as a draft. Open the Papers list and press Restore to put it on the site.',
+        });
+      } else {
+        adminToast('Failed to approve this upload');
+      }
     } finally {
       setReviewBusy(false);
     }
@@ -1058,10 +1153,10 @@ export function AdminPapersPage({
         size="md"
         footer={
           <>
-            <AdminPillButton variant="secondary" onClick={() => void handleSave(false)} busy={saving === 'draft'} disabled={saving === 'publish'}>
+            <AdminPillButton variant="secondary" onClick={() => void handleSave(false)} busy={saving === 'draft'} disabled={saving === 'publish' || uploadingFile}>
               Save as draft
             </AdminPillButton>
-            <AdminPillButton variant="primary" onClick={() => void handleSave(true)} busy={saving === 'publish'} disabled={saving === 'draft'}>
+            <AdminPillButton variant="primary" onClick={() => void handleSave(true)} busy={saving === 'publish'} disabled={saving === 'draft' || uploadingFile}>
               {saving === 'publish' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
               Publish this paper
             </AdminPillButton>
@@ -1090,7 +1185,7 @@ export function AdminPapersPage({
               </button>
             </div>
           ) : (
-            <label className="block cursor-pointer">
+            <label className="block cursor-pointer rounded-xl has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring">
               {uploadingFile ? (
                 <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-warm-meta" />
               ) : (
@@ -1101,7 +1196,7 @@ export function AdminPapersPage({
               <input
                 type="file"
                 accept="application/pdf"
-                className="hidden"
+                className="sr-only"
                 disabled={uploadingFile}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
@@ -1173,7 +1268,7 @@ export function AdminPapersPage({
             <div>
               <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">Exam type</Label>
               <Select value={formData.exam_type} onValueChange={(v) => handleChange('exam_type', v)}>
-                <SelectTrigger aria-label="Exam type" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Exam type" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue placeholder="Choose an exam type" /></SelectTrigger>
                 <SelectContent>
                   {EXAM_TYPES.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
                 </SelectContent>
@@ -1229,7 +1324,7 @@ export function AdminPapersPage({
                 <AdminPillButton variant="secondary" onClick={() => setShowReject(true)}>
                   Reject
                 </AdminPillButton>
-                <AdminPillButton variant="primary" onClick={() => void handleApprove()} disabled={!approveTitle.trim()} busy={reviewBusy}>
+                <AdminPillButton variant="primary" onClick={() => void handleApprove()} disabled={!approveTitle.trim() || !approveBoard || !approveClass || !approveExamType || reviewTarget.file_paths.length === 0} busy={reviewBusy}>
                   Approve and publish
                 </AdminPillButton>
               </>
@@ -1255,7 +1350,7 @@ export function AdminPapersPage({
             <div className="mt-4">
               <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">Files ({reviewTarget.file_paths.length})</Label>
               {reviewTarget.file_paths.length === 0 ? (
-                <p className="text-[14px] text-warm-meta">No files were attached to this upload.</p>
+                <p className="text-[14px] text-warm-meta">No files were attached to this upload, so it cannot be published. Reject it instead.</p>
               ) : reviewFilesLoading ? (
                 <p className="flex items-center gap-2 text-[14px] text-warm-meta">
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Preparing files...
@@ -1322,7 +1417,7 @@ export function AdminPapersPage({
                       <div>
                         <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">Board</Label>
                         <Select value={approveBoard} onValueChange={setApproveBoard}>
-                          <SelectTrigger aria-label="Board" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
+                          <SelectTrigger aria-label="Board" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue placeholder="Choose a board" /></SelectTrigger>
                           <SelectContent>
                             {BOARDS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
                           </SelectContent>
@@ -1331,7 +1426,7 @@ export function AdminPapersPage({
                       <div>
                         <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">Class</Label>
                         <Select value={approveClass} onValueChange={setApproveClass}>
-                          <SelectTrigger aria-label="Class" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
+                          <SelectTrigger aria-label="Class" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue placeholder="Choose a class" /></SelectTrigger>
                           <SelectContent>
                             {PAPER_CLASSES.map((c) => <SelectItem key={c} value={c}>Class {c}</SelectItem>)}
                           </SelectContent>
@@ -1353,7 +1448,7 @@ export function AdminPapersPage({
                         Exam type <span className="font-normal text-warm-meta">(guessed from "{reviewTarget.exam_type || 'not given'}", please check it)</span>
                       </Label>
                       <Select value={approveExamType} onValueChange={setApproveExamType}>
-                        <SelectTrigger aria-label="Exam type" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
+                        <SelectTrigger aria-label="Exam type" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue placeholder="Choose an exam type" /></SelectTrigger>
                         <SelectContent>
                           {EXAM_TYPES.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
                         </SelectContent>

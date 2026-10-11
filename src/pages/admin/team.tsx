@@ -318,7 +318,7 @@ export function TeamBody({
       )}
 
       <div className="mt-8 px-[18px]">
-        <h2 className="mb-1 text-[15px] font-bold text-foreground">Papers, fewest doubts left first</h2>
+        <h2 className="mb-1 text-[15px] font-bold text-foreground">Papers, most doubts left first</h2>
         {progress.length > 0 ? <p className="mb-3 text-[13px] text-warm-secondary">{papersShownText(Math.min(paperLimit, progress.length), progress.length)}</p> : null}
         <div className="space-y-2">
           {progress.slice(0, paperLimit).map((p) => (
@@ -385,7 +385,7 @@ export function VerifierStatsList({ stats, maxChecked }: { stats: TeamStatsRow[]
         <HeaderCell label="Changed by admin" hint="Their decision was later changed by an admin." />
         <span role="columnheader"><span className="sr-only">More</span></span>
       </div>
-      <ul className="divide-y divide-warm-hairline lg:divide-y-0">
+      <ul role="rowgroup" className="divide-y divide-warm-hairline lg:divide-y-0">
         {stats.map((r) => {
           const open = openId === r.user_id;
           const detailId = `team-more-${r.user_id}`;

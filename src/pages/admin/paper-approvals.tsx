@@ -22,6 +22,7 @@ import {
   type ApprovalApi,
   type ApprovalHistoryRow,
   type ApprovalQueueRow,
+  historyCapNote,
 } from '@/lib/admin-approval-shape';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
@@ -394,9 +395,15 @@ function DecidedList({
     ],
     actions: [{ label: 'Open', tone: 'primary', onClick: () => onOpen(r.audit_paper_id) }],
   }));
+  const capNote = historyCapNote(rows.length);
   return (
     <div className="-mx-[18px]">
       <AdminTable columns={columns} rows={tableRows} />
+      {capNote ? (
+        <p className="mt-3 px-[18px] text-[13px] text-warm-secondary" role="note">
+          {capNote}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -4,9 +4,11 @@ import {
   STATE_LOOK,
   adminPaperHref,
   barSegments,
+  canShowMore,
   hasMore,
   headlineCounts,
   isProcessedState,
+  listForStates,
   mergeRows,
   openCount,
   percent,
@@ -156,5 +158,59 @@ describe('fake registry api', () => {
   it('can be told to be empty or to fail', async () => {
     expect((await createFakePaperRegistryApi('empty').summary()).total).toBe(0);
     await expect(createFakePaperRegistryApi('error').summary()).rejects.toThrow();
+  });
+});
+
+describe('listing several states at once', () => {
+  const base = { search: '', subject: null, limit: 50, offset: 0 };
+
+  it('the waiting stop shows not started and the reading queue, matching its count', async () => {
+    const api = createFakePaperRegistryApi();
+    const sum = await api.summary();
+    const page = await listForStates(api, { ...base, states: ['not_started', 'ocr_queued'] });
+    const want = (sum.by_state.not_started ?? 0) + (sum.by_state.ocr_queued ?? 0);
+    expect(page.total).toBe(want);
+    expect(page.rows).toHaveLength(Math.min(50, want));
+    expect(page.rows.every((r) => r.processed_state === 'not_started' || r.processed_state === 'ocr_queued')).toBe(true);
+  });
+
+  it('pages run through one state and into the next with no gap and no repeat', async () => {
+    const api = createFakePaperRegistryApi();
+    const sum = await api.summary();
+    const notStarted = sum.by_state.not_started ?? 0;
+    const states = ['not_started', 'ocr_queued'] as const;
+    const all: string[] = [];
+    // a page size that straddles the boundary between the two states
+    const limit = Math.max(1, Math.floor(notStarted / 2) + 3);
+    let total = 0;
+    for (let offset = 0; offset === 0 || offset < total; offset += limit) {
+      const page = await listForStates(api, { ...base, limit, offset, states });
+      total = page.total;
+      all.push(...page.rows.map((r) => r.registry_key));
+    }
+    expect(all).toHaveLength(total);
+    expect(new Set(all).size).toBe(total);
+    const whole = await listForStates(api, { ...base, limit: 200, states });
+    expect(all).toEqual(whole.rows.map((r) => r.registry_key));
+    // not started first, then the queue
+    const order = whole.rows.map((r) => r.processed_state);
+    expect(order.indexOf('ocr_queued')).toBeGreaterThanOrEqual(notStarted);
+  });
+
+  it('no state and one state go straight to the server', async () => {
+    const api = createFakePaperRegistryApi();
+    const every = await listForStates(api, { ...base, states: [] });
+    expect(every.total).toBe((await api.summary()).total);
+    const live = await listForStates(api, { ...base, states: ['live'] });
+    expect(live.rows.every((r) => r.processed_state === 'live')).toBe(true);
+  });
+});
+
+describe('show more', () => {
+  it('is offered only when there is more, nothing failed and no new first page is loading', () => {
+    expect(canShowMore(100, 50, { listError: false, listLoading: false })).toBe(true);
+    expect(canShowMore(100, 50, { listError: false, listLoading: true })).toBe(false);
+    expect(canShowMore(100, 50, { listError: true, listLoading: false })).toBe(false);
+    expect(canShowMore(50, 50, { listError: false, listLoading: false })).toBe(false);
   });
 });

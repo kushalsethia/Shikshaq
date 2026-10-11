@@ -99,6 +99,13 @@ export function libraryListState(q: { loading: boolean; error: boolean; shown: n
   return q.view === 'all' ? 'empty-library' : 'empty-view';
 }
 
+/** True when the chip counts cannot be trusted: the read is still loading with
+ *  nothing yet, or it failed (then every count would read a false 0, and the
+ *  list below already shows the error). */
+export function libraryCountsUnknown(q: { loading: boolean; error: boolean; rows: number }): boolean {
+  return q.error || (q.loading && q.rows === 0);
+}
+
 export function LibraryExtrasNotice({ state, onRetry }: { state: ExtrasState; onRetry: () => void }) {
   if (state === 'missing') {
     return (
@@ -224,6 +231,17 @@ export function AdminLibraryPage({
     });
   }
 
+  // The reason belongs to one paper. Opening or closing the dialog starts it
+  // empty, so a reason typed for one paper is never waiting on the next.
+  function openHide(p: LibraryRow) {
+    setHideReason('');
+    setHideTarget(p);
+  }
+  function closeHide() {
+    setHideTarget(null);
+    setHideReason('');
+  }
+
   async function confirmHide() {
     if (!hideTarget) return;
     const reason = hideReason.trim();
@@ -236,8 +254,7 @@ export function AdminLibraryPage({
       try {
         await api.hide(paperId, reason);
         adminToast('Paper hidden');
-        setHideTarget(null);
-        setHideReason('');
+        closeHide();
         refresh();
       } catch {
         adminToast('Failed to hide the paper');
@@ -315,7 +332,7 @@ export function AdminLibraryPage({
       { label: 'History', tone: 'primary', onClick: () => void openHistory(p) },
       { label: 'Edit', tone: 'primary', onClick: () => navigate(`/admin/library/${encodeURIComponent(p.paper_id)}`) },
       p.is_published
-        ? { label: busy(`paper:${p.paper_id}`) ? '...' : 'Hide', tone: 'destructive', onClick: () => setHideTarget(p), disabled: busy(`paper:${p.paper_id}`) }
+        ? { label: busy(`paper:${p.paper_id}`) ? '...' : 'Hide', tone: 'destructive', onClick: () => openHide(p), disabled: busy(`paper:${p.paper_id}`) }
         : { label: busy(`paper:${p.paper_id}`) ? '...' : 'Restore', tone: 'mint', onClick: () => void doRestore(p), disabled: busy(`paper:${p.paper_id}`) },
     ],
   }));
@@ -326,7 +343,7 @@ export function AdminLibraryPage({
     key: v.key,
     label: v.label,
     hint: TIPS[v.tip],
-    count: papersLoading && rows.length === 0 ? undefined : v.needsExtras && !extrasKnown ? undefined : counts[v.key],
+    count: libraryCountsUnknown({ loading: papersLoading, error: papersQ.isError, rows: rows.length }) ? undefined : v.needsExtras && !extrasKnown ? undefined : counts[v.key],
   }));
   const listState = libraryListState({ loading: papersLoading, error: papersQ.isError, shown: filtered.length, view });
   const viewTip = LIBRARY_VIEWS.find((v) => v.key === view)?.tip;
@@ -402,14 +419,14 @@ export function AdminLibraryPage({
       <AdminDialog
         open={!!hideTarget}
         onOpenChange={(open) => {
-          if (!open) setHideTarget(null);
+          if (!open) closeHide();
         }}
         title={hideTarget ? `Hide ${paperLabel(hideTarget)}?` : 'Hide this paper?'}
         description="Readers stop seeing it straight away. Restore brings it back."
         size="sm"
         footer={
           <>
-            <AdminPillButton variant="secondary" onClick={() => setHideTarget(null)}>
+            <AdminPillButton variant="secondary" onClick={closeHide}>
               Cancel
             </AdminPillButton>
             <AdminPillButton

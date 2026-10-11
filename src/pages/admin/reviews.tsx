@@ -10,7 +10,7 @@ import { adminFieldStyle, adminPanelStyle, adminToast, useAdminGuard, AdminGuard
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
 import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
 import { useRefreshAdminCounts } from '@/pages/admin/useAdminSectionCounts';
-import { AdminStatusPill, AdminRowActions, AdminPanelHeader, type AdminStatus, type AdminRowAction } from '@/pages/admin/AdminTable';
+import { AdminStatusPill, AdminRowActions, rowSubject, AdminPanelHeader, type AdminStatus, type AdminRowAction } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { AdminEmpty, AdminError, AdminLoading } from '@/components/admin/AdminState';
 import { AdminFilterChips } from '@/components/admin/AdminFilterChips';
@@ -18,6 +18,7 @@ import { AdminPillButton } from '@/components/admin/AdminPillButton';
 import { AdminTabs } from '@/components/admin/AdminTabs';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { useBusyActions } from '@/lib/busy-guard';
 import { loadView } from '@/lib/admin-load-view';
 import {
   afterPublish,
@@ -28,6 +29,7 @@ import {
   countsAfterPublish,
   realReviewsAdminApi,
   recommendationLabel,
+  stampDecision,
   upvoteSummary,
   type CommentFilter,
   type Recommendation,
@@ -87,6 +89,8 @@ export interface QueueCardData {
   actions: AdminRowAction[];
   /** Rendered inside the card under the content (the inline edit form). */
   extra?: ReactNode;
+  /** Short name of what the card is about, for the action buttons' accessible names. */
+  subject?: string;
 }
 
 /** AD-007: `rounded-2xl bg-muted`, quote at 15px/1.55, attribution 13px muted,
@@ -103,7 +107,7 @@ function AdminQueueCard({ card }: { card: QueueCardData }) {
           <div className="mt-2.5">{card.badge}</div>
         </div>
         <div className="sm:shrink-0">
-          <AdminRowActions actions={card.actions} stack />
+          <AdminRowActions actions={card.actions} stack subject={rowSubject({ subject: card.subject, cells: [card.quote] })} />
         </div>
       </div>
       {card.extra}
@@ -274,6 +278,9 @@ export function AdminReviewsPage({
   const actorName = profile?.full_name || user?.email || 'an admin';
   const signedInName = profile?.full_name || user?.email || 'Admin';
   const refreshNav = useRefreshAdminCounts();
+  // One write at a time per row: a second tap while the first is running is ignored,
+  // and the button reads as disabled meanwhile.
+  const { run: runBusy, busy } = useBusyActions();
 
   const guard = useAdminGuard(dummy ? null : user, { redirectOnDenied: !dummy });
   const isAdmin = dummy ? true : guard.isAdmin;
@@ -314,6 +321,10 @@ export function AdminReviewsPage({
   const [commentsPage, setCommentsPage] = useState(0);
   const [commentFilter, setCommentFilter] = useState<CommentFilter>('pending');
   const commentsSeq = useRef(0);
+  // The rows held right now, read when "Load more" starts so the next read begins
+  // after them even if some were published or removed since the last read.
+  const commentsRef = useRef<ReviewComment[]>([]);
+  commentsRef.current = comments;
 
   const fetchComments = useCallback(
     async (append = false) => {
@@ -321,7 +332,12 @@ export function AdminReviewsPage({
       if (append) setCommentsLoadingMore(true);
       else setCommentsBusy(true);
       try {
-        const r = await api.comments({ filter: commentFilter, sort: sortOrder, page: append ? commentsPage : 0 });
+        const r = await api.comments({
+          filter: commentFilter,
+          sort: sortOrder,
+          page: append ? commentsPage : 0,
+          ...(append ? { offset: commentsRef.current.length } : {}),
+        });
         if (seq !== commentsSeq.current) return;
         setCommentsHasMore(r.hasMore);
         if (append) {
@@ -524,6 +540,8 @@ export function AdminReviewsPage({
       adminToast('Failed to update recommendation');
       return;
     }
+    // Now that it is saved, the card shows who decided and when, not "Sent ...".
+    setRecs((prev) => prev.map((r) => (r.id === rec.id ? stampDecision(r, status, user?.id ?? null, new Date().toISOString()) : r)));
     adminToast(status === 'contacted' ? 'Marked as contacted' : 'Recommendation dismissed');
     if (user) {
       void recordAdminAction({
@@ -649,8 +667,8 @@ export function AdminReviewsPage({
       attribution,
       badge: <AdminStatusPill status={comment.approved ? 'live' : 'pending'} label={comment.approved ? 'Published' : 'Waiting'} />,
       actions: comment.approved
-        ? [{ label: 'Remove', tone: 'destructive', onClick: () => void handleRemoveComment(comment) }]
-        : [{ label: 'Publish', tone: 'mint', onClick: () => void handlePublish(comment) }],
+        ? [{ label: 'Remove', tone: 'destructive', disabled: busy(`c:${comment.id}`), onClick: () => void runBusy(`c:${comment.id}`, () => handleRemoveComment(comment)) }]
+        : [{ label: 'Publish', tone: 'mint', disabled: busy(`c:${comment.id}`), onClick: () => void runBusy(`c:${comment.id}`, () => handlePublish(comment)) }],
     };
   });
 
@@ -661,8 +679,8 @@ export function AdminReviewsPage({
     const actions: AdminRowAction[] = [
       ...(rec.status === 'pending'
         ? [
-            { label: 'Mark as contacted', tone: 'mint' as const, onClick: () => void handleQuickStatus(rec, 'contacted') },
-            { label: 'Dismiss', tone: 'muted' as const, onClick: () => void handleQuickStatus(rec, 'rejected') },
+            { label: 'Mark as contacted', tone: 'mint' as const, disabled: busy(`r:${rec.id}`), onClick: () => void runBusy(`r:${rec.id}`, () => handleQuickStatus(rec, 'contacted')) },
+            { label: 'Dismiss', tone: 'muted' as const, disabled: busy(`r:${rec.id}`), onClick: () => void runBusy(`r:${rec.id}`, () => handleQuickStatus(rec, 'rejected')) },
           ]
         : []),
       ...(canConvert(rec.status)
@@ -706,7 +724,7 @@ export function AdminReviewsPage({
     ),
     actions: [
       { label: 'View profile', tone: 'primary', onClick: () => window.open(`/tuition-teachers/${stat.teacher_slug}`, '_blank', 'noopener') },
-      { label: 'Clear upvotes', tone: 'destructive', onClick: () => void handleClearUpvotes(stat) },
+      { label: 'Clear upvotes', tone: 'destructive', disabled: busy(`u:${stat.teacher_id}`), onClick: () => void runBusy(`u:${stat.teacher_id}`, () => handleClearUpvotes(stat)) },
     ],
   }));
 

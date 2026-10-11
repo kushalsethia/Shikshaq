@@ -618,3 +618,43 @@ export function nextWaitingPaper<T extends Pick<ApprovalQueueRow, 'audit_paper_i
 ): T | null {
   return oldestFirst(rows).find((r) => r.audit_paper_id !== excludeId && isReady(r)) ?? null;
 }
+
+/** The next paper to look at: a paper, nothing left, or "could not check". A failed
+ *  read of the queue must never be reported as "nothing else is ready". */
+export type NextPaperLookup<T> = T | null | 'unknown';
+
+export async function lookupNextWaiting<T extends Pick<ApprovalQueueRow, 'audit_paper_id' | 'queued_at' | 'open'>>(
+  readQueue: () => Promise<T[]>,
+  excludeId: string,
+): Promise<NextPaperLookup<T>> {
+  try {
+    return nextWaitingPaper(await readQueue(), excludeId);
+  } catch {
+    return 'unknown';
+  }
+}
+
+/** How many decided papers the history reads. The list is capped, so a full
+ *  list must say that older decisions are not shown. */
+export const HISTORY_LIMIT = 200;
+
+export function historyCapNote(count: number): string | null {
+  return count >= HISTORY_LIMIT ? `Showing the latest ${HISTORY_LIMIT} decisions. Older ones are not listed here.` : null;
+}
+
+/** What the open-questions banner says about what can be done with them. A sent
+ *  back paper still lets the text be fixed (the server allows it); it only
+ *  refuses to pass or set aside. */
+export function openQuestionsAdvice(mode: ResolveMode): string {
+  if (mode === 'full') return 'Each must be passed or set aside before this paper can be approved.';
+  if (mode === 'pass-only') return 'This paper is approved, so each one can be passed but not set aside.';
+  return 'This paper was sent back, so its questions cannot be passed or set aside here. The text can still be fixed with Edit.';
+}
+
+/** Why the Approve button is shut, in words. Undefined when it is open. */
+export function approveClosedReason(s: { open: number; approved: boolean; rejected: boolean }): string | undefined {
+  if (s.rejected) return 'This paper was sent back, so approval is closed for it.';
+  if (s.approved) return 'This paper is already approved.';
+  if (s.open > 0) return 'Pass or set aside the open questions first.';
+  return undefined;
+}

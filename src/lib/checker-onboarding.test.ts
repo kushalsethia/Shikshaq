@@ -69,11 +69,11 @@ describe('shortcut table on the help page', () => {
 
 describe('walkthrough steps', () => {
   it('point at the real elements, in reading order', () => {
-    expect(WALKTHROUGH_STEPS.map((s) => s.target)).toEqual(['paper', 'picture', 'question', 'pass', 'fix', 'help', 'skip', 'undo']);
+    expect(WALKTHROUGH_STEPS.map((s) => s.target)).toEqual(['paper', 'picture', 'question', 'tools', 'changes', 'pass', 'fix', 'help', 'skip', 'undo']);
   });
 
   it('every target exists as data-tour in the checker page', () => {
-    const page = readFileSync(resolve(__dirname, '../pages/Checker.tsx'), 'utf8') + readFileSync(resolve(__dirname, '../components/checker/VerifyScreen.tsx'), 'utf8');
+    const page = readFileSync(resolve(__dirname, '../pages/Checker.tsx'), 'utf8') + readFileSync(resolve(__dirname, '../components/checker/VerifyScreen.tsx'), 'utf8') + readFileSync(resolve(__dirname, '../components/checker/TypedBits.tsx'), 'utf8');
     for (const s of WALKTHROUGH_STEPS) {
       const direct = page.includes(`data-tour="${s.target}"`) || page.includes(`tourId="${s.target}"`);
       const viaExpr = s.target === 'picture' && page.includes("'picture'");

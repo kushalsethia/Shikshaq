@@ -115,15 +115,15 @@ export function createFakeHodApi(): FakeHodApi {
   // About 130 made-up actions, so Load older has something to load.
   function seedHistory(): HistoryRow[] {
     const people: { id: string; name: string; role: string }[] = [
-      { id: asha.user_id, name: asha.name, role: 'checker' },
-      { id: nikhil.user_id, name: nikhil.name, role: 'checker' },
+      { id: asha.user_id, name: asha.name, role: 'verifier' },
+      { id: nikhil.user_id, name: nikhil.name, role: 'verifier' },
       { id: 'f3000000-0000-4000-8000-000000000001', name: 'Meena Roy', role: 'hod' },
       { id: 'f3000000-0000-4000-8000-000000000009', name: 'Kanishk', role: 'admin' },
     ];
     const kinds = [
-      { action: 'checker_pass', role: 'checker', note: null },
-      { action: 'checker_fix', role: 'checker', note: null },
-      { action: 'checker_ask_help', role: 'checker', note: 'The words are scrambled' },
+      { action: 'checker_pass', role: 'verifier', note: null },
+      { action: 'checker_fix', role: 'verifier', note: null },
+      { action: 'checker_ask_help', role: 'verifier', note: 'The words are scrambled' },
       { action: 'hod_assign_paper', role: 'hod', note: null },
       { action: 'hod_send_back', role: 'hod', note: 'Look again at the second line' },
       { action: 'hod_set_verifier_profile', role: 'hod', note: null },
@@ -132,7 +132,7 @@ export function createFakeHodApi(): FakeHodApi {
     const out: HistoryRow[] = [];
     for (let i = 0; i < 130; i++) {
       const k = kinds[i % kinds.length];
-      const who = people.find((x) => x.role === k.role && (k.role !== 'checker' || x.id === (i % 2 ? asha.user_id : nikhil.user_id))) ?? people[0];
+      const who = people.find((x) => x.role === k.role && (k.role !== 'verifier' || x.id === (i % 2 ? asha.user_id : nikhil.user_id))) ?? people[0];
       out.push({
         at: ago(5 + i * 37),
         actor_id: who.id,
@@ -143,7 +143,7 @@ export function createFakeHodApi(): FakeHodApi {
         paper_id: P.maths,
         paper_label: 'Mathematics Class X Sample Hill School 2024',
         question_id: null,
-        question_number: k.role === 'checker' || k.action === 'hod_send_back' ? String((i % 12) + 1) : null,
+        question_number: k.role === 'verifier' || k.action === 'hod_send_back' ? String((i % 12) + 1) : null,
         note: k.note,
       });
     }
@@ -350,7 +350,8 @@ export function createFakeHodApi(): FakeHodApi {
       return unassigned.map((x) => ({ ...x }));
     },
     async assignPaper(paperId, userId) {
-      const who = checkers.find((c) => c.user_id === userId && c.active);
+      // The real server lets an HOD name themselves without being a listed verifier.
+      const who = userId === 'dummy-me' ? { name: 'You' } : checkers.find((c) => c.user_id === userId && c.active);
       if (!who) throw pgError('That person is not an active verifier');
       const prev = assignments.find((x) => x.paper_id === paperId);
       const free = unassigned.find((x) => x.paper_id === paperId);

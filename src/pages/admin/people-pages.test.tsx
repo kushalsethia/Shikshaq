@@ -254,6 +254,17 @@ describe('verifier progress page body', () => {
     expect(out).toContain('aria-expanded="false"');
   });
 
+  it('the table roles nest properly: the list between the table and its rows is a rowgroup', () => {
+    const out = html(<VerifierStatsList stats={[stat({})]} maxChecked={10} />);
+    expect(out).toMatch(/role="table"[\s\S]*<ul role="rowgroup"[^>]*>\s*<li[^>]*role="row"/);
+  });
+
+  it('the paper list heading matches the order the server sends: most doubts first', () => {
+    const out = html(<TeamBody {...teamProps} settled loadError={false} stats={[stat({})]} progress={[paper(1)]} />);
+    expect(text(out)).toContain('Papers, most doubts left first');
+    expect(text(out)).not.toContain('fewest doubts');
+  });
+
   it('caps the paper list at 30 and offers the rest', () => {
     const progress = Array.from({ length: 47 }, (_, i) => paper(i));
     const out = html(<TeamBody {...teamProps} settled loadError={false} stats={[stat({})]} progress={progress} />);

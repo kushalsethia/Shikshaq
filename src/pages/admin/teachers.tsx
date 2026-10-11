@@ -23,7 +23,9 @@ import { formatFeeRange } from '@/lib/fee-range';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 import {
+  CONTACTS_FAILED_WORDS,
   TEACHER_VIEWS,
+  contactsFailed,
   countsByTeacherView,
   emptyCopy,
   filterTeachers,
@@ -72,11 +74,23 @@ const SHIKSHAQMINE_ADMIN_COLUMNS =
   '"STUDENT\'S HOME IN THESE AREAS","School Boards Catered","Sir/Ma\'am?","Slug","Subjects",' +
   '"TUTOR\'S HOME IN THESE AREAS","Title","Video","Video Link","Years they started teaching",id,is_paused';
 
-function mergeContact(row: Record<string, unknown>, contacts: Map<number, { phoneNumber: string | null; link: string | null; emailId: string | null }>): TeacherData {
+type ContactMap = Map<number, { phoneNumber: string | null; link: string | null; emailId: string | null }>;
+
+/** Reads the contacts; a failure is remembered, not swallowed, so the page can say so. */
+async function readContacts(): Promise<{ contacts: ContactMap; failed: boolean }> {
+  try {
+    return { contacts: await fetchAdminContacts(), failed: false };
+  } catch {
+    return { contacts: new Map(), failed: true };
+  }
+}
+
+export function mergeContact(row: Record<string, unknown>, contacts: ContactMap, failed = false): TeacherData {
   const c = contacts.get(row.id as number);
-  return (c
+  const merged = c
     ? { ...row, 'Phone Number': c.phoneNumber ?? row['Phone Number'] ?? null, Link: c.link ?? row.Link ?? null, 'Email ID': c.emailId ?? row['Email ID'] ?? null }
-    : row) as unknown as TeacherData;
+    : row;
+  return (failed ? { ...merged, __contactsFailed: true } : merged) as unknown as TeacherData;
 }
 
 export const realTeachersApi: TeachersAdminApi = {
@@ -86,21 +100,21 @@ export const realTeachersApi: TeachersAdminApi = {
      purpose). admin_teacher_contacts() still supplies Phone Number, Link and
      Email ID. */
   async list() {
-    const [rowsResult, contacts] = await Promise.all([
+    const [rowsResult, { contacts, failed }] = await Promise.all([
       (supabase.from('Shikshaqmine').select(SHIKSHAQMINE_ADMIN_COLUMNS) as any).order('Title', { ascending: true }),
-      fetchAdminContacts().catch(() => new Map()),
+      readContacts(),
     ]);
     const { data, error } = rowsResult;
     if (error) throw error;
-    return (data || []).map((row: Record<string, unknown>) => mergeContact(row, contacts));
+    return (data || []).map((row: Record<string, unknown>) => mergeContact(row, contacts, failed));
   },
   async fetchOne(id) {
-    const [{ data, error }, contacts] = await Promise.all([
+    const [{ data, error }, { contacts, failed }] = await Promise.all([
       (supabase.from('Shikshaqmine').select(SHIKSHAQMINE_ADMIN_COLUMNS) as any).eq('id', id).single(),
-      fetchAdminContacts().catch(() => new Map()),
+      readContacts(),
     ]);
     if (error || !data) return null;
-    return mergeContact(data as Record<string, unknown>, contacts);
+    return mergeContact(data as Record<string, unknown>, contacts, failed);
   },
   async save(id, update) {
     const { error } = await supabase.from('Shikshaqmine').update(update as any).eq('id', id);
@@ -372,6 +386,10 @@ export function AdminTeachersPage({
             </Select>
           </div>
         </div>
+
+        {teachers.some((t) => contactsFailed(t)) ? (
+          <AdminError what="the contact details" detail={CONTACTS_FAILED_WORDS} onRetry={() => void q.refetch()} className="mx-[18px] mb-3" />
+        ) : null}
 
         {q.isError && q.data ? (
           <AdminError what="the latest teachers" detail="You are looking at the list as it was a moment ago." onRetry={() => void q.refetch()} className="mx-[18px] mb-3" />

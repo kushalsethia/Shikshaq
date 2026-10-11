@@ -43,7 +43,19 @@ export interface TeacherData {
   is_paused?: boolean | null;
   /** Row creation timestamp, used for the "Joined" column. */
   created_at?: string | null;
+  /** Set on a row when the contact details (phone, email, link) could not be
+   *  read, so the page can say so and the edit form can refuse to show blanks
+   *  as if they were the real values. Never written to the database: any key
+   *  that starts with two underscores is left out of a save. */
+  __contactsFailed?: boolean;
 }
+
+/** True when this teacher's contact details did not load. */
+export function contactsFailed(t: Pick<TeacherData, '__contactsFailed'> | null | undefined): boolean {
+  return t?.__contactsFailed === true;
+}
+
+export const CONTACTS_FAILED_WORDS = 'Contact details did not load. Reload before you edit phone, email or WhatsApp.';
 
 /** What the page needs from the database, as one object, so dummy mode can run
  *  the real page against made-up teachers. */
@@ -178,11 +190,17 @@ export function formIsDirty(initial: TeacherForm, current: TeacherForm): boolean
 export function buildTeacherUpdate(form: TeacherForm): Record<string, unknown> {
   const update: Record<string, unknown> = {};
   Object.keys(form).forEach((key) => {
-    if (key !== 'EXPANDED' && key !== 'Slug' && key !== 'id' && key !== 'Area') {
+    if (key !== 'EXPANDED' && key !== 'Slug' && key !== 'id' && key !== 'Area' && !key.startsWith('__')) {
       update[key] = form[key as keyof TeacherData] ?? null;
     }
   });
   update['Classes Taught'] = convertClassesToRoman(form['Classes Taught for Backend'] ?? null);
+  // Contact details that never loaded are not "empty": never write them back.
+  if (contactsFailed(form)) {
+    delete update['Phone Number'];
+    delete update['Email ID'];
+    delete update.Link;
+  }
   if (update['Email ID'] != null && typeof update['Email ID'] === 'string') {
     update['Email ID'] = update['Email ID'].trim().toLowerCase();
   }

@@ -13,7 +13,7 @@
  * from a real paper.
  */
 
-import { OR_ONLY_BUTTON, canSplitAt } from '@/lib/checker-body';
+import { canSplitAt } from '@/lib/checker-body';
 
 export type PracticeAction = 'pass' | 'fix' | 'split' | 'help' | 'skip' | 'or_only';
 
@@ -27,6 +27,10 @@ export interface PracticeQuestion {
   body: string;
   /** The marks the computer typed, or null for none. */
   marks: number | null;
+  /** The computer's first raw reading and its change log, when the lesson is
+   *  about them (the "What the computer changed" section). */
+  rawOcr?: string;
+  editLog?: { kind: string; from: string; to: string }[];
   /** Split here is offered on this question (it looks like two). */
   offersSplit: boolean;
   /** The right move. */
@@ -68,10 +72,10 @@ export interface PracticeResult {
 export const ACTION_NAMES: Record<PracticeAction, string> = {
   pass: 'Looks right',
   fix: 'Fix it',
-  split: 'Split here',
+  split: 'Split into two questions',
   help: 'Ask the HOD',
   skip: 'Skip this question',
-  or_only: OR_ONLY_BUTTON,
+  or_only: 'This is just the OR',
 };
 
 const OR_JOINED = '9. Describe one cause of the French Revolution. OR Explain one result of the French Revolution.';
@@ -123,7 +127,7 @@ export const PRACTICE_QUESTIONS: PracticeQuestion[] = [
     correct: 'split',
     splitAt: Array.from(FUSED.slice(0, FUSED.indexOf('5.'))).length,
     lesson:
-      'The printed page shows two separate questions, 4 and 5, but the computer joined them into one. Press Split here and tap just before "5.".',
+      'The printed page shows two separate questions, 4 and 5, but the computer joined them into one. Press Split into two questions, tap just before "5." and press Split here.',
     planted: 'Two questions joined into one (needs Split)',
   },
   {
@@ -180,7 +184,7 @@ export const PRACTICE_QUESTIONS: PracticeQuestion[] = [
       Array.from(OR_JOINED.slice(0, OR_JOINED.indexOf('OR ') + 3)).length,
     ],
     lesson:
-      'The page gives a choice of two questions with the word OR between them. Press Split here and tap just before or just after the OR. The OR is left out and the two questions are kept together as an either/or pair.',
+      'The page gives a choice of two questions with the word OR between them. Press Split into two questions, tap just before or just after the OR and press Split here. The OR is left out and the two questions are kept together as an either/or pair.',
     planted: 'Two questions joined by OR (Split at the OR)',
   },
   {
@@ -191,13 +195,55 @@ export const PRACTICE_QUESTIONS: PracticeQuestion[] = [
     offersSplit: false,
     correct: 'or_only',
     lesson:
-      'This row is only the word OR. It is not a question, it is the OR between the question above and the one below. Press "This is just the OR between two questions": the row is set aside and the questions around it are linked as an either/or pair.',
+      'This row is only the word OR. It is not a question, it is the OR between the question above and the one below. Press "This is just the OR": the row is set aside and the questions around it are linked as an either/or pair.',
     planted: 'A row that is only the word OR',
+  },
+  {
+    id: 'practice-10',
+    printed: ['10. Name the capital of India.   [1]'],
+    body: '10. Name the capital of India. [1]',
+    marks: null,
+    offersSplit: false,
+    correct: 'fix',
+    fixedBody: '10. Name the capital of India.',
+    fixedMarks: 1,
+    lesson:
+      'The marks, [1], were typed inside the words. They belong in the Marks box. Press Fix it, then Move marks out, and the [1] leaves the words and the Marks box says 1. Change nothing else.',
+    planted: 'Marks left inside the words',
+  },
+  {
+    id: 'practice-11',
+    printed: ['11. Solve:  x\u00b2 \u2212 5x + 6 = 0   [2]'],
+    body: '11. Solve: $x^2 - 5x + 6 = 6$',
+    marks: 2,
+    rawOcr: '11. Solve: x2 - 5x + 6 = O\n[2]',
+    editLog: [
+      { kind: 'fixed_ocr_word', from: 'O', to: '6' },
+      { kind: 'moved_marks', from: '[2]', to: '' },
+    ],
+    offersSplit: false,
+    correct: 'fix',
+    fixedBody: '11. Solve: $x^2 - 5x + 6 = 0$',
+    fixedMarks: 2,
+    lesson:
+      'The page says the equation equals 0, but the computer typed 6. Open "What the computer changed": it turned the letter O into a 6, which is a wrong change. Press Edit a formula and change the 6 back to 0. The list of changes shows you where the computer may have gone wrong.',
+    planted: 'A formula the computer got wrong (see What the computer changed)',
   },
 ];
 
 function norm(s: string): string {
   return s.replace(/\s+/g, ' ').trim();
+}
+
+/** The formula keypad writes its own spacing and braces ("x^{2}" for "x^2"), so
+ *  two bodies that hold a formula are compared with the spaces and those braces left out. */
+function squashMaths(s: string): string {
+  return s.replace(/\s+/g, '').replace(/\^\{(\w)\}/g, '^$1').replace(/_\{(\w)\}/g, '_$1');
+}
+
+export function sameBody(a: string, b: string): boolean {
+  if (norm(a) === norm(b)) return true;
+  return b.includes('$') && squashMaths(a) === squashMaths(b);
 }
 
 function right(explanation: string): PracticeResult {
@@ -219,7 +265,7 @@ export function evaluatePracticeAnswer(base: PracticeQuestion, a: PracticeAnswer
     return wrong(`You pressed ${ACTION_NAMES[a.action]}, but ${ACTION_NAMES[q.correct]} was the right move here. ${q.lesson}`);
   }
   if (q.correct === 'fix' && a.action === 'fix') {
-    const bodyOk = norm(a.body) === norm(q.fixedBody ?? q.body);
+    const bodyOk = sameBody(a.body, q.fixedBody ?? q.body);
     const marksOk = (a.marks ?? null) === (q.fixedMarks ?? null);
     if (!bodyOk && !marksOk) {
       return wrong(
