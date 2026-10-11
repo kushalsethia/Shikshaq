@@ -220,6 +220,21 @@ export function normaliseProfile(raw: unknown): VerifierProfile | null {
   };
 }
 
+/** Where the "My details" card stands. A failed read with nothing to show is
+ *  its own state: it must never be treated as "no details yet", because the
+ *  save underneath is a full overwrite. */
+export function profileCardState(q: { isLoading: boolean; isError: boolean; data?: unknown }): 'loading' | 'error' | 'ready' {
+  if (q.isLoading) return 'loading';
+  if (q.isError && q.data === undefined) return 'error';
+  return 'ready';
+}
+
+/** The sign-in page's `redirect` target for the verifier screens: the page the
+ *  verifier actually opened (a paper, or the verify screen), not just the list. */
+export function checkerSignInPath(here: string): string {
+  return here.startsWith('/checker') ? here : '/checker';
+}
+
 export type ProfileStatus = 'ok' | 'missing' | 'expired';
 
 export function profileStatus(p: Pick<VerifierProfile, 'grade' | 'expired'> | null): ProfileStatus {
