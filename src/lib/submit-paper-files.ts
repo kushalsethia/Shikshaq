@@ -4,7 +4,7 @@
  * source of truth to match.
  *
  * ⚠ THESE MUST MATCH THE BUCKET. `paper-submissions` carries a file_size_limit
- * and allowed_mime_types (migration 20261011120000_paper_submissions_bucket_limits.sql)
+ * and allowed_mime_types (migration 20261011150000_paper_submissions_bucket_limits.sql)
  * that mirror MAX_BYTES and ACCEPTED_TYPES. The client check is a courtesy to
  * the sender; the bucket is the real gate, because the insert policy lets any
  * caller upload without going through this page.

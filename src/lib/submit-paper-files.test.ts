@@ -107,7 +107,7 @@ describe('uploadProgressLabel', () => {
 
 describe('the bucket limits match the form', () => {
   const sql = readFileSync(
-    resolve(__dirname, '../../supabase/migrations/20261011120000_paper_submissions_bucket_limits.sql'),
+    resolve(__dirname, '../../supabase/migrations/20261011150000_paper_submissions_bucket_limits.sql'),
     'utf8',
   );
   const code = sql.split('\n').filter((l) => !l.trim().startsWith('--')).join('\n');
