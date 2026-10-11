@@ -148,6 +148,27 @@ export function mapSubmittedExamType(raw: string | null): string {
   return EXAM_TYPES[0];
 }
 
+/* What the approve dialog opens with for a submission. A value the sender did
+   not give ("Not sure" is stored as null), or one this site has no slot for
+   (the public form offers Class UG and Exam "Other"; papers has neither), comes
+   back as '' rather than as the first option. Defaulting it quietly to ICSE,
+   Class 1 and Prelims let a submission go live with a board, class or exam the
+   reviewer never chose. '' leaves the Select on its placeholder and keeps
+   Approve switched off until a person picks. */
+export function submittedReviewDefaults(s: {
+  board: string | null;
+  class: string | null;
+  exam_type: string | null;
+}): { board: string; cls: string; examType: string } {
+  const key = (s.exam_type ?? '').trim().toLowerCase();
+  const examKnown = ['prelim', 'half', 'annual', 'final', 'unit'].some((k) => key.startsWith(k));
+  return {
+    board: s.board && BOARDS.includes(s.board) ? s.board : '',
+    cls: s.class && PAPER_CLASSES.includes(s.class) ? s.class : '',
+    examType: examKnown ? mapSubmittedExamType(s.exam_type) : '',
+  };
+}
+
 function submissionStatusTone(status: SubmissionRow['status']): AdminStatus {
   if (status === 'approved') return 'live';
   if (status === 'rejected') return 'hidden';
@@ -648,9 +669,10 @@ export function AdminPapersPage({
   async function openReview(submission: SubmissionRow) {
     setReviewTarget(submission);
     setApproveTitle(`${submission.subject}${submission.exam_type ? ` ${submission.exam_type}` : ''}`.trim());
-    setApproveBoard(submission.board && BOARDS.includes(submission.board) ? submission.board : BOARDS[0]);
-    setApproveClass(submission.class && PAPER_CLASSES.includes(submission.class) ? submission.class : PAPER_CLASSES[0]);
-    setApproveExamType(mapSubmittedExamType(submission.exam_type));
+    const defaults = submittedReviewDefaults(submission);
+    setApproveBoard(defaults.board);
+    setApproveClass(defaults.cls);
+    setApproveExamType(defaults.examType);
     const yearNum = Number(submission.year);
     setApproveYear(String(Number.isFinite(yearNum) && yearNum >= 2000 && yearNum <= 2100 ? yearNum : new Date().getFullYear()));
     setShowReject(false);
@@ -683,6 +705,10 @@ export function AdminPapersPage({
     if (!reviewTarget || !actorId) return;
     if (!approveTitle.trim()) {
       adminToast('A title is required to publish this paper');
+      return;
+    }
+    if (!approveBoard || !approveClass || !approveExamType) {
+      adminToast('Choose the board, class and exam type before publishing');
       return;
     }
     const target = reviewTarget;
@@ -1173,7 +1199,7 @@ export function AdminPapersPage({
             <div>
               <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">Exam type</Label>
               <Select value={formData.exam_type} onValueChange={(v) => handleChange('exam_type', v)}>
-                <SelectTrigger aria-label="Exam type" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Exam type" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue placeholder="Choose an exam type" /></SelectTrigger>
                 <SelectContent>
                   {EXAM_TYPES.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
                 </SelectContent>
@@ -1229,7 +1255,7 @@ export function AdminPapersPage({
                 <AdminPillButton variant="secondary" onClick={() => setShowReject(true)}>
                   Reject
                 </AdminPillButton>
-                <AdminPillButton variant="primary" onClick={() => void handleApprove()} disabled={!approveTitle.trim()} busy={reviewBusy}>
+                <AdminPillButton variant="primary" onClick={() => void handleApprove()} disabled={!approveTitle.trim() || !approveBoard || !approveClass || !approveExamType} busy={reviewBusy}>
                   Approve and publish
                 </AdminPillButton>
               </>
@@ -1322,7 +1348,7 @@ export function AdminPapersPage({
                       <div>
                         <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">Board</Label>
                         <Select value={approveBoard} onValueChange={setApproveBoard}>
-                          <SelectTrigger aria-label="Board" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
+                          <SelectTrigger aria-label="Board" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue placeholder="Choose a board" /></SelectTrigger>
                           <SelectContent>
                             {BOARDS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
                           </SelectContent>
@@ -1331,7 +1357,7 @@ export function AdminPapersPage({
                       <div>
                         <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">Class</Label>
                         <Select value={approveClass} onValueChange={setApproveClass}>
-                          <SelectTrigger aria-label="Class" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
+                          <SelectTrigger aria-label="Class" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue placeholder="Choose a class" /></SelectTrigger>
                           <SelectContent>
                             {PAPER_CLASSES.map((c) => <SelectItem key={c} value={c}>Class {c}</SelectItem>)}
                           </SelectContent>
@@ -1353,7 +1379,7 @@ export function AdminPapersPage({
                         Exam type <span className="font-normal text-warm-meta">(guessed from "{reviewTarget.exam_type || 'not given'}", please check it)</span>
                       </Label>
                       <Select value={approveExamType} onValueChange={setApproveExamType}>
-                        <SelectTrigger aria-label="Exam type" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
+                        <SelectTrigger aria-label="Exam type" className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue placeholder="Choose an exam type" /></SelectTrigger>
                         <SelectContent>
                           {EXAM_TYPES.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
                         </SelectContent>

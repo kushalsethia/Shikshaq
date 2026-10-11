@@ -11,6 +11,14 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { SUBJECTS, CLASSES, BOARDS } from '@/utils/searchFacets';
+import {
+  ACCEPT,
+  MAX_FILES,
+  UPLOAD_TIMEOUT_MS,
+  mergeFiles,
+  uploadProgressLabel,
+  withTimeout,
+} from '@/lib/submit-paper-files';
 
 /* Submit a paper: pick the file, tell us what it is, we review it, it goes up.
 
@@ -31,8 +39,6 @@ import { SUBJECTS, CLASSES, BOARDS } from '@/utils/searchFacets';
 
 const EXAM_TYPES = ['Prelim / Pre-board', 'Half-yearly', 'Annual / Final', 'Unit test', 'Other'];
 const BUCKET = 'paper-submissions';
-const MAX_BYTES = 25 * 1024 * 1024;
-const ACCEPT = 'application/pdf,image/png,image/jpeg,image/webp';
 
 type Stage = 'form' | 'sending' | 'done' | 'fallback';
 
@@ -44,29 +50,36 @@ export default function SubmitPaper() {
 
   const fileInput = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
+  // The latest list, readable inside addFiles without making it re-create.
+  const filesRef = useRef<File[]>([]);
   const [stage, setStage] = useState<Stage>('form');
   const [error, setError] = useState<string | null>(null);
+  // 1-based index of the file being uploaded while stage is 'sending'.
+  const [uploading, setUploading] = useState<number | null>(null);
   const [form, setForm] = useState({
     school: '', board: '', cls: '', subject: '', year: '', examType: '', name: '', contact: '',
   });
 
   const set = (k: keyof typeof form) => (v: string) => setForm((p) => ({ ...p, [k]: v }));
 
+  /* Picking and dropping share this, so a dropped .docx is refused exactly as
+     the picker's accept filter would have refused it. Anything left out (wrong
+     type, over 25MB, past the tenth file) is named in one message: nothing is
+     dropped silently. Pure rules in lib/submit-paper-files.ts. */
   const addFiles = useCallback((list: FileList | null) => {
     if (!list) return;
-    setError(null);
-    const next: File[] = [];
-    for (const f of Array.from(list)) {
-      if (f.size > MAX_BYTES) {
-        setError(`${f.name} is over 25MB. Photograph the pages instead of scanning at full size.`);
-        continue;
-      }
-      next.push(f);
-    }
-    setFiles((prev) => [...prev, ...next].slice(0, 10));
+    const incoming = Array.from(list);
+    const { files: merged, notice } = mergeFiles(filesRef.current, incoming);
+    filesRef.current = merged;
+    setFiles(merged);
+    setError(notice);
   }, []);
 
-  const removeFile = (i: number) => setFiles((prev) => prev.filter((_, n) => n !== i));
+  const removeFile = (i: number) => {
+    const next = filesRef.current.filter((_, n) => n !== i);
+    filesRef.current = next;
+    setFiles(next);
+  };
 
   const ready = files.length > 0 && form.school.trim() !== '' && form.subject !== '';
 
@@ -100,10 +113,14 @@ export default function SubmitPaper() {
       for (const [i, file] of files.entries()) {
         const safe = file.name.replace(/[^\w.-]+/g, '_').slice(-80);
         const path = `${stamp}-${i}-${safe}`;
-        const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
+        setUploading(i + 1);
+        const { error: upErr } = await withTimeout(
+          supabase.storage.from(BUCKET).upload(path, file, {
+            cacheControl: '3600',
+            upsert: false,
+          }),
+          UPLOAD_TIMEOUT_MS,
+        );
         if (upErr) throw upErr;
         paths.push(path);
       }
@@ -124,19 +141,24 @@ export default function SubmitPaper() {
 
       setStage('done');
     } catch (err) {
-      /* Not provisioned yet, or the reader is offline. Either way they should
-         not lose what they typed, so hand them the WhatsApp route with it.
-         Any files that made it to storage before the failure are now
-         orphaned -- no paper_submissions row will ever reference them, so
-         they'd sit there unreviewed and unbilled forever. Best-effort
-         cleanup; a delete failure here must never block the fallback UI. */
-      if (paths.length > 0) {
-        void supabase.storage.from(BUCKET).remove(paths).catch(() => {});
-      }
+      /* Not provisioned yet, the reader is offline, or an upload stalled past
+         its timeout. Either way they should not lose what they typed, so hand
+         them the WhatsApp route with it.
+         Any files that made it to storage before the failure are now orphaned:
+         no paper_submissions row references them. They are NOT cleaned up from
+         here. The public may only insert into the bucket (no delete policy, by
+         design: nobody outside admin can touch what strangers uploaded), so a
+         remove() from this page is refused and would only look like cleanup.
+         They sit in the private bucket until an admin sweeps it. */
       logger.error('SubmitPaper.submit', err);
       setStage('fallback');
+    } finally {
+      setUploading(null);
     }
   }, [ready, files, form]);
+
+  const missingHintId = 'submit-paper-missing-hint';
+  const showMissingHint = !ready && stage === 'form';
 
   if (stage === 'done') {
     return (
@@ -170,7 +192,7 @@ export default function SubmitPaper() {
                 <Button
                   variant="muted"
                   size={46}
-                  onClick={() => { setFiles([]); setStage('form'); }}
+                  onClick={() => { filesRef.current = []; setFiles([]); setStage('form'); }}
                 >
                   Submit another
                 </Button>
@@ -217,7 +239,7 @@ export default function SubmitPaper() {
                 Drop the pages here, or choose files
               </p>
               <p className="mt-1 text-[13px] text-warm-secondary">
-                PDF or photos. Up to 10 files, 25MB each.
+                PDF or photos. Up to {MAX_FILES} files, 25MB each.
               </p>
               <input
                 ref={fileInput}
@@ -225,7 +247,15 @@ export default function SubmitPaper() {
                 accept={ACCEPT}
                 multiple
                 className="sr-only"
-                onChange={(e) => addFiles(e.target.files)}
+                /* The visible Choose files button is the one keyboard stop;
+                   this input has no focus ring, so tabbing onto it highlighted
+                   nothing. */
+                tabIndex={-1}
+                onChange={(e) => {
+                  addFiles(e.target.files);
+                  // Lets the same photo be picked again after it was removed.
+                  e.target.value = '';
+                }}
               />
               <Button
                 variant="muted"
@@ -240,7 +270,7 @@ export default function SubmitPaper() {
             {files.length > 0 && (
               <>
                 <p className="mt-3 text-[12px] font-semibold tabular-nums text-warm-meta">
-                  {files.length} of 10 files
+                  {files.length} of {MAX_FILES} files
                 </p>
                 <ul className="mt-1 grid gap-2">
                   {files.map((f, i) => (
@@ -278,7 +308,7 @@ export default function SubmitPaper() {
           <BentoPanel fill="card" className="p-[22px]">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <Field label="School the paper is from">
+                <Field label="School the paper is from" required>
                   {(controlProps) => (
                     <FieldInput
                       {...controlProps}
@@ -309,7 +339,7 @@ export default function SubmitPaper() {
                 )}
               </Field>
 
-              <Field label="Subject">
+              <Field label="Subject" required>
                 {(controlProps) => (
                   <FieldSelect {...controlProps} name="subject" value={form.subject} onChange={(e) => set('subject')(e.target.value)}>
                     <option value="">Choose a subject</option>
@@ -371,13 +401,14 @@ export default function SubmitPaper() {
               variant="indigo"
               size={52}
               disabled={!ready || stage === 'sending'}
+              aria-describedby={showMissingHint ? missingHintId : undefined}
               onClick={submit}
               className="mt-5 w-full rounded-[16px]"
             >
               {stage === 'sending' ? (
                 <>
                   <Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden="true" />
-                  Uploading
+                  {uploadProgressLabel(uploading, files.length)}
                 </>
               ) : (
                 <>
@@ -387,8 +418,8 @@ export default function SubmitPaper() {
               )}
             </Button>
 
-            {!ready && stage === 'form' && (
-              <p className="mt-2 text-[13px] text-warm-secondary">
+            {showMissingHint && (
+              <p id={missingHintId} className="mt-2 text-[13px] text-warm-secondary">
                 Add the pages, the school and the subject to submit.
               </p>
             )}

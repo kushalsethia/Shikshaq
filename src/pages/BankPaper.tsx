@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Clock, Flag, Search } from 'lucide-react';
 
@@ -28,6 +28,7 @@ import {
 } from '@/lib/bank-paper-display';
 import { displayBodyWithoutDuplicateNumber } from '@/lib/checker-body';
 import { qtypeLabel } from '@/lib/qtype-label';
+import { questionMatchesSearch, searchableCount } from '@/lib/bank-question-search';
 import { DebugId } from '@/components/DebugId';
 import { HeldQuestionCard } from '@/components/papers/held-question-card';
 
@@ -83,6 +84,11 @@ function QuestionReport({
 }) {
   const [note, setNote] = useState('');
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  // The confirmation lingers for a moment, then closes the form. If the reader
+  // opens a report on another question in that window this component unmounts,
+  // and the timer must go with it or it would close the form they just opened.
+  const doneTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(doneTimer.current), []);
 
   async function submit() {
     if (state === 'sending') return;
@@ -101,7 +107,7 @@ function QuestionReport({
     }
     setState('sent');
     // Left on screen briefly so the confirmation is actually read.
-    setTimeout(onDone, 1400);
+    doneTimer.current = window.setTimeout(onDone, 1400);
   }
 
   if (state === 'sent') {
@@ -283,7 +289,10 @@ export default function BankPaper() {
       .eq('needs_review', false)
       .eq('subject', paper.subject)
       .eq('cls', paper.cls)
-      .order('year', { ascending: false })
+      // Undated papers last, as the index does (question-bank.ts pageQuery):
+      // Postgres sorts NULLs first on DESC, which would lead the list with
+      // papers that have no year.
+      .order('year', { ascending: false, nullsFirst: false })
       .limit(50)
       .then(({ data }) => {
         if (cancelled || !data) return;
@@ -301,7 +310,7 @@ export default function BankPaper() {
   const needle = q.trim().toLowerCase();
   const visible = useMemo(
     () => questions.filter((row) =>
-      (!chapter || row.c === chapter) && (!needle || row.t.toLowerCase().includes(needle))),
+      (!chapter || row.c === chapter) && questionMatchesSearch(row, needle)),
     [questions, chapter, needle],
   );
 
@@ -984,7 +993,7 @@ export default function BankPaper() {
                does contain the word. Say which haystack was actually searched. */
             <p className="text-[15px] text-warm-prose">
               {withheld > 0
-                ? `No match in the ${questions.length} free questions. The other ${withheld} are behind a free account.`
+                ? `No match in the ${searchableCount(questions)} free questions. The other ${withheld} are behind a free account.`
                 : 'Nothing in this paper matches that.'}
             </p>
           )}
@@ -1005,7 +1014,7 @@ export default function BankPaper() {
               to={subjectTeacherPath(paper.subject)}
               className="mt-3 inline-flex h-[46px] items-center rounded-full bg-panel px-5 text-[14px] font-bold text-card transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              Find a {displaySubject} teacher
+              Find {displaySubject} teachers
             </Link>
           </div>
         )}

@@ -9,7 +9,7 @@ vi.mock('@/lib/admin-debug', () => ({
   useAdminDebugOn: () => false,
 }));
 
-import { buildPaperPayload, listView, mapSubmittedExamType, missingPaperFields, statusWords, type FormState } from '@/pages/admin/papers';
+import { buildPaperPayload, listView, mapSubmittedExamType, missingPaperFields, statusWords, submittedReviewDefaults, type FormState } from '@/pages/admin/papers';
 import { createFakePapersApi } from '@/dummy/papers-fake-api';
 
 const FORM: FormState = {
@@ -105,6 +105,16 @@ describe('hide, restore, approve and reject keep their writes (G6)', () => {
     expect(mapSubmittedExamType('Unit test')).toBe('Unit Test');
   });
 
+  it('a "Not sure" or UG or Other submission opens the approve dialog blank, not as ICSE, Class 1, Prelims', () => {
+    expect(submittedReviewDefaults({ board: null, class: null, exam_type: null })).toEqual({ board: '', cls: '', examType: '' });
+    expect(submittedReviewDefaults({ board: 'ICSE', class: 'UG', exam_type: 'Other' })).toEqual({ board: 'ICSE', cls: '', examType: '' });
+    expect(submittedReviewDefaults({ board: 'Nonsense', class: '10', exam_type: 'Unit test' })).toEqual({ board: '', cls: '10', examType: 'Unit Test' });
+  });
+
+  it('keeps what the sender did give', () => {
+    expect(submittedReviewDefaults({ board: 'CBSE', class: '12', exam_type: 'Annual / Final' })).toEqual({ board: 'CBSE', cls: '12', examType: 'Final' });
+  });
+
   it('shows a waiting upload as Pending, as the page help says', () => {
     expect(statusWords('pending')).toBe('Pending');
     expect(statusWords('approved')).toBe('Approved');
@@ -114,6 +124,10 @@ describe('hide, restore, approve and reject keep their writes (G6)', () => {
 
 describe('the Student uploads page source', () => {
   const src = readFileSync('src/pages/admin/papers.tsx', 'utf8');
+
+  it('Approve stays off until board, class and exam type are chosen', () => {
+    expect(src).toContain('disabled={!approveTitle.trim() || !approveBoard || !approveClass || !approveExamType}');
+  });
 
   it('uses Hide, Restore and Hidden, never Unpublish or Taken down', () => {
     expect(src).not.toMatch(/Unpublish|Taken down|Take down/);
