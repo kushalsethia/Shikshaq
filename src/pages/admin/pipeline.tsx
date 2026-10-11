@@ -24,6 +24,8 @@ import {
 } from '@/lib/pipeline-stats';
 import { realPipelineApi } from '@/lib/pipeline-api';
 import { PaperRegistryPanel, type RegistrySummaryStatus } from '@/components/admin/PaperRegistryPanel';
+import { PipelineRoute } from '@/components/admin/PipelineRoute';
+import { realPipelineRouteApi, type PipelineRouteApi } from '@/lib/pipeline-route';
 import { realPaperRegistryApi } from '@/lib/paper-registry-api';
 import { headlineCounts, type PaperRegistryApi, type ProcessedState, type RegistrySummary } from '@/lib/paper-registry';
 import { feedActionWords, feedActorWords } from '@/lib/activity-format';
@@ -302,12 +304,15 @@ export function StatsPanel({
 export function AdminPipelinePage({
   api = realPipelineApi,
   registryApi = realPaperRegistryApi,
+  routeApi = realPipelineRouteApi,
   dummy = false,
   banner,
 }: {
   api?: PipelineApi;
   /** The paper registry (processed / not processed); a fake in dummy mode. */
   registryApi?: PaperRegistryApi;
+  /** The papers route at the top of the page; a fake in dummy mode. */
+  routeApi?: PipelineRouteApi;
   /** Dummy mode (D75): no sign-in, no real admin check, a fake API. */
   dummy?: boolean;
   banner?: ReactNode;
@@ -320,6 +325,8 @@ export function AdminPipelinePage({
   const [status, setStatus] = useState<StatsStatus>('loading');
   const [registry, setRegistry] = useState<{ summary: RegistrySummary | null; status: RegistrySummaryStatus }>({ summary: null, status: 'loading' });
   const [focus, setFocus] = useState<{ state: ProcessedState | null; nonce: number } | null>(null);
+  // The paper list and the library numbers are folded away under the route. A stop that filters the list opens the fold.
+  const [foldOpen, setFoldOpen] = useState(false);
 
   const guard = useAdminGuard(dummy ? null : user, {
     onGranted: load,
@@ -349,7 +356,20 @@ export function AdminPipelinePage({
   }
 
   const onSummary = useCallback((summary: RegistrySummary | null, st: RegistrySummaryStatus) => setRegistry({ summary, status: st }), []);
-  const showRegistry = (state: ProcessedState | null) => setFocus({ state, nonce: Date.now() });
+  const showRegistry = (state: ProcessedState | null) => {
+    setFoldOpen(true);
+    setFocus({ state, nonce: Date.now() });
+  };
+
+  // The list may have been folded a moment ago, so scroll once the fold has opened.
+  useEffect(() => {
+    if (!focus) return;
+    const id = window.requestAnimationFrame(() => {
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      document.getElementById('paper-registry')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [focus]);
 
   const nav = buildAdminNav('pipeline', sectionCounts);
 
@@ -417,169 +437,190 @@ export function AdminPipelinePage({
       <AdminPageIntroPanel page="pipeline" />
       {banner}
 
-      <AttentionStrip
-        stats={stats}
-        status={status}
-        notStarted={registry.summary ? headlineCounts(registry.summary).notStarted : null}
-        registryStatus={registry.status}
-        onShowNotStarted={() => showRegistry('not_started')}
-        onShowRegistry={() => showRegistry(null)}
-        onRetry={() => void load()}
-      />
+      <PipelineRoute api={routeApi} onShowRegistry={showRegistry} />
 
-      <PaperRegistryPanel api={registryApi} onSummary={onSummary} focus={focus} />
-
-      <StatsPanel
-        title="Papers library"
-        subtitle="Papers published on the website. This counts library papers, so it differs from the PDF count above."
-        meta={stats ? `updated ${formatDistanceToNow(new Date(stats.generated_at), { addSuffix: true })}` : undefined}
-        status={status}
-        what="the library numbers"
-        onRetry={() => void load()}
+      <details
+        open={foldOpen}
+        onToggle={(e) => setFoldOpen(e.currentTarget.open)}
+        className="group mt-3"
+        data-testid="pipeline-detail-fold"
       >
-        {lib ? (
-          <>
-            <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-4">
-              <Tile label="Live papers" value={lib.published.toLocaleString()} sub={`${lib.questions.toLocaleString()} questions`} />
-              <Tile label="Verified" value={lib.verified.toLocaleString()} sub={`${pct(lib.verified, lib.published)}% of live`} />
-              <Tile label="Needs review" value={lib.needs_review.toLocaleString()} sub="live, not fully checked" />
-              <Tile label="Hidden" value={lib.hidden.toLocaleString()} sub="not published" />
-            </div>
-            <div className="mt-4 px-[18px]">
-              <div className="mb-1.5 flex items-baseline justify-between">
-                <p className="text-[13px] font-semibold text-foreground">Maths</p>
-                <p className="text-[13px] tabular-nums text-warm-meta">
-                  {mathsLive} of {lib.maths_papers} live, {lib.maths_verified} verified
-                </p>
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-bento bg-card px-[18px] py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0">
+            <span className="block text-[15px] font-extrabold text-foreground">The paper list and the library numbers</span>
+            <span className="block text-[13px] text-warm-secondary">
+              Search every PDF, then the library, the checking desk, the newest papers and the activity.
+            </span>
+          </span>
+          <ChevronDown className="h-5 w-5 shrink-0 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none" aria-hidden />
+        </summary>
+
+        <BentoStack className="mt-3 bg-muted">
+        <AttentionStrip
+          stats={stats}
+          status={status}
+          notStarted={registry.summary ? headlineCounts(registry.summary).notStarted : null}
+          registryStatus={registry.status}
+          onShowNotStarted={() => showRegistry('not_started')}
+          onShowRegistry={() => showRegistry(null)}
+          onRetry={() => void load()}
+        />
+
+        <PaperRegistryPanel api={registryApi} onSummary={onSummary} focus={focus} />
+
+        <StatsPanel
+          title="Papers library"
+          subtitle="Papers published on the website. This counts library papers, so it differs from the PDF count above."
+          meta={stats ? `updated ${formatDistanceToNow(new Date(stats.generated_at), { addSuffix: true })}` : undefined}
+          status={status}
+          what="the library numbers"
+          onRetry={() => void load()}
+        >
+          {lib ? (
+            <>
+              <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-4">
+                <Tile label="Live papers" value={lib.published.toLocaleString()} sub={`${lib.questions.toLocaleString()} questions`} />
+                <Tile label="Verified" value={lib.verified.toLocaleString()} sub={`${pct(lib.verified, lib.published)}% of live`} />
+                <Tile label="Needs review" value={lib.needs_review.toLocaleString()} sub="live, not fully checked" />
+                <Tile label="Hidden" value={lib.hidden.toLocaleString()} sub="not published" />
               </div>
-              <StackBar parts={[
-                { value: lib.maths_verified, className: 'bg-emerald-500', label: 'Verified' },
-                { value: lib.maths_needs_review, className: 'bg-amber-400', label: 'Needs review' },
-                { value: lib.maths_hidden, className: 'bg-slate-300', label: 'Hidden' },
-              ]} />
-              <div className="mt-2">
-                <StackLegend counts={{ verified: lib.maths_verified, needs_review: lib.maths_needs_review, hidden: lib.maths_hidden }} />
+              <div className="mt-4 px-[18px]">
+                <div className="mb-1.5 flex items-baseline justify-between">
+                  <p className="text-[13px] font-semibold text-foreground">Maths</p>
+                  <p className="text-[13px] tabular-nums text-warm-meta">
+                    {mathsLive} of {lib.maths_papers} live, {lib.maths_verified} verified
+                  </p>
+                </div>
+                <StackBar parts={[
+                  { value: lib.maths_verified, className: 'bg-emerald-500', label: 'Verified' },
+                  { value: lib.maths_needs_review, className: 'bg-amber-400', label: 'Needs review' },
+                  { value: lib.maths_hidden, className: 'bg-slate-300', label: 'Hidden' },
+                ]} />
+                <div className="mt-2">
+                  <StackLegend counts={{ verified: lib.maths_verified, needs_review: lib.maths_needs_review, hidden: lib.maths_hidden }} />
+                </div>
               </div>
-            </div>
-          </>
-        ) : null}
-      </StatsPanel>
+            </>
+          ) : null}
+        </StatsPanel>
 
-      <StatsPanel
-        title="Checking"
-        subtitle="Papers on the checking desk and the questions cleared so far. The queues are in Needs attention."
-        meta={desk ? `${desk.papers.toLocaleString()} papers on the desk` : undefined}
-        status={status}
-        what="the checking numbers"
-        onRetry={() => void load()}
-      >
-        {desk && q ? (
-          <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-3">
-            <Tile label="Questions cleared" value={q.passed.toLocaleString()} sub={`${pct(q.passed, q.questions)}% of ${q.questions.toLocaleString()}`} />
-            <Tile label="Papers fully passed" value={desk.passed.toLocaleString()} sub={`of ${desk.papers.toLocaleString()} on the desk`} />
-            <Tile label="Papers flagged red" value={desk.red.toLocaleString()} sub="stopped for a problem" tone={desk.red > 0 ? 'alert' : 'plain'} />
-          </div>
-        ) : null}
-      </StatsPanel>
+        <StatsPanel
+          title="Checking"
+          subtitle="Papers on the checking desk and the questions cleared so far. The queues are in Needs attention."
+          meta={desk ? `${desk.papers.toLocaleString()} papers on the desk` : undefined}
+          status={status}
+          what="the checking numbers"
+          onRetry={() => void load()}
+        >
+          {desk && q ? (
+            <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-3">
+              <Tile label="Questions cleared" value={q.passed.toLocaleString()} sub={`${pct(q.passed, q.questions)}% of ${q.questions.toLocaleString()}`} />
+              <Tile label="Papers fully passed" value={desk.passed.toLocaleString()} sub={`of ${desk.papers.toLocaleString()} on the desk`} />
+              <Tile label="Papers flagged red" value={desk.red.toLocaleString()} sub="stopped for a problem" tone={desk.red > 0 ? 'alert' : 'plain'} />
+            </div>
+          ) : null}
+        </StatsPanel>
 
-      <StatsPanel
-        title="Newest papers"
-        subtitle="The latest papers added to the library. Open one to edit it."
-        meta={stats ? `last ${stats.recent_papers.length}` : undefined}
-        status={status}
-        what="the newest papers"
-        onRetry={() => void load()}
-        shape="table"
-      >
-        {recentRows.length ? (
-          <>
-            <AdminTable columns={recentColumns} rows={recentRows} readOnly />
-            <div className="mt-3 px-[18px]">
-              <Link to="/admin/library" className={adminPillClass('quiet', 'sm', 'px-3')}>
-                See all in Library
-              </Link>
-            </div>
-          </>
-        ) : (
-          <AdminEmpty title="No papers in the library yet" />
-        )}
-      </StatsPanel>
+        <StatsPanel
+          title="Newest papers"
+          subtitle="The latest papers added to the library. Open one to edit it."
+          meta={stats ? `last ${stats.recent_papers.length}` : undefined}
+          status={status}
+          what="the newest papers"
+          onRetry={() => void load()}
+          shape="table"
+        >
+          {recentRows.length ? (
+            <>
+              <AdminTable columns={recentColumns} rows={recentRows} readOnly />
+              <div className="mt-3 px-[18px]">
+                <Link to="/admin/library" className={adminPillClass('quiet', 'sm', 'px-3')}>
+                  See all in Library
+                </Link>
+              </div>
+            </>
+          ) : (
+            <AdminEmpty title="No papers in the library yet" />
+          )}
+        </StatsPanel>
 
-      <StatsPanel
-        title="Activity"
-        subtitle="The latest things the desk, the AI and people did."
-        meta={stats ? `most recent ${feed.length}` : undefined}
-        status={status}
-        what="the activity"
-        onRetry={() => void load()}
-        shape="table"
-      >
-        {feedRows.length ? (
-          <>
-            <AdminTable columns={feedColumns} rows={feedRows} readOnly />
-            <div className="mt-3 px-[18px]">
-              <Link to="/admin/activity" className={adminPillClass('quiet', 'sm', 'px-3')}>
-                See full activity
-              </Link>
-            </div>
-          </>
-        ) : (
-          <AdminEmpty title="No activity recorded yet" hint="Checks, edits and pipeline steps will appear here as they happen." />
-        )}
-      </StatsPanel>
+        <StatsPanel
+          title="Activity"
+          subtitle="The latest things the desk, the AI and people did."
+          meta={stats ? `most recent ${feed.length}` : undefined}
+          status={status}
+          what="the activity"
+          onRetry={() => void load()}
+          shape="table"
+        >
+          {feedRows.length ? (
+            <>
+              <AdminTable columns={feedColumns} rows={feedRows} readOnly />
+              <div className="mt-3 px-[18px]">
+                <Link to="/admin/activity" className={adminPillClass('quiet', 'sm', 'px-3')}>
+                  See full activity
+                </Link>
+              </div>
+            </>
+          ) : (
+            <AdminEmpty title="No activity recorded yet" hint="Checks, edits and pipeline steps will appear here as they happen." />
+          )}
+        </StatsPanel>
 
-      <StatsPanel
-        title="Trends and subjects"
-        subtitle="The 30-day charts and the library broken down by subject."
-        meta={stats ? `3 charts, ${stats.by_subject.length} subjects` : undefined}
-        status={status}
-        what="the trends"
-        onRetry={() => void load()}
-      >
-        {stats ? (
-          <details className="group px-[18px]">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-xl bg-muted px-4 text-[14px] font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-              Show the charts and the subject bars
-              <ChevronDown className="h-4 w-4 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none" aria-hidden />
-            </summary>
-            <div className="mt-5 grid gap-6 md:grid-cols-3">
-              <DayBars points={stats.daily} field="desk_papers" label="Papers loaded to the desk" barClass="fill-brand-blue" />
-              <DayBars points={stats.daily} field="questions_cleared" label="Questions cleared" barClass="fill-emerald-500" />
-              <DayBars points={stats.daily} field="papers_added" label="Papers added to the library" barClass="fill-amber-400" />
-            </div>
-            <h3 className="mb-2 mt-6 text-[15px] font-extrabold text-foreground">By subject</h3>
-            <div className="mb-3">
-              <StackLegend
-                counts={{
-                  verified: stats.by_subject.reduce((n, s) => n + s.verified, 0),
-                  needs_review: stats.by_subject.reduce((n, s) => n + s.needs_review, 0),
-                  hidden: stats.by_subject.reduce((n, s) => n + s.hidden, 0),
-                }}
-              />
-            </div>
-            <ul className="space-y-3">
-              {stats.by_subject.map((s) => (
-                <li key={s.subject}>
-                  <div className="mb-1 flex items-baseline justify-between gap-3">
-                    <span className="text-[13px] font-semibold text-foreground">{s.subject}</span>
-                    <span className="text-[13px] tabular-nums text-warm-meta">
-                      {s.published} live, {s.verified} verified{s.hidden ? `, ${s.hidden} hidden` : ''}
-                    </span>
-                  </div>
-                  <StackBar parts={[
-                    { value: s.verified, className: 'bg-emerald-500', label: 'Verified' },
-                    { value: s.needs_review, className: 'bg-amber-400', label: 'Needs review' },
-                    { value: s.hidden, className: 'bg-slate-300', label: 'Hidden' },
-                  ]} />
-                </li>
-              ))}
-            </ul>
-            <p className="mt-4 pb-1 text-[13px] text-warm-label">
-              Boards: {Object.entries(stats.by_board).map(([b, n]) => `${b} ${n}`).join(', ')}
-            </p>
-          </details>
-        ) : null}
-      </StatsPanel>
+        <StatsPanel
+          title="Trends and subjects"
+          subtitle="The 30-day charts and the library broken down by subject."
+          meta={stats ? `3 charts, ${stats.by_subject.length} subjects` : undefined}
+          status={status}
+          what="the trends"
+          onRetry={() => void load()}
+        >
+          {stats ? (
+            <details className="group px-[18px]">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-xl bg-muted px-4 text-[14px] font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                Show the charts and the subject bars
+                <ChevronDown className="h-4 w-4 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none" aria-hidden />
+              </summary>
+              <div className="mt-5 grid gap-6 md:grid-cols-3">
+                <DayBars points={stats.daily} field="desk_papers" label="Papers loaded to the desk" barClass="fill-brand-blue" />
+                <DayBars points={stats.daily} field="questions_cleared" label="Questions cleared" barClass="fill-emerald-500" />
+                <DayBars points={stats.daily} field="papers_added" label="Papers added to the library" barClass="fill-amber-400" />
+              </div>
+              <h3 className="mb-2 mt-6 text-[15px] font-extrabold text-foreground">By subject</h3>
+              <div className="mb-3">
+                <StackLegend
+                  counts={{
+                    verified: stats.by_subject.reduce((n, s) => n + s.verified, 0),
+                    needs_review: stats.by_subject.reduce((n, s) => n + s.needs_review, 0),
+                    hidden: stats.by_subject.reduce((n, s) => n + s.hidden, 0),
+                  }}
+                />
+              </div>
+              <ul className="space-y-3">
+                {stats.by_subject.map((s) => (
+                  <li key={s.subject}>
+                    <div className="mb-1 flex items-baseline justify-between gap-3">
+                      <span className="text-[13px] font-semibold text-foreground">{s.subject}</span>
+                      <span className="text-[13px] tabular-nums text-warm-meta">
+                        {s.published} live, {s.verified} verified{s.hidden ? `, ${s.hidden} hidden` : ''}
+                      </span>
+                    </div>
+                    <StackBar parts={[
+                      { value: s.verified, className: 'bg-emerald-500', label: 'Verified' },
+                      { value: s.needs_review, className: 'bg-amber-400', label: 'Needs review' },
+                      { value: s.hidden, className: 'bg-slate-300', label: 'Hidden' },
+                    ]} />
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-4 pb-1 text-[13px] text-warm-label">
+                Boards: {Object.entries(stats.by_board).map(([b, n]) => `${b} ${n}`).join(', ')}
+              </p>
+            </details>
+          ) : null}
+        </StatsPanel>
+        </BentoStack>
+      </details>
 
       <AdminAuditNote />
     </BentoStack>
