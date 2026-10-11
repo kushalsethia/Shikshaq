@@ -16,12 +16,37 @@ import {
   normaliseCheckerRow,
   normaliseDayLog,
   otherActionWords,
+  rangeSummary,
   sinceWords,
   totalOf,
   type LogDay,
   type LogEvent,
 } from './checker-log';
+import { createLatestGuard } from './latest-guard';
 import { historyLine } from './history-labels';
+
+describe('the range header counts only days that hold real actions', () => {
+  const none = { passed: 0, fixed: 0, set_aside: 0, flagged: 0, edited: 0, approved: 0, other: 0 };
+  it('a day with only taken-back work is not "a day with actions"', () => {
+    const days = [
+      { counts: { ...none, passed: 3 }, events: [{}, {}, {}] },
+      { counts: { ...none }, events: [{}] },
+    ];
+    expect(rangeSummary(days)).toEqual({ total: 3, daysWithActions: 1, cardDays: 2 });
+    expect(rangeSummary([])).toEqual({ total: 0, daysWithActions: 0, cardDays: 0 });
+  });
+
+  it('the person page drops an answer for an earlier range', () => {
+    const src = readFileSync('src/pages/admin/checker-log-person.tsx', 'utf8');
+    expect(src).toContain('loadGuard.current.isCurrent(token)');
+    expect(src).toContain('{daysWithActions} of the last {shownRange} days');
+    const g = createLatestGuard();
+    const t30 = g.next();
+    const t90 = g.next();
+    expect(g.isCurrent(t30)).toBe(false);
+    expect(g.isCurrent(t90)).toBe(true);
+  });
+});
 import { HistoryList } from '@/components/admin/approval/HistoryPanel';
 import { createFakeCheckerLogApi, FIXTURE_ACTOR_KEY } from '@/dummy/checker-log-fake-api';
 import { FIXTURE_NOW } from '@/dummy/approval-fake-api';

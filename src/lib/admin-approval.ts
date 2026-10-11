@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import {
+  HISTORY_LIMIT,
   normalisePaperHistory,
   normaliseQuestionHistory,
   normaliseQueueRow,
@@ -50,7 +51,7 @@ export const realApprovalApi: ApprovalApi = {
     return (Array.isArray(data) ? data : []).map(normaliseQueueRow).filter((r) => r.audit_paper_id);
   },
   async history() {
-    const data = await call(RPC.history, { p_limit: 200 });
+    const data = await call(RPC.history, { p_limit: HISTORY_LIMIT });
     return (Array.isArray(data) ? data : []).map(normaliseHistoryRow).filter((r) => r.audit_paper_id);
   },
   async review(auditPaperId) {

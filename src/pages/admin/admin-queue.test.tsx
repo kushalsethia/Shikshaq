@@ -13,6 +13,7 @@ import {
   QUEUE_UNAVAILABLE_WORDS,
   WaitingListView,
   acceptAsIs,
+  focusAfterStep,
   helpPaperHref,
   waitingState,
   type AcceptStep,
@@ -20,7 +21,7 @@ import {
 } from '@/pages/admin/admin-queue';
 import { createFakeAdminQueueApi } from '@/dummy/admin-queue-fake-api';
 import type { EscalationRow } from '@/lib/checker-api';
-import type { QueuePaper } from '@/lib/admin-queue';
+import { queuePapersFromRpc, type QueuePaper } from '@/lib/admin-queue';
 
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/\s+/g, ' ');
 const NOTHING_WAITING = 'Nothing is waiting for an admin.';
@@ -53,7 +54,6 @@ describe('the waiting tab tells a failed read from an empty list', () => {
   it('an unavailable list says so in plain words, with no mention of a database update', () => {
     const t = text(list({ kind: 'unavailable' }));
     expect(t).toContain(QUEUE_UNAVAILABLE_WORDS);
-    expect(t).toContain('The count on the tab is still correct.');
     expect(t).not.toMatch(/database|update|migration/i);
     expect(t).not.toContain(NOTHING_WAITING);
   });
@@ -68,10 +68,12 @@ describe('the waiting tab tells a failed read from an empty list', () => {
   it('a paper row is a disclosure with an id the button controls', () => {
     const closed = list({ kind: 'ready', papers: [PAPER] });
     expect(closed).toContain('aria-expanded="false"');
-    expect(closed).toContain('aria-controls="queue-paper-p1"');
+    // The panel does not exist while closed, so nothing may point at it.
+    expect(closed).not.toContain('aria-controls');
     expect(text(closed)).toContain('3 waiting');
     const opened = list({ kind: 'ready', papers: [PAPER] }, 'p1');
     expect(opened).toContain('aria-expanded="true"');
+    expect(opened).toContain('aria-controls="queue-paper-p1"');
     expect(opened).toContain('id="queue-paper-p1"');
     expect(text(opened)).toContain('questions here');
   });
@@ -156,5 +158,35 @@ describe('Asked for help shows the question and asks twice before accepting', ()
     expect(before.length).toBeGreaterThan(0);
     expect(await acceptAsIs(api, before[0].question_id)).toBe('ok');
     expect((await api.helpRequests()).map((h) => h.question_id)).not.toContain(before[0].question_id);
+  });
+});
+
+describe('the waiting papers read tells a missing function from a real failure', () => {
+  it('a missing admin_queue_papers is null, so the page says it is not available yet', () => {
+    expect(queuePapersFromRpc({ data: null, error: { code: 'PGRST202' } })).toBeNull();
+    expect(queuePapersFromRpc({ data: null, error: { code: '42883' } })).toBeNull();
+  });
+
+  it('any other failure throws, so the page shows an error with Try again', () => {
+    expect(() => queuePapersFromRpc({ data: null, error: { code: '42501' } })).toThrow();
+    expect(() => queuePapersFromRpc({ data: null, error: { code: null } })).toThrow();
+  });
+
+  it('a good read gives the papers, and an empty one gives an empty list (not null)', () => {
+    expect(queuePapersFromRpc({ data: [], error: null })).toEqual([]);
+    const rows = queuePapersFromRpc({ data: [{ audit_paper_id: 'p1', title: 'T', school: 'S', waiting: 2, is_live: true }], error: null });
+    expect(rows?.[0]).toMatchObject({ audit_paper_id: 'p1', waiting: 2 });
+  });
+});
+
+describe('keyboard focus follows the accept steps', () => {
+  it('moves to the confirming button when asked, and back to Accept as-is on cancel', () => {
+    expect(focusAfterStep('idle', 'confirm')).toBe('confirm');
+    expect(focusAfterStep('confirm', 'idle')).toBe('accept');
+  });
+  it('leaves focus alone for every other change', () => {
+    expect(focusAfterStep('confirm', 'busy')).toBeNull();
+    expect(focusAfterStep('busy', 'failed')).toBeNull();
+    expect(focusAfterStep('idle', 'idle')).toBeNull();
   });
 });

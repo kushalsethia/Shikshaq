@@ -9,8 +9,13 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 import {
   approveCopy,
+  approveClosedReason,
+  HISTORY_LIMIT,
+  historyCapNote,
   isRecordOnly,
+  lookupNextWaiting,
   nextWaitingPaper,
+  openQuestionsAdvice,
   oldestFirst,
   resolveMode,
   rowStatus,
@@ -383,6 +388,41 @@ describe('the next paper after a decision', () => {
     expect(nextWaitingPaper(rows, 'a')?.audit_paper_id).toBe('c');
     expect(nextWaitingPaper([row('a', 0, '2026-10-01T10:00:00Z')], 'a')).toBeNull();
     expect(nextWaitingPaper([row('b', 2, '2026-09-30T10:00:00Z')], 'z')).toBeNull();
+  });
+
+  it('a queue that cannot be read is "unknown", never "nothing else is ready"', async () => {
+    expect(await lookupNextWaiting(() => Promise.reject(new Error('offline')), 'a')).toBe('unknown');
+    expect(await lookupNextWaiting(() => Promise.resolve([row('a', 0, '2026-10-01T10:00:00Z')]), 'a')).toBeNull();
+    const hit = await lookupNextWaiting(() => Promise.resolve([row('b', 0, '2026-10-01T10:00:00Z')]), 'a');
+    expect(hit).not.toBe('unknown');
+    expect(hit && hit !== 'unknown' ? hit.audit_paper_id : null).toBe('b');
+  });
+});
+
+describe('the Already decided list says when it is capped', () => {
+  it('stays quiet under the cap and names the cap at it', () => {
+    expect(historyCapNote(HISTORY_LIMIT - 1)).toBeNull();
+    expect(historyCapNote(HISTORY_LIMIT)).toContain(`${HISTORY_LIMIT}`);
+    expect(historyCapNote(HISTORY_LIMIT)).not.toMatch(/[–—]/);
+  });
+});
+
+describe('what the paper page says about open questions and the Approve button', () => {
+  it('a sent back paper no longer claims its questions cannot be changed', () => {
+    const words = openQuestionsAdvice('none');
+    expect(words).toContain('cannot be passed or set aside');
+    expect(words).toContain('Edit');
+    expect(words).not.toContain('cannot be changed here');
+    expect(openQuestionsAdvice('full')).toContain('before this paper can be approved');
+    expect(openQuestionsAdvice('pass-only')).toContain('passed but not set aside');
+  });
+
+  it('says why Approve is shut in every closed case, and nothing when it is open', () => {
+    expect(approveClosedReason({ open: 0, approved: false, rejected: true })).toMatch(/sent back/);
+    expect(approveClosedReason({ open: 3, approved: false, rejected: true })).toMatch(/sent back/);
+    expect(approveClosedReason({ open: 0, approved: true, rejected: false })).toMatch(/already approved/);
+    expect(approveClosedReason({ open: 2, approved: false, rejected: false })).toMatch(/open questions/);
+    expect(approveClosedReason({ open: 0, approved: false, rejected: false })).toBeUndefined();
   });
 });
 

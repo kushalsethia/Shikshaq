@@ -18,7 +18,10 @@ import { realApprovalApi } from '@/lib/admin-approval';
 import {
   approveCopy,
   isRecordOnly,
-  nextWaitingPaper,
+  lookupNextWaiting,
+  openQuestionsAdvice,
+  approveClosedReason,
+  type NextPaperLookup,
   resolveMode,
   reviewCounts,
   writeErrorWords,
@@ -157,7 +160,7 @@ export function AdminPaperApprovalPage({
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   // After an approve or send-back: what happened and which paper to open next.
-  const [done, setDone] = useState<{ words: string; next: ApprovalQueueRow | null } | null>(null);
+  const [done, setDone] = useState<{ words: string; next: NextPaperLookup<ApprovalQueueRow> } | null>(null);
   const refreshCounts = useRefreshAdminCounts();
 
   usePageMeta(
@@ -226,12 +229,8 @@ export function AdminPaperApprovalPage({
   }
 
   /** The oldest other paper that is ready, so a run of approvals needs no trip back to the list. */
-  async function findNext(): Promise<ApprovalQueueRow | null> {
-    try {
-      return nextWaitingPaper(await api.queue(), auditPaperId);
-    } catch {
-      return null;
-    }
+  function findNext(): Promise<NextPaperLookup<ApprovalQueueRow>> {
+    return lookupNextWaiting(() => api.queue(), auditPaperId);
   }
 
   async function runAction() {
@@ -329,7 +328,9 @@ export function AdminPaperApprovalPage({
             <div className="min-w-0">
               <p className="text-[15px] font-bold text-foreground">{done.words}</p>
               <p className="text-[13px] text-warm-secondary">
-                {done.next ? (
+                {done.next === 'unknown' ? (
+                  'We could not check for the next paper. Go back to the list to see what is waiting.'
+                ) : done.next ? (
                   <>
                     Next waiting paper:{' '}
                     <Link
@@ -386,11 +387,7 @@ export function AdminPaperApprovalPage({
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-brand-subtle px-4 py-3 text-[14px] text-brand-deep" role="status">
             <span className="font-semibold">
               {open === 1 ? '1 question is still open.' : `${open} questions are still open.`}{' '}
-              {mode === 'full'
-                ? 'Each must be passed or set aside before this paper can be approved.'
-                : mode === 'pass-only'
-                  ? 'This paper is approved, so each one can be passed but not set aside.'
-                  : 'This paper was sent back, so its questions cannot be changed here.'}
+              {openQuestionsAdvice(mode)}
             </span>
             {firstOpen ? (
               <a href={`#q-${firstOpen.id}`} className="inline-flex min-h-10 items-center font-bold underline underline-offset-2">
@@ -406,7 +403,7 @@ export function AdminPaperApprovalPage({
             disabled={open > 0 || approved || rejected}
             onClick={() => ask('approve')}
             className="disabled:cursor-not-allowed disabled:opacity-50"
-            title={open > 0 ? 'Resolve the open questions first' : undefined}
+            title={approveClosedReason({ open, approved, rejected })}
           >
             {approved ? 'Approved' : isRecordOnly(paper) ? 'Approve (already live)' : 'Approve for launch'}
           </AdminPillButton>
@@ -429,6 +426,11 @@ export function AdminPaperApprovalPage({
             </AdminPillButton>
           ) : null}
         </div>
+        {rejected ? (
+          <p className="mt-2 text-[13px] text-warm-secondary" data-testid="sent-back-note">
+            Sent back. Approval is closed for this paper.
+          </p>
+        ) : null}
       </BentoPanel>
 
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_400px]">
