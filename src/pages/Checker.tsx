@@ -28,7 +28,7 @@ import {
   paperCardProgress,
   checkerSignInPath,
   parseSubjectList,
-  profileCardState,
+  loadGate,
   profileNotice,
   profileStatus,
   QUESTION_STATE_LABEL,
@@ -371,7 +371,7 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
   const [form, setForm] = useState({ full_name: '', grade: '', school: '', board: '' });
   const [formError, setFormError] = useState<string | null>(null);
 
-  const cardState = profileCardState(profileQuery);
+  const cardState = loadGate(profileQuery);
   if (cardState === 'loading') return null;
   // Saving is a full overwrite, so a form opened from a failed read would blank
   // the verifier's real details. Show no form until the read has worked.

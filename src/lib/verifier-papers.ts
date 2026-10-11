@@ -220,10 +220,11 @@ export function normaliseProfile(raw: unknown): VerifierProfile | null {
   };
 }
 
-/** Where the "My details" card stands. A failed read with nothing to show is
- *  its own state: it must never be treated as "no details yet", because the
- *  save underneath is a full overwrite. */
-export function profileCardState(q: { isLoading: boolean; isError: boolean; data?: unknown }): 'loading' | 'error' | 'ready' {
+/** Where a read stands: still loading, failed with nothing to show, or ready.
+ *  A failed read must never be treated as "no rows" or "no details yet": the
+ *  profile save is a full overwrite, and "Paper finished" must not appear
+ *  while the list that says what is left has not arrived. */
+export function loadGate(q: { isLoading: boolean; isError: boolean; data?: unknown }): 'loading' | 'error' | 'ready' {
   if (q.isLoading) return 'loading';
   if (q.isError && q.data === undefined) return 'error';
   return 'ready';

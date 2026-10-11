@@ -223,9 +223,8 @@ export function ChangesSection({ source, rawOcr }: { source: unknown; rawOcr: un
   const [open, setOpen] = React.useState(false);
   const [showRaw, setShowRaw] = React.useState(false);
   if (!hasChangesToShow(source, rawOcr)) return null;
-  const { lines, hidden } = describeEditLog(source);
+  const { lines, hidden, total } = describeEditLog(source);
   const raw = rawReading(rawOcr);
-  const total = lines.reduce((n, l) => n + l.count, 0);
   return (
     <section data-tour="changes" data-testid="what-changed" className="mt-4 rounded-[12px] bg-muted">
       <button

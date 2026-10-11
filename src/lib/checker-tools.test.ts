@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { CHECKER_TOOLS, toolById } from './checker-tools';
+import { CHECKER_TOOLS, toolBlockedByUnsavedEdit, toolById, UNSAVED_EDIT_NOTE } from './checker-tools';
 import { CHECKER_TOOL_RULES } from './checker-onboarding';
 
 describe('the four tools', () => {
@@ -29,5 +29,27 @@ describe('the four tools', () => {
 
   it('finds a tool by id', () => {
     expect(toolById('formula').label).toBe('Edit a formula');
+  });
+});
+
+describe('tools that would throw away an unsaved Fix it draft', () => {
+  it('blocks Split and the OR tool while Fix it has typed changes', () => {
+    expect(toolBlockedByUnsavedEdit('split', 'fix', true)).toBe(UNSAVED_EDIT_NOTE);
+    expect(toolBlockedByUnsavedEdit('or', 'fix', true)).toBe(UNSAVED_EDIT_NOTE);
+  });
+
+  it('lets them through when nothing has been typed, or on the plain check view', () => {
+    expect(toolBlockedByUnsavedEdit('split', 'fix', false)).toBeNull();
+    expect(toolBlockedByUnsavedEdit('or', 'fix', false)).toBeNull();
+    expect(toolBlockedByUnsavedEdit('split', 'check', true)).toBeNull();
+  });
+
+  it('never blocks the two edit tools', () => {
+    expect(toolBlockedByUnsavedEdit('fix', 'fix', true)).toBeNull();
+    expect(toolBlockedByUnsavedEdit('formula', 'fix', true)).toBeNull();
+  });
+
+  it('says it without dashes', () => {
+    expect(UNSAVED_EDIT_NOTE).not.toMatch(/[–—]/);
   });
 });

@@ -139,6 +139,7 @@ export function PaperPageFlip({
       <div
         className="max-h-[56vh] w-full overflow-auto rounded-[14px] bg-white lg:max-h-[68vh]"
         tabIndex={0}
+        role="region"
         aria-label="The scanned page. Scroll to move around."
       >
         {!ready ? (

@@ -61,3 +61,17 @@ export const TOOLS_IDLE_HINT = 'Point at a tool, or tab to it, to see what it do
 export function toolById(id: CheckerToolId): CheckerTool {
   return CHECKER_TOOLS.find((t) => t.id === id)!;
 }
+
+/** Said when Split or the OR tool is pressed while a Fix it draft has typed
+ *  changes in it: they would be thrown away without a word. */
+export const UNSAVED_EDIT_NOTE = 'You have changes that are not saved yet. Press Cancel to drop them, or save them first, then use this tool.';
+
+/**
+ * Split and "This is just the OR" send the question as it is stored (Split
+ * sends the words, not the number or marks), so they cannot run on top of a
+ * Fix it draft. Returns the sentence to show, or null when the tool is fine.
+ */
+export function toolBlockedByUnsavedEdit(id: CheckerToolId, mode: 'check' | 'fix' | 'split', edited: boolean): string | null {
+  if (mode === 'check' || !edited) return null;
+  return id === 'split' || id === 'or' ? UNSAVED_EDIT_NOTE : null;
+}
