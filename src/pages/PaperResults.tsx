@@ -10,13 +10,13 @@ import { bankSubjectToSite, bankSubjectMatches } from '@/lib/subject-vocabulary'
 import { bankClassMatches } from '@/utils/romanNumerals';
 import { parsePaperQuery, paperQueryHasFacets } from '@/lib/paper-query';
 import { filterToKnownVocabulary } from '@/lib/paper-filter-validation';
+import { createSearchGeneration } from '@/lib/search-generation';
 import { SUBJECTS, CLASSES, BOARDS } from '@/utils/searchFacets';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { getWhatsAppLink } from '@/utils/whatsapp';
-import { useAuth } from '@/lib/auth-context';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
@@ -56,7 +56,6 @@ function parseArrayParam(param: string | null): string[] {
 
 export default function PaperResults() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   /* Moved above the filter parsing below: R4G6's school-vocabulary check
@@ -226,6 +225,11 @@ export default function PaperResults() {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  /* Which search the list on screen belongs to. Bumped each time the first
+     page is re-fetched; loadMore() captures it and drops its result when it
+     has moved on, so a next-page request that was in flight when the filters
+     changed cannot append the OLD search's rows under the new heading. */
+  const searchGen = useRef(createSearchGeneration()).current;
   const [loadError, setLoadError] = useState(false);
   // Presentation-only: shows the back-to-top affordance once the student has
   // scrolled past roughly a viewport of results. This is an honest boolean
@@ -264,7 +268,7 @@ export default function PaperResults() {
 
   usePageMeta(
     `${heading} | Shikshaq`,
-    'Browse free past year question papers shared by students. Read online, no download, no sign-up wall.'
+    'Browse free past year question papers shared by students. Read them online, the first two questions of every paper need no account.'
   );
 
   function runQuery(pageNum: number) {
@@ -306,9 +310,11 @@ export default function PaperResults() {
 
   useEffect(() => {
     let cancelled = false;
+    searchGen.begin();
     async function fetchFirstPage() {
       setLoading(true);
       setLoadError(false);
+      setLoadingMore(false);
       setPage(0);
       try {
         const { data, error, count } = await runQuery(0);
@@ -352,17 +358,22 @@ export default function PaperResults() {
 
   async function loadMore() {
     const nextPage = page + 1;
+    const gen = searchGen.current();
     setLoadingMore(true);
     try {
       const { data, error } = await runQuery(nextPage);
       if (error) throw error;
+      // The filters changed while this page was in flight: it belongs to a
+      // search that is no longer on screen. Drop it (page, rows and the
+      // loadingMore flag are all the new search's to manage now).
+      if (!searchGen.isCurrent(gen)) return;
       setPapers((prev) => [...prev, ...((data as Paper[]) || [])]);
       setPage(nextPage);
     } catch {
       // Leave the existing results in place; the button stays put so the
       // student can just try again rather than losing what already loaded.
     } finally {
-      setLoadingMore(false);
+      if (searchGen.isCurrent(gen)) setLoadingMore(false);
     }
   }
 
@@ -506,7 +517,14 @@ export default function PaperResults() {
     [bankQuery.data, freeText],
   );
 
-  const isDeadEnd = !loading && !loadError && shownPapers.length === 0;
+  /* Two sources feed this list: the Supabase page and the static bank index.
+     "Loading" has to wait for both. Gating on the database alone showed
+     "No papers match all of those filters yet" and "0 papers found" on a cold
+     load whenever the database answered (with nothing) before the bank index
+     arrived, then swapped to the real rows a moment later. A failed bank load
+     settles (isPending is false on error), so this can never hang. */
+  const listLoading = loading || bankQuery.isPending;
+  const isDeadEnd = !listLoading && !loadError && shownPapers.length === 0;
 
   // EmptyResults relax options: for each active filter chip, a head-only count
   // (bank rows filtered locally + a Supabase count query) of what the result
@@ -637,7 +655,7 @@ export default function PaperResults() {
                  small skeleton-flash, on the count tag rather than the grid,
                  every time a filter changed. Only a genuine first load (no
                  papers, no total yet) gets the "Counting…" placeholder. */
-              key={loading && shownTotal === 0 && shownPapers.length === 0 ? 'counting' : revealKey}
+              key={listLoading && shownTotal === 0 && shownPapers.length === 0 ? 'counting' : revealKey}
               /* Count-tag landing: a single scale/fade-in (card-reveal's own
                  curve) plus a once-only glow pulse under the tag, in the
                  first active subject filter's REAL palette color — the same
@@ -646,15 +664,15 @@ export default function PaperResults() {
                  count. Re-keyed only on revealKey (search settling), so
                  clicking through filters or scrolling never repeats it. */
               className={`inline-flex h-8 flex-none items-center whitespace-nowrap rounded-full bg-white/15 px-[14px] text-[13px] font-bold text-white ${
-                loading && shownTotal === 0 && shownPapers.length === 0 ? '' : 'animate-card-reveal animate-count-glow motion-reduce:animate-none'
+                listLoading && shownTotal === 0 && shownPapers.length === 0 ? '' : 'animate-card-reveal animate-count-glow motion-reduce:animate-none'
               }`}
               style={
-                !(loading && shownTotal === 0 && shownPapers.length === 0) && subjectFilters[0]
+                !(listLoading && shownTotal === 0 && shownPapers.length === 0) && subjectFilters[0]
                   ? ({ '--count-glow-color': `${getSubjectPalette(subjectFilters[0]).solid}99` } as CSSProperties)
                   : undefined
               }
             >
-              {loading && shownTotal === 0 && shownPapers.length === 0
+              {listLoading && shownTotal === 0 && shownPapers.length === 0
                 ? 'Counting…'
                 : `${shownTotal.toLocaleString('en-IN')} paper${shownTotal === 1 ? '' : 's'} found`}
             </span>
@@ -718,7 +736,7 @@ export default function PaperResults() {
         {/* Handoff PR-003/PR-004: results live inside one BentoPanel; base
             grid is a single column at gap-[10px] (sm:/lg: unchanged). */}
         <BentoPanel fill="card" className="px-4 py-[18px]">
-          {loading && shownPapers.length === 0 ? (
+          {listLoading && shownPapers.length === 0 ? (
             // One coherent skeleton in the real grid's shape, not a spinner.
             // Only for a genuine first load — see the dimmed-in-place branch
             // below for a filter/search-driven refetch with results already
@@ -755,7 +773,13 @@ export default function PaperResults() {
               <div className="stagger-children grid grid-cols-1 gap-[10px] sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
                 {shownPapers.map((p) => (
                   <div key={p.id} className="animate-card-reveal motion-reduce:animate-none">
-                    <PaperSheetCard paper={p} locked={!user} />
+                    {/* Never locked: papers are soft-gated, not locked (CLAUDE.md), so the
+                      first two questions of any bank paper read with no account.
+                      A "Sign in to read" pill here promised a wall the paper
+                      page does not have. /past-papers and Browse already
+                      render these cards unlocked; the sign-in prompt belongs
+                      on the paper itself, after the free questions. */}
+                    <PaperSheetCard paper={p} />
                   </div>
                 ))}
               </div>

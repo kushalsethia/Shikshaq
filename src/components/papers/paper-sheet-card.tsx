@@ -83,13 +83,16 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
       />
 
       {/* A plain div (not <a>) so the download anchor in the footer can be a
-          real nested link — two nested <a> elements are invalid HTML. Card-body
-          navigation is handled via onClick/keyboard instead. */}
+          real nested link — two nested <a> elements are invalid HTML. The
+          whole card is a click target for pointer users (openPaper), but it is
+          deliberately NOT a keyboard stop or a role="link": it holds two real
+          links (Read, Download), and a link around links gives screen readers
+          nested interactive controls and keyboard users a duplicate tab stop.
+          Its old Enter/Space handler also swallowed those keys on the nested
+          Download anchor and opened the paper instead. The Read link is the
+          keyboard and screen-reader path to the same place. */}
       <div
-        role="link"
-        tabIndex={0}
         onClick={openPaper}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPaper(); } }}
         /* Handoff PR-003/S-014: radius -> 22px (unambiguous — the rest of
            PR-003's card-interior description (badge/title/footer resizing,
            a "Paper © {school}" footer replacing this card's Read/Download

@@ -17,6 +17,7 @@ import { MorePapers } from '@/components/papers/more-papers';
 import { generateBreadcrumbSchema } from '@/utils/structuredDataGenerators';
 import { injectSchemas } from '@/utils/injectSchemas';
 import { reportLoadError } from '@/lib/load-error';
+import { fileStateFrom, isShareDismissed, siblingNeighbours, type FileState } from '@/lib/paper-reader-helpers';
 
 // No file_url here: papers.file_url is no longer anon-selectable at all
 // (column-level REVOKE, migration 20260909000003_gate_paper_file_url.sql).
@@ -99,6 +100,10 @@ export default function PaperReader() {
 
   const [paper, setPaper] = useState<Paper | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  // Separate from fileUrl so "still asking" and "asking failed" never read as
+  // "this paper has no file".
+  const [fileState, setFileState] = useState<FileState>('loading');
+  const [fileTick, setFileTick] = useState(0);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -258,9 +263,8 @@ export default function PaperReader() {
     else void el.requestFullscreen?.();
   }
 
-  const currentIndex = useMemo(() => siblings.findIndex((s) => s.id === id), [siblings, id]);
-  const prevPaper = currentIndex > 0 ? siblings[currentIndex - 1] : null;
-  const nextPaper = currentIndex >= 0 && currentIndex < siblings.length - 1 ? siblings[currentIndex + 1] : null;
+  // Siblings are newest first; previous is the older paper, next the newer.
+  const { previous: prevPaper, next: nextPaper } = useMemo(() => siblingNeighbours(siblings, id), [siblings, id]);
 
   const signedIn = !authLoading && !!user;
   // Whether there's anything to put in the rail column at all. Drives
@@ -298,15 +302,20 @@ export default function PaperReader() {
   // signed-out caller regardless of what's asked for, so there is nothing
   // client-side that could request it early.
   useEffect(() => {
-    if (!paper || !signedIn) { setFileUrl(null); return; }
+    if (!paper || !signedIn) { setFileUrl(null); setFileState('loading'); return; }
     let cancelled = false;
+    setFileState('loading');
     supabase.rpc('paper_file_url', { p_paper_id: paper.id }).then(({ data, error }) => {
       if (cancelled) return;
-      if (error) { if (import.meta.env.DEV) console.warn('paper_file_url error:', error); return; }
-      setFileUrl(data ?? null);
+      const state = fileStateFrom({ data: (data as string | null) ?? null, error });
+      if (error) {
+        reportLoadError('paper.file', error, { what: "this paper's file", retry: () => setFileTick((t) => t + 1) });
+      }
+      setFileUrl(state === 'ready' ? (data as string) : null);
+      setFileState(state);
     });
     return () => { cancelled = true; };
-  }, [paper, signedIn]);
+  }, [paper, signedIn, fileTick]);
 
   // Share the real paper URL — the path of least resistance for passing a
   // paper along should be "share the link", not a screenshot. No website can
@@ -319,8 +328,11 @@ export default function PaperReader() {
       try {
         await navigator.share({ title: p.title, url: shareUrl });
         return;
-      } catch {
-        // fall through to clipboard
+      } catch (err) {
+        // They closed the share sheet on purpose: nothing was wrong, so do not
+        // copy to the clipboard or announce "Link copied" behind their back.
+        if (isShareDismissed(err)) return;
+        // Anything else (no share target, blocked): fall through to clipboard.
       }
     }
     try {
@@ -538,6 +550,20 @@ export default function PaperReader() {
                     </div>
                   </div>
                 </>
+              ) : fileState === 'loading' ? (
+                <div className="pb-4" role="status" aria-label="Loading the paper">
+                  <div className={`h-12 w-48 rounded-full ${SKELETON}`} />
+                  <div className={`mt-3 h-[60dvh] min-h-80 rounded-lg ${SKELETON}`} />
+                </div>
+              ) : fileState === 'error' ? (
+                <div className="pb-6">
+                  <EmptyResults
+                    className="bg-transparent shadow-none"
+                    heading="Couldn't load this paper"
+                    message="The paper is here but its file did not come through. Check your connection and try again."
+                    action={{ label: 'Try again', onClick: () => setFileTick((t) => t + 1) }}
+                  />
+                </div>
               ) : (
                 <div className="pb-6">
                   <EmptyResults

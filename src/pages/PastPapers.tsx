@@ -367,9 +367,10 @@ export default function PastPapers() {
   /* Bank papers lead: they read as questions rather than as a scan, which is
      the better thing to land on. */
   /* Sorted, and memoised for the same reason bankPapers is: a fresh array
-     each render is a new identity downstream. It is labelled "Recently added",
-     so it is ordered by year with undated papers last rather than by whichever
-     source happened to be concatenated first. */
+     each render is a new identity downstream. It is ordered by EXAM year with
+     undated papers last, not by when a paper was added (bank rows carry no
+     added-date), so it is labelled "Latest papers" and not "Recently added":
+     a 2019 paper must never read as "just added". */
   const recentPapers = useMemo(() => {
     const merged = [...bankPapers, ...(landing.data?.recentPapers ?? [])];
     return merged.sort((a, b) => (b.year || 0) - (a.year || 0));
@@ -434,7 +435,11 @@ export default function PastPapers() {
      was two async counts landing at different times, only one of them
      actually gated). Both queries now hold the header back. */
   const loading = !hasFilters && (landing.isPending || bankQuery.isPending);
-  const loadError = landing.isError;
+  /* Either source failing is an error. The bank index carries most of the
+     library, so when only it failed the page used to render quietly with
+     DB-only counts, empty facets and an empty shelf, describing a library that
+     was not what had loaded. */
+  const loadError = landing.isError || bankQuery.isError;
 
   // The search bar's Teachers/Papers toggle doubles as the page-mode switch.
   const handleSearchModeChange = (mode: 'teachers' | 'papers') => {
@@ -653,7 +658,7 @@ export default function PastPapers() {
 
         {loading && <ShelfSkeleton />}
 
-        {/* ----------------------------------------------------- Recently added */}
+        {/* ----------------------------------------------------- Latest papers */}
         {/* C-055: papers as objects standing on a shelf ledge, not a row of
             cards — PaperCover (C2) + ShelfLedge (C4). Locked covers (26px
             lock disc) when signed out, per design.md §6.5: browsing is
@@ -666,7 +671,7 @@ export default function PastPapers() {
                 QA) — the actual gate lives on each locked cover's 28px
                 lock disc below, which already opens PaperGate naming the
                 paper. Nothing else needs to ask twice. */}
-            <h2 className={`mb-3 px-[22px] ${SECTION_H2} text-foreground`}>Recently added</h2>
+            <h2 className={`mb-3 px-[22px] ${SECTION_H2} text-foreground`}>Latest papers</h2>
             <div className="px-[22px]">
               <ShelfLedge>
                 {shelfPapers.map((p) => (
@@ -722,8 +727,15 @@ export default function PastPapers() {
             <EmptyResults
               tone="papers"
               heading="Unable to load the paper collection right now"
-              message="This is on us, not on your connection necessarily. Refresh and it usually comes straight back."
-              action={{ label: 'Refresh', onClick: () => window.location.reload() }}
+              message="This is on us, not on your connection necessarily. Try again and it usually comes straight back."
+              action={{
+                label: 'Try again',
+                onClick: () => {
+                  // Re-run only what failed; no full page reload (CRAFT 4).
+                  if (landing.isError) void landing.refetch();
+                  if (bankQuery.isError) void bankQuery.refetch();
+                },
+              }}
             />
           </BentoPanel>
         )}
