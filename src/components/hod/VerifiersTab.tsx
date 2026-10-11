@@ -3,7 +3,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { EmptyNote, ListSkeleton, LoadError, Tile, ago } from '@/components/hod/HodShared';
 import { VerifierProfileForm } from '@/components/hod/VerifierProfileForm';
+import { useConfirm } from '@/components/ui/use-confirm';
 import { actionToneClass } from '@/lib/checker-button-styles';
+import { requestWouldBeDropped } from '@/lib/hod-desk';
 import { formatGrade, formatValidUntil, parseSubjectList } from '@/lib/verifier-papers';
 import {
   memberName,
@@ -97,6 +99,7 @@ function AnalyticsTable({ team }: { team: HodTeamMember[] }) {
 
 function ProfileRow({ p, api, scope }: { p: HodVerifierProfile; api: HodApi; scope: string }) {
   const qc = useQueryClient();
+  const { confirm, confirmDialog } = useConfirm();
   const [editing, setEditing] = useState(false);
   const saved = p.preferred_subjects.join(', ');
   const [subjects, setSubjects] = useState(saved);
@@ -127,6 +130,22 @@ function ProfileRow({ p, api, scope }: { p: HodVerifierProfile; api: HodApi; sco
   }
 
   const name = p.full_name ?? p.name ?? p.email ?? 'Unnamed verifier';
+
+  /** Saving the box settles a pending request and the server forgets it, so a list that leaves out
+   *  something they asked for is confirmed first (Approve keeps it). */
+  async function saveSubjects() {
+    const typed = parseSubjectList(subjects);
+    const left = requestWouldBeDropped(p.requested_subjects, typed);
+    if (left.length > 0) {
+      const ok = await confirm({
+        title: `Save without ${left.join(', ')}?`,
+        description: `${name} asked for ${p.requested_subjects.join(', ')}. Saving this list closes their request and leaves out ${left.join(', ')}. They are not told.`,
+        confirmLabel: 'Save without it',
+      });
+      if (!ok) return;
+    }
+    await run(() => api.setPreferred(p.user_id, typed), 'Preferred subjects saved.');
+  }
   const approved = parseSubjectList([...p.preferred_subjects, ...p.requested_subjects].join(', '));
 
   return (
@@ -186,7 +205,7 @@ function ProfileRow({ p, api, scope }: { p: HodVerifierProfile; api: HodApi; sco
             type="button"
             disabled={busy}
             className={actionToneClass('dark')}
-            onClick={() => void run(() => api.setPreferred(p.user_id, parseSubjectList(subjects)), 'Preferred subjects saved.')}
+            onClick={() => void saveSubjects()}
           >
             Save subjects
           </button>
@@ -218,6 +237,7 @@ function ProfileRow({ p, api, scope }: { p: HodVerifierProfile; api: HodApi; sco
           </div>
         ) : null}
       </div>
+      {confirmDialog}
     </li>
   );
 }

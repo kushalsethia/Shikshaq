@@ -358,12 +358,13 @@ export const HISTORY_ROLES: { value: string; label: string }[] = [
   { value: '', label: 'Everyone' },
   { value: 'admin', label: 'Admins' },
   { value: 'hod', label: 'HODs' },
-  { value: 'checker', label: 'Verifiers' },
+  { value: 'verifier', label: 'Verifiers' },
 ];
 
 /** "Admin", "HOD", "Verifier" for a role value; the raw value for any other. */
 export function roleWord(role: string | null): string {
-  if (role === 'checker') return 'Verifier';
+  // hod_action_history labels a verifier 'verifier'; 'checker' is the older word.
+  if (role === 'verifier' || role === 'checker') return 'Verifier';
   if (role === 'hod') return 'HOD';
   if (role === 'admin') return 'Admin';
   return role ?? '';
@@ -536,9 +537,11 @@ async function call(fn: string, args?: Record<string, unknown>): Promise<unknown
   return data;
 }
 
+/** True or false when the server answered; throws when the call failed, so a broken
+ *  connection is not read as "this account is not an HOD". */
 export async function isHod(): Promise<boolean> {
   const { data, error } = await supabase.rpc('is_hod' as never);
-  if (error) return false;
+  if (error) throw error;
   return Boolean(data);
 }
 

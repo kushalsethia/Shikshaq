@@ -8,7 +8,7 @@ import { EmptyNote, ListSkeleton, LoadError, QuestionPicture, ago } from '@/comp
 import { actionToneClass } from '@/lib/checker-button-styles';
 import { checkerErrorAdvice } from '@/lib/checker-errors';
 import { paperLabel } from '@/lib/checker-progress';
-import { stripLeadingNumberPrefix } from '@/lib/checker-body';
+import { buildEscalationFix, marksTextInvalid } from '@/lib/hod-desk';
 import type { HodApi, HodEscalation } from '@/lib/hod-api';
 import { cn } from '@/lib/utils';
 
@@ -16,7 +16,8 @@ import { cn } from '@/lib/utils';
    card shows who asked, what they said, the picture (or the whole paper when
    no page matched) and four ways to settle it. Pass and Fix use the same
    versioned functions a checker uses, so a stale card is refused, not
-   overwritten. The question text is shown and saved exactly as stored. */
+   overwritten. The question text is shown as stored and sent only when the reviewer
+   changed it, exactly as typed. */
 
 export const ESCALATIONS_KEY = (scope: string) => ['hod', scope, 'escalations'] as const;
 
@@ -31,7 +32,7 @@ function EscalationCard({ e, api, onDone }: { e: HodEscalation; api: HodApi; onD
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const label = e.display_number ?? e.number_path ?? '?';
-  const marksInvalid = marks.trim() !== '' && !(Number.isFinite(Number(marks)) && Number(marks) >= 0);
+  const marksInvalid = marksTextInvalid(marks);
 
   async function run(action: () => Promise<unknown>, done: string) {
     setBusy(true);
@@ -49,22 +50,12 @@ function EscalationCard({ e, api, onDone }: { e: HodEscalation; api: HodApi; onD
   }
 
   function saveFix() {
-    if (marksInvalid) {
-      setError('Marks must be a number, like 2 or 0.5.');
+    const built = buildEscalationFix(e, { body, number, marks });
+    if ('error' in built) {
+      setError(built.error);
       return;
     }
-    const savedNumber = number.trim() || null;
-    const { stripped } = stripLeadingNumberPrefix(body, savedNumber);
-    const bodyChanged = stripped !== e.body;
-    void run(
-      () =>
-        api.fix(e.id, e.version, {
-          body: bodyChanged ? stripped : null,
-          display_number: savedNumber,
-          marks: marks.trim() === '' ? null : Number(marks),
-        }),
-      `Question ${label} fixed and settled.`,
-    );
+    void run(() => api.fix(e.id, e.version, built.patch), `Question ${label} fixed and settled.`);
   }
 
   return (
@@ -208,6 +199,8 @@ function EscalationCard({ e, api, onDone }: { e: HodEscalation; api: HodApi; onD
                 setError(null);
                 setNote('');
                 setBody(e.body);
+                setNumber(e.display_number ?? '');
+                setMarks(e.marks != null ? String(e.marks) : '');
               }}
             >
               Cancel

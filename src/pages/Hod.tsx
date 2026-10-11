@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
@@ -6,10 +6,12 @@ import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useIsAdminBadge } from '@/hooks/useIsAdminBadge';
 import { useIsCheckerBadge } from '@/hooks/useIsCheckerBadge';
+import { nextTabKey } from '@/components/admin/AdminTabs';
 import { AssignmentsTab } from '@/components/hod/AssignmentsTab';
 import { AiTrustTab } from '@/components/hod/AiTrustTab';
 import { ESCALATIONS_KEY, EscalationsTab } from '@/components/hod/EscalationsTab';
 import { HistoryTab } from '@/components/hod/HistoryTab';
+import { LoadError } from '@/components/hod/HodShared';
 import { VerifiersTab } from '@/components/hod/VerifiersTab';
 import { TeacherReviewersTab } from '@/components/hod/TeacherReviewersTab';
 import { CHIP } from '@/lib/checker-button-styles';
@@ -95,6 +97,9 @@ export function HodPage({
   const isChecker = dummy ? Boolean(dummyRoles?.isChecker) : checkerBadge;
 
   const [allowed, setAllowed] = useState<boolean | null>(null);
+  /** The is_hod() call itself failed: say so, rather than telling an HOD their account is not one. */
+  const [checkFailed, setCheckFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!dummy) {
       if (authLoading) return;
@@ -104,17 +109,37 @@ export function HodPage({
       }
     }
     let cancelled = false;
-    api.isHod().then((ok) => {
-      if (!cancelled) setAllowed(ok);
-    });
+    setCheckFailed(false);
+    api
+      .isHod()
+      .then((ok) => {
+        if (!cancelled) setAllowed(ok);
+      })
+      .catch(() => {
+        if (!cancelled) setCheckFailed(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading, navigate, api, dummy]);
+  }, [user, authLoading, navigate, api, dummy, attempt]);
 
   const [params, setParams] = useSearchParams();
   const requested = params.get('tab');
   const active = TABS.find((t) => t.key === requested) ?? TABS[0];
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const selectTab = (key: string) => {
+    const next = new URLSearchParams(params);
+    next.set('tab', key);
+    setParams(next, { replace: true });
+  };
+  // WAI-ARIA tabs: only the selected tab is a Tab stop; arrows, Home and End move and select.
+  const onTabKeyDown = (ev: KeyboardEvent<HTMLButtonElement>) => {
+    const next = nextTabKey(TABS.map((t) => t.key), active.key, ev.key);
+    if (!next) return;
+    ev.preventDefault();
+    selectTab(next);
+    tabRefs.current[next]?.focus();
+  };
 
   const escalationsQ = useQuery({
     queryKey: ESCALATIONS_KEY(scope),
@@ -124,6 +149,17 @@ export function HodPage({
     refetchOnMount: true,
   });
   const waiting = escalationsQ.data?.length ?? 0;
+
+  if (checkFailed && allowed === null) {
+    return (
+      <BentoStack className="min-h-screen bg-muted">
+        <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-lg py-16">
+          {banner}
+          <LoadError what="Your access to the HOD desk" onRetry={() => setAttempt((n) => n + 1)} />
+        </BentoPanel>
+      </BentoStack>
+    );
+  }
 
   if ((!dummy && authLoading) || allowed === null) {
     return (
@@ -183,16 +219,18 @@ export function HodPage({
           {TABS.map((t) => (
             <button
               key={t.key}
+              ref={(el) => {
+                tabRefs.current[t.key] = el;
+              }}
+              type="button"
               role="tab"
               id={`hod-tab-${t.key}`}
               aria-selected={active.key === t.key}
               aria-controls="hod-panel"
+              tabIndex={active.key === t.key ? 0 : -1}
               title={t.hint}
-              onClick={() => {
-                const next = new URLSearchParams(params);
-                next.set('tab', t.key);
-                setParams(next, { replace: true });
-              }}
+              onClick={() => selectTab(t.key)}
+              onKeyDown={onTabKeyDown}
               className={cn(
                 'flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
                 active.key === t.key ? 'bg-card text-foreground' : 'text-warm-secondary hover:text-foreground',
