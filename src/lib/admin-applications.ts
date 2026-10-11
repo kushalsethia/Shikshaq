@@ -75,6 +75,25 @@ export interface ApprovalsApi {
   reviewerNames(ids: string[]): Promise<Record<string, string>>;
 }
 
+/** Someone else decided this application first. The page refreshes and says so
+ *  instead of showing a generic failure or overwriting their decision. */
+export class AlreadyDecidedError extends Error {
+  constructor() {
+    super('Application not found or already processed');
+    this.name = 'AlreadyDecidedError';
+  }
+}
+
+/** True for our own AlreadyDecidedError and for the wording approve_teacher_application
+ *  raises when the row is no longer pending. */
+export function isAlreadyDecided(e: unknown): boolean {
+  if (e instanceof AlreadyDecidedError) return true;
+  const msg = typeof e === 'object' && e !== null ? String((e as { message?: unknown }).message ?? '') : '';
+  return /already processed/i.test(msg);
+}
+
+export const ALREADY_DECIDED_WORDS = 'Someone already decided this application. The list is updated.';
+
 // ------------------------------------------------------------- shaping rows
 
 const VALID_STATUS: ApplicationStatus[] = ['pending', 'approved', 'rejected'];

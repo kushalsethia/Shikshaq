@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
+import { useAdminConfirmedUserId } from '@/lib/admin-confirmed';
 
 /* Shared by every /admin/* page for its nav badges: real counts only, never a
    placeholder, head-count queries only (no row bodies).
@@ -128,10 +129,28 @@ export async function fetchAdminCounts(): Promise<AdminCountsResult> {
 
 export const ADMIN_COUNTS_KEY = ['admin', 'section-counts'] as const;
 
-/** The state of the counts: the numbers, which ones failed, and a retry. */
+/** The cache key for one admin's counts. The id is part of it, so one person's
+ *  numbers are never shown to the next person on the same browser. Starts with
+ *  ADMIN_COUNTS_KEY, so invalidating that still reaches it. */
+export function adminCountsKey(userId: string) {
+  return [...ADMIN_COUNTS_KEY, userId] as const;
+}
+
+/** The state of the counts: the numbers, which ones failed, and a retry.
+ *  Nothing is read until the admin guard has confirmed an admin (or dummy mode
+ *  is on), so a signed-out visitor never triggers the read and never sees a count. */
 export function useAdminCountsState(): AdminCountsState {
+  const qc = useQueryClient();
+  const dummy = PREVIEW_TOOLS && isDummyMode();
+  const confirmedId = useAdminConfirmedUserId();
+  const who = dummy ? 'dummy' : confirmedId;
+  // Signed out or no longer an admin: drop the saved numbers, not just hide them.
+  useEffect(() => {
+    if (!who) qc.removeQueries({ queryKey: ADMIN_COUNTS_KEY });
+  }, [who, qc]);
   const q = useQuery({
-    queryKey: ADMIN_COUNTS_KEY,
+    queryKey: adminCountsKey(who ?? 'nobody'),
+    enabled: !!who,
     queryFn: async (): Promise<AdminCountsResult> => {
       // Dynamic, never static: the fake must not reach a live bundle.
       if (PREVIEW_TOOLS && isDummyMode()) return (await import('@/dummy/admin-counts-fake')).fakeCounts();
@@ -148,7 +167,7 @@ export function useAdminCountsState(): AdminCountsState {
   const refetch = useCallback(() => {
     void queryRefetch();
   }, [queryRefetch]);
-  return deriveCountsState(q.data, q.isError, refetch);
+  return deriveCountsState(who ? q.data : undefined, who ? q.isError : false, refetch);
 }
 
 /** Pure so it can be tested: status from what the query holds. */

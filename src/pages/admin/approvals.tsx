@@ -33,7 +33,10 @@ import {
   APPLICATION_COLUMNS,
   STATUS_TONE,
   STATUS_VIEWS,
+  ALREADY_DECIDED_WORDS,
+  AlreadyDecidedError,
   approveWithConfirm,
+  isAlreadyDecided,
   countsByView,
   defaultOrder,
   emptyCopy,
@@ -89,7 +92,7 @@ export const realApprovalsApi: ApprovalsApi = {
     if (error) throw error;
   },
   async reject(applicationId, adminId, reason) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('teacher_applications')
       .update({
         status: 'rejected',
@@ -98,8 +101,13 @@ export const realApprovalsApi: ApprovalsApi = {
         rejection_reason: reason || null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', applicationId);
+      .eq('id', applicationId)
+      // Only a waiting application can be rejected. If another admin approved or
+      // rejected it first, no row matches and we say so rather than overwrite them.
+      .eq('status', 'pending')
+      .select('id');
     if (error) throw error;
+    if (!data || data.length === 0) throw new AlreadyDecidedError();
   },
   async setTexted(applicationId, status) {
     const { error } = await supabase.from('teacher_applications').update({ texted_status: status }).eq('id', applicationId);
@@ -294,6 +302,14 @@ export function AdminApprovalsPage({
     quietRefresh();
   };
 
+  // Another admin got there first: refresh so the row shows their decision, say
+  // so, and move on to the next waiting application.
+  const handleAlreadyDecided = (app: TeacherApplication) => {
+    sonnerToast.error(ALREADY_DECIDED_WORDS);
+    setOpenId(nextToOpen(shown, app.id));
+    quietRefresh();
+  };
+
   const onApprove = async (app: TeacherApplication) => {
     if (!adminId) return;
     try {
@@ -311,7 +327,8 @@ export function AdminApprovalsPage({
       if (res === 'approved') afterDecision(app, 'approved', null);
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error approving application:', error);
-      sonnerToast.error('Failed to approve application');
+      if (isAlreadyDecided(error)) handleAlreadyDecided(app);
+      else sonnerToast.error('Failed to approve application');
     } finally {
       setProcessingId(null);
     }
@@ -325,7 +342,8 @@ export function AdminApprovalsPage({
       if (res === 'rejected') afterDecision(app, 'rejected', reason);
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error rejecting application:', error);
-      sonnerToast.error('Failed to reject application');
+      if (isAlreadyDecided(error)) handleAlreadyDecided(app);
+      else sonnerToast.error('Failed to reject application');
     } finally {
       setProcessingId(null);
     }

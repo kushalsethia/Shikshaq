@@ -7,6 +7,8 @@ import { setAuthIntent } from '@/lib/auth-intent';
 import { toast as sonnerToast } from 'sonner';
 import { SURFACE_TOKENS } from '@/utils/searchFacets';
 import type { User } from '@supabase/supabase-js';
+import { useAuthLoading } from '@/lib/auth-context';
+import { setAdminConfirmed } from '@/lib/admin-confirmed';
 
 /**
  * Shared admin-gate check, used by every /admin/* page instead of each page
@@ -21,11 +23,20 @@ import type { User } from '@supabase/supabase-js';
 // the check always resolves to granted / denied / error within a bounded time.
 const ADMIN_CHECK_TIMEOUT_MS = 12000;
 
+/** What the guard does with the user it was given. A null user while the saved
+ *  session is still being restored is NOT signed out yet: wait, or a cold load
+ *  of any admin page bounces a signed-in admin to the sign-in page. */
+export function adminGuardStep(user: User | null | undefined, authLoading: boolean): 'wait' | 'signed-out' | 'check' {
+  if (user) return 'check';
+  return authLoading ? 'wait' : 'signed-out';
+}
+
 export function useAdminGuard(
   user: User | null | undefined,
   opts?: { onGranted?: () => void; redirectOnDenied?: boolean }
 ) {
   const navigate = useNavigate();
+  const authLoading = useAuthLoading();
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +48,11 @@ export function useAdminGuard(
       setCheckingAdmin(true);
       setError(null);
 
-      if (!user) {
+      const step = adminGuardStep(user, authLoading);
+      if (step === 'wait') return;
+
+      if (step === 'signed-out') {
+        setAdminConfirmed(null);
         if (!cancelled) {
           setCheckingAdmin(false);
           setIsAdmin(false);
@@ -68,15 +83,18 @@ export function useAdminGuard(
           // as "checked and you're not an admin" — surface it instead of
           // silently denying/redirecting.
           setIsAdmin(false);
+          setAdminConfirmed(null);
           setError("Couldn't verify your access — try again.");
           return;
         }
 
         if (data?.id === user.id) {
           setIsAdmin(true);
+          setAdminConfirmed(user.id);
           opts?.onGranted?.();
         } else {
           setIsAdmin(false);
+          setAdminConfirmed(null);
           if (opts?.redirectOnDenied) {
             navigate('/');
           }
@@ -85,6 +103,7 @@ export function useAdminGuard(
         // Includes the timeout above and any thrown/network failure.
         if (!cancelled) {
           setIsAdmin(false);
+          setAdminConfirmed(null);
           setError("Couldn't verify your access — try again.");
         }
       } finally {
@@ -97,7 +116,7 @@ export function useAdminGuard(
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, retryCount]);
+  }, [user, retryCount, authLoading]);
 
   const retry = () => setRetryCount((n) => n + 1);
 

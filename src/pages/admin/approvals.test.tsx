@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-const calls: { table?: string; op?: string; cols?: string; payload?: unknown; eq?: [string, unknown]; rpc?: [string, unknown] }[] = [];
+const calls: { table?: string; op?: string; cols?: string; payload?: unknown; eq?: [string, unknown]; eqs?: [string, unknown][]; returning?: string; rpc?: [string, unknown] }[] = [];
+// The rows an update(...).select() hands back; empty means no row matched.
+let updatedRows: { id: string }[] = [{ id: 'app-1' }];
 
 vi.mock('@/integrations/supabase/client', () => {
   const chain = (table: string) => {
@@ -25,8 +27,17 @@ vi.mock('@/integrations/supabase/client', () => {
         return Promise.resolve({ data: [], error: null });
       },
       eq(col: string, val: unknown) {
-        entry.eq = [col, val];
-        return Promise.resolve({ error: null });
+        entry.eq = entry.eq ?? [col, val];
+        entry.eqs = [...(entry.eqs ?? []), [col, val]];
+        const next = {
+          eq: api.eq,
+          select(cols?: string) {
+            entry.returning = cols;
+            return Promise.resolve({ data: updatedRows, error: null });
+          },
+          then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) => Promise.resolve({ error: null }).then(res, rej),
+        };
+        return next;
       },
     };
     return api;
@@ -49,8 +60,11 @@ vi.mock('@/lib/admin-debug', () => ({
 
 import { ApplicationsBody, realApprovalsApi } from '@/pages/admin/approvals';
 import {
+  ALREADY_DECIDED_WORDS,
+  AlreadyDecidedError,
   APPLICATION_COLUMNS,
   approveWithConfirm,
+  isAlreadyDecided,
   countsByView,
   defaultOrder,
   filterApplications,
@@ -89,6 +103,7 @@ const body = (over: Partial<Parameters<typeof ApplicationsBody>[0]>) =>
 
 beforeEach(() => {
   calls.length = 0;
+  updatedRows = [{ id: 'app-1' }];
 });
 
 describe('a failed load is an error, never an empty list', () => {
@@ -288,6 +303,24 @@ describe('the real api writes exactly what the page always wrote', () => {
     expect(c?.eq).toEqual(['id', 'app-1']);
     expect(c?.payload).toMatchObject({ status: 'rejected', reviewed_by: 'admin-9', rejection_reason: 'Not a fit' });
     expect(Object.keys(c?.payload as object).sort()).toEqual(['rejection_reason', 'reviewed_at', 'reviewed_by', 'status', 'updated_at']);
+  });
+
+  it('reject only touches a waiting application and says so when someone else got there first', async () => {
+    await realApprovalsApi.reject('app-1', 'admin-9', 'Not a fit');
+    const c = calls.find((x) => x.op === 'update');
+    expect(c?.eqs).toEqual([
+      ['id', 'app-1'],
+      ['status', 'pending'],
+    ]);
+    updatedRows = [];
+    await expect(realApprovalsApi.reject('app-1', 'admin-9', 'Not a fit')).rejects.toBeInstanceOf(AlreadyDecidedError);
+  });
+
+  it('recognises an already-decided failure from either side', () => {
+    expect(isAlreadyDecided(new AlreadyDecidedError())).toBe(true);
+    expect(isAlreadyDecided({ message: 'Application not found or already processed' })).toBe(true);
+    expect(isAlreadyDecided(new Error('network down'))).toBe(false);
+    expect(ALREADY_DECIDED_WORDS).not.toMatch(/[–—]/);
   });
 
   it('the outreach note is an explicit update of texted_status only, by id', async () => {
