@@ -350,7 +350,8 @@ export function createFakeHodApi(): FakeHodApi {
       return unassigned.map((x) => ({ ...x }));
     },
     async assignPaper(paperId, userId) {
-      const who = checkers.find((c) => c.user_id === userId && c.active);
+      // The real server lets an HOD name themselves without being a listed verifier.
+      const who = userId === 'dummy-me' ? { name: 'You' } : checkers.find((c) => c.user_id === userId && c.active);
       if (!who) throw pgError('That person is not an active verifier');
       const prev = assignments.find((x) => x.paper_id === paperId);
       const free = unassigned.find((x) => x.paper_id === paperId);

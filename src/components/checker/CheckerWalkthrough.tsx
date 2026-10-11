@@ -26,7 +26,16 @@ function find(step: WalkthroughStep): HTMLElement | null {
   return document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
 }
 
-export function CheckerWalkthrough({ onClose, onPractice }: { onClose: () => void; onPractice: () => void }) {
+export function CheckerWalkthrough({
+  onClose,
+  onPractice,
+  onShowTarget,
+}: {
+  onClose: () => void;
+  onPractice: () => void;
+  /** Called as each step starts, so a phone can switch to the side (Typed or Printed) the step is about. */
+  onShowTarget?: (target: WalkthroughStep['target']) => void;
+}) {
   const [steps] = useState<WalkthroughStep[]>(() => WALKTHROUGH_STEPS.filter((s) => find(s) !== null));
   const [i, setI] = useState(0);
   const [box, setBox] = useState<Box | null>(null);
@@ -51,14 +60,24 @@ export function CheckerWalkthrough({ onClose, onPractice }: { onClose: () => voi
   // screen (the action footer is sticky).
   useEffect(() => {
     if (!step) return;
-    const el = find(step);
-    if (el && (step.target === 'picture' || step.target === 'question')) {
-      el.scrollIntoView({ block: 'nearest', behavior: 'auto' });
-    }
-    measure();
-    const raf = requestAnimationFrame(measure);
+    onShowTarget?.(step.target);
+    const show = () => {
+      const el = find(step);
+      if (el && (step.target === 'picture' || step.target === 'question' || step.target === 'tools' || step.target === 'changes')) {
+        el.scrollIntoView({ block: step.target === 'picture' || step.target === 'question' ? 'nearest' : 'center', behavior: 'auto' });
+      }
+      measure();
+    };
+    show();
+    // The side may have just switched (phone tabs): measure again once it has shown.
+    const raf = requestAnimationFrame(show);
+    const later = window.setTimeout(show, 80);
     nextRef.current?.focus({ preventScroll: true });
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(later);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, measure]);
 
   useEffect(() => {

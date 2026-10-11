@@ -61,6 +61,11 @@ export interface CheckerQuestion {
   page?: number | null;
   page_path?: string | null;
   snippet_path?: string | null;
+  /** The computer's first raw reading of this question, before it tidied it
+   *  (audit_questions.raw_ocr, returned by verifier_next_in_paper since
+   *  20261011120000). Absent on older rows and before that migration is
+   *  applied; read through rawReading() in checker-edit-log.ts. */
+  raw_ocr?: string | null;
 }
 
 /** audit_questions.source (jsonb). The pipeline writes more keys than the
@@ -68,8 +73,13 @@ export interface CheckerQuestion {
  *  stays reachable as `unknown`, so a new key never needs a cast. */
 export type AuditQuestionSource = {
   page?: number;
+  /* where the question sits on the page: pixels at `dpi`, see checker-highlight.ts */
   bbox?: number[];
   dpi?: number;
+  page_width?: number;
+  page_height?: number;
+  /* what the computer changed when it tidied the question (checker-edit-log.ts) */
+  edit_log?: { kind?: string; from?: string; to?: string }[];
   snippet_path?: string;
   /* the crop of the printed paper and how far to trust it (checker-pictures.ts) */
   snippet_object?: string;
