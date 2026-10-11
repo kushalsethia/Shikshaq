@@ -190,7 +190,7 @@ describe('the Student uploads page source', () => {
   const src = readFileSync('src/pages/admin/papers.tsx', 'utf8');
 
   it('Approve stays off until board, class and exam type are chosen', () => {
-    expect(src).toContain('disabled={!approveTitle.trim() || !approveBoard || !approveClass || !approveExamType}');
+    expect(src).toContain('disabled={!approveTitle.trim() || !approveBoard || !approveClass || !approveExamType || reviewTarget.file_paths.length === 0}');
   });
 
   it('uses Hide, Restore and Hidden, never Unpublish or Taken down', () => {
