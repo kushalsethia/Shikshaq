@@ -174,7 +174,7 @@ export function StopCard({
   stop: RouteStop;
   animate: boolean;
   compact?: boolean;
-  onShowRegistry: (state: ProcessedState | null) => void;
+  onShowRegistry: (states: ProcessedState[]) => void;
 }) {
   const { action } = stop;
   const titleClass = cn('text-left', action && STRETCH);
@@ -188,7 +188,7 @@ export function StopCard({
       <span className="sr-only">. {action.label}</span>
     </Link>
   ) : (
-    <button type="button" onClick={() => onShowRegistry(action.state)} className={titleClass}>
+    <button type="button" onClick={() => onShowRegistry(action.states)} className={titleClass}>
       {title}
       <span className="sr-only">. {action.label}</span>
     </button>

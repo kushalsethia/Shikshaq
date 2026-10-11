@@ -151,8 +151,8 @@ export type SideStopId = 'data' | 'renderer' | 'none';
 export type StopId = MainStopId | 'leftOut' | SideStopId;
 
 export type RouteAction =
-  /** Filters the paper list on this page to one state (null = every paper) and scrolls to it. */
-  | { kind: 'filter'; state: ProcessedState | null; label: string }
+  /** Filters the paper list on this page to these states (none = every paper) and scrolls to it. */
+  | { kind: 'filter'; states: ProcessedState[]; label: string }
   /** Opens the admin page that lists these papers. */
   | { kind: 'link'; href: string; label: string };
 
@@ -252,7 +252,7 @@ export function buildMainStops(route: PipelineRoute): RouteStop[] {
       unit: 'papers',
       facts: registry.excluded > 0 ? [`${fmt(registry.excluded)} not real papers, not counted`] : [],
       look: STOP_LOOK.folder,
-      action: { kind: 'filter', state: null, label: 'Show every paper in the list' },
+      action: { kind: 'filter', states: [], label: 'Show every paper in the list' },
     },
     {
       id: 'waiting',
@@ -264,7 +264,7 @@ export function buildMainStops(route: PipelineRoute): RouteStop[] {
       unit: 'papers',
       facts: [`${fmt(s.not_started)} not started`, `${fmt(s.ocr_queued)} in the reading queue`],
       look: STOP_LOOK.waiting,
-      action: { kind: 'filter', state: 'not_started', label: 'Show the not started papers in the list' },
+      action: { kind: 'filter', states: ['not_started', 'ocr_queued'], label: 'Show the not started papers and the reading queue in the list' },
     },
     {
       id: 'read',
@@ -276,7 +276,7 @@ export function buildMainStops(route: PipelineRoute): RouteStop[] {
       unit: 'papers',
       facts: [],
       look: STOP_LOOK.read,
-      action: { kind: 'filter', state: 'ocr_done', label: 'Show these papers in the list' },
+      action: { kind: 'filter', states: ['ocr_done'], label: 'Show these papers in the list' },
     },
     {
       id: 'swarm',
@@ -312,7 +312,7 @@ export function buildMainStops(route: PipelineRoute): RouteStop[] {
       unit: 'papers',
       facts: [],
       look: STOP_LOOK.ai,
-      action: { kind: 'filter', state: 'ai_checked', label: 'Show these papers in the list' },
+      action: { kind: 'filter', states: ['ai_checked'], label: 'Show these papers in the list' },
     },
     {
       id: 'students',

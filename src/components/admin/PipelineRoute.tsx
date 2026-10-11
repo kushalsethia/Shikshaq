@@ -65,7 +65,7 @@ export interface PipelineRouteViewProps {
   reducedMotion: boolean;
   onRetry: () => void;
   onRefresh: () => void;
-  onShowRegistry: (state: ProcessedState | null) => void;
+  onShowRegistry: (states: ProcessedState[]) => void;
 }
 
 function ProgressStrip({ route, animate }: { route: Route; animate: boolean }) {
@@ -103,7 +103,7 @@ function RouteList({
 }: {
   route: Route;
   animate: boolean;
-  onShowRegistry: (state: ProcessedState | null) => void;
+  onShowRegistry: (states: ProcessedState[]) => void;
 }) {
   const main = buildMainStops(route);
   const siding = buildSiding(route);
@@ -283,7 +283,7 @@ export function PipelineRoute({
   onShowRegistry,
 }: {
   api: PipelineRouteApi;
-  onShowRegistry: (state: ProcessedState | null) => void;
+  onShowRegistry: (states: ProcessedState[]) => void;
 }) {
   const state = usePipelineRoute(api);
   const reducedMotion = usePrefersReducedMotion();

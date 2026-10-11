@@ -165,6 +165,26 @@ export interface PaperRegistryApi {
 
 export const REGISTRY_PAGE_SIZE = 50;
 
+/** A list request that may span several states. An empty list of states means every state. */
+export type RegistryStatesQuery = Omit<RegistryQuery, 'state'> & { states: readonly ProcessedState[] };
+
+/** The server filters on one state at a time. Rows come back in pipeline order (state first, then name), so the pages of
+    several states are each state's pages laid end to end: this walks them in order and fills one page. */
+export async function listForStates(api: Pick<PaperRegistryApi, 'list'>, q: RegistryStatesQuery): Promise<RegistryPage> {
+  const { states, ...rest } = q;
+  if (states.length <= 1) return api.list({ ...rest, state: states[0] ?? null });
+  let rows: RegistryRow[] = [];
+  let total = 0;
+  for (const s of PROCESSED_STATES.filter((x) => states.includes(x))) {
+    const room = rest.limit - rows.length;
+    // Every state is asked, even once the page is full, because the total counts all of them.
+    const page = await api.list({ ...rest, state: s, offset: Math.max(0, rest.offset - total), limit: Math.max(1, room) });
+    if (room > 0) rows = rows.concat(page.rows.slice(0, room));
+    total += page.total;
+  }
+  return { total, rows };
+}
+
 /** Count for one state, never undefined, never negative. */
 export function stateCount(summary: Pick<RegistrySummary, 'by_state'>, s: ProcessedState): number {
   return Math.max(0, Number(summary.by_state?.[s]) || 0);
@@ -212,6 +232,12 @@ export function mergeRows(prev: RegistryRow[], next: RegistryRow[]): RegistryRow
 
 export function hasMore(total: number, shown: number): boolean {
   return shown < total;
+}
+
+/** "Show more" is offered only when there is more, nothing failed, and no new first page is on its way. A click while a new filter is
+    still loading would append that page's rows onto the old filter's rows. */
+export function canShowMore(total: number, shown: number, state: { listError: boolean; listLoading: boolean }): boolean {
+  return hasMore(total, shown) && !state.listError && !state.listLoading;
 }
 
 /** A row's display name: the PDF, or its key when the PDF name was not sent. */

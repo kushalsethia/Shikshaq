@@ -16,8 +16,9 @@ import {
   STATE_LOOK,
   adminPaperHref,
   barSegments,
-  hasMore,
+  canShowMore,
   headlineCounts,
+  listForStates,
   mergeRows,
   openCount,
   percent,
@@ -161,14 +162,14 @@ export function PaperRegistryPanel({
   api?: PaperRegistryApi;
   /** Told whenever the summary changes, so the page can show Not started elsewhere. */
   onSummary?: (summary: RegistrySummary | null, status: RegistrySummaryStatus) => void;
-  /** Filter the list to this state and scroll to it. A new `nonce` repeats the request. */
-  focus?: { state: ProcessedState | null; nonce: number } | null;
+  /** Filter the list to these states (none = every paper) and scroll to it. A new `nonce` repeats the request. */
+  focus?: { states: readonly ProcessedState[]; nonce: number } | null;
 }) {
   const [summary, setSummary] = useState<RegistrySummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState(false);
 
-  const [stateFilter, setStateFilter] = useState<ProcessedState | null>(null);
+  const [stateFilter, setStateFilter] = useState<readonly ProcessedState[]>([]);
   const [subject, setSubject] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -204,7 +205,11 @@ export function PaperRegistryPanel({
 
   useEffect(() => {
     if (!focus) return;
-    setStateFilter(focus.state);
+    // The list behind a tile or a stop must match its number, so any filter the admin set before is dropped.
+    setStateFilter(focus.states);
+    setSubject(null);
+    setSearchInput('');
+    setSearch('');
     panelRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   }, [focus]);
 
@@ -221,7 +226,7 @@ export function PaperRegistryPanel({
       else setListLoading(true);
       setListError(false);
       try {
-        const page = await api.list({ state: stateFilter, search, subject, limit: REGISTRY_PAGE_SIZE, offset });
+        const page = await listForStates(api, { states: stateFilter, search, subject, limit: REGISTRY_PAGE_SIZE, offset });
         if (id !== requestId.current) return;
         setTotal(page.total);
         setRows((prev) => (append ? mergeRows(prev, page.rows) : page.rows));
@@ -244,9 +249,9 @@ export function PaperRegistryPanel({
     if (hasRegistry) void fetchPage(0);
   }, [hasRegistry, fetchPage]);
 
-  const filtered = stateFilter !== null || subject !== null || search !== '';
+  const filtered = stateFilter.length > 0 || subject !== null || search !== '';
   const clearFilters = () => {
-    setStateFilter(null);
+    setStateFilter([]);
     setSubject(null);
     setSearchInput('');
     setSearch('');
@@ -320,14 +325,14 @@ export function PaperRegistryPanel({
           <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Filter by state">
             {PROCESSED_STATES.map((s) => {
               const n = stateCount(summary, s);
-              const on = stateFilter === s;
+              const on = stateFilter.includes(s);
               return (
                 <button
                   key={s}
                   type="button"
                   aria-pressed={on}
                   disabled={n === 0 && !on}
-                  onClick={() => setStateFilter(on ? null : s)}
+                  onClick={() => setStateFilter(on && stateFilter.length === 1 ? [] : [s])}
                   title={STATE_LOOK[s].hint}
                   className={cn(
                     'tap-44 inline-flex min-h-11 items-center gap-2 rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:opacity-50',
@@ -404,7 +409,8 @@ export function PaperRegistryPanel({
           </ul>
         )}
 
-        {hasMore(total, rows.length) && !listError ? (
+        {/* Not while the first page of a new filter is still coming: a click then would append another filter's rows to these. */}
+        {canShowMore(total, rows.length, { listError, listLoading }) ? (
           <div className="flex justify-center px-[18px] pt-3">
             <AdminPillButton variant="secondary" busy={moreLoading} onClick={() => void fetchPage(rows.length)}>
               {moreLoading ? 'Loading' : `Show more (${(total - rows.length).toLocaleString()} left)`}

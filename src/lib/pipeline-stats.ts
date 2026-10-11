@@ -19,8 +19,14 @@ export interface FeedRow {
 
 export interface PipelineApi {
   stats(): Promise<PipelineStats>;
-  /** Never rejects: the log is a bonus, a failure there must not blank the numbers. */
+  /** Rejects when the log cannot be read: an empty log and a failed read are different things. */
   feed(limit: number): Promise<FeedRow[]>;
+}
+
+/** One read of the page: the numbers must load, the log may fail without blanking them (feed is null then, never []). */
+export async function readPipeline(api: PipelineApi, feedLimit: number): Promise<{ stats: PipelineStats; feed: FeedRow[] | null }> {
+  const [stats, feed] = await Promise.all([api.stats(), api.feed(feedLimit).then((rows) => rows, () => null)]);
+  return { stats, feed };
 }
 
 

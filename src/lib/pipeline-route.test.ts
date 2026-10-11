@@ -175,10 +175,11 @@ describe('the stops', () => {
 
   it('actions: filter stops filter the list, list pages are links, the rest lead nowhere', () => {
     const by = Object.fromEntries(buildMainStops(route()).map((s) => [s.id, s.action]));
-    expect(by.folder).toMatchObject({ kind: 'filter', state: null });
-    expect(by.waiting).toMatchObject({ kind: 'filter', state: 'not_started' });
-    expect(by.read).toMatchObject({ kind: 'filter', state: 'ocr_done' });
-    expect(by.ai).toMatchObject({ kind: 'filter', state: 'ai_checked' });
+    expect(by.folder).toMatchObject({ kind: 'filter', states: [] });
+    // the stop's count is not started plus the reading queue, so the list behind it shows both
+    expect(by.waiting).toMatchObject({ kind: 'filter', states: ['not_started', 'ocr_queued'] });
+    expect(by.read).toMatchObject({ kind: 'filter', states: ['ocr_done'] });
+    expect(by.ai).toMatchObject({ kind: 'filter', states: ['ai_checked'] });
     expect(by.students).toMatchObject({ kind: 'link', href: '/admin/checkers' });
     expect(by.admin).toMatchObject({ kind: 'link', href: '/admin/admin-queue' });
     expect(by.approval).toMatchObject({ kind: 'link', href: '/admin/paper-approvals' });
