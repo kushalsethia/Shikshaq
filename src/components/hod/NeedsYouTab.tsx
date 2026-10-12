@@ -196,7 +196,7 @@ function QuestionCard({
           <>
             <button
               type="button"
-              className={actionToneClass('mint')}
+              className={cn(actionToneClass('brand'), 'h-[46.5px]')}
               disabled={busy || !q.body.trim()}
               onClick={() => void run(() => api.setQuestionState(q.id, 'pass'), `Question ${label} passed.`)}
             >
@@ -206,7 +206,7 @@ function QuestionCard({
               Fix
             </button>
             {canSendBack(q) ? (
-              <button type="button" className={actionToneClass('brand')} disabled={busy} onClick={() => setPanel('back')}>
+              <button type="button" className={cn(actionToneClass('brand'), 'h-[46.5px]')} disabled={busy} onClick={() => setPanel('back')}>
                 Send back to students
               </button>
             ) : null}
@@ -219,7 +219,7 @@ function QuestionCard({
             {panel === 'back' ? (
               <button
                 type="button"
-                className={actionToneClass('brand')}
+                className={cn(actionToneClass('brand'), 'h-[46.5px]')}
                 disabled={busy}
                 onClick={() => void run(() => api.sendBack(q.id, note.trim()), `Question ${label} sent back to the students.`)}
               >
@@ -338,7 +338,7 @@ function PaperQuestions({ api, scope, paperId, paper }: { api: HodApi; scope: st
                 Ready to go live.
               </Notice>
               <div className="flex flex-wrap gap-2">
-                <Link to={deskLink('ready', paperId)} className={actionToneClass('brand')}>
+                <Link to={deskLink('ready', paperId)} className={cn(actionToneClass('brand'), 'h-[46.5px]')}>
                   Open it in Ready to go live
                 </Link>
                 <Link to={deskLink('needs-you')} className={quietButton}>
@@ -419,7 +419,7 @@ function PaperList({ api, scope }: { api: HodApi; scope: string }) {
                   <li className="rounded-full bg-card px-3 py-1 text-[12px] tabular-nums text-warm-secondary">of {p.total} questions</li>
                 </ul>
               </div>
-              <Link to={deskLink('needs-you', p.audit_paper_id)} className={cn(actionToneClass('brand'), 'shrink-0')} aria-label={`Open ${p.title}`}>
+              <Link to={deskLink('needs-you', p.audit_paper_id)} className={cn(actionToneClass('brand'), 'h-[46.5px] shrink-0')} aria-label={`Open ${p.title}`}>
                 Open
               </Link>
             </div>

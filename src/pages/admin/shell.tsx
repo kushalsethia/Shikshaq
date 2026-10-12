@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react';
+import { useEffect, useRef, type KeyboardEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { BentoPanel } from '@/components/layout/PageContainer';
@@ -138,12 +138,13 @@ export function CountsRetry({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-/** The same pill row as the HOD desk's tab row. */
+/** The same pill row as the HOD desk's tab row. One row, never a wrap: when the
+ *  tabs are wider than the card, the row scrolls sideways. */
 export const TAB_ROW =
-  'flex max-w-full flex-wrap items-center gap-1 rounded-[20px] bg-muted p-1 sm:inline-flex sm:rounded-full';
+  'relative flex w-max max-w-full items-center gap-1 overflow-x-auto rounded-full bg-muted p-1 scrollbar-hide';
 
 export const TAB_PILL =
-  'flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand';
+  'flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand';
 
 export const tabPillTone = (on: boolean) => (on ? 'bg-card text-foreground' : 'text-warm-secondary hover:text-foreground');
 
@@ -242,8 +243,20 @@ export function AdminTabBar({
   onKeyDown: (ev: KeyboardEvent<HTMLButtonElement>) => void;
   registerTab?: (key: AdminTabKey, el: HTMLButtonElement | null) => void;
 }) {
+  // The row scrolls on narrow screens: keep the selected tab in view (horizontally only).
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const row = rowRef.current;
+    const el = row?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!row || !el) return;
+    const left = el.offsetLeft;
+    const right = left + el.offsetWidth;
+    if (left >= row.scrollLeft && right <= row.scrollLeft + row.clientWidth) return;
+    const target = left - (row.clientWidth - el.offsetWidth) / 2;
+    row.scrollTo({ left: Math.max(0, Math.min(target, row.scrollWidth - row.clientWidth)), behavior: 'auto' });
+  }, [activeKey, counts]);
   return (
-    <div role="tablist" aria-label="Admin" className={TAB_ROW}>
+    <div ref={rowRef} role="tablist" aria-label="Admin" className={TAB_ROW}>
       {items.map((t) => {
         const on = t.key === activeKey;
         const badge = navBadge(t, counts);

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { EmptyNote, ListSkeleton, LoadError, ago, quietButton } from '@/components/hod/HodShared';
-import { actionToneClass } from '@/lib/checker-button-styles';
+import { CHIP, actionToneClass } from '@/lib/checker-button-styles';
 import type { HodApi } from '@/lib/hod-api';
 import {
   UPLOAD_FILTERS,
@@ -123,7 +123,7 @@ function UploadCard({ api, upload, onDone }: { api: HodApi; upload: HodStudentUp
                 onChange={(ev) => setNote(ev.target.value)}
                 rows={2}
                 disabled={busy}
-                className="w-full rounded-xl bg-card p-3 text-[16px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="w-full rounded-xl bg-card p-3 text-[14px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand"
               />
             </label>
           ) : null}
@@ -135,7 +135,7 @@ function UploadCard({ api, upload, onDone }: { api: HodApi; upload: HodStudentUp
           <div className="flex flex-wrap gap-2">
             {mode === null ? (
               <>
-                <button type="button" className={actionToneClass('mint')} disabled={busy} onClick={() => void decide('approved')}>
+                <button type="button" className={cn(actionToneClass('brand'), 'h-[46.5px]')} disabled={busy} onClick={() => void decide('approved')}>
                   {busy ? 'Saving...' : 'Approve'}
                 </button>
                 <button type="button" className={quietButton} disabled={busy} onClick={() => setMode('rejected')}>
@@ -181,10 +181,7 @@ export function UploadsTab({ api, scope }: { api: HodApi; scope: string }) {
             type="button"
             aria-pressed={status === f.key}
             onClick={() => setStatus(f.key)}
-            className={cn(
-              'tap-44 rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
-              status === f.key ? 'bg-panel text-background' : 'bg-muted text-warm-secondary hover:text-foreground',
-            )}
+            className={cn(CHIP, status === f.key ? 'bg-panel text-background' : 'bg-muted text-warm-secondary hover:text-foreground')}
           >
             {f.label}
           </button>
@@ -195,7 +192,7 @@ export function UploadsTab({ api, scope }: { api: HodApi; scope: string }) {
       ) : q.isError ? (
         <LoadError what="The student uploads" onRetry={() => void q.refetch()} />
       ) : (q.data ?? []).length === 0 ? (
-        <EmptyNote>{status === 'pending' ? 'No upload is waiting. When a student sends in a paper, it shows here.' : 'Nothing here.'}</EmptyNote>
+        <EmptyNote>{status === 'pending' ? 'No upload is waiting. When a student sends in a paper, it shows here.' : 'No uploads in this list yet.'}</EmptyNote>
       ) : (
         <ul className="space-y-3">
           {(q.data ?? []).map((u) => (

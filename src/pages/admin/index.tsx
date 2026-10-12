@@ -137,7 +137,7 @@ export function AdminHomePage({
                         {...adminPrefetchProps(to)}
                         className={cn(
                           TAB_PILL,
-                          'h-9 border border-transparent px-3',
+                          'border border-transparent',
                           on ? 'border-foreground bg-card text-foreground' : cn('bg-muted', tabPillTone(false)),
                         )}
                       >

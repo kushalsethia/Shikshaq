@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PROCESSED_STATES, STATE_LOOK, type ProcessedState } from '@/lib/paper-registry';
 
 /* The papers route on the pipeline overview: where every paper is right now,
-   from the PDF on Kanishk's computer to the live site (owner, 11 and 12
+   from the PDF saved on the main computer to the live site (owner, 11 and 12
    October 2026).
 
    One RPC, admin_pipeline_route(), returns counts only. It is open to HODs and
@@ -14,10 +14,10 @@ import { PROCESSED_STATES, STATE_LOOK, type ProcessedState } from '@/lib/paper-r
    arithmetic has tests.
 
    The route reads in the words the HOD desk uses:
-     PDFs on the computer -> Read by the swarm -> Pictures waiting ->
+     PDFs saved on the main computer -> Read by the AI -> Pictures waiting ->
      Checking by students -> Needs you -> Ready to go live -> Live
-   Papers copied from the earlier library are frozen and are never in those
-   counts; they sit on a side track.
+   Papers copied from the earlier library are kept back and are never in those
+   counts; they are set aside.
 
    The rule for a number that did not load: it is never shown as 0. A payload
    that is not an object, or that is missing one of its four core sections,
@@ -25,8 +25,8 @@ import { PROCESSED_STATES, STATE_LOOK, type ProcessedState } from '@/lib/paper-r
    so. A newer section that an older database does not send (pictures, trust,
    the drive count) comes back as null and its stop shows "?". */
 
-/** What the owner calls the machine the desk runs on. One place, so every screen says it the same way. */
-export const COMPUTER_LABEL = "Kanishk's computer";
+/** The machine the desk runs on, in plain words. One place, so every screen says it the same way. */
+export const COMPUTER_LABEL = 'the main computer';
 
 /** Which desk is looking: admins see every link, HODs only the ones they can open. */
 export type Audience = 'admin' | 'hod';
@@ -78,14 +78,15 @@ export interface PipelineRoute {
   registry: {
     total: number;
     excluded: number;
+    /** Current stage only: each paper of the new route is in exactly one of these. */
     byState: StateCounts;
     frozenByState: StateCounts;
-    /** Cumulative: papers that have ever been read, whatever stage they are at now. */
-    readTotal: number;
-    /** Cumulative: papers the AI has read. */
-    aiReadTotal: number;
+    /** Papers read and on the checking desk but not fully checked yet (loaded or checked by the AI), split by whether the swarm has read them. null = the database did not send it. */
+    swarmRead: { papers: number; deskWithoutSwarm: number } | null;
     lastUpdatedAt: string | null;
   };
+  /** Papers the desk has no PDF for: desk papers with no PDF recorded, and live library papers no desk paper points at. null = not sent. These are never part of the PDF count on the computer. */
+  noPdf: { auditPapers: number; liveOnly: number } | null;
   desk: {
     papers: number;
     byStatus: Record<DeskStatus, number>;
@@ -241,10 +242,12 @@ export function normaliseRoute(raw: unknown): PipelineRoute {
       excluded: num(registry.excluded),
       byState: counts(PROCESSED_STATES, registry.by_state),
       frozenByState: counts(PROCESSED_STATES, registry.frozen_by_state),
-      readTotal: num(registry.read_total),
-      aiReadTotal: num(registry.ai_read_total),
+      swarmRead: isObject(registry.swarm_read)
+        ? { papers: num(rec(registry.swarm_read).papers), deskWithoutSwarm: num(rec(registry.swarm_read).desk_without_swarm) }
+        : null,
       lastUpdatedAt: text(registry.last_updated_at),
     },
+    noPdf: isObject(r.no_pdf) ? { auditPapers: num(rec(r.no_pdf).audit_papers), liveOnly: num(rec(r.no_pdf).live_only) } : null,
     desk: {
       papers: num(desk.papers),
       byStatus: counts(DESK_STATUSES, desk.papers_by_status),
@@ -300,7 +303,7 @@ export type SideStopId = 'data' | 'renderer' | 'none';
 export type StopId = MainStopId | 'leftOut' | SideStopId;
 
 export type RouteAction =
-  /** Filters the paper list on this page to these states (none = every paper) and scrolls to it. Admins only: the list is an admin page. */
+  /** Filters the paper list on this page to these states (none = every paper) and scrolls to it. The list is on the admin and the HOD pipeline pages. */
   | { kind: 'filter'; states: ProcessedState[]; label: string }
   /** Opens the page that lists these papers. */
   | { kind: 'link'; href: string; label: string };
@@ -339,6 +342,8 @@ export interface BandRow {
 export interface Figure {
   label: string;
   value: string;
+  /** A smaller line under the label (a breakdown of the value). */
+  note?: string;
 }
 
 /** The one AI trust counter and the state of each confidence level, ready to draw. */
@@ -373,6 +378,8 @@ export interface RouteStop {
   facts: string[];
   /** Labelled figures under the number: the other numbers the owner asked for at this stop. */
   figures?: Figure[];
+  /** A short row of labelled values drawn side by side (two or three columns), under the headline. */
+  sideBySide?: Figure[];
   look: StopLook;
   action: RouteAction | null;
   /** Only the student checkers stop: how many papers have how many questions left. */
@@ -430,7 +437,10 @@ function trustView(route: PipelineRoute): TrustView | null {
     threshold: t.threshold,
     percent: t.threshold > 0 ? Math.min(100, Math.round((done / t.threshold) * 100)) : 0,
     reached: t.reached,
-    headline: `AI trust: ${fmt(t.checksDone)} of ${fmt(t.threshold)} checks`,
+    // Never print past the bar: at or above it, "100 of 100 checks, reached" (same rule as overallProgress and checksNeeded).
+    headline: t.checksDone >= t.threshold
+      ? `AI trust: ${fmt(t.threshold)} of ${fmt(t.threshold)} checks, reached`
+      : `AI trust: ${fmt(t.checksDone)} of ${fmt(t.threshold)} checks`,
     meaning: t.reached
       ? 'Reached. The AI can pass clean questions by itself. People still read the flagged ones.'
       : 'Until it is reached, every question the AI reads still goes to students first.',
@@ -445,27 +455,50 @@ function trustView(route: PipelineRoute): TrustView | null {
   };
 }
 
-/** The seven stops of the main route, in order. `audience` decides which links are offered. */
+/** The seven stops of the main route, in order. `audience` is kept for the links an audience may not open; today both audiences are offered the same ones. */
 export function buildMainStops(route: PipelineRoute, audience: Audience = 'admin'): RouteStop[] {
   const { registry, open, checkers, drive, pictures, checking, needsYou, ready, live } = route;
   const s = registry.byState;
-  const waitingToRead = s.not_started + s.ocr_queued;
+  const waitingToOcr = s.not_started + s.ocr_queued;
 
-  const computerCount = drive ? drive.totalPdfs : registry.total;
+  // PDFs on the disk only (owner, 12 Oct): when the desk has not counted them the number is "?", never the desk's list.
+  const computerCount = drive ? drive.totalPdfs : null;
   const computerFacts: string[] = [];
   if (drive) {
     computerFacts.push(`${fmt(drive.classified)} sorted by class and subject`);
     if (drive.unclassified > 0) computerFacts.push(`${fmt(drive.unclassified)} not sorted yet`);
     if (drive.bytesTotal !== null) computerFacts.push(`${bytesWords(drive.bytesTotal)} in all`);
   } else {
-    computerFacts.push(`The desk knows ${fmt(registry.total)} papers. It has not counted the files on the computer yet.`);
+    computerFacts.push('The desk has not counted the PDFs on the main computer yet.');
   }
-  if (registry.excluded > 0) computerFacts.push(`${fmt(registry.excluded)} files are not real papers, not counted`);
+  const computerFigures: Figure[] = [];
+  if (route.noPdf) {
+    const none = route.noPdf.auditPapers + route.noPdf.liveOnly;
+    computerFigures.push({
+      label: 'Papers with no PDF here, not counted above',
+      value: fmt(none),
+      ...(none > 0 ? { note: `${fmt(route.noPdf.auditPapers)} on the checking desk, ${fmt(route.noPdf.liveOnly)} live on the site only` } : {}),
+    });
+  }
+
+  const swarm = registry.swarmRead;
+  const readFigures: Figure[] = [
+    { label: "OCR'd, waiting for the AI", value: fmt(s.ocr_done) },
+    { label: "Still waiting to be OCR'd", value: fmt(waitingToOcr) },
+  ];
+  if (swarm && swarm.deskWithoutSwarm > 0) {
+    readFigures.push({ label: 'On the checking desk, not read by the AI', value: fmt(swarm.deskWithoutSwarm) });
+  }
 
   const pictureFigures: Figure[] = [];
   const pictureFacts: string[] = [];
+  const pictureColumns: Figure[] = [];
   if (pictures) {
-    pictureFigures.push({ label: 'Pictures queued', value: `${fmt(pictures.queuedPictures)} (${bytesWords(pictures.queuedBytes)})` });
+    pictureColumns.push(
+      { label: 'Papers', value: fmt(pictures.queuedPapers) },
+      { label: 'Pictures', value: fmt(pictures.queuedPictures) },
+      { label: 'Size', value: bytesWords(pictures.queuedBytes) },
+    );
     if (pictures.awaitingRoutePictures > 0) {
       pictureFigures.push({
         label: 'More, once their questions are sorted',
@@ -508,28 +541,28 @@ export function buildMainStops(route: PipelineRoute, audience: Audience = 'admin
       id: 'computer',
       track: 'main',
       step: 1,
-      title: `PDFs on ${COMPUTER_LABEL}`,
-      meaning: drive ? 'Every paper PDF counted on the computer, started or not.' : 'Every paper the desk has a record of, started or not.',
+      title: `PDFs saved on ${COMPUTER_LABEL}`,
+      meaning: drive
+        ? 'Every paper PDF counted on the main computer, started or not. Papers that have no PDF here are counted apart.'
+        : 'The desk has not sent the PDF count yet.',
       count: computerCount,
       unit: 'PDF',
       facts: computerFacts,
+      figures: computerFigures,
       look: STOP_LOOK.computer,
-      action:
-        audience === 'admin' ? { kind: 'filter', states: [], label: 'Show every paper in the list' } : null,
+      // Admins and HODs both have the paper list on their pipeline page (hod_registry), so both get the filter.
+      action: { kind: 'filter', states: [], label: 'Show every paper in the list' },
     },
     {
       id: 'read',
       track: 'main',
       step: 2,
-      title: 'Read by the swarm',
-      meaning: 'Papers read from the scan (OCR), and how many the AI has read too. Both include papers that have moved on.',
-      count: registry.readTotal,
+      title: 'Read by the AI',
+      meaning: 'Papers the AI has read, counted where they are now. A paper that has moved on is counted at the stop it has reached.',
+      count: swarm ? swarm.papers : null,
       unit: 'paper',
       facts: [],
-      figures: [
-        { label: 'Also read by the AI', value: fmt(registry.aiReadTotal) },
-        { label: 'Still waiting to be read', value: fmt(waitingToRead) },
-      ],
+      figures: readFigures,
       look: STOP_LOOK.read,
       action: null,
     },
@@ -539,11 +572,12 @@ export function buildMainStops(route: PipelineRoute, audience: Audience = 'admin
       step: 3,
       title: 'Pictures waiting',
       meaning: pictures
-        ? 'Pictures of cleared questions, queued on the computer. They go up only when you say so.'
+        ? 'Pictures of cleared questions, queued on the main computer. They go up only when you say so.'
         : 'The desk has not sent the picture numbers yet.',
       count: pictures ? pictures.queuedPapers : null,
       unit: 'paper',
       facts: pictureFacts,
+      sideBySide: pictureColumns,
       figures: pictureFigures,
       look: STOP_LOOK.pictures,
       action: null,
@@ -553,7 +587,7 @@ export function buildMainStops(route: PipelineRoute, audience: Audience = 'admin
       track: 'main',
       step: 4,
       title: 'Checking by students',
-      meaning: 'Every question the swarm read goes to student checkers first. These are still open.',
+      meaning: 'Every question the AI reads goes to student checkers first. These are still open.',
       count: checking ? checking.questions : null,
       unit: 'question',
       facts: studentFacts,
@@ -616,7 +650,7 @@ export function buildSiding(route: PipelineRoute): RouteStop {
     track: 'siding',
     step: null,
     title: 'Left out',
-    meaning: 'Papers from the earlier library, frozen on purpose. They are not in the counts on the route, except the PDF count.',
+    meaning: 'Papers from the earlier library, kept back on purpose. They are not in the counts on the route, except the PDF count.',
     count: frozenTotal(route),
     unit: 'paper',
     facts: [`${fmt(f.live)} of them are already live`, `${fmt(f.not_started + f.ocr_queued)} not read yet`],
@@ -641,8 +675,8 @@ export function buildSideStops(route: PipelineRoute): RouteStop[] {
     action: null,
   });
   return [
-    side('data', 'Held for data fixes', 'Waiting for a fix to the data behind them.'),
-    side('renderer', 'Held for the renderer', 'Waiting for the page drawing to be fixed.'),
+    side('data', 'Waiting for data fixes', 'Waiting for a fix to the data behind them.'),
+    side('renderer', 'Waiting for a layout fix', 'Waiting for the page layout to be fixed.'),
     side('none', 'Not yet sorted', 'Nobody has decided who checks these yet.'),
   ];
 }

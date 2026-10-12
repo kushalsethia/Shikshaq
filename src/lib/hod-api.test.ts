@@ -12,6 +12,7 @@ import {
   normaliseEscalations,
   normaliseHistory,
   normaliseHods,
+  normaliseSubjects,
   normaliseTeam,
   normaliseUnassigned,
   normaliseVerifierProfiles,
@@ -253,5 +254,25 @@ describe('the HODs list', () => {
     ]);
     expect(h.map((x) => x.active)).toEqual([true, false]);
     expect(h[1].name).toBeNull();
+  });
+});
+
+describe('hod_list_subjects mapping', () => {
+  it('keeps id, name and slug and drops rows without an id or a name', () => {
+    const out = normaliseSubjects([
+      { id: 's1', name: ' Mathematics ', slug: 'mathematics' },
+      { id: 's2', name: 'Physics', slug: null },
+      { id: null, name: 'No id', slug: 'x' },
+      { id: 's4', name: '  ', slug: 'blank' },
+      'junk',
+    ]);
+    expect(out).toEqual([
+      { id: 's1', name: 'Mathematics', slug: 'mathematics' },
+      { id: 's2', name: 'Physics', slug: null },
+    ]);
+  });
+  it('reads a non-list answer as empty', () => {
+    expect(normaliseSubjects(null)).toEqual([]);
+    expect(normaliseSubjects({})).toEqual([]);
   });
 });

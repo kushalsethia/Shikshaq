@@ -117,7 +117,7 @@ export function AdminCheckerLogPage({
     { key: 'name', label: 'Name', width: '2fr' },
     { key: 'last', label: 'Last active', width: '1.4fr' },
     { key: 'total', label: 'Actions', width: '0.8fr' },
-    { key: 'since', label: 'Since', width: '1fr' },
+    { key: 'since', label: 'First active', width: '1fr' },
   ];
   const tableRows: AdminTableRow[] = sorted.map((r) => ({
     id: r.actor_key,

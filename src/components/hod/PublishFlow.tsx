@@ -79,7 +79,7 @@ function CheckList({ preview, go, paperId }: { preview: HodPreview; go: (s: Step
                   {c.key === 'questions_checked' ? (
                     <>
                       {preview.counts.open > 0 ? (
-                        <Link to={deskLink('needs-you', paperId)} className={actionToneClass('brand')}>
+                        <Link to={deskLink('needs-you', paperId)} className={cn(actionToneClass('brand'), 'h-[46.5px]')}>
                           Go to Needs you
                         </Link>
                       ) : null}
@@ -155,7 +155,7 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
                 Open the live paper
               </Link>
             ) : null}
-            <Link to={deskLink('ready')} className={actionToneClass('brand')}>
+            <Link to={deskLink('ready')} className={cn(actionToneClass('brand'), 'h-[46.5px]')}>
               Back to Ready to go live
             </Link>
             <Link to={deskLink('live')} className={quietButton}>
@@ -411,7 +411,7 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
         </p>
         <button
           type="button"
-          className={actionToneClass('brand')}
+          className={cn(actionToneClass('brand'), 'h-[46.5px]')}
           disabled={stepIndex === STEPS.length - 1}
           onClick={() => setStep(STEPS[Math.min(STEPS.length - 1, stepIndex + 1)].key)}
         >

@@ -19,7 +19,7 @@ import { excerptDescription } from '@/lib/excerpt-description';
 import { ContentGuard } from '@/components/ContentGuard';
 import { CaptureShield } from '@/components/CaptureShield';
 import { protectedClass } from '@/lib/copy-guard';
-import { substituteGlyphs, substituteGlyphsInHtml } from '@/lib/glyph-substitution';
+import { substituteGlyphsInHtml } from '@/lib/glyph-substitution';
 import { TeacherCard } from '@/components/TeacherCard';
 import DOMPurify from 'dompurify';
 import { imageAtWidth, validateImageSrc } from '@/utils/imageSanitizer';
@@ -50,7 +50,6 @@ interface Teacher {
   bio: string | null;
   experience_years: number | null;
   location: string | null;
-  whatsapp_number: string | null;
   is_verified: boolean;
   subjects: { name: string; slug: string } | null;
   subjects_text?: string | null;
@@ -408,7 +407,6 @@ export default function TeacherProfile() {
     // appended after the real opening — see excerpt-description.ts. Capped at
     // 500 chars, generous enough for a real intro but short of the spam tail.
     const teacherDescription = rawTeacherDescription ? excerptDescription(rawTeacherDescription, 500) : '';
-    const phoneNumber = teacher.whatsapp_number || null;
     const area = teacher.area || null;
     const subjects = teacher.subjects_from_shikshaq ? toArray(teacher.subjects_from_shikshaq) : [];
     const classesTaught = teacher.classes_taught_for_backend ? toArray(teacher.classes_taught_for_backend) : [];
@@ -418,7 +416,6 @@ export default function TeacherProfile() {
       url: teacherUrl,
       name: teacherName,
       description: teacherDescription || undefined,
-      phoneNumber,
       area,
       qualifications,
       subjects,
@@ -1164,7 +1161,7 @@ export default function TeacherProfile() {
             {qualificationsText && (
               <BentoPanel fill="card" className="p-[22px]">
                 <SectionHeading>Qualifications</SectionHeading>
-                <p data-protected className={`max-w-prose text-[15px] leading-[1.65] text-warm-prose lg:text-[16px] lg:leading-[1.6] ${protectedClass}`}>{substituteGlyphs(qualificationsText)}</p>
+                <p data-protected className={`max-w-prose text-[15px] leading-[1.65] text-warm-prose lg:text-[16px] lg:leading-[1.6] ${protectedClass}`}>{qualificationsText}</p>
               </BentoPanel>
             )}
 

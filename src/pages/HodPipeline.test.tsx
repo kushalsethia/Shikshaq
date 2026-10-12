@@ -34,7 +34,7 @@ describe('the HOD pipeline page', () => {
     const html = render({ routeApi: createFakePipelineRouteApi('full', 0), dummy: true });
     const t = text(html);
     expect(t).toContain('Pipeline');
-    expect(t).toContain("Every paper on its way from a PDF on Kanishk's computer to live.");
+    expect(t).toContain('Every paper on its way from a PDF saved on the main computer to live.');
     expect(html).toContain('href="/hod"');
     expect(t).toContain('Back to the HOD desk');
     expect(html).toContain('id="pipeline-route"');
@@ -50,6 +50,31 @@ describe('the HOD pipeline page', () => {
     const src = readFileSync('src/pages/HodPipeline.tsx', 'utf8');
     expect(src).toContain('audience="hod"');
     expect(src).not.toContain("'/admin");
+  });
+
+  it('draws the folded detail an admin gets, but not the activity log', () => {
+    const html = render({ routeApi: createFakePipelineRouteApi('full', 0), dummy: true });
+    const t = text(html);
+    expect(html).toContain('data-testid="pipeline-detail-fold"');
+    expect(t).toContain('The paper list and the library numbers');
+    expect(t).toContain('Papers: processed and not processed');
+    expect(t).toContain('Papers library');
+    expect(t).toContain('Newest papers');
+    expect(t).toContain('Trends and subjects');
+    expect(t).not.toContain('Admins only');
+    expect(t).not.toContain('Activity');
+    expect(t).not.toContain('See full activity');
+  });
+
+  it('reads through the hod_* functions and never the admin ones or the activity feed', () => {
+    // The header comment names the feed to explain why it is absent; only code counts.
+    const page = readFileSync('src/pages/HodPipeline.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(page).toContain('hodPipelineStatsApi');
+    expect(page).toContain('hodPaperRegistryApi');
+    expect(page).not.toContain('realPaperRegistryApi');
+    expect(page).not.toContain('realPipelineApi');
+    expect(page).not.toMatch(/activity_feed|feed\(/);
+    expect(page).toContain('audience="hod"');
   });
 
   it('is its own route, kept footerless like the HOD desk', () => {

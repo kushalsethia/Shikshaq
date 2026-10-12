@@ -187,7 +187,7 @@ describe('rendered history reads like people', () => {
     const t = text(html);
     expect(t).toContain('Priya Sharma changed the marks on question 2');
     expect(t).toContain('Rahul Das (student checker) fixed a reading mistake in the question text on question 2');
-    expect(t).toContain('AI check (Sonnet) passed question 2, confidence 92%');
+    expect(t).toContain('AI check passed question 2, confidence 92%');
     expect(t).toContain('Pipeline (automatic) put the paper in the approval queue');
     expect(t).not.toMatch(UUID);
     expect(t).not.toMatch(/\b[a-z]+_[a-z_]+\b/);

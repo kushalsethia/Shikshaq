@@ -522,6 +522,24 @@ export interface HodFixPatch {
   marks?: number | null;
 }
 
+/** One row of hod_list_subjects(). */
+export interface HodSubject {
+  id: string;
+  name: string;
+  slug: string | null;
+}
+
+export function normaliseSubjects(raw: unknown): HodSubject[] {
+  const out: HodSubject[] = [];
+  for (const x of rows(raw)) {
+    const r = obj(x);
+    const id = str(r.id);
+    const name = str(r.name);
+    if (id && name) out.push({ id, name: name.trim(), slug: str(r.slug) });
+  }
+  return out;
+}
+
 export interface HodApi {
   isHod(): Promise<boolean>;
   team(): Promise<HodTeamMember[]>;
@@ -534,6 +552,8 @@ export interface HodApi {
   profiles(): Promise<HodVerifierProfile[]>;
   setProfile(userId: string, input: ProfileInput): Promise<void>;
   setPreferred(userId: string, subjects: string[]): Promise<void>;
+  /** hod_list_subjects(): every subject on the site (20261012960000), for the preferred-subjects boxes. */
+  subjects(): Promise<HodSubject[]>;
   /** hod_action_history(): newest first; pass the oldest `at` seen as `before` for the next page. */
   history(filter: { actor?: string | null; role?: string | null; before?: string | null; limit?: number }): Promise<HistoryRow[]>;
   /** hod_send_back(): a question a student sent up goes back to the students. */
@@ -638,6 +658,9 @@ export const realHodApi: HodApi = {
   },
   async setPreferred(userId, subjects) {
     await call('hod_set_preferred_subjects', { p_user_id: userId, p_subjects: subjects });
+  },
+  async subjects() {
+    return normaliseSubjects(await call('hod_list_subjects'));
   },
   async history({ actor = null, role = null, before = null, limit = 100 }) {
     return normaliseHistory(

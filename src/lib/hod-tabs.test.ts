@@ -15,13 +15,13 @@ describe('HOD desk tabs', () => {
     expect(TABS.map((t) => t.label)).toEqual([
       'Needs you',
       'Ready to go live',
-      'Student uploads',
+      'Uploads',
       'Live papers',
       'Assignments',
       'Verifiers',
       'History',
       'AI trust',
-      'Teacher reviewers',
+      'Reviewers',
     ]);
   });
 

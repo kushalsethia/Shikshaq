@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { HodPipelinePage } from '@/pages/HodPipeline';
 import { createFakePipelineRouteApi } from '@/dummy/pipeline-route-fake-api';
+import { createFakePipelineApi } from '@/dummy/pipeline-fake-api';
+import { createFakePaperRegistryApi } from '@/dummy/paper-registry-fake-api';
 import { setDummyMode } from '@/lib/dummy-mode';
 
 /* /hod/pipeline in dummy mode (D75): the real page against made-up numbers, no
@@ -14,6 +16,13 @@ export default function HodPipelineDummy() {
     return createFakePipelineRouteApi(
       m === 'error' || m === 'flaky' || m === 'empty' || m === 'unsynced' || m === 'stale' ? m : 'full',
     );
+  });
+
+  // ?stats=error, ?registry=empty or ?registry=error reach the detail panels' other states.
+  const [statsApi] = useState(() => createFakePipelineApi(new URLSearchParams(window.location.search).get('stats') === 'error' ? 'error' : 'full'));
+  const [registryApi] = useState(() => {
+    const m = new URLSearchParams(window.location.search).get('registry');
+    return createFakePaperRegistryApi(m === 'empty' || m === 'error' ? m : 'full');
   });
 
   const banner = (
@@ -36,5 +45,5 @@ export default function HodPipelineDummy() {
     </div>
   );
 
-  return <HodPipelinePage routeApi={routeApi} dummy banner={banner} />;
+  return <HodPipelinePage routeApi={routeApi} statsApi={statsApi} registryApi={registryApi} dummy banner={banner} />;
 }

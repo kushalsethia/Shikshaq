@@ -21,7 +21,8 @@ const read = (name: string) =>
 
 const pictures = read('20261012500000_pipeline_picture_queue.sql');
 const drive = read('20261012500050_paper_drive_summary.sql');
-const route = read('20261012500100_pipeline_route_overview.sql');
+// The latest definition of the function: 20261012500100 made it, 20261012990000 counted it the way the owner asked.
+const route = read('20261012990000_pipeline_route_owner_counts.sql');
 
 describe('the two desk tables', () => {
   it('the picture queue is one row, with RLS on, no policy and every role revoked', () => {
@@ -80,11 +81,33 @@ describe('admin_pipeline_route', () => {
     expect(route).toContain('with oq as materialized');
     expect(route).toContain('not coalesce(q.question_passed, false) and q.set_aside_at is null');
     expect(route).not.toContain('checker_question_servable');
-    expect(route).not.toMatch(/q\.source \? 'swarm'/);
+  });
+
+  it('counts the swarm only, and only for the few papers at the loaded and checked-by-the-AI stages (never every question)', () => {
+    expect(route).toContain("jsonb_exists(q.source, 'swarm')");
+    expect(route).toContain("r.processed_state in ('loaded', 'ai_checked')");
+    expect(route).toContain("'swarm_read'");
+    // the swarm test sits inside the small per-paper CTE, not in the question-wide ones
+    const oq = route.slice(route.indexOf('oq as materialized'), route.indexOf('kid as materialized'));
+    expect(oq).not.toContain('swarm');
+  });
+
+  it('drops the cumulative counts and the old AI-check count (current stage only)', () => {
+    expect(route).not.toContain("'read_total'");
+    expect(route).not.toContain("'ai_read_total'");
+    expect(route).not.toContain('ai_decision');
+  });
+
+  it('counts papers with no PDF apart from the PDFs on the disk', () => {
+    expect(route).toContain("'no_pdf'");
+    expect(route).toContain("nullif(btrim(coalesce(p.pdf_path, '')), '') is null");
+    expect(route).toContain("'live_only'");
+    // the disk count is the desk's own row, passed through untouched
+    expect(route).toContain("from public.paper_drive_summary d where d.key = 'latest'");
   });
 
   it('returns every section of the new route, and only counts', () => {
-    for (const key of ["'checking'", "'needs_you'", "'ready'", "'live'", "'trust'", "'pictures'", "'drive'", "'synced'", "'read_total'", "'ai_read_total'"]) {
+    for (const key of ["'checking'", "'needs_you'", "'ready'", "'live'", "'trust'", "'pictures'", "'drive'", "'synced'", "'swarm_read'", "'no_pdf'"]) {
       expect(route).toContain(key);
     }
     expect(route).not.toMatch(/q\.(body|options|instructions)\b/);

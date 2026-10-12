@@ -86,6 +86,9 @@ describe('every old admin address still works', () => {
     expect(legacyAdminTarget('/admin/papers', '')).toBe('/hod?tab=uploads');
     expect(legacyAdminTarget('/admin/library', '')).toBe('/hod?tab=live');
     expect(legacyAdminTarget('/admin/paper-review', '')).toBe('/hod?tab=live');
+    expect(legacyAdminTarget('/admin/uploads', '')).toBe('/hod?tab=uploads');
+    expect(legacyAdminTarget('/admin/queue', '')).toBe('/hod?tab=needs-you');
+    expect(legacyAdminTarget('/admin/needs-you', '')).toBe('/hod?tab=needs-you');
   });
 
   it('sends the people, teacher, log and system pages to their section', () => {

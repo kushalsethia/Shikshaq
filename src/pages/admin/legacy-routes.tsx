@@ -32,6 +32,9 @@ export const LEGACY_ADMIN_PATHS: Record<string, AdminPageKey> = {
   '/admin/paper-review': 'library',
   '/admin/admin-queue': 'admin-queue',
   '/admin/paper-approvals': 'ready',
+  '/admin/uploads': 'submissions',
+  '/admin/queue': 'admin-queue',
+  '/admin/needs-you': 'admin-queue',
 };
 
 /** Where an old address goes now, as a path plus query. Pure. */

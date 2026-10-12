@@ -83,8 +83,9 @@ describe('audit page states', () => {
     expect(describeAction({ action: 'revoke_hod', target_type: 'hod' }).verb).toBe('Removed an HOD');
     expect(describeAction({ action: 'grant_checker', target_type: 'checker' }).verb).toBe('Added a verifier');
     const unknown = describeAction({ action: 'hold_batch', target_type: 'paper_batch' });
-    expect(unknown.verb).toBe('Hold batch paper batch');
+    expect(unknown.verb).toBe('Put a batch of papers on hold');
     expect(unknown.verb).not.toContain('_');
+    expect(describeAction({ action: 'hold_batch', target_type: 'something_new' }).verb).toBe('Hold batch something new');
   });
 
   it('the fixture api reaches the full, empty and error states', async () => {
@@ -151,7 +152,7 @@ describe('activity rows', () => {
     const ai: ActivityRow = { ...base, actor_user_id: null, actor_label: 'ai:sonnet', actor_kind: 'ai', action: 'check_fix' };
     const html = wrap(<ActivityItem group={{ head: ai, also: [] }} onOpen={open} />);
     expect(html).not.toContain('/admin/checker-log/');
-    expect(text(html)).toContain('AI check (Sonnet) suggested a fix to question 3(b)');
+    expect(text(html)).toContain('AI check suggested a fix to question 3(b)');
   });
 });
 
@@ -176,8 +177,11 @@ describe('pipeline panels', () => {
     expect(page).toMatch(/if \(checkingAdmin\) \{/);
     expect(page).not.toMatch(/if \((?:checkingAdmin \|\| )?(?:loading|status === 'loading')\)/);
     expect(page.indexOf('<PipelineRoute')).toBeGreaterThan(-1);
-    expect(page.indexOf('<PipelineRoute')).toBeLessThan(page.indexOf('<PaperRegistryPanel'));
-    expect(page.indexOf('<PaperRegistryPanel')).toBeLessThan(page.indexOf('title="Papers library"'));
+    expect(page.indexOf('<PipelineRoute')).toBeLessThan(page.indexOf('<PipelineDetailFold'));
+    // The folded detail lives in components/admin/PipelineDetail.tsx, shared with /hod/pipeline.
+    const detail = readFileSync('src/components/admin/PipelineDetail.tsx', 'utf8');
+    expect(detail.indexOf('<PaperRegistryPanel')).toBeGreaterThan(-1);
+    expect(detail.indexOf('<PaperRegistryPanel')).toBeLessThan(detail.indexOf('title="Papers library"'));
   });
 
   it('the old Needs attention strip and Checking panel are gone: they counted the frozen earlier-library copies and disagreed with the route', () => {
@@ -204,7 +208,7 @@ describe('pipeline panels', () => {
   });
 
   it('a failed activity log shows the error with Try again, not "No activity recorded yet"', () => {
-    const src = readFileSync('src/pages/admin/pipeline.tsx', 'utf8');
+    const src = readFileSync('src/components/admin/PipelineDetail.tsx', 'utf8');
     expect(src).toMatch(/status=\{status === 'ok' && feedFailed \? 'error' : status\}\s+what="the activity"/);
     const html = wrap(<StatsPanel title="Activity" status="error" what="the activity" onRetry={() => {}}><p>No activity recorded yet</p></StatsPanel>);
     expect(text(html)).toContain('The activity did not load.');

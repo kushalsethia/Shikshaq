@@ -927,8 +927,9 @@ export function normaliseTrustOverall(raw: unknown): AiTrustOverall {
   };
 }
 
-/** The one sentence a card shows: "34 of 100 checks". */
+/** The one sentence a card shows: "34 of 100 checks". Once the bar is met it reads "100 of 100 checks, reached", never "250 of 100". */
 export function overallProgress(o: Pick<AiTrustOverall, 'checks_done' | 'threshold'>): string {
+  if (o.checks_done >= o.threshold) return `${o.threshold} of ${o.threshold} checks, reached`;
   return `${o.checks_done} of ${o.threshold} checks`;
 }
 

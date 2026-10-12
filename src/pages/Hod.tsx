@@ -76,13 +76,13 @@ export interface HodTabDef {
 export const TABS: HodTabDef[] = [
   { key: 'needs-you', label: 'Needs you', hint: 'Questions only you can settle: pass, fix, send back to students or set aside.', Component: NeedsYouTab },
   { key: 'ready', label: 'Ready to go live', hint: 'Papers with every question settled. Read one, run the four checks and publish it.', Component: ReadyTab },
-  { key: 'uploads', label: 'Student uploads', hint: 'Papers students sent in. Approve or reject them.', Component: UploadsTab },
+  { key: 'uploads', label: 'Uploads', hint: 'Papers students sent in. Approve or reject them.', Component: UploadsTab },
   { key: 'live', label: 'Live papers', hint: 'Every paper in the library. Hide, restore or change its details.', Component: LiveTab },
   { key: 'assignments', label: 'Assignments', hint: 'Who holds which paper, and papers nobody holds.', Component: AssignmentsTab },
   { key: 'verifiers', label: 'Verifiers', hint: 'How each verifier is doing, their details and preferred subjects.', Component: VerifiersTab },
   { key: 'history', label: 'History', hint: 'What HODs, admins and verifiers did.', Component: HistoryTab },
   { key: 'ai-trust', label: 'AI trust', hint: 'How many checks it takes before the AI is trusted, and how often people agree with it.', Component: AiTrustTab },
-  { key: 'teacher-reviewers', label: 'Teacher reviewers', hint: 'Who is on the teachers team: add or remove people who approve and edit teachers.', Component: TeacherReviewersTab },
+  { key: 'teacher-reviewers', label: 'Reviewers', hint: 'Who is on the teachers team: add or remove people who approve and edit teachers.', Component: TeacherReviewersTab },
 ];
 
 export function HodPage({
@@ -154,7 +154,6 @@ export function HodPage({
     selectTab(next);
     tabRefs.current[next]?.focus();
   };
-
   // The numbers on the tab badges come from one cheap call, kept fresh while the desk is open.
   const countsQ = useQuery({
     queryKey: ['hod', scope, 'counts'],
@@ -163,6 +162,22 @@ export function HodPage({
     staleTime: 15_000,
     refetchOnMount: true,
   });
+
+  // On a narrow screen the tabs scroll as one row. If the selected tab is cut off, bring it
+  // into view (horizontally only, so the page does not jump). It re-runs when the badge
+  // counts arrive, because they widen the row. A tab already in view is left where it is.
+  const tabRowRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const row = tabRowRef.current;
+    const el = tabRefs.current[active.key];
+    if (!row || !el) return;
+    const left = el.offsetLeft;
+    const right = left + el.offsetWidth;
+    const view = row.clientWidth;
+    if (left >= row.scrollLeft && right <= row.scrollLeft + view) return;
+    const target = left - (view - el.offsetWidth) / 2;
+    row.scrollTo({ left: Math.max(0, Math.min(target, row.scrollWidth - view)), behavior: 'auto' });
+  }, [active.key, allowed, countsQ.data]);
 
   if (checkFailed && allowed === null) {
     return (
@@ -178,7 +193,7 @@ export function HodPage({
   if ((!dummy && authLoading) || allowed === null) {
     return (
       <BentoStack className="min-h-screen bg-muted">
-        <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-5xl">
+        <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-5xl px-4 sm:px-5">
           {banner}
           <div className="h-40 animate-pulse rounded-2xl bg-muted" role="status" aria-label="Loading the HOD desk" />
         </BentoPanel>
@@ -211,7 +226,7 @@ export function HodPage({
 
   return (
     <BentoStack className="min-h-screen bg-muted">
-      <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-5xl">
+      <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-5xl px-4 sm:px-5">
         {banner}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-lg font-bold text-foreground">HOD desk</h1>
@@ -232,7 +247,13 @@ export function HodPage({
           </div>
         </div>
 
-        <div role="tablist" aria-label="HOD desk" className="mb-5 flex max-w-full flex-wrap items-center gap-1 rounded-[20px] bg-muted p-1 sm:inline-flex sm:rounded-full">
+        {/* One row, never a wrap: when the tabs are wider than the card the row scrolls. */}
+        <div
+          ref={tabRowRef}
+          role="tablist"
+          aria-label="HOD desk"
+          className="relative mb-5 flex w-max max-w-full items-center gap-1 overflow-x-auto rounded-full bg-muted p-1 scrollbar-hide"
+        >
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -249,7 +270,7 @@ export function HodPage({
               onClick={() => selectTab(t.key)}
               onKeyDown={onTabKeyDown}
               className={cn(
-                'flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                'flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
                 active.key === t.key ? 'bg-card text-foreground' : 'text-warm-secondary hover:text-foreground',
               )}
             >

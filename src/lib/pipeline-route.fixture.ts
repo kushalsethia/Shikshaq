@@ -8,13 +8,16 @@ export const EXAMPLE_ROUTE_RAW = {
   generated_at: '2026-10-12T06:00:00.000Z',
   registry: {
     total: 8038,
-    excluded: 11,
-    by_state: { loaded: 101, ocr_done: 763, ai_checked: 294, ocr_queued: 101, not_started: 4869, awaiting_approval: 1 },
-    frozen_by_state: { live: 1385, ocr_done: 255, ocr_queued: 254, fully_checked: 4, loaded: 4, ai_checked: 3, not_started: 3, awaiting_approval: 1 },
-    read_total: 1159,
-    ai_read_total: 295,
+    excluded: 13,
+    // current stage only: each paper of the new route is in one of these
+    by_state: { loaded: 73, ocr_done: 1189, ai_checked: 3, ocr_queued: 121, not_started: 4869 },
+    frozen_by_state: { live: 1259, ocr_done: 255, ocr_queued: 254, fully_checked: 4, loaded: 4, ai_checked: 3, not_started: 3, awaiting_approval: 1 },
+    // loaded or ai_checked, split by whether the swarm has read the paper (live read, 12 Oct)
+    swarm_read: { papers: 74, desk_without_swarm: 2 },
     last_updated_at: '2026-10-08T23:24:22.000Z',
   },
+  // desk papers with no PDF path, and live library papers no desk paper points at (live read, 12 Oct)
+  no_pdf: { audit_papers: 514, live_only: 1 },
   desk: {
     papers: 479,
     // made up: the split of the 479 desk papers

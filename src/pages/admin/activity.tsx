@@ -265,9 +265,7 @@ export function ActivityItem({ group, onOpen }: { group: ActivityGroup<ActivityR
       <div className="min-w-0 flex-1 basis-[220px]">
         <p className="text-pretty text-[14px] font-semibold leading-[1.4] text-foreground">{activitySentence(row)}</p>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12px] text-warm-secondary">
-          <span className="font-mono" title={actor.full}>
-            {actor.who}
-          </span>
+          <span title={row.actor_user_id ? undefined : actor.full}>{actor.who}</span>
           {row.question_id ? <span>· {question}</span> : null}
           {row.paper_title ? <span>· {row.paper_title}</span> : null}
           {row.version != null ? <span className="tabular-nums">· v{row.version}</span> : null}
@@ -279,6 +277,7 @@ export function ActivityItem({ group, onOpen }: { group: ActivityGroup<ActivityR
           </p>
         ) : null}
         <span className="mt-1 inline-flex flex-wrap gap-1">
+          <DebugId label="person" value={row.actor_user_id} />
           <DebugId label="question" value={row.question_id} />
           <DebugId label="paper" value={row.paper_id} />
           <DebugFacts facts={{ stream: row.stream, event: row.event_id, action: row.action }} />

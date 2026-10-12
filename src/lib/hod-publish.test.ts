@@ -261,6 +261,13 @@ describe('AI trust: the overall counter', () => {
     expect(o.reached).toBe(false);
     expect(overallUnlocks(o)).toMatch(/66 more checks to go/);
   });
+
+  it('never prints past the bar: at or above 100 it says 100 of 100, reached', () => {
+    const at = normaliseTrustOverall([{ checks_done: 100, agreed: 98, changed: 2, threshold: 100, reached: true, agreement_rate: 0.98 }]);
+    const past = normaliseTrustOverall([{ checks_done: 250, agreed: 240, changed: 10, threshold: 100, reached: true, agreement_rate: 0.96 }]);
+    expect(overallProgress(at)).toBe('100 of 100 checks, reached');
+    expect(overallProgress(past)).toBe('100 of 100 checks, reached');
+  });
   it('shows no rate before any check, and says what it unlocks once reached', () => {
     const none = normaliseTrustOverall({ checks_done: 0, threshold: 100, reached: false, agreement_rate: 0 });
     expect(none.agreement_rate).toBeNull();

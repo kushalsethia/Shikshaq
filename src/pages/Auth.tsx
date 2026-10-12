@@ -11,7 +11,7 @@ import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/au
 import { Logo } from '@/components/Logo';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getSubjectPalette } from '@/lib/subject-palette';
-import { readAuthIntent, clearAuthIntent } from '@/lib/auth-intent';
+import { readAuthIntent, clearAuthIntent, heroIntentFor } from '@/lib/auth-intent';
 import { resolveAuthHero } from '@/components/auth/AuthHero';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useSiteCounts } from '@/hooks/useSiteCounts';
@@ -28,20 +28,17 @@ import { useSiteCounts } from '@/hooks/useSiteCounts';
    the component so it shares the app-wide React Query cache instead of
    re-fetching on every visit to this page. */
 function useAuthProofCounts() {
-  const [teacherCount, setTeacherCount] = useState<number | null>(null);
   const [mathsCount, setMathsCount] = useState<number | null>(null);
   const [scienceCount, setScienceCount] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [{ count: teachers }, { count: maths }, { count: science }] = await Promise.all([
-          supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
+        const [{ count: maths }, { count: science }] = await Promise.all([
           supabase.from('teachers_list').select('id', { count: 'exact', head: true }).ilike('subjects', '%Maths%'),
           supabase.from('teachers_list').select('id', { count: 'exact', head: true }).ilike('subjects', '%Science%'),
         ]);
         if (!cancelled) {
-          if (typeof teachers === 'number') setTeacherCount(teachers);
           if (typeof maths === 'number') setMathsCount(maths);
           if (typeof science === 'number') setScienceCount(science);
         }
@@ -53,7 +50,7 @@ function useAuthProofCounts() {
       cancelled = true;
     };
   }, []);
-  return { teacherCount, mathsCount, scienceCount };
+  return { mathsCount, scienceCount };
 }
 
 const emailSchema = z.string().email('Please enter a valid email');
@@ -145,7 +142,15 @@ export default function Auth() {
      navigation happened, without re-reading on every unrelated re-render
      (typing in the form, etc.), which is what the original comment about
      "swapping the hero out from under them" was actually guarding against. */
-  const authIntent = useMemo(readAuthIntent, [location.key]);
+  /* The staff hero follows the destination, not the stored intent alone: the
+     admin guard leaves an `admin` intent for ten minutes, and a plain /auth
+     inside that window must read as the normal parent/student sign-in. */
+  const authIntent = useMemo(
+    () => heroIntentFor(readAuthIntent(), new URLSearchParams(location.search).get('redirect')),
+    // location.key is deliberate: it changes on every navigation (see above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [location.key, location.search],
+  );
 
   // Save redirect on mount (backup — primary save happens at the click source)
   useEffect(() => {

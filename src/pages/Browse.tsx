@@ -9,6 +9,7 @@ import { suggestedFilterChips, type SuggestedFilterChip } from '@/lib/intent/cop
 import { TeacherCard } from '@/components/TeacherCard';
 import { useChromeConfig } from '@/components/layout/AppShell';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
+import { useSiteCounts } from '@/hooks/useSiteCounts';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { type FilterState } from '@/components/FilterPanel';
 import { FilterSheet, FilterRail, activeFilterCount } from '@/components/browse/FilterGroups';
@@ -203,11 +204,14 @@ let relaxPoolCache: Promise<any[]> | null = null;
 function loadRelaxPool(): Promise<any[]> {
   if (!relaxPoolCache) {
     relaxPoolCache = Promise.resolve(
-      supabase.from('Shikshaqmine').select(SHIKSHAQ_COLUMNS) as any,
+      supabase.from('Shikshaqmine').select(SHIKSHAQ_COLUMNS + ', is_paused') as any,
     )
       .then(({ data, error }: any) => {
         if (error) throw new Error(error.message);
-        return (data as any[]) ?? [];
+        // Paused listings are never rendered on Browse, so they are not counted
+        // here either. Without this the filter sheet said 148 while the list said
+        // 147 (see lib/listed-teachers.ts).
+        return ((data as any[]) ?? []).filter((r) => !r.is_paused);
       })
       .catch((err: unknown) => {
         relaxPoolCache = null; // let the next empty state try again
@@ -622,7 +626,10 @@ export default function Browse({ manageSeo = true, pageContext, seo, locality }:
   // AppShell renders the B2 pre-footer for this route already (preFooterFor
   // matches BROWSE_PATH); this only hands it the live counts, which AppShell
   // has no way to know on its own.
-  useChromeConfig({ preFooter: 'B2', preFooterCounts: { teachers: teachers.length, reviews: reviewsCount } });
+  // The trust strip is a site-wide claim, so it reads the same listed total as the
+  // home page and About (useSiteCounts), not the length of whatever list is loaded.
+  const { data: siteCounts } = useSiteCounts();
+  useChromeConfig({ preFooter: 'B2', preFooterCounts: { teachers: siteCounts?.teachers ?? undefined, reviews: reviewsCount } });
 
   useEffect(() => {
     let cancelled = false;
