@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MathText } from '@/components/papers/math-text';
 import { BodyEditor } from '@/components/checker/BodyEditor';
 import { OptionList } from '@/components/checker/OptionList';
 import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
-import { PanelTabs, PrintedFrame, TypedFrame, type PanelId } from '@/components/checker/Panels';
+import { FixFrame, PanelTabs, PrintedFrame, TypedFrame, VERIFY_TABS, type PanelId } from '@/components/checker/Panels';
+import { tileForNextQuestion } from '@/lib/checker-bento';
+import { BentoTile, FadeScroll, ImageLightbox, TilePager, useBentoWide } from '@/components/checker/BentoParts';
 import { ChangesSection, MarksInsideHint, QuestionChips, ToolsRow } from '@/components/checker/TypedBits';
 import { toolBlockedByUnsavedEdit, toolById, type CheckerToolId } from '@/lib/checker-tools';
 import { CheckerSkeleton, Callout, CheckGuidance, Modal, SplitPreview, WholeQuestion, useSignedUrl } from '@/components/checker/CheckerBits';
-import { Undo2 } from 'lucide-react';
+import { Maximize2, Undo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { CheckerApi } from '@/lib/checker-api';
+import type { CheckerApi, CheckerQuestion } from '@/lib/checker-api';
 import { whatToCheck } from '@/lib/checker-kid-reasons';
 import { englishContext, passageHeading } from '@/lib/checker-english';
 import { assembleQuestionContext, type QuestionContext } from '@/lib/checker-context';
@@ -67,6 +69,17 @@ import { CheckerWalkthrough } from '@/components/checker/CheckerWalkthrough';
 import { CHECKER_PRACTICE_PATH, CHECKER_TOUR_PARAM, hasSeenWalkthrough, markWalkthroughSeen } from '@/lib/checker-onboarding';
 import { paperLabel, paperProgress } from '@/lib/checker-progress';
 import { loadGate, skippedNote } from '@/lib/verifier-papers';
+import { IncomingCard, PaperStrip, SaveStatusChip } from '@/components/checker/AdvanceBits';
+import { useCheckerOutbox } from '@/components/checker/useCheckerOutbox';
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
+import { cardEnterClass, cardId, isPaperChange, paperStripInfo } from '@/lib/checker-card-motion';
+import { clearPrefetch, dropWarm, prefetchNext, type WarmQuestion } from '@/lib/checker-prefetch';
+import { offlinePrefetchDeps } from '@/lib/checker-prefetch-fallback';
+import { clearPictureCache, primePicture, withPictureCache } from '@/lib/checker-picture-cache';
+import type { OutboxEntry, VerdictKind, VerdictPayload } from '@/lib/checker-outbox';
+import { decideAck, isConfirmedNotSaved } from '@/lib/checker-advance';
+import type { VerdictAndNext } from '@/lib/checker-verdict-next';
+import '@/components/checker/checker-motion.css';
 
 /* The verify screen ("Start verifying"): one question of one paper at a time.
    The question and its details are on the left; the picture of the printed
@@ -96,6 +109,7 @@ export function VerifyScreen({
   userName,
   onExit,
   onList,
+  toolbar,
 }: {
   api: CheckerApi;
   scope: string;
@@ -107,41 +121,90 @@ export function VerifyScreen({
   onExit: () => void;
   /** Back to the list of all my papers (the finished screen's button says so). */
   onList?: () => void;
+  /** The page's own small controls (counts, Menu ...), shown in the top tile so the page needs no header row of its own. */
+  toolbar?: ReactNode;
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const labelRef = useRef('this paper');
 
-  /* Speed (pipeline-plan Step 2, #5): checker_next_question LEASES the row
-     it returns to whoever fetches it. That rules out fetching a real "next"
-     question ahead of time while the current one is still on screen -- it
-     would start a second 10-minute clock on a question nobody is reading
-     yet, and could hand it to another checker's queue in the meantime for
-     nothing if this one gets Skipped instead of finished. So this stays
-     "fetch after pass": one lease per question actually shown, requested
-     the moment an action resolves (`refresh()` below), never earlier.
+  /* Speed (checker speed plan, 12 Oct 2026): the next question appears the
+     moment a verdict is pressed, not after the save comes back, and its WORDS
+     arrive with the save's own answer.
 
-     What IS safe, and is what makes the transition feel instant rather than
-     "fetch after pass" reading as a visible reload: React Query does not
-     clear `data` on a background refetch of the SAME query key (only on the
-     very first load, before any question has ever arrived, is there no
-     previous question to show). So the questions after the first swap in
-     directly once the new row lands, with no full-panel skeleton between
-     them -- the old question's text and picture just stay put, buttons
-     disabled by `submitting`, until the next one replaces them. The picture
-     panel's own brief pulse (its signed URL is a second, sequential fetch,
-     started only once the new question's row is known) is the one part of
-     the transition that still visibly loads, and staying sequential there
-     is deliberate too: fetching a picture URL speculatively for a row nobody
-     has been leased yet would be a picture for a question this checker may
-     never see. */
+       1. The verdict is written to the outbox (src/lib/checker-outbox.ts,
+          localStorage) and sent in the background, in order, with retries.
+          It is never lost and never sent twice.
+       2. ONE call does both jobs: verifier_verdict_and_next saves the verdict
+          and returns the next question of the paper, already leased to this
+          checker, with its context (checker-verdict-next.ts). There is no
+          separate "next question" fetch after a verdict. The answer reaches
+          `ackedVerdict`, which asks decideAck (checker-advance.ts) what to do:
+          show it, show "paper finished", or ignore it when the person has
+          moved on. A refused verdict serves nothing: the question comes back
+          with the reason.
+       3. The pictures of the questions after this one are signed and decoded
+          ahead through verifier_peek_next_in_paper, which leases nothing
+          (checker-prefetch.ts), and the picture of a question that has just
+          arrived starts signing before it is shown (checker-picture-cache.ts).
+       4. Until the answer is back, the card is the next question's frame with
+          its picture and placeholders; the answered question is hidden at
+          once (`maskedIds`), so a second press can only land on a card that
+          is ready.
+
+     The words of a question are only ever the ones the server returned:
+     nothing is guessed or carried over. */
   // Skipped questions wait for later: they are served only after the
   // verifier asks to go through them (20261008160000).
   const [includeSkipped, setIncludeSkipped] = useState(false);
+  const includeSkippedRef = useRef(false);
+  includeSkippedRef.current = includeSkipped;
   const nextKey = ['verifier-next', scope, paperId, includeSkipped] as const;
+  const keyFor = (inc: boolean) => ['verifier-next', scope, paperId, inc] as const;
+  const picApi = useMemo(() => withPictureCache(api), [api]);
+  const reducedMotion = usePrefersReducedMotion();
+  // Tablet and up: every tile on one screen. Below 768: swipeable tiles (Question | Page | Fix).
+  const wide = useBentoWide();
+  // A picture opened full screen.
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
+
+  /** Questions the checker has answered whose card must not come back: the
+   *  fetch that follows an answer may still hold the old row for a moment. */
+  const [maskedIds, setMaskedIds] = useState<ReadonlySet<string>>(() => new Set());
+  const maskedRef = useRef<ReadonlySet<string>>(maskedIds);
+  const mask = (id: string) => {
+    const next = new Set(maskedRef.current).add(id);
+    maskedRef.current = next;
+    setMaskedIds(next);
+  };
+  const unmask = (id: string) => {
+    if (!maskedRef.current.has(id)) return;
+    const next = new Set(maskedRef.current);
+    next.delete(id);
+    maskedRef.current = next;
+    setMaskedIds(next);
+  };
+  // True from a verdict until the next question (or the end of the paper) is on screen.
+  const [advancing, setAdvancing] = useState(false);
+  const [nextFailed, setNextFailed] = useState(false);
+  // The next question's picture, when it was warmed ahead, shown on its card while the words arrive.
+  const [incoming, setIncoming] = useState<{ id: string; pictureUrl: string | null } | null>(null);
+  const warmedRef = useRef<WarmQuestion[]>([]);
+  const fetchSeq = useRef(0);
+  const appliedSeq = useRef(0);
+  const questionRef = useRef<CheckerQuestion | null>(null);
+
+  const { box, state: outboxState } = useCheckerOutbox(api, scope, userId, {
+    onAck: (entry, result) => ackedVerdict(entry, result),
+    onReject: (entry, err) => rejectedVerdict(entry, err),
+  });
+  const pendingIds = useMemo(() => new Set(outboxState.entries.map((e) => e.questionId)), [outboxState]);
+  // Verdicts of THIS paper still on their way (another paper's do not hold this screen).
+  const pendingHere = outboxState.entries.filter((e) => e.paperId === paperId).length;
+
   const questionQuery = useQuery({
     queryKey: nextKey,
-    queryFn: () => api.nextInPaper(paperId, { includeSkipped }),
+    queryFn: () => fetchNextRow(includeSkipped),
     retry: 1,
     // Always ask the server: the question is leased for 10 minutes, so a cached
     // one may have been taken by the time it is shown.
@@ -149,8 +212,16 @@ export function VerifyScreen({
     gcTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: false,
+    // "Go through skipped ones" changes the key: keep the card that is up
+    // (hidden or not) instead of flashing a skeleton. A paper that was
+    // finished (null) has nothing to keep, so it loads as before.
+    placeholderData: (prev) => prev ?? undefined,
   });
-  const question = questionQuery.data ?? null;
+  const rawQuestion = questionQuery.data ?? null;
+  // The card that was just answered stays hidden until its replacement is here.
+  const maskedRaw = rawQuestion != null && (maskedIds.has(rawQuestion.id) || pendingIds.has(rawQuestion.id));
+  const question = rawQuestion && !maskedRaw ? rawQuestion : null;
+  const showIncoming = !question && !questionQuery.isLoading && (maskedRaw || advancing || pendingHere > 0);
 
   // Where the verifier is in this paper: "3 of 12 done". The paper's row
   // is shared with the list, and the old answer stays on screen while the new
@@ -199,7 +270,7 @@ export function VerifyScreen({
   const [showPage, setShowPage] = useState(false);
   const picturePlanKey = question && !contextQuery.isLoading ? `${question.id}|${viewPath}` : '';
   // undefined = still looking, null = none (or it failed to load).
-  const pictureUrl = useSignedUrl(api, picturePlanKey, viewPath);
+  const pictureUrl = useSignedUrl(picApi, picturePlanKey, viewPath);
   const [pictureFailed, setPictureFailed] = useState<string>('');
   const cropShown = pictureUrl && pictureFailed !== picturePlanKey ? pictureUrl : pictureUrl === undefined ? undefined : null;
   // While a picture is still loading, sentences assume it will arrive when
@@ -208,7 +279,7 @@ export function VerifyScreen({
   // A crop that failed to load leaves the page as the picture: show it.
   const pageOpen = pagePath !== '' && (showPage || !hasCrop);
   const pagePlanKey = question && !contextQuery.isLoading && pageOpen ? `${question.id}|${pagePath}` : '';
-  const pageUrl = useSignedUrl(api, pagePlanKey, pagePath);
+  const pageUrl = useSignedUrl(picApi, pagePlanKey, pagePath);
   const [pageFailed, setPageFailed] = useState<string>('');
   const pageShown = pageUrl && pageFailed !== pagePlanKey ? pageUrl : pageUrl === undefined ? undefined : null;
   const hasPage = pageShown === undefined ? pagePath !== '' : Boolean(pageShown);
@@ -233,9 +304,11 @@ export function VerifyScreen({
   const english = question ? englishContext(question.source) : null;
 
   const [mode, setMode] = useState<Mode>('check');
-  // Phone only: which side is showing. Both always hold the same question.
-  // It opens on the typed words (the thing being checked, and the only side
-  // you can type on) and goes back to them on every new question.
+  // Phone only: which tile is showing (Question, Page or Fix). All hold the
+  // same question. It opens on the typed words (the thing being checked). The
+  // next question keeps the tile you were on (the owner's bento ask), except
+  // Fix, which belongs to the question you were fixing: that goes back to the
+  // words so a new question never opens in the middle of an edit.
   const [panel, setPanel] = useState<PanelId>('typed');
   // Which tool opened Fix it ("Fix the words" or "Edit a formula"), for the pressed look.
   const [fixTool, setFixTool] = useState<'fix' | 'formula'>('fix');
@@ -296,8 +369,9 @@ export function VerifyScreen({
       setRestored(Boolean(kept?.current));
       setKeptTyping(kept && !kept.current ? kept.drafts.body : null);
       setEditorKey((k) => k + 1);
-      setPanel('typed');
+      setPanel((p) => tileForNextQuestion(p));
       setShowPage(false);
+      setLightbox(null);
       setSplitAt(null);
       setHelpOpen(false);
       setHelpReason('');
@@ -323,6 +397,62 @@ export function VerifyScreen({
     return () => clearTimeout(t);
   }, [notice]);
 
+  useEffect(() => {
+    questionRef.current = question;
+  });
+
+  /* Warm the pictures of the questions after this one, once this one is on
+     screen (verifier_peek_next_in_paper leases nothing). The picture links and
+     the peeked list are forgotten when the paper changes and on sign-out. */
+  const lastPrefetchPaper = useRef<string | null>(null);
+  useEffect(() => {
+    if (!question) return;
+    const pid = question.paper_id || paperId;
+    if (lastPrefetchPaper.current && lastPrefetchPaper.current !== pid) {
+      clearPrefetch();
+      clearPictureCache();
+    }
+    lastPrefetchPaper.current = pid;
+    dropWarm(question.id);
+    void prefetchNext(pid, {
+      count: 3,
+      preloadPage: false,
+      // Dummy mode: nothing may reach Supabase, so the paper's own list stands in for the peek.
+      deps: dummy ? offlinePrefetchDeps(api) : undefined,
+    }).then((warmed) => {
+      warmedRef.current = [...warmed].sort((a, b) => a.ord - b.ord);
+    });
+  }, [question?.id, paperId, dummy]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!dummy && !userId) {
+      clearPrefetch();
+      clearPictureCache();
+    }
+  }, [userId, dummy]);
+  // Leaving the paper (or the page) forgets what was warmed for it.
+  useEffect(
+    () => () => {
+      clearPrefetch();
+      clearPictureCache();
+    },
+    [paperId],
+  );
+
+  /* The paper-change cue. The strip appears when the question now on screen
+     belongs to a different paper than the one before, and stays for the whole
+     of that paper. */
+  const [seenPaper, setSeenPaper] = useState<string | null>(null);
+  const [stripPaper, setStripPaper] = useState<string | null>(null);
+  if (question && question.paper_id && question.paper_id !== seenPaper) {
+    setSeenPaper(question.paper_id);
+    if (isPaperChange(seenPaper, question.paper_id)) setStripPaper(question.paper_id);
+  }
+  const stripInfo =
+    question && stripPaper != null && stripPaper === question.paper_id
+      ? paperStripInfo(papersQuery.data?.find((p) => p.paper_id === question.paper_id) ?? question, papersQuery.data, question.paper_id)
+      : null;
+  const enterClass = cardEnterClass(reducedMotion);
+
   // W13 realtime: show as online, keep my counters and the leaderboard
   // current, and move on if someone else changes the question I have open.
   const refreshCounters = useLiveRefresh(() => {
@@ -335,7 +465,7 @@ export function VerifyScreen({
     fullName: userName,
     onActivity: (event) => {
       refreshCounters();
-      if (!submitting && isForeignChangeToOpenQuestion(event, question?.id, userId)) {
+      if (!submitting && question && isForeignChangeToOpenQuestion(event, question.id, userId)) {
         setNotice({
           text:
             event.action === 'reclassify'
@@ -344,7 +474,7 @@ export function VerifyScreen({
           tone: 'warn',
         });
         qc.invalidateQueries({ queryKey: ['verifier-next', scope, paperId] });
-      } else if (!question && !submitting) {
+      } else if (!question && !submitting && !advancing && pendingHere === 0) {
         // Nothing open: any activity may mean new questions are waiting.
         qc.invalidateQueries({ queryKey: ['verifier-next', scope, paperId] });
       }
@@ -357,6 +487,131 @@ export function VerifyScreen({
     qc.invalidateQueries({ queryKey: ['verifier-papers', scope] });
     qc.invalidateQueries({ queryKey: ['verifier-paper-questions', scope, paperId] });
   };
+
+  /** The next question of this paper. Its picture starts signing the moment
+   *  the row is here, before its context is back. */
+  async function fetchNextRow(inc: boolean): Promise<CheckerQuestion | null> {
+    const row = await api.nextInPaper(paperId, { includeSkipped: inc });
+    if (row) primePicture(api, row);
+    return row;
+  }
+
+  /** True when this question is already answered (hidden, or a verdict is waiting for it). */
+  function isAnswered(id: string): boolean {
+    return maskedRef.current.has(id) || box.hasQuestion(id);
+  }
+
+  /**
+   * Ask the server for the next question the plain way and put it on screen.
+   * Only the fallback paths use this (a refused verdict, a missing answer, the
+   * Try again button): the normal advance has the next question in the
+   * verdict's own answer. A result that arrives after a newer one is dropped.
+   */
+  async function loadNext(answeredId: string | null, inc: boolean): Promise<boolean> {
+    const seq = ++fetchSeq.current;
+    try {
+      const row = await fetchNextRow(inc);
+      if (seq < appliedSeq.current) return true;
+      appliedSeq.current = seq;
+      qc.setQueryData(keyFor(inc), row);
+      if (answeredId) unmask(answeredId);
+      if (row) unmask(row.id);
+      setNextFailed(false);
+      setAdvancing(false);
+      setIncoming(null);
+      return true;
+    } catch {
+      if (seq >= appliedSeq.current) {
+        setNextFailed(true);
+        setAdvancing(false);
+      }
+      return false;
+    }
+  }
+
+  /**
+   * The server took a verdict (also one written before a refresh) and, in the
+   * same call, handed back the next question with its context. Put it on
+   * screen at once, with nothing more to fetch, unless the person has moved on.
+   */
+  function ackedVerdict(entry: OutboxEntry, result: VerdictAndNext | null) {
+    clearDraft(scope, entry.questionId);
+    qc.invalidateQueries({ queryKey: ['checker-my-stats', scope] });
+    qc.invalidateQueries({ queryKey: ['verifier-papers', scope] });
+    qc.invalidateQueries({ queryKey: ['verifier-paper-questions', scope, paperId] });
+    const inc = entry.payload.includeSkipped ?? includeSkippedRef.current;
+    const decision = decideAck({
+      entry,
+      result,
+      screenPaperId: paperId,
+      openQuestionId: questionRef.current?.id ?? null,
+      answeredIds: new Set([...maskedRef.current, ...box.pendingQuestionIds()]),
+      otherPendingHere: box.state().entries.filter((e) => e.paperId === paperId && e.id !== entry.id).length,
+    });
+    if (decision.kind === 'ignore') {
+      // Another paper, or a question is already open: the answer is not wanted.
+      // The question just answered stays hidden; its lease on `next` runs out by itself.
+      return;
+    }
+    if (decision.kind === 'fetch') {
+      void loadNext(entry.questionId, inc);
+      return;
+    }
+    const next = decision.kind === 'show' ? decision.next : null;
+    appliedSeq.current = ++fetchSeq.current; // anything older still on its way must not replace this
+    if (next) {
+      primePicture(api, next);
+      // Its context came with it: seed the cache so the screen does not ask again.
+      qc.setQueryData(['checker-question-context', scope, next.id], next.context);
+    }
+    qc.setQueryData(keyFor(inc), next);
+    unmask(entry.questionId);
+    if (next) unmask(next.id);
+    setNextFailed(false);
+    setAdvancing(false);
+    setIncoming(null);
+  }
+
+  /** The server refused a verdict for good (the lease ran out, someone else changed the question). */
+  function rejectedVerdict(entry: OutboxEntry, err: unknown) {
+    const advice = checkerErrorAdvice(err);
+    setNotice({
+      text:
+        entry.attempts > 0 && !isConfirmedNotSaved(err)
+          ? 'Your last answer may already have been saved. If that question comes back, answer it again.'
+          : advice.message,
+      tone: 'warn',
+    });
+    unmask(entry.questionId);
+    if (entry.paperId === paperId) void loadNext(entry.questionId, includeSkippedRef.current);
+  }
+
+  function retryNext() {
+    setNextFailed(false);
+    setAdvancing(true);
+    void loadNext(null, includeSkippedRef.current);
+  }
+
+  /**
+   * One verdict: write it to the outbox, hide the card at once and bring the
+   * next question up. False when it was refused (nothing is open, the question
+   * already has a verdict, or a save is in the same tick).
+   */
+  function submitVerdict(kind: VerdictKind, payload: VerdictPayload, okText: string, inc: boolean, afterQueued?: () => void): boolean {
+    if (!question || busyRef.current || isAnswered(question.id)) return false;
+    const entry = box.enqueue({ questionId: question.id, paperId, kind, payload: { ...payload, includeSkipped: inc } });
+    if (!entry) return false;
+    mask(question.id);
+    const ahead = warmedRef.current.find((w) => w.questionId !== question.id && !isAnswered(w.questionId));
+    setIncoming(ahead ? { id: ahead.questionId, pictureUrl: ahead.snippetUrl } : null);
+    setAdvancing(true);
+    setNextFailed(false);
+    setError(null);
+    setAnswered((a) => [...a, kind]);
+    setNotice({ text: okText, tone: 'ok' });
+    afterQueued?.();
+    return true;
+  }
 
   const blank = question ? isBlankBody(question.body) : false;
   const garbled = question ? looksGarbled(question.body, question.subject).garbled : false;
@@ -405,7 +660,7 @@ export function VerifyScreen({
     }
   }
 
-  async function doPass() {
+  function doPass() {
     if (!question || submitting) return;
     if (!canPass) {
       setError('This question has no words, so it cannot be marked as right. Press Ask the HOD.');
@@ -439,19 +694,19 @@ export function VerifyScreen({
         setError(typoProblem);
         return;
       }
-      await run(
-        () =>
-          // plan.patch.body is null unless the words were edited, so fixing
-          // only the marks or the number can never rewrite the question.
-          // The version this checker saw: a save over a newer version is
-          // refused (40001) instead of silently overwriting it.
-          api.fixQuestion(question.id, plan.patch, { version: question.version, printedTypo: typo, typoNote: typo ? typoNote : null }),
-        typo ? 'Saved with the typo corrected.' : 'Saved.',
+      // plan.patch.body is null unless the words were edited, so fixing
+      // only the marks or the number can never rewrite the question.
+      // The version this checker saw: a save over a newer version is
+      // refused (40001) instead of silently overwriting it. The typed draft
+      // is dropped when the server takes the save (ackedVerdict), never before.
+      submitVerdict(
         'fix',
-        question.id,
+        { patch: plan.patch, version: question.version, printedTypo: typo, typoNote: typo ? typoNote : null },
+        typo ? 'Saved with the typo corrected.' : 'Saved.',
+        includeSkipped,
       );
     } else {
-      await run(() => api.passQuestion(question.id, question.version), 'Marked as right.', 'pass', question.id);
+      submitVerdict('pass', { version: question.version }, 'Marked as right.', includeSkipped);
     }
   }
 
@@ -465,27 +720,17 @@ export function VerifyScreen({
     await run(() => api.splitQuestion(question.id, bodyDraft, splitAt!), 'Split into two. Both will be checked again.', 'split', question.id);
   }
 
-  async function doAskForHelp(reason: string) {
+  function doAskForHelp(reason: string) {
     if (!question || submitting) return;
-    await run(async () => {
-      await api.askForHelp(question.id, reason.trim() || 'Not sure how to fix this');
-      setHelpOpen(false);
-    }, 'Sent to your HOD.', 'ask_help', question.id);
+    submitVerdict('ask_help', { reason: reason.trim() || 'Not sure how to fix this' }, 'Sent to your HOD.', includeSkipped, () => setHelpOpen(false));
   }
 
   // Skip is always available, also on the last question left. A skipped
   // question stays on this paper for later; the verifier can go to other papers.
-  async function doSkip() {
+  function doSkip() {
     if (!question || submitting) return;
-    await run(
-      async () => {
-        await api.skipQuestion(question.id);
-        // Skipping while going through the skipped ones sends it back to waiting.
-        setIncludeSkipped(false);
-      },
-      'Skipped. It stays on this paper for later.',
-      'skip',
-    );
+    // Skipping while going through the skipped ones sends it back to waiting.
+    submitVerdict('skip', {}, 'Skipped. It stays on this paper for later.', false, () => setIncludeSkipped(false));
   }
 
   // Take back the last answer (verifier_undo_last). The server decides what is
@@ -495,9 +740,22 @@ export function VerifyScreen({
     setSubmitting(true);
     setError(null);
     try {
+      // Undo works on the last answer the SERVER has, so the ones still on
+      // their way go first.
+      if (!(await box.flush())) {
+        setError('Your last answer is still being saved. Try again in a moment.');
+        return;
+      }
       const result = await api.undoLast(paperId);
       setAnswered((a) => a.slice(0, -1));
+      // Anything still on its way is older than this and must not replace it.
+      appliedSeq.current = ++fetchSeq.current;
+      unmask(result.question_id);
+      primePicture(api, result.question);
       qc.setQueryData(nextKey, result.question);
+      setAdvancing(false);
+      setNextFailed(false);
+      setIncoming(null);
       qc.invalidateQueries({ queryKey: ['checker-my-stats', scope] });
       qc.invalidateQueries({ queryKey: ['verifier-papers', scope] });
       qc.invalidateQueries({ queryKey: ['verifier-paper-questions', scope, paperId] });
@@ -524,17 +782,17 @@ export function VerifyScreen({
     setMode('check');
   }
 
-  /** Open Fix it, and show the typed side (the only side you can type on). */
+  /** Open Fix it, and show the Fix tile on a phone (the only place you can type). */
   function startFix(tool: 'fix' | 'formula' = 'fix') {
     setSplitAt(null);
     setFixTool(tool);
     setMode('fix');
-    setPanel('typed');
+    setPanel('fix');
   }
 
   function startSplit() {
     setMode('split');
-    setPanel('typed');
+    setPanel('fix');
   }
 
   /** One of the four tools under the typed words. */
@@ -603,7 +861,10 @@ export function VerifyScreen({
      handler of the latest render (through the ref), so it can never act on
      a question or a draft from an earlier render. */
   function onKeyDown(e: KeyboardEvent) {
-    if (submitting || tourOpen) return;
+    // The full-screen picture has its own Escape; nothing is answered behind it.
+    if (submitting || tourOpen || lightbox) return;
+    // A held-down key is one press: it must not answer the card after this one.
+    if (e.repeat) return;
     if (helpOpen) {
       if (e.key === 'Escape') setHelpOpen(false);
       return;
@@ -620,7 +881,7 @@ export function VerifyScreen({
     if (draftFor !== ownerNow) return;
     if (action === 'pass' && canPass) {
       e.preventDefault();
-      void doPass();
+      doPass();
     } else if (action === 'fix') {
       e.preventDefault();
       startFix('fix');
@@ -632,7 +893,7 @@ export function VerifyScreen({
       setHelpOpen(true);
     } else if (action === 'skip') {
       e.preventDefault();
-      void doSkip();
+      doSkip();
     } else if (action === 'undo' && answered.length > 0) {
       e.preventDefault();
       void doUndo();
@@ -668,63 +929,49 @@ export function VerifyScreen({
       data-testid="undo-last"
       data-tour="undo"
       title={answered.length === 0 ? 'Nothing to undo yet' : 'Take back your last answer (U)'}
-      className="tap-44 inline-flex items-center gap-1.5 rounded-full bg-muted px-4 py-2 text-[14px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50"
+      className="tap-44 order-3 col-span-2 inline-flex items-center justify-center gap-1.5 rounded-full bg-muted px-2 py-2 text-[14px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50 md:order-none md:col-auto md:px-4"
     >
       <Undo2 className="h-4 w-4" aria-hidden="true" />
       Undo last
     </button>
   );
 
-  return (
-    <div data-testid="verify-screen">
-      <div data-tour="paper" data-testid="verify-header" className="mb-4 rounded-2xl bg-muted p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[12px] font-semibold uppercase tracking-[.04em] text-warm-meta">
-              Verifying
-              {question ? (
-                <span className="ml-2 inline-flex gap-1 align-middle normal-case tracking-normal">
-                  <DebugId label="question" value={question.id} />
-                  <DebugId label="paper" value={question.paper_id} />
-                  <DebugFacts
-                    facts={{
-                      version: question.version,
-                      flags: question.flag_reasons,
-                      page: typeof question.source?.page === 'number' ? question.source.page : null,
-                      'page verified': typeof question.source?.page_verified === 'boolean' ? question.source.page_verified : null,
-                      align: typeof question.source?.align_score === 'number' ? question.source.align_score : null,
-                    }}
-                  />
-                </span>
-              ) : null}
-            </p>
-            <h2 className="text-balance text-[17px] font-bold leading-snug text-foreground">{currentPaperLabel}</h2>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={onExit}
-              className="tap-44 rounded-full bg-card px-4 py-2 text-[13px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              Back to this paper's questions
-            </button>
-            <button
-              type="button"
-              onClick={onList ?? onExit}
-              data-testid="back-to-my-papers"
-              className="tap-44 rounded-full bg-card px-4 py-2 text-[13px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              Back to my papers
-            </button>
-          </div>
+  /* The top tile: which paper, how far through it, the unsaved-answers chip and
+     the page's own small controls. One thin row on a tablet and up, two on a
+     phone. It stays while the question tiles swap, so nothing in it jumps. */
+  const topTile = (
+    <div data-tour="paper" data-testid="verify-header" className="shrink-0 rounded-[20px] border border-warm-hairline bg-card px-3 py-2 md:rounded-[18px]">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 md:flex md:flex-nowrap">
+        <div className="order-1 min-w-0 md:flex-none md:basis-[32%]">
+          <p className="truncate text-[12px] font-semibold uppercase tracking-[.04em] text-warm-meta">
+            Verifying
+            {question ? (
+              <span className="ml-2 inline-flex gap-1 align-middle normal-case tracking-normal">
+                <DebugId label="question" value={question.id} />
+                <DebugId label="paper" value={question.paper_id} />
+                <DebugFacts
+                  facts={{
+                    version: question.version,
+                    flags: question.flag_reasons,
+                    page: typeof question.source?.page === 'number' ? question.source.page : null,
+                    'page verified': typeof question.source?.page_verified === 'boolean' ? question.source.page_verified : null,
+                    align: typeof question.source?.align_score === 'number' ? question.source.align_score : null,
+                  }}
+                />
+              </span>
+            ) : null}
+          </p>
+          <h2 className="truncate text-[15px] font-bold leading-snug text-foreground" title={currentPaperLabel}>
+            {currentPaperLabel}
+          </h2>
         </div>
         {progress && question ? (
-          <div className="mt-3">
-            <p className="mb-1 text-[14px] font-semibold tabular-nums text-foreground" aria-live="polite">
+          <div className="order-3 flex min-w-0 items-center gap-2.5 md:order-2 md:flex-1">
+            <p className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground" aria-live="polite">
               {progress.label}
             </p>
             <div
-              className="h-2.5 w-full overflow-hidden rounded-full bg-card"
+              className="h-2 min-w-[48px] flex-1 overflow-hidden rounded-full bg-muted"
               role="progressbar"
               aria-valuemin={0}
               aria-valuemax={100}
@@ -734,10 +981,658 @@ export function VerifyScreen({
               <div className="h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${Math.max(progress.percent, 4)}%` }} />
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="order-3 md:order-2 md:flex-1" aria-hidden="true" />
+        )}
+        <div className="order-5 col-span-2 empty:hidden md:order-3 md:col-auto">
+          <SaveStatusChip compact waiting={outboxState.entries.length} failing={outboxState.failing} onRetry={box.retryNow} />
+        </div>
+        <div className="order-4 flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onExit}
+            aria-label="Back to this paper's questions"
+            className="tap-44 rounded-full bg-muted px-2.5 py-1.5 sm:px-3 text-[13px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            <span className="xl:hidden">Questions</span>
+            <span className="hidden xl:inline">Back to this paper's questions</span>
+          </button>
+          <button
+            type="button"
+            onClick={onList ?? onExit}
+            data-testid="back-to-my-papers"
+            aria-label="Back to my papers"
+            className="tap-44 rounded-full bg-muted px-2.5 py-1.5 sm:px-3 text-[13px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            <span className="xl:hidden">My papers</span>
+            <span className="hidden xl:inline">Back to my papers</span>
+          </button>
+        </div>
+        {toolbar ? <div className="order-2 flex shrink-0 items-center justify-end gap-1.5 md:order-5">{toolbar}</div> : null}
       </div>
+    </div>
+  );
 
-      <div aria-live="polite">
+  /* The action bar: always visible, under the tiles. On a phone it is two rows
+     (the two big answers, then the three small ones) pinned to the bottom; on a
+     tablet and up one row. */
+  const actionBarShell = (children: ReactNode, testId?: string) => (
+    // Action footer: sticky so the buttons stay under the thumb, and outside the
+    // scrolling tiles so a long question can never push them off the screen.
+    <div
+      data-testid={testId ?? 'action-bar'}
+      className="sticky bottom-0 z-10 shrink-0 rounded-[20px] border border-warm-hairline bg-card p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:rounded-[18px]"
+    >
+      {children}
+    </div>
+  );
+
+  const actionBar =
+    question && !questionQuery.isError
+      ? actionBarShell(
+          <>
+            {/* A save that failed says so right here, beside the buttons, not
+                at the top of a long page. */}
+            {error ? (
+              <div role="alert" data-testid="save-error" className="mb-2 rounded-[12px] bg-destructive/10 px-3 py-2 text-[14px] text-destructive">
+                {error}
+              </div>
+            ) : null}
+            <div className="grid grid-cols-6 items-center gap-2 md:flex md:flex-wrap">
+              {undoButton}
+              {mode === 'split' ? (
+                <>
+                  <ActionButton
+                    tone="mint"
+                    className="order-1 col-span-3 md:order-none md:col-auto md:py-2"
+                    onClick={doSplit}
+                    disabled={!canSplitAt(bodyDraft, splitAt) || submitting}
+                  >
+                    {submitting ? 'Saving...' : 'Split here'}
+                  </ActionButton>
+                  <ActionButton tone="muted" className="order-2 col-span-3 md:order-none md:col-auto md:py-2" onClick={cancelEdit} disabled={submitting}>
+                    Cancel
+                  </ActionButton>
+                </>
+              ) : (
+                <>
+                  <ActionButton
+                    tourId="pass"
+                    tone={blank && !lost && mode === 'check' ? 'muted' : 'mint'}
+                    className="order-1 col-span-3 px-3 md:order-none md:col-auto md:px-5 md:py-2"
+                    onClick={doPass}
+                    disabled={submitting || !canPass || marksInvalid}
+                  >
+                    {submitting
+                      ? 'Saving...'
+                      : mode === 'fix'
+                        ? edited
+                          ? 'Save, now it matches'
+                          : 'Looks right'
+                        : lost
+                          ? LOST_TEXT_CONFIRM
+                          : 'Looks right'}
+                  </ActionButton>
+                  {mode === 'check' ? (
+                    <ActionButton
+                      tourId="fix"
+                      tone="dark"
+                      className="order-2 col-span-3 px-3 md:order-none md:col-auto md:px-5 md:py-2"
+                      onClick={() => startFix('fix')}
+                      disabled={submitting}
+                    >
+                      Fix it
+                    </ActionButton>
+                  ) : (
+                    <ActionButton
+                      tone="muted"
+                      className="order-2 col-span-3 px-3 md:order-none md:col-auto md:px-5 md:py-2"
+                      onClick={cancelEdit}
+                      disabled={submitting}
+                    >
+                      Cancel
+                    </ActionButton>
+                  )}
+                  <ActionButton
+                    tourId="help"
+                    tone="brand"
+                    className="order-4 col-span-2 px-2 text-[14px] md:order-none md:col-auto md:px-5 md:py-2 md:text-[15px]"
+                    onClick={() => setHelpOpen(true)}
+                    disabled={submitting}
+                  >
+                    Ask the HOD
+                  </ActionButton>
+                  <ActionButton
+                    tourId="skip"
+                    tone="muted"
+                    className="order-5 col-span-2 px-2 text-[14px] md:order-none md:col-auto md:px-5 md:py-2 md:text-[15px]"
+                    onClick={doSkip}
+                    disabled={submitting}
+                  >
+                    <span className="md:hidden">Skip</span>
+                    <span className="hidden md:inline">Skip this question</span>
+                  </ActionButton>
+                </>
+              )}
+              <p className="col-span-6 ml-auto hidden min-w-0 flex-1 text-right text-[12px] leading-tight text-warm-meta lg:line-clamp-2 lg:block">
+                {mode === 'check' ? shortcutHint({ canSplit: splitOffered, canPass, canUndo: answered.length > 0 }) : 'Esc cancels'}
+              </p>
+            </div>
+          </>,
+        )
+      : null;
+
+  const incomingBar =
+    showIncoming && !nextFailed
+      ? actionBarShell(
+          <div className="grid grid-cols-6 items-center gap-2 md:flex md:flex-wrap">
+            {undoButton}
+            <ActionButton tone="mint" className="order-1 col-span-3 md:order-none md:col-auto md:py-2" onClick={() => undefined} disabled>
+              Looks right
+            </ActionButton>
+            <ActionButton tone="dark" className="order-2 col-span-3 md:order-none md:col-auto md:py-2" onClick={() => undefined} disabled>
+              Fix it
+            </ActionButton>
+            <ActionButton tone="brand" className="order-4 col-span-2 px-2 text-[14px] md:order-none md:col-auto md:px-5 md:py-2 md:text-[15px]" onClick={() => undefined} disabled>
+              Ask the HOD
+            </ActionButton>
+            <ActionButton tone="muted" className="order-5 col-span-2 px-2 text-[14px] md:order-none md:col-auto md:px-5 md:py-2 md:text-[15px]" onClick={() => undefined} disabled>
+              <span className="md:hidden">Skip</span>
+              <span className="hidden md:inline">Skip this question</span>
+            </ActionButton>
+          </div>,
+          'incoming-footer',
+        )
+      : null;
+
+  /* The question card: every tile for the question on screen. Built only when
+     there is a question. Tablet and up it is a grid that fits the screen (the
+     words on the left, the printed paper on the right); on a phone the same
+     pieces are three swipeable tiles. */
+  const card = question
+    ? (() => {
+        const editingHere = mode === 'fix';
+
+        const metaList = (
+          // The same four facts are in the top tile's title, so a short tablet or laptop screen drops them here to give the words the room.
+          <ul className="flex flex-wrap items-center gap-1.5 md:[@media(max-height:799px)]:hidden" aria-label="About this question" data-testid="question-meta">
+            {metaChips.map((c) => (
+              <li key={c} className="rounded-full bg-muted px-3 py-1 text-[12px] font-semibold text-warm-secondary">
+                {c}
+              </li>
+            ))}
+          </ul>
+        );
+
+        /** Question number and marks, then the subject, class, school and year, on one wrapping row. */
+        const questionTop = (editing: boolean, withMeta = true) => (
+          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <QuestionChips
+              className="mb-0"
+              number={editing || editingHere ? numberDraft || null : (question.display_number ?? null)}
+              marks={editing ? (question.marks ?? null) : editingHere && marksDraft.trim() !== '' && !marksInvalid ? Number(marksDraft) : (question.marks ?? null)}
+              editing={editing}
+              numberDraft={numberDraft}
+              marksDraft={marksDraft}
+              onNumber={setNumberDraft}
+              onMarks={setMarksDraft}
+              marksInvalid={marksInvalid}
+              disabled={submitting}
+            />
+            {withMeta && metaChips.length > 0 ? metaList : null}
+          </div>
+        );
+
+        // How to check: quiet guidance, never a card. The comparison (what the
+        // computer typed, the printed paper) is the job.
+        const guidance =
+          canCompare && laneSummary && (laneSummary.blocks.length > 0 || laneSummary.unmapped.length > 0) ? (
+            <CheckGuidance summary={laneSummary} className="mb-0" />
+          ) : whatToCheckLine.line ? (
+            <CheckGuidance line={whatToCheckLine.line} detail={whatToCheckLine.detail} className="mb-0" />
+          ) : null;
+
+        const notes = (
+          <>
+            {keptTyping !== null ? (
+              <div role="note" className="mb-3 rounded-[10px] bg-destructive/10 p-3" data-testid="kept-typing">
+                <p className="text-[14px] font-semibold text-foreground">What you typed was not saved</p>
+                <p className="mt-0.5 text-[13px] leading-snug text-warm-secondary">
+                  This question changed after you typed this, so it was not put back. Copy anything you still need, then check the question as it is now.
+                </p>
+                <textarea
+                  readOnly
+                  value={keptTyping}
+                  rows={4}
+                  aria-label="What you typed earlier"
+                  className="mt-2 w-full rounded-[8px] bg-card p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                />
+                <div className="mt-2">
+                  <ActionButton tone="muted" onClick={() => setKeptTyping(null)}>
+                    Done, hide this
+                  </ActionButton>
+                </div>
+              </div>
+            ) : null}
+
+            {lost ? (
+              <Callout tone="warn" title={LOST_TEXT_TITLE}>
+                {LOST_TEXT_NOTE}
+              </Callout>
+            ) : blank && question?.flag_reasons?.includes('incomplete_text') ? (
+              <Callout tone="warn" title="The words did not come through">
+                Look at the page and press Fix it to type them. If the page does not show them either, press Ask the HOD.
+              </Callout>
+            ) : blank ? (
+              <Callout tone="warn" title="There are no words to check here">
+                The computer may have read this question together with another one. If the page shows the words, press Fix
+                it and type them in. If it does not, press Ask the HOD and your HOD will sort it out.
+              </Callout>
+            ) : garbled ? (
+              <Callout tone="warn" title="These words look scrambled">
+                Do not try to retype them. Press Ask the HOD and your HOD will fix it from the paper.
+              </Callout>
+            ) : null}
+
+            {orOnly && mode === 'check' ? (
+              <Callout tone="warn" title={OR_ONLY_TITLE}>
+                {OR_ONLY_NOTE}
+                <span className="mt-2 block">
+                  <ActionButton tone="brand" onClick={() => void doOrSeparator()} disabled={submitting}>
+                    {OR_ONLY_BUTTON}
+                  </ActionButton>
+                </span>
+              </Callout>
+            ) : null}
+
+            {mode !== 'split' && !blank ? (
+              <MarksInsideHint body={bodyDraft} currentMarks={marksDraft} onMove={moveMarks} disabled={submitting} />
+            ) : null}
+
+            {context ? <WholeQuestion context={context} /> : null}
+
+            {/* W14: the passage an English question is about. */}
+            {english?.passage ? (
+              <div className="mb-2 rounded-[10px] bg-muted px-4 py-3">
+                <p className="mb-1 text-[12px] font-semibold text-warm-meta">{passageHeading(english.passage.kind)}</p>
+                <div className="max-h-[40vh] overflow-y-auto">
+                  <MathText text={english.passage.text} className="text-[14px] leading-relaxed text-foreground" />
+                </div>
+              </div>
+            ) : null}
+            {english?.setText ? <p className="mb-2 text-[12px] text-warm-secondary">From: {english.setText}</p> : null}
+
+            {question.instructions ? (
+              <div className="mb-2 rounded-[10px] bg-muted px-4 py-2">
+                <MathText text={question.instructions} className="text-[14px] italic leading-relaxed text-warm-secondary" />
+              </div>
+            ) : null}
+
+            {context ? <p className="mb-1 text-[13px] font-semibold text-foreground">The part you are checking</p> : null}
+          </>
+        );
+
+        const fixEditor = (
+          <div>
+            {restored ? (
+              <p role="status" className="mb-2 rounded-[10px] bg-brand-subtle px-3 py-2 text-[13px] font-semibold text-foreground">
+                We kept what you typed last time. Check it, then save it or press Cancel.
+              </p>
+            ) : null}
+            <div className="mb-2 rounded-[10px] bg-brand-subtle px-3 py-2">
+              <p className="text-[13px] font-semibold text-foreground">{printedTypo ? TYPO_RULE_TITLE : FIX_RULE_TITLE}</p>
+              <p className="text-[13px] leading-snug text-warm-secondary">{printedTypo ? TYPO_RULE_NOTE : FIX_RULE_NOTE}</p>
+            </div>
+            <BodyEditor
+              key={editorKey}
+              value={bodyDraft}
+              onChange={setBodyDraft}
+              disabled={submitting}
+              formulaRequest={formulaReq.pending ? formulaReq.n : 0}
+              onFormulaHandled={() => setFormulaReq((r) => ({ ...r, pending: false }))}
+            />
+            {/* Owner round 24: a student may correct a typo printed on
+                the paper. Off by default; the printed version is kept
+                in version history and an admin can put it back. */}
+            <label className="tap-44 mt-2 flex cursor-pointer items-start gap-2.5 rounded-[10px] bg-muted px-3 py-2.5 text-[14px] text-foreground">
+              <input
+                type="checkbox"
+                checked={printedTypo}
+                onChange={(e) => setPrintedTypo(e.target.checked)}
+                disabled={submitting}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-brand-blue"
+              />
+              <span className="leading-snug">{TYPO_CHECKBOX_LABEL}</span>
+            </label>
+            {printedTypo ? (
+              <label className="mt-2 flex flex-col gap-1 text-[13px] font-medium text-warm-secondary">
+                {TYPO_NOTE_LABEL}
+                <input
+                  value={typoNote}
+                  maxLength={TYPO_NOTE_MAX}
+                  onChange={(e) => setTypoNote(e.target.value)}
+                  disabled={submitting}
+                  placeholder="e.g. the paper printed 'teh' for 'the'"
+                  className="min-h-[44px] rounded-[10px] bg-muted px-3 py-2 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                />
+              </label>
+            ) : null}
+            <OptionList options={question.options} />
+            {normaliseOptions(question.options).length > 0 ? (
+              <p className="mt-1 text-[13px] leading-snug text-warm-secondary" data-testid="options-cannot-edit">
+                You cannot change the options here. If one is wrong or missing, press Ask the HOD.
+              </p>
+            ) : null}
+            {showBigEditWarning ? (
+              <p role="status" className="mt-1 text-[13px] leading-snug text-destructive">
+                {BIG_EDIT_WARNING}
+              </p>
+            ) : null}
+          </div>
+        );
+
+        const splitEditor = (
+          <div>
+            <p className="mb-2 text-[13px] text-warm-secondary">Tap right before where the second question starts, then press Split here.</p>
+            <textarea
+              readOnly
+              value={bodyDraft}
+              onClick={(e) => onSplitCaret(e.currentTarget)}
+              onKeyUp={(e) => onSplitCaret(e.currentTarget)}
+              onSelect={(e) => onSplitCaret(e.currentTarget)}
+              rows={8}
+              aria-label="Tap where the second question starts"
+              className="w-full rounded-[10px] bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            />
+            <SplitPreview body={bodyDraft} at={splitAt} />
+          </div>
+        );
+
+        const readWords =
+          blank && !lost ? null : (
+            <div data-tour="question" className="rounded-[10px] border border-warm-hairline bg-white p-3">
+              {lost ? <p className="mb-2 text-[12px] font-semibold text-warm-meta">{LOST_TEXT_HEADING}</p> : null}
+              <MathText text={bodyDraft} className="break-words text-[17px] leading-relaxed text-foreground" />
+              <OptionList options={question.options} />
+            </div>
+          );
+
+        const tools = (
+          <ToolsRow
+            compact
+            active={mode === 'split' ? 'split' : mode === 'fix' ? fixTool : null}
+            available={{ fix: true, split: splitOffered, formula: true, or: orOnly }}
+            onPick={pickTool}
+            busy={submitting}
+          />
+        );
+        const changes = <ChangesSection key={question.id} source={question.source} rawOcr={question.raw_ocr} />;
+
+        /* ------------------------------------------------ the printed side */
+
+        const cropAlt = picturePlan && picturePlan.kind !== 'own' ? 'the printed whole question' : 'the printed question';
+        const pageAlt = pagePlan ? `the whole printed page ${pagePlan.page}, as scanned` : 'the whole printed page';
+        const cropVisible = !picturePlanKey || (viewPath !== '' && cropShown !== null);
+        const pageToggle = Boolean(pagePlan && viewPath !== '' && hasCrop);
+        const pageViewerOn = Boolean(pagePlan && pageOpen && pageShown !== null);
+        const pageTileOn = pageViewerOn || flipShown;
+        const cropLabel = picturePlan && picturePlan.kind !== 'own' && cropShown ? 'Photo of the printed whole question' : 'Photo of the printed paper';
+
+        const enlargeCrop = cropShown ? () => setLightbox({ src: cropShown, alt: cropAlt }) : undefined;
+        const enlargeButtonClass =
+          'tap-44 rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand';
+
+        /** The crop. `fit` (tablet and up) fits it to the tile; otherwise it is its natural size and the tile scrolls. */
+        const cropBody = (fit: boolean) =>
+          !picturePlanKey ? (
+            <div className={cn('animate-pulse rounded-[8px] bg-muted', fit ? 'min-h-0 flex-1' : 'h-40 shrink-0')} aria-label="Loading the picture" />
+          ) : (
+            <>
+              {picturePlan?.mayMissParts && cropShown ? (
+                <p className="shrink-0 text-[13px] leading-snug text-warm-secondary">{PICTURE_MAY_MISS_PARTS}</p>
+              ) : null}
+              {cropShown === undefined ? (
+                <div className={cn('animate-pulse rounded-[8px] bg-muted', fit ? 'min-h-0 flex-1' : 'h-40 shrink-0')} aria-label="Loading the picture" />
+              ) : cropShown ? (
+                // Natural size, never stretched past it: a small crop blown up
+                // to the panel width turned into a few giant blurry words.
+                <button
+                  type="button"
+                  onClick={enlargeCrop}
+                  aria-label="Enlarge the printed question"
+                  data-testid="enlarge-crop"
+                  className={cn(
+                    'group relative flex cursor-zoom-in justify-center self-center rounded-[6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                    fit ? 'min-h-0 flex-1 items-center overflow-hidden' : 'shrink-0',
+                  )}
+                >
+                  <img
+                    key={cropShown}
+                    src={cropShown}
+                    alt={cropAlt}
+                    onError={() => setPictureFailed(picturePlanKey)}
+                    className={cn('block', fit ? 'max-h-full max-w-full object-contain' : 'mx-auto h-auto max-w-full shrink-0')}
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-white text-foreground shadow-sm"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </span>
+                </button>
+              ) : null}
+            </>
+          );
+
+        const pageToggleButton = (className: string) => (
+          <button
+            type="button"
+            aria-expanded={showPage}
+            onClick={() => setShowPage((v) => !v)}
+            className={cn(
+              'tap-44 rounded-full bg-brand-subtle px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+              className,
+            )}
+          >
+            {showPage ? 'Hide the whole page' : 'See the whole page'}
+          </button>
+        );
+
+        /** The whole verified page. */
+        const pageBody = (fit: boolean) =>
+          pageShown === undefined ? (
+            <div className={cn('animate-pulse rounded-[10px] bg-muted', fit ? 'min-h-0 flex-1' : 'h-72')} aria-label="Loading the printed page" />
+          ) : pageShown && pagePlan ? (
+            <PageImageViewer
+              src={pageShown}
+              alt={pageAlt}
+              note={pagePlan.note}
+              source={question.source}
+              fill={fit}
+              onEnlarge={() => setLightbox({ src: pageShown, alt: pageAlt })}
+              onError={() => setPageFailed(pagePlanKey)}
+            />
+          ) : null;
+
+        // No crop and no page matched this question, or both failed to load:
+        // show the whole paper as a page-flip, never a dead end.
+        const flipBody = (
+          <PaperPageFlip
+            paperId={question.paper_id}
+            loadPages={api.paperPages}
+            pictureUrl={api.pictureUrl}
+            questionPage={typeof question.source?.page === 'number' ? question.source.page : null}
+          />
+        );
+
+        /* --------------------------------------------- tablet and up: the grid */
+        if (wide) {
+          return (
+            <div className="flex h-full min-h-0 min-w-0 flex-col gap-3">
+              {stripInfo ? <PaperStrip info={stripInfo} /> : null}
+              <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3" data-testid="bento-grid">
+                {/* Left: what the computer typed, with its details in plain sight. */}
+                <div className="flex min-h-0 min-w-0 flex-col gap-3" data-testid="bento-left">
+                  <TypedFrame tile tabbed={false} panelClass="flex min-h-0 flex-1">
+                    <FadeScroll>
+                      {questionTop(editingHere)}
+                      {notes}
+                      {mode === 'fix' ? fixEditor : mode === 'split' ? splitEditor : readWords}
+                      {changes}
+                    </FadeScroll>
+                    {tools}
+                  </TypedFrame>
+                  {guidance ? (
+                    <BentoTile data-testid="flags-tile" className="max-h-[24%] shrink-0 overflow-y-auto px-3 py-2">
+                      {guidance}
+                    </BentoTile>
+                  ) : null}
+                </div>
+
+                {/* Right: the photo of the printed paper, in its own strong frame. */}
+                <div className="flex min-h-0 min-w-0 flex-col gap-3" data-testid="bento-right">
+                  {cropVisible ? (
+                    <PrintedFrame
+                      tile
+                      tabbed={false}
+                      tourId="picture"
+                      label={cropLabel}
+                      title={pictureHeading(cropShown ? picturePlan : null)}
+                      panelClass={cn('flex min-h-0', pageTileOn ? 'flex-[2_1_0%]' : 'flex-1')}
+                      headerExtra={
+                        enlargeCrop ? (
+                          <button type="button" onClick={enlargeCrop} className={enlargeButtonClass}>
+                            Enlarge
+                          </button>
+                        ) : null
+                      }
+                    >
+                      {cropBody(true)}
+                    </PrintedFrame>
+                  ) : null}
+
+                  {/* The whole verified page: behind a tap when there is a crop,
+                      straight away when the page is the only picture. */}
+                  {pageToggle && !pageViewerOn ? (
+                    <div
+                      data-testid="page-strip"
+                      className="flex shrink-0 items-center gap-2 rounded-[20px] border-2 border-brand bg-brand-subtle px-3 py-1.5 shadow-card-bone md:rounded-[18px]"
+                    >
+                      <span className="text-[12px] font-bold text-foreground">The whole page</span>
+                      {pageToggleButton('ml-auto bg-white')}
+                    </div>
+                  ) : null}
+                  {pageTileOn ? (
+                    <PrintedFrame
+                      tile
+                      tabbed={false}
+                      id="verify-panel-page"
+                      tourId={cropVisible ? undefined : 'picture'}
+                      label={pageViewerOn ? PAGE_HEADING : 'Photo of the printed paper'}
+                      title={pageViewerOn ? PAGE_HEADING : pictureHeading(null)}
+                      panelClass="flex min-h-0 flex-[3_1_0%]"
+                      headerExtra={pageToggle ? pageToggleButton('bg-white px-3 py-1 text-[12px]') : null}
+                    >
+                      {pageViewerOn ? (
+                        pageBody(true)
+                      ) : (
+                        <FadeScroll white>{flipBody}</FadeScroll>
+                      )}
+                    </PrintedFrame>
+                  ) : null}
+                  {!cropVisible && !pageTileOn && !(pageToggle && !pageViewerOn) ? (
+                    <PrintedFrame tile tabbed={false} tourId="picture" panelClass="flex min-h-0 flex-1">
+                      <div className="min-h-0 flex-1 animate-pulse rounded-[8px] bg-muted" aria-label="Loading the picture" />
+                    </PrintedFrame>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        /* --------------------------------------- phone: Question | Page | Fix */
+        const typedPane = (
+          <TypedFrame tile panelClass="flex min-h-0 flex-1">
+            <FadeScroll>
+              {questionTop(false)}
+              {notes}
+              {readWords}
+              {guidance ? <div className="mt-3">{guidance}</div> : null}
+            </FadeScroll>
+          </TypedFrame>
+        );
+        const printedPane = (
+          <PrintedFrame
+            tile
+            tourId="picture"
+            label={cropVisible ? cropLabel : 'Photo of the printed paper'}
+            title={pictureHeading(cropShown ? picturePlan : null)}
+            panelClass="flex min-h-0 flex-1"
+          >
+            <FadeScroll white innerClassName="flex flex-col gap-2.5">
+              {cropVisible ? cropBody(false) : null}
+              {pageToggle ? pageToggleButton('self-start') : null}
+              {pageViewerOn ? (
+                <div className="flex min-w-0 flex-col">
+                  <p className="mb-1 text-[12px] font-semibold text-warm-secondary">{PAGE_HEADING}</p>
+                  {pageBody(false)}
+                </div>
+              ) : null}
+              {flipShown ? (
+                <div className="flex min-w-0 flex-col">
+                  <p className="mb-1 text-[12px] font-semibold text-warm-secondary">{pictureHeading(null)}</p>
+                  {flipBody}
+                </div>
+              ) : null}
+              {!cropVisible && !pageViewerOn && !flipShown ? (
+                <div className="h-40 animate-pulse rounded-[8px] bg-muted" aria-label="Loading the picture" />
+              ) : null}
+            </FadeScroll>
+          </PrintedFrame>
+        );
+        const fixPane = (
+          <FixFrame panelClass="flex min-h-0 flex-1">
+            <FadeScroll>
+              {mode === 'fix' ? (
+                <>
+                  {questionTop(true, false)}
+                  {fixEditor}
+                </>
+              ) : mode === 'split' ? (
+                splitEditor
+              ) : (
+                <p className="mb-3 text-[14px] leading-snug text-warm-secondary" data-testid="fix-idle">
+                  Nothing is being changed. Press Fix it below to type over the words, or pick a tool.
+                </p>
+              )}
+              {/* On a phone the tools scroll with the tile: pinned, they would take half of it. */}
+              <div className="mt-3">{tools}</div>
+              {changes}
+            </FadeScroll>
+          </FixFrame>
+        );
+        return (
+          <div className="flex h-full min-h-0 min-w-0 flex-col gap-2">
+            {stripInfo ? <PaperStrip info={stripInfo} /> : null}
+            <PanelTabs value={panel} onChange={setPanel} tabs={VERIFY_TABS} className="mb-0 md:hidden" />
+            <TilePager
+              value={panel}
+              onChange={setPanel}
+              order={['typed', 'printed', 'fix']}
+              panes={{ typed: typedPane, printed: printedPane, fix: fixPane }}
+              reducedMotion={reducedMotion || tourOpen}
+            />
+          </div>
+        );
+      })()
+    : null;
+
+  return (
+    <div data-testid="verify-screen" className="flex min-h-0 flex-1 flex-col gap-2 md:gap-3">
+      {topTile}
+
+      <div aria-live="polite" className="contents">
         {notice ? (
           <div
             role="status"
@@ -751,17 +1646,32 @@ export function VerifyScreen({
             {notice.text}
           </div>
         ) : null}
-        {/* With a question open the error sits beside the buttons (the sticky
-            footer below); this one is for the screens that have no buttons. */}
+        {/* With a question open the error sits beside the buttons (the action
+            bar below); this one is for the screens that have no buttons. */}
         {error && !question ? (
-          <div role="alert" className="mb-3 rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
+          <div role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
             {error}
           </div>
         ) : null}
       </div>
 
-      {questionQuery.isLoading ? (
-        <CheckerSkeleton />
+      {/* The tiles take everything between the top tile and the action bar. */}
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-y-auto">
+        {questionQuery.isLoading ? (
+          <CheckerSkeleton />
+        ) : nextFailed || (questionQuery.isError && !showIncoming) ? (
+          <div className="flex flex-col items-center gap-2 py-16 text-center">
+            <p className="text-lg font-semibold text-foreground">{LOAD_FAILED_TITLE}</p>
+            <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
+            <ActionButton tone="mint" onClick={nextFailed ? retryNext : () => void questionQuery.refetch()}>
+              Try again
+            </ActionButton>
+          </div>
+        ) : showIncoming ? (
+          // The next question's card, up before its words: the picture is warm.
+          <div key={cardId(null, incoming?.id ?? null)} className={cn('min-h-0', enterClass)}>
+            <IncomingCard pictureUrl={incoming?.pictureUrl ?? null} />
+          </div>
         ) : questionQuery.isError ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <p className="text-lg font-semibold text-foreground">{LOAD_FAILED_TITLE}</p>
@@ -817,361 +1727,26 @@ export function VerifyScreen({
             </div>
           </div>
         ) : (
-          // Desktop: what the computer typed on the left, the photo of the printed
-          // paper on the right, in a strongly framed box so they cannot be mixed up.
-          // Phone: two big tabs, Typed and Printed, both always on the same question.
-          <div className="min-h-0">
-            <ul className="mb-3 flex flex-wrap gap-1.5" aria-label="About this question" data-testid="question-meta">
-              {metaChips.map((c) => (
-                <li key={c} className="rounded-full bg-muted px-3 py-1 text-[12px] font-semibold text-warm-secondary">
-                  {c}
-                </li>
-              ))}
-            </ul>
-            {/* How to check: quiet guidance above the pair, never a card. The
-                comparison below (what the computer typed, the printed paper) is the job. */}
-            {canCompare && laneSummary && (laneSummary.blocks.length > 0 || laneSummary.unmapped.length > 0) ? (
-              <CheckGuidance summary={laneSummary} />
-            ) : whatToCheckLine.line ? (
-              <CheckGuidance line={whatToCheckLine.line} detail={whatToCheckLine.detail} />
-            ) : null}
-
-            <PanelTabs value={panel} onChange={setPanel} />
-
-          <div className="grid min-h-0 grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
-            {/* Left: what the computer typed, with its details in plain sight. */}
-            <TypedFrame panelClass={panel === 'typed' ? 'flex' : 'hidden lg:flex'}>
-              <QuestionChips
-                number={mode === 'fix' ? numberDraft || null : (question.display_number ?? null)}
-                marks={question.marks ?? null}
-                editing={mode === 'fix'}
-                numberDraft={numberDraft}
-                marksDraft={marksDraft}
-                onNumber={setNumberDraft}
-                onMarks={setMarksDraft}
-                marksInvalid={marksInvalid}
-                disabled={submitting}
-              />
-
-              {keptTyping !== null ? (
-                <div role="note" className="mb-3 rounded-2xl bg-destructive/10 p-3" data-testid="kept-typing">
-                  <p className="text-[14px] font-semibold text-foreground">What you typed was not saved</p>
-                  <p className="mt-0.5 text-[13px] leading-snug text-warm-secondary">
-                    This question changed after you typed this, so it was not put back. Copy anything you still need, then check the question as it is now.
-                  </p>
-                  <textarea
-                    readOnly
-                    value={keptTyping}
-                    rows={4}
-                    aria-label="What you typed earlier"
-                    className="mt-2 w-full rounded-[12px] bg-card p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                  />
-                  <div className="mt-2">
-                    <ActionButton tone="muted" onClick={() => setKeptTyping(null)}>
-                      Done, hide this
-                    </ActionButton>
-                  </div>
-                </div>
-              ) : null}
-
-              {restored && mode === 'fix' ? (
-                <p role="status" className="mb-2 rounded-[12px] bg-brand-subtle px-3 py-2 text-[13px] font-semibold text-foreground">
-                  We kept what you typed last time. Check it, then save it or press Cancel.
-                </p>
-              ) : null}
-
-              {lost ? (
-                <Callout tone="warn" title={LOST_TEXT_TITLE}>
-                  {LOST_TEXT_NOTE}
-                </Callout>
-              ) : blank && question?.flag_reasons?.includes('incomplete_text') ? (
-                <Callout tone="warn" title="The words did not come through">
-                  Look at the page and press Fix it to type them. If the page does not show them either, press Ask the HOD.
-                </Callout>
-              ) : blank ? (
-                <Callout tone="warn" title="There are no words to check here">
-                  The computer may have read this question together with another one. If the page shows the words, press Fix
-                  it and type them in. If it does not, press Ask the HOD and your HOD will sort it out.
-                </Callout>
-              ) : garbled ? (
-                <Callout tone="warn" title="These words look scrambled">
-                  Do not try to retype them. Press Ask the HOD and your HOD will fix it from the paper.
-                </Callout>
-              ) : null}
-
-              {orOnly && mode === 'check' ? (
-                <Callout tone="warn" title={OR_ONLY_TITLE}>
-                  {OR_ONLY_NOTE}
-                  <span className="mt-2 block">
-                    <ActionButton tone="brand" onClick={() => void doOrSeparator()} disabled={submitting}>
-                      {OR_ONLY_BUTTON}
-                    </ActionButton>
-                  </span>
-                </Callout>
-              ) : null}
-
-              {mode !== 'split' && !blank ? (
-                <MarksInsideHint body={bodyDraft} currentMarks={marksDraft} onMove={moveMarks} disabled={submitting} />
-              ) : null}
-
-              {context ? <WholeQuestion context={context} /> : null}
-
-              {/* W14: the passage an English question is about. */}
-              {english?.passage ? (
-                <div className="mb-2 rounded-[12px] bg-muted px-4 py-3">
-                  <p className="mb-1 text-[12px] font-semibold text-warm-meta">{passageHeading(english.passage.kind)}</p>
-                  <div className="max-h-[40vh] overflow-y-auto">
-                    <MathText text={english.passage.text} className="text-[14px] leading-relaxed text-foreground" />
-                  </div>
-                </div>
-              ) : null}
-              {english?.setText ? <p className="mb-2 text-[12px] text-warm-secondary">From: {english.setText}</p> : null}
-
-              {question.instructions ? (
-                <div className="mb-2 rounded-[12px] bg-muted px-4 py-2">
-                  <MathText text={question.instructions} className="text-[14px] italic leading-relaxed text-warm-secondary" />
-                </div>
-              ) : null}
-
-              {context ? <p className="mb-1 text-[13px] font-semibold text-foreground">The part you are checking</p> : null}
-
-              {mode === 'fix' ? (
-                <div>
-                  <div className="mb-2 rounded-[12px] bg-brand-subtle px-3 py-2">
-                    <p className="text-[13px] font-semibold text-foreground">
-                      {printedTypo ? TYPO_RULE_TITLE : FIX_RULE_TITLE}
-                    </p>
-                    <p className="text-[13px] leading-snug text-warm-secondary">
-                      {printedTypo ? TYPO_RULE_NOTE : FIX_RULE_NOTE}
-                    </p>
-                  </div>
-                  <BodyEditor
-                    key={editorKey}
-                    value={bodyDraft}
-                    onChange={setBodyDraft}
-                    disabled={submitting}
-                    formulaRequest={formulaReq.pending ? formulaReq.n : 0}
-                    onFormulaHandled={() => setFormulaReq((r) => ({ ...r, pending: false }))}
-                  />
-                  {/* Owner round 24: a student may correct a typo printed on
-                      the paper. Off by default; the printed version is kept
-                      in version history and an admin can put it back. */}
-                  <label className="tap-44 mt-2 flex cursor-pointer items-start gap-2.5 rounded-[12px] bg-muted px-3 py-2.5 text-[14px] text-foreground">
-                    <input
-                      type="checkbox"
-                      checked={printedTypo}
-                      onChange={(e) => setPrintedTypo(e.target.checked)}
-                      disabled={submitting}
-                      className="mt-0.5 h-5 w-5 shrink-0 accent-brand-blue"
-                    />
-                    <span className="leading-snug">{TYPO_CHECKBOX_LABEL}</span>
-                  </label>
-                  {printedTypo ? (
-                    <label className="mt-2 flex flex-col gap-1 text-[13px] font-medium text-warm-secondary">
-                      {TYPO_NOTE_LABEL}
-                      <input
-                        value={typoNote}
-                        maxLength={TYPO_NOTE_MAX}
-                        onChange={(e) => setTypoNote(e.target.value)}
-                        disabled={submitting}
-                        placeholder="e.g. the paper printed 'teh' for 'the'"
-                        className="min-h-[44px] rounded-[12px] bg-muted px-3 py-2 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                      />
-                    </label>
-                  ) : null}
-                  <OptionList options={question.options} />
-                  {normaliseOptions(question.options).length > 0 ? (
-                    <p className="mt-1 text-[13px] leading-snug text-warm-secondary" data-testid="options-cannot-edit">
-                      You cannot change the options here. If one is wrong or missing, press Ask the HOD.
-                    </p>
-                  ) : null}
-                  {showBigEditWarning ? (
-                    <p role="status" className="mt-1 text-[13px] leading-snug text-destructive">
-                      {BIG_EDIT_WARNING}
-                    </p>
-                  ) : null}
-                </div>
-              ) : mode === 'split' ? (
-                <div>
-                  <p className="mb-2 text-[13px] text-warm-secondary">
-                    Tap right before where the second question starts, then press Split here.
-                  </p>
-                  <textarea
-                    readOnly
-                    value={bodyDraft}
-                    onClick={(e) => onSplitCaret(e.currentTarget)}
-                    onKeyUp={(e) => onSplitCaret(e.currentTarget)}
-                    onSelect={(e) => onSplitCaret(e.currentTarget)}
-                    rows={8}
-                    aria-label="Tap where the second question starts"
-                    className="w-full rounded-[12px] bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                  />
-                  <SplitPreview body={bodyDraft} at={splitAt} />
-                </div>
-              ) : blank && !lost ? null : (
-                <div data-tour="question" className="rounded-[12px] border border-warm-hairline bg-white p-4">
-                  {lost ? <p className="mb-2 text-[12px] font-semibold text-warm-meta">{LOST_TEXT_HEADING}</p> : null}
-                  <MathText text={bodyDraft} className="break-words text-[17px] leading-relaxed text-foreground" />
-                  <OptionList options={question.options} />
-                </div>
-              )}
-
-              <ToolsRow
-                active={mode === 'split' ? 'split' : mode === 'fix' ? fixTool : null}
-                available={{ fix: true, split: splitOffered, formula: true, or: orOnly }}
-                onPick={pickTool}
-                busy={submitting}
-              />
-
-              <ChangesSection key={question.id} source={question.source} rawOcr={question.raw_ocr} />
-            </TypedFrame>
-
-            {/* Right: the photo of the printed paper, in its own strong frame. */}
-            <PrintedFrame panelClass={panel === 'printed' ? 'flex' : 'hidden lg:flex'} className="lg:sticky lg:top-24" tourId="picture">
-              {viewPath && cropShown !== null ? (
-                <div className="flex min-w-0 flex-col">
-                  <p className="mb-1 text-[12px] font-semibold text-warm-secondary">{pictureHeading(cropShown ? picturePlan : null)}</p>
-                  {picturePlan?.mayMissParts && cropShown ? (
-                    <p className="mb-2 text-[13px] leading-snug text-warm-secondary">{PICTURE_MAY_MISS_PARTS}</p>
-                  ) : null}
-                  <div className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-[10px] border border-warm-hairline bg-white p-2 lg:max-h-[60vh]">
-                    {cropShown === undefined ? (
-                      <div className="h-40 animate-pulse rounded-[8px] bg-muted" aria-label="Loading the picture" />
-                    ) : (
-                      // Natural size, never stretched past it: a small crop blown
-                      // up to the panel width turned into a few giant blurry words.
-                      <img
-                        key={cropShown}
-                        src={cropShown}
-                        alt={picturePlan && picturePlan.kind !== 'own' ? 'the printed whole question' : 'the printed question'}
-                        onError={() => setPictureFailed(picturePlanKey)}
-                        className="mx-auto block h-auto max-w-full shrink-0"
-                      />
-                    )}
-                  </div>
-                </div>
-              ) : null}
-
-              {!picturePlanKey ? (
-                <div className="h-40 animate-pulse rounded-[10px] bg-muted" aria-label="Loading the picture" />
-              ) : null}
-
-              {/* The whole verified page: behind a tap when there is a crop,
-                  straight away when the page is the only picture. */}
-              {pagePlan && viewPath !== '' && hasCrop ? (
-                <button
-                  type="button"
-                  aria-expanded={showPage}
-                  onClick={() => setShowPage((v) => !v)}
-                  className="tap-44 self-start rounded-full bg-brand-subtle px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                >
-                  {showPage ? 'Hide the whole page' : 'See the whole page'}
-                </button>
-              ) : null}
-              {pagePlan && pageOpen && pageShown !== null ? (
-                <div className="flex min-w-0 flex-col">
-                  <p className="mb-1 text-[12px] font-semibold text-warm-secondary">{PAGE_HEADING}</p>
-                  {pageShown === undefined ? (
-                    <div className="h-72 animate-pulse rounded-[10px] bg-muted" aria-label="Loading the printed page" />
-                  ) : (
-                    <PageImageViewer
-                      src={pageShown}
-                      alt={`the whole printed page ${pagePlan.page}, as scanned`}
-                      note={pagePlan.note}
-                      source={question.source}
-                      onError={() => setPageFailed(pagePlanKey)}
-                    />
-                  )}
-                </div>
-              ) : null}
-
-              {flipShown ? (
-                // No crop and no page matched this question, or both failed
-                // to load: show the whole paper as a page-flip, never a dead end.
-                <div className="flex min-w-0 flex-col">
-                  <p className="mb-1 text-[12px] font-semibold text-warm-secondary">{pictureHeading(null)}</p>
-                  <PaperPageFlip
-                    paperId={question.paper_id}
-                    loadPages={api.paperPages}
-                    pictureUrl={api.pictureUrl}
-                    questionPage={typeof question.source?.page === 'number' ? question.source.page : null}
-                  />
-                </div>
-              ) : null}
-            </PrintedFrame>
-
-          </div>
+          // Tablet and up: what the computer typed on the left, the photo of the
+          // printed paper on the right, in a strongly framed box so they cannot
+          // be mixed up. Phone: three tiles, Question, Page and Fix, both
+          // always on the same question.
+          <div key={cardId(question, null)} className={cn('min-h-0', enterClass)} data-testid="question-card">
+            {card}
           </div>
         )}
+      </div>
 
-        {/* Action footer: sticky on a phone so the buttons stay under the
-            thumb while a long passage scrolls. */}
-        {question && !questionQuery.isError ? (
-          <div className="sticky bottom-0 z-10 -mx-1 mt-5 flex flex-wrap items-center gap-2.5 border-t border-warm-hairline bg-card px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-4">
-            {/* A save that failed says so right here, beside the buttons, not
-                at the top of a long page. */}
-            {error ? (
-              <div role="alert" data-testid="save-error" className="basis-full rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
-                {error}
-              </div>
-            ) : null}
-            {undoButton}
-            {mode === 'split' ? (
-              <>
-                <ActionButton tone="mint" onClick={doSplit} disabled={!canSplitAt(bodyDraft, splitAt) || submitting}>
-                  {submitting ? 'Saving...' : 'Split here'}
-                </ActionButton>
-                <ActionButton tone="muted" onClick={cancelEdit} disabled={submitting}>
-                  Cancel
-                </ActionButton>
-              </>
-            ) : (
-              <>
-                <ActionButton
-                  tourId="pass"
-                  tone={blank && !lost && mode === 'check' ? 'muted' : 'mint'}
-                  onClick={doPass}
-                  disabled={submitting || !canPass || marksInvalid}
-                >
-                  {submitting
-                    ? 'Saving...'
-                    : mode === 'fix'
-                      ? edited
-                        ? 'Save, now it matches'
-                        : 'Looks right'
-                      : lost
-                        ? LOST_TEXT_CONFIRM
-                        : 'Looks right'}
-                </ActionButton>
-                {mode === 'check' ? (
-                  <ActionButton tourId="fix" tone="dark" onClick={() => startFix('fix')} disabled={submitting}>
-                    Fix it
-                  </ActionButton>
-                ) : (
-                  <ActionButton tone="muted" onClick={cancelEdit} disabled={submitting}>
-                    Cancel
-                  </ActionButton>
-                )}
-                <ActionButton tourId="help" tone="brand" onClick={() => setHelpOpen(true)} disabled={submitting}>
-                  Ask the HOD
-                </ActionButton>
-                <ActionButton tourId="skip" tone="muted" onClick={doSkip} disabled={submitting}>
-                  Skip this question
-                </ActionButton>
-              </>
-            )}
-            <p className="ml-auto hidden text-[12px] text-warm-meta lg:block">
-              {mode === 'check' ? shortcutHint({ canSplit: splitOffered, canPass, canUndo: answered.length > 0 }) : 'Esc cancels'}
-            </p>
-          </div>
-        ) : null}
+      {actionBar}
+      {incomingBar}
 
       {tourOpen && question ? (
         <CheckerWalkthrough
           onShowTarget={(target) => {
-            // On a phone only one side shows at a time: bring up the side a step is about.
+            // On a phone only one tile shows at a time: bring up the tile a step is about.
             if (target === 'picture') setPanel('printed');
-            else if (target === 'question' || target === 'tools' || target === 'changes') setPanel('typed');
+            else if (target === 'question') setPanel('typed');
+            else if (target === 'tools' || target === 'changes') setPanel('fix');
           }}
           onClose={closeTour}
           onPractice={() => {
@@ -1180,6 +1755,8 @@ export function VerifyScreen({
           }}
         />
       ) : null}
+
+      {lightbox ? <ImageLightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} /> : null}
 
       {helpOpen && question ? (
         <Modal onClose={() => setHelpOpen(false)} labelledBy="checker-help-title">
@@ -1216,7 +1793,7 @@ export function VerifyScreen({
           />
           {error ? <p className="mt-2 text-[13px] text-destructive">{error}</p> : null}
           <div className="mt-3 flex gap-2">
-            <ActionButton tone="brand" onClick={() => void doAskForHelp(helpReason)} disabled={submitting}>
+            <ActionButton tone="brand" onClick={() => doAskForHelp(helpReason)} disabled={submitting}>
               {submitting ? 'Sending...' : 'Send to the HOD'}
             </ActionButton>
             <ActionButton tone="muted" onClick={() => setHelpOpen(false)} disabled={submitting}>
@@ -1225,8 +1802,6 @@ export function VerifyScreen({
           </div>
         </Modal>
       ) : null}
-
     </div>
   );
 }
-

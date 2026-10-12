@@ -79,8 +79,8 @@ describe('the route with the example payload', () => {
 
   it('shows the six numbers the owner asked for', () => {
     expect(t).toMatch(/6,880\s+PDFs/); // how many PDFs on the computer
-    expect(t).toMatch(/1,159\s+papers/); // OCR'd
-    expect(t).toContain('Also read by the AI 295'); // run through AI
+    expect(t).toContain("OCR'd, waiting for the AI 1,189"); // OCR'd, current stage only
+    expect(t).toMatch(/74\s+papers/); // run through the AI swarm, current stage only
     expect(t).toContain('Pictures waiting'); // pending image uploads
     expect(t).toContain('More, once their questions are sorted 3,382 (702 MB)');
     expect(t).toMatch(/9,291\s+questions/); // pending clearance from students
@@ -100,7 +100,7 @@ describe('the route with the example payload', () => {
   it('stops carry their count on the list item, for anything that reads the DOM', () => {
     expect(html).toMatch(/data-stop="computer" data-count="6880"/);
     expect(html).toMatch(/data-stop="live" data-count="1506"/);
-    expect(html).toMatch(/data-stop="leftOut" data-count="1909"/);
+    expect(html).toMatch(/data-stop="leftOut" data-count="1783"/);
   });
 
   it('the student stop shows papers by questions left, and the checkers', () => {
@@ -119,11 +119,29 @@ describe('the route with the example payload', () => {
     expect(html.indexOf('data-stop="side-piles"')).toBeGreaterThan(html.indexOf('data-stop="live"'));
   });
 
-  it('the kept-back papers are set aside, with the excluded small print on the computer stop', () => {
+  it('the kept-back papers are set aside', () => {
     expect(t).toContain('Set aside');
     expect(t).toContain('earlier library, kept back on purpose');
-    expect(t).toContain('11 files are not real papers, not counted');
-    expect(t).toContain('1,385 of them are already live');
+    expect(t).toContain('1,259 of them are already live');
+  });
+
+  it('the PDF count is PDFs on the disk only; papers with no PDF are a separate small count', () => {
+    expect(t).toMatch(/6,880\s+PDFs/);
+    expect(t).toContain('Papers with no PDF here, not counted above 514 on the checking desk, 1 live on the site only 515');
+    expect(t).not.toContain('not real papers');
+  });
+
+  it('the AI stop counts the swarm only, each paper once where it is now, and has no old AI-check number', () => {
+    expect(t).not.toContain('Also read by the AI');
+    expect(t).not.toContain('Checked by the AI');
+    expect(t).toContain("Still waiting to be OCR'd 4,990");
+    expect(t).toContain('On the checking desk, not read by the AI 2');
+  });
+
+  it('the picture backlog shows papers, pictures and size side by side', () => {
+    expect(html).toContain('data-side-by-side');
+    expect(html).toContain('repeat(3, minmax(0, 1fr))');
+    expect(t).toContain('Papers 0 Pictures 0 Size 0 MB');
   });
 
   it('one honest progress strip: questions cleared of the total', () => {
@@ -212,8 +230,9 @@ describe('numbers the desk has not sent yet', () => {
     expect(t).not.toMatch(/\b0 papers waiting/);
   });
 
-  it('the computer stop falls back to the desk list and says it has not counted the files', () => {
-    expect(t).toMatch(/8,038\s+PDFs/);
+  it('the computer stop is ?, not the desk list, and says the desk has not counted the files', () => {
+    expect(html).toMatch(/data-stop="computer" data-count=""/);
+    expect(t).not.toMatch(/8,038\s+PDFs/);
     expect(t).toContain('has not counted the PDFs on the main computer yet');
   });
 
@@ -239,7 +258,7 @@ describe('a refresh that fails', () => {
 
   it('keeps the last numbers on screen', () => {
     expect(t).toMatch(/6,880\s+PDFs/);
-    expect(t).toMatch(/1,159\s+papers/);
+    expect(t).toMatch(/74\s+papers/);
     expect(html).toContain('data-stop="live"');
   });
 

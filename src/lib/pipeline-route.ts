@@ -78,14 +78,15 @@ export interface PipelineRoute {
   registry: {
     total: number;
     excluded: number;
+    /** Current stage only: each paper of the new route is in exactly one of these. */
     byState: StateCounts;
     frozenByState: StateCounts;
-    /** Cumulative: papers that have ever been read, whatever stage they are at now. */
-    readTotal: number;
-    /** Cumulative: papers the AI has read. */
-    aiReadTotal: number;
+    /** Papers read and on the checking desk but not fully checked yet (loaded or checked by the AI), split by whether the swarm has read them. null = the database did not send it. */
+    swarmRead: { papers: number; deskWithoutSwarm: number } | null;
     lastUpdatedAt: string | null;
   };
+  /** Papers the desk has no PDF for: desk papers with no PDF recorded, and live library papers no desk paper points at. null = not sent. These are never part of the PDF count on the computer. */
+  noPdf: { auditPapers: number; liveOnly: number } | null;
   desk: {
     papers: number;
     byStatus: Record<DeskStatus, number>;
@@ -241,10 +242,12 @@ export function normaliseRoute(raw: unknown): PipelineRoute {
       excluded: num(registry.excluded),
       byState: counts(PROCESSED_STATES, registry.by_state),
       frozenByState: counts(PROCESSED_STATES, registry.frozen_by_state),
-      readTotal: num(registry.read_total),
-      aiReadTotal: num(registry.ai_read_total),
+      swarmRead: isObject(registry.swarm_read)
+        ? { papers: num(rec(registry.swarm_read).papers), deskWithoutSwarm: num(rec(registry.swarm_read).desk_without_swarm) }
+        : null,
       lastUpdatedAt: text(registry.last_updated_at),
     },
+    noPdf: isObject(r.no_pdf) ? { auditPapers: num(rec(r.no_pdf).audit_papers), liveOnly: num(rec(r.no_pdf).live_only) } : null,
     desk: {
       papers: num(desk.papers),
       byStatus: counts(DESK_STATUSES, desk.papers_by_status),
@@ -339,6 +342,8 @@ export interface BandRow {
 export interface Figure {
   label: string;
   value: string;
+  /** A smaller line under the label (a breakdown of the value). */
+  note?: string;
 }
 
 /** The one AI trust counter and the state of each confidence level, ready to draw. */
@@ -373,6 +378,8 @@ export interface RouteStop {
   facts: string[];
   /** Labelled figures under the number: the other numbers the owner asked for at this stop. */
   figures?: Figure[];
+  /** A short row of labelled values drawn side by side (two or three columns), under the headline. */
+  sideBySide?: Figure[];
   look: StopLook;
   action: RouteAction | null;
   /** Only the student checkers stop: how many papers have how many questions left. */
@@ -430,7 +437,10 @@ function trustView(route: PipelineRoute): TrustView | null {
     threshold: t.threshold,
     percent: t.threshold > 0 ? Math.min(100, Math.round((done / t.threshold) * 100)) : 0,
     reached: t.reached,
-    headline: `AI trust: ${fmt(t.checksDone)} of ${fmt(t.threshold)} checks`,
+    // Never print past the bar: at or above it, "100 of 100 checks, reached" (same rule as overallProgress and checksNeeded).
+    headline: t.checksDone >= t.threshold
+      ? `AI trust: ${fmt(t.threshold)} of ${fmt(t.threshold)} checks, reached`
+      : `AI trust: ${fmt(t.checksDone)} of ${fmt(t.threshold)} checks`,
     meaning: t.reached
       ? 'Reached. The AI can pass clean questions by itself. People still read the flagged ones.'
       : 'Until it is reached, every question the AI reads still goes to students first.',
@@ -449,23 +459,46 @@ function trustView(route: PipelineRoute): TrustView | null {
 export function buildMainStops(route: PipelineRoute, audience: Audience = 'admin'): RouteStop[] {
   const { registry, open, checkers, drive, pictures, checking, needsYou, ready, live } = route;
   const s = registry.byState;
-  const waitingToRead = s.not_started + s.ocr_queued;
+  const waitingToOcr = s.not_started + s.ocr_queued;
 
-  const computerCount = drive ? drive.totalPdfs : registry.total;
+  // PDFs on the disk only (owner, 12 Oct): when the desk has not counted them the number is "?", never the desk's list.
+  const computerCount = drive ? drive.totalPdfs : null;
   const computerFacts: string[] = [];
   if (drive) {
     computerFacts.push(`${fmt(drive.classified)} sorted by class and subject`);
     if (drive.unclassified > 0) computerFacts.push(`${fmt(drive.unclassified)} not sorted yet`);
     if (drive.bytesTotal !== null) computerFacts.push(`${bytesWords(drive.bytesTotal)} in all`);
   } else {
-    computerFacts.push(`The desk knows ${fmt(registry.total)} papers. It has not counted the PDFs on the main computer yet.`);
+    computerFacts.push('The desk has not counted the PDFs on the main computer yet.');
   }
-  if (registry.excluded > 0) computerFacts.push(`${fmt(registry.excluded)} files are not real papers, not counted`);
+  const computerFigures: Figure[] = [];
+  if (route.noPdf) {
+    const none = route.noPdf.auditPapers + route.noPdf.liveOnly;
+    computerFigures.push({
+      label: 'Papers with no PDF here, not counted above',
+      value: fmt(none),
+      ...(none > 0 ? { note: `${fmt(route.noPdf.auditPapers)} on the checking desk, ${fmt(route.noPdf.liveOnly)} live on the site only` } : {}),
+    });
+  }
+
+  const swarm = registry.swarmRead;
+  const readFigures: Figure[] = [
+    { label: "OCR'd, waiting for the AI", value: fmt(s.ocr_done) },
+    { label: "Still waiting to be OCR'd", value: fmt(waitingToOcr) },
+  ];
+  if (swarm && swarm.deskWithoutSwarm > 0) {
+    readFigures.push({ label: 'On the checking desk, not read by the AI', value: fmt(swarm.deskWithoutSwarm) });
+  }
 
   const pictureFigures: Figure[] = [];
   const pictureFacts: string[] = [];
+  const pictureColumns: Figure[] = [];
   if (pictures) {
-    pictureFigures.push({ label: 'Pictures queued', value: `${fmt(pictures.queuedPictures)} (${bytesWords(pictures.queuedBytes)})` });
+    pictureColumns.push(
+      { label: 'Papers', value: fmt(pictures.queuedPapers) },
+      { label: 'Pictures', value: fmt(pictures.queuedPictures) },
+      { label: 'Size', value: bytesWords(pictures.queuedBytes) },
+    );
     if (pictures.awaitingRoutePictures > 0) {
       pictureFigures.push({
         label: 'More, once their questions are sorted',
@@ -509,10 +542,13 @@ export function buildMainStops(route: PipelineRoute, audience: Audience = 'admin
       track: 'main',
       step: 1,
       title: `PDFs saved on ${COMPUTER_LABEL}`,
-      meaning: drive ? 'Every paper PDF counted on the main computer, started or not.' : 'Every paper the desk has a record of, started or not.',
+      meaning: drive
+        ? 'Every paper PDF counted on the main computer, started or not. Papers that have no PDF here are counted apart.'
+        : 'The desk has not sent the PDF count yet.',
       count: computerCount,
       unit: 'PDF',
       facts: computerFacts,
+      figures: computerFigures,
       look: STOP_LOOK.computer,
       // Admins and HODs both have the paper list on their pipeline page (hod_registry), so both get the filter.
       action: { kind: 'filter', states: [], label: 'Show every paper in the list' },
@@ -522,14 +558,11 @@ export function buildMainStops(route: PipelineRoute, audience: Audience = 'admin
       track: 'main',
       step: 2,
       title: 'Read by the AI',
-      meaning: 'Papers read from the scan, and how many the AI has read too. Both include papers that have moved on.',
-      count: registry.readTotal,
+      meaning: 'Papers the AI has read, counted where they are now. A paper that has moved on is counted at the stop it has reached.',
+      count: swarm ? swarm.papers : null,
       unit: 'paper',
       facts: [],
-      figures: [
-        { label: 'Also read by the AI', value: fmt(registry.aiReadTotal) },
-        { label: 'Still waiting to be read', value: fmt(waitingToRead) },
-      ],
+      figures: readFigures,
       look: STOP_LOOK.read,
       action: null,
     },
@@ -544,6 +577,7 @@ export function buildMainStops(route: PipelineRoute, audience: Audience = 'admin
       count: pictures ? pictures.queuedPapers : null,
       unit: 'paper',
       facts: pictureFacts,
+      sideBySide: pictureColumns,
       figures: pictureFigures,
       look: STOP_LOOK.pictures,
       action: null,

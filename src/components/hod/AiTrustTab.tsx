@@ -21,6 +21,7 @@ import {
   type TrustRow,
 } from '@/lib/ai-trust';
 import type { HodApi } from '@/lib/hod-api';
+import { actionToneClass } from '@/lib/checker-button-styles';
 import { overallProgress, overallRateText, overallStatus, overallUnlocks } from '@/lib/hod-publish';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { cn } from '@/lib/utils';
@@ -46,7 +47,7 @@ function OverallCard({ api, scope }: { api: HodApi; scope: string }) {
     <section aria-labelledby="trust-overall-title" className="mb-5 rounded-[18px] bg-muted p-4" data-testid="trust-overall" data-reached={o.reached}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 id="trust-overall-title" className="text-[14px] font-bold text-foreground">
+          <h2 id="trust-overall-title" className="text-[15px] font-bold text-foreground">
             Overall: student checks against the AI
           </h2>
           <p className="mt-1 text-[34px] font-bold leading-none tabular-nums text-foreground" data-testid="trust-overall-progress">
@@ -135,7 +136,7 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
   if (!row) {
     return (
       <div className="rounded-[18px] bg-muted p-4">
-        <p className="text-[14px] font-bold text-foreground">{title}</p>
+        <p className="text-[15px] font-bold text-foreground">{title}</p>
         <p className="mt-0.5 text-[13px] text-warm-secondary">{DECISION_HINT[cell.decision]}</p>
         <p className="mt-2 text-[13px] text-warm-secondary">No data yet.</p>
       </div>
@@ -167,7 +168,7 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
   return (
     <div className="flex flex-col gap-3 rounded-[18px] bg-muted p-4" data-testid="trust-cell" data-level={cell.level} data-decision={cell.decision}>
       <div>
-        <p className="text-[14px] font-bold text-foreground">{title}</p>
+        <p className="text-[15px] font-bold text-foreground">{title}</p>
         <p className="mt-0.5 text-[13px] leading-snug text-warm-secondary" data-testid="trust-hint">
           {DECISION_HINT[cell.decision]}
         </p>
@@ -193,7 +194,7 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
             onClick={() => void flip()}
             disabled={busy || sw.disabled}
             aria-describedby={sw.reason ? `why-${cell.level}-${cell.decision}` : undefined}
-            className={cn('tap-44 rounded-full px-4 py-2 text-[14px] font-bold disabled:opacity-50', sw.action === 'stop' ? 'bg-panel text-background' : 'bg-brand text-foreground')}
+            className={actionToneClass(sw.action === 'stop' ? 'dark' : 'brand')}
           >
             {busy ? 'Saving...' : sw.label}
           </button>

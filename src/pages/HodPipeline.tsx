@@ -181,7 +181,7 @@ export function HodPipelinePage({
   return (
     <BentoStack className="min-h-screen bg-muted">
       <BentoStack className="mx-auto w-full max-w-6xl bg-transparent">
-        <BentoPanel fill="card" edge="top" className="px-4 py-[14px] sm:px-6 sm:py-[18px] lg:px-6 lg:py-[18px]">
+        <BentoPanel fill="card" edge="top" className="px-5 py-5 lg:px-8 lg:py-8">
           {banner}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h1 className="text-lg font-bold text-foreground">Pipeline</h1>

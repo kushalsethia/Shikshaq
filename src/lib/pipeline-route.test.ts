@@ -35,9 +35,12 @@ describe('normaliseRoute', () => {
     const r = route();
     expect(r.registry.total).toBe(8038);
     expect(r.registry.byState.not_started).toBe(4869);
-    expect(r.registry.frozenByState.live).toBe(1385);
-    expect(r.registry.readTotal).toBe(1159);
-    expect(r.registry.aiReadTotal).toBe(295);
+    expect(r.registry.frozenByState.live).toBe(1259);
+    expect(r.registry.swarmRead).toEqual({ papers: 74, deskWithoutSwarm: 2 });
+    expect(r.noPdf).toEqual({ auditPapers: 514, liveOnly: 1 });
+    // the cumulative counts are gone for good
+    expect(r.registry).not.toHaveProperty('readTotal');
+    expect(r.registry).not.toHaveProperty('aiReadTotal');
     expect(r.open.questionsByPile.kid).toBe(9291);
     expect(r.open.studentBands['41+']).toBe(88);
     expect(r.checkers.activeVerifiers).toBe(1);
@@ -73,6 +76,8 @@ describe('normaliseRoute', () => {
     expect(bare.trust).toBeNull();
     expect(bare.pictures).toBeNull();
     expect(bare.drive).toBeNull();
+    expect(bare.registry.swarmRead).toBeNull();
+    expect(bare.noPdf).toBeNull();
     expect(bare.synced).toEqual({ deskSyncedAt: null, driveSyncedAt: null, registryChangedAt: null });
   });
 
@@ -151,30 +156,58 @@ describe('the stops', () => {
     expect(computer.facts).toContain('6,445 sorted by class and subject');
     expect(computer.facts).toContain('434 not sorted yet');
     expect(computer.facts).toContain('9.3 GB in all');
-    expect(computer.facts).toContain('11 files are not real papers, not counted');
+    expect(computer.facts.join(' ')).not.toContain('not real papers');
   });
 
-  it('until the computer count has been synced it falls back to the desk list, and says so', () => {
+  it('papers with no PDF are a separate small count and never added to the PDF number', () => {
+    const computer = by().computer;
+    expect(computer.count).toBe(6880);
+    expect(computer.figures).toEqual([
+      { label: 'Papers with no PDF here, not counted above', value: '515', note: '514 on the checking desk, 1 live on the site only' },
+    ]);
+    const none = normaliseRoute({ ...EXAMPLE_ROUTE_RAW, no_pdf: { audit_papers: 0, live_only: 0 } });
+    expect(by('admin', none).computer.figures?.[0].note).toBeUndefined();
+    const unsent = normaliseRoute({ ...EXAMPLE_ROUTE_RAW, no_pdf: undefined });
+    expect(by('admin', unsent).computer.figures).toEqual([]);
+  });
+
+  it('until the computer count has been synced it is ?, never the desk list, and says so', () => {
     const computer = by('admin', normaliseRoute(UNSYNCED_ROUTE_RAW)).computer;
-    expect(computer.count).toBe(8038);
+    expect(computer.count).toBeNull();
     expect(computer.facts[0]).toContain('has not counted the PDFs on the main computer yet');
   });
 
-  it('Read by the AI counts the scans read and the AI reads cumulatively, and what is still waiting', () => {
+  it('Read by the AI counts the swarm only, each paper once where it is now', () => {
     const read = by().read;
-    expect(read.count).toBe(1159);
+    expect(read.count).toBe(74);
     expect(read.figures).toEqual([
-      { label: 'Also read by the AI', value: '295' },
-      { label: 'Still waiting to be read', value: '4,970' },
+      { label: "OCR'd, waiting for the AI", value: '1,189' },
+      { label: "Still waiting to be OCR'd", value: '4,990' },
+      { label: 'On the checking desk, not read by the AI', value: '2' },
     ]);
+    // each paper of the new route sits in exactly one registry stage, so the stage counts add up to the list
+    const inStages = Object.values(route().registry.byState).reduce((n, v) => n + v, 0);
+    expect(inStages).toBe(4869 + 121 + 1189 + 73 + 3);
+    // no cumulative headline and no old AI-check number
+    expect(read.figures?.map((f) => f.label).join(' ')).not.toMatch(/Also read|Checked by the AI/);
+  });
+
+  it('a swarm count the database did not send is ?, not 0', () => {
+    const read = by('admin', normaliseRoute({ ...EXAMPLE_ROUTE_RAW, registry: { ...EXAMPLE_ROUTE_RAW.registry, swarm_read: undefined } })).read;
+    expect(read.count).toBeNull();
+    expect(read.figures?.map((f) => f.label)).toEqual(["OCR'd, waiting for the AI", "Still waiting to be OCR'd"]);
   });
 
   it('Pictures waiting counts papers with pictures queued, with the size, and the pictures not yet queued', () => {
     const r = normaliseRoute({ ...EXAMPLE_ROUTE_RAW, pictures: { ...EXAMPLE_ROUTE_RAW.pictures, queued_papers: 3, queued_pictures: 120, queued_bytes: 52428800 } });
     const pics = by('admin', r).pictures;
     expect(pics.count).toBe(3);
-    expect(pics.figures?.[0]).toEqual({ label: 'Pictures queued', value: '120 (50 MB)' });
-    expect(pics.figures?.[1]).toEqual({ label: 'More, once their questions are sorted', value: '3,382 (702 MB)' });
+    expect(pics.sideBySide).toEqual([
+      { label: 'Papers', value: '3' },
+      { label: 'Pictures', value: '120' },
+      { label: 'Size', value: '50 MB' },
+    ]);
+    expect(pics.figures).toEqual([{ label: 'More, once their questions are sorted', value: '3,382 (702 MB)' }]);
     expect(pics.facts).toEqual(['Storage: 579 MB of 900 MB used']);
   });
 
@@ -206,7 +239,10 @@ describe('the stops', () => {
     const trust = by('admin', r).students.trust;
     expect(trust?.percent).toBe(100);
     expect(trust?.reached).toBe(true);
+    expect(trust?.headline).toBe('AI trust: 100 of 100 checks, reached');
     expect(trust?.meaning).toContain('can pass clean questions by itself');
+    const past = normaliseRoute({ ...EXAMPLE_ROUTE_RAW, trust: { ...EXAMPLE_ROUTE_RAW.trust, checks_done: 250, reached: true } });
+    expect(by('admin', past).students.trust?.headline).toBe('AI trust: 100 of 100 checks, reached');
     const half = normaliseRoute({ ...EXAMPLE_ROUTE_RAW, trust: { ...EXAMPLE_ROUTE_RAW.trust, checks_done: 40 } });
     expect(by('admin', half).students.trust?.percent).toBe(40);
   });
@@ -244,12 +280,12 @@ describe('the stops', () => {
 
   it('the siding is the frozen states, and it never joins the route counts', () => {
     const r = route();
-    expect(frozenTotal(r)).toBe(1385 + 255 + 254 + 4 + 4 + 3 + 3 + 1);
+    expect(frozenTotal(r)).toBe(1259 + 255 + 254 + 4 + 4 + 3 + 3 + 1);
     const siding = buildSiding(r);
     expect(siding.track).toBe('siding');
     expect(siding.step).toBeNull();
-    expect(siding.count).toBe(1909);
-    expect(siding.facts[0]).toBe('1,385 of them are already live');
+    expect(siding.count).toBe(1783);
+    expect(siding.facts[0]).toBe('1,259 of them are already live');
     expect(siding.meaning).toContain('earlier library');
     // live on the route is the published count, not the registry's frozen live rows
     expect(by().live.count).toBe(1506);
@@ -453,7 +489,7 @@ describe('the dummy route API', () => {
     let changed = false;
     for (let i = 0; i < 12 && !changed; i++) {
       const b = await api.route();
-      changed = b.registry.byState.not_started !== a.registry.byState.not_started || b.registry.readTotal !== a.registry.readTotal;
+      changed = b.registry.byState.not_started !== a.registry.byState.not_started || b.registry.swarmRead?.papers !== a.registry.swarmRead?.papers;
     }
     expect(a.registry.total).toBe(8038);
     expect(changed).toBe(true);

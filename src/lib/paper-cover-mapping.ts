@@ -12,6 +12,7 @@
    of any given year, so a naive slice(0, 10) landed on ten of them. */
 
 import { paperSourceName } from '@/lib/school-display';
+import { isComingSoon } from '@/lib/readable-papers';
 
 /** The minimal shape coverPaper()/coverMeta()/pickVariedRecent() need. Both
  *  PastPapers.tsx's merged `Paper` (papers-table rows AND bank rows folded
@@ -105,8 +106,8 @@ export function pickVariedRecent<T extends CoverSourcePaper>(papers: T[], limit:
   const sorted = [...papers].sort((a, b) => {
     const yearDiff = (b.year || 0) - (a.year || 0);
     if (yearDiff !== 0) return yearDiff;
-    const openA = a._needsReview ? 1 : 0;
-    const openB = b._needsReview ? 1 : 0;
+    const openA = isComingSoon(a) ? 1 : 0;
+    const openB = isComingSoon(b) ? 1 : 0;
     if (openA !== openB) return openA - openB;
     return a.school.localeCompare(b.school) || a.id.localeCompare(b.id);
   });

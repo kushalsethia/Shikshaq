@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen, GraduationCap, MessageCircle, Search, ShieldCheck } from 'lucide-react';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
@@ -7,8 +7,6 @@ import { AnnotatedStatement, AnnotatedHighlight } from '@/components/marketing/a
 import { IconDisc } from '@/components/ui/icon-disc';
 import { Button } from '@/components/ui/button';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { supabase } from '@/integrations/supabase/client';
-import { logger } from '@/utils/logger';
 import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useSiteCounts } from '@/hooks/useSiteCounts';
@@ -66,37 +64,11 @@ export default function About() {
   /* Teachers: the listed total from useSiteCounts (paused listings excluded),
      the same figure the home page and Browse show. */
   const { data: siteCounts } = useSiteCounts();
-  const [stats, setStats] = useState({
-    papers: null as number | null,
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchStats() {
-      /* `bank_papers`, not `papers`. The two are different tables and this
-         page was the only surface reading the old one: it advertised 18
-         papers from 5 schools while the footer, the papers library and the
-         blog all counted 619 from 155 out of bank_papers. Same site, same
-         moment, two numbers off by a factor of thirty. */
-      /* 2026-09-26: counts every listed paper, needs_review or not, by
-         product-owner decision -- see 20260926030000_site_counts_include_needs_review.sql.
-         The "Kolkata schools represented" tile that used to sit alongside
-         this was removed the same day: the distinct-school count was not
-         defensible as genuinely Kolkata (see the coordinator's audit --
-         only ~38 of 190 raw values). */
-      const papersRes = await supabase.from('bank_papers').select('id', { count: 'exact', head: true })
-        .eq('is_published', true).gt('question_count', 0);
-      if (cancelled) return;
-      if (papersRes.error) logger.error('About.fetchStats.papers', papersRes.error);
-      setStats({
-        papers: papersRes.count ?? null,
-      });
-    }
-    fetchStats();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  /* Papers: the readable total from useSiteCounts (Coming soon papers are
+     listed but not counted), the same figure the footer and home show. This
+     page used to count bank_papers itself, which put it a few papers ahead of
+     what a reader could open. */
+  const stats = { papers: siteCounts?.papers ?? null };
   const teacherCount = siteCounts?.teachers ?? null;
 
   /* Guarded on > 0, not != null. `!= null` only hides these while they load, so

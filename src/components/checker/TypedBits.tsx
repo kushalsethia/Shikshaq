@@ -37,6 +37,7 @@ export function QuestionChips({
   onMarks,
   marksInvalid,
   disabled,
+  className,
 }: {
   number: string | null;
   marks: number | null;
@@ -47,10 +48,12 @@ export function QuestionChips({
   onMarks: (v: string) => void;
   marksInvalid: boolean;
   disabled?: boolean;
+  /** Replaces the default bottom margin. */
+  className?: string;
 }) {
   if (editing) {
     return (
-      <div className="mb-3 flex flex-wrap items-end gap-3" data-testid="question-chips">
+      <div className={cn(className ?? 'mb-3', 'flex flex-wrap items-end gap-3')} data-testid="question-chips">
         <label className="flex flex-col gap-1 text-[12px] font-semibold text-warm-secondary">
           Question number
           <input
@@ -78,7 +81,7 @@ export function QuestionChips({
   }
   const chip = 'inline-flex min-h-[32px] items-center rounded-full px-3.5 py-1 text-[14px] font-bold tabular-nums';
   return (
-    <ul className="mb-3 flex flex-wrap gap-2" aria-label="Question number and marks" data-testid="question-chips">
+    <ul className={cn(className ?? 'mb-3', 'flex flex-wrap gap-2')} aria-label="Question number and marks" data-testid="question-chips">
       <li className={cn(chip, number ? 'bg-panel text-background' : 'border border-dashed border-warm-hairline-strong text-warm-meta')}>
         {number ? `Question ${number}` : 'No question number'}
       </li>
@@ -147,6 +150,7 @@ export function ToolsRow({
   onPick,
   busy,
   helpLink = true,
+  compact = false,
 }: {
   /** The tool whose mode is open, if any. */
   active: CheckerToolId | null;
@@ -154,27 +158,40 @@ export function ToolsRow({
   onPick: (id: CheckerToolId, available: boolean) => void;
   busy?: boolean;
   helpLink?: boolean;
+  /** The bento tile: one row of smaller buttons and a one-line hint, so it fits under the words. */
+  compact?: boolean;
 }) {
   const [hint, setHint] = React.useState<CheckerToolId | null>(null);
   const shown = hint ? CHECKER_TOOLS.find((t) => t.id === hint) : null;
   return (
-    <section aria-label={TOOLS_HEADING} data-tour="tools" data-testid="tools-row" className="mt-4 border-t border-warm-hairline pt-3">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3">
-        <p className="text-[13px] font-bold text-foreground">
-          {TOOLS_HEADING} <span className="font-medium text-warm-secondary">{TOOLS_LEAD}</span>
-        </p>
-        {helpLink ? (
-          <a
-            href={`${CHECKER_HELP_PATH}#tools`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[12px] font-medium text-warm-secondary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            What do these do?
-          </a>
-        ) : null}
-      </div>
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+    <section
+      aria-label={TOOLS_HEADING}
+      data-tour="tools"
+      data-testid="tools-row"
+      className={cn('border-t border-warm-hairline', compact ? 'mt-0 shrink-0 pt-2' : 'mt-4 pt-3')}
+    >
+      {compact ? null : (
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3">
+          <p className="text-[13px] font-bold text-foreground">
+            {TOOLS_HEADING} <span className="font-medium text-warm-secondary">{TOOLS_LEAD}</span>
+          </p>
+          {helpLink ? (
+            <a
+              href={`${CHECKER_HELP_PATH}#tools`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                'text-[12px] font-medium text-warm-secondary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                compact && 'ml-auto self-center',
+              )}
+            >
+              What do these do?
+            </a>
+          ) : null}
+        </div>
+      )}
+      <div className={compact ? 'flex flex-wrap items-center gap-1.5' : 'grid grid-cols-2 gap-2 sm:flex sm:flex-wrap'}>
+        {compact ? <span className="text-[13px] font-bold text-foreground">{TOOLS_HEADING}</span> : null}
         {CHECKER_TOOLS.map((t) => {
           const ok = available[t.id];
           const on = active === t.id;
@@ -194,19 +211,41 @@ export function ToolsRow({
               onFocus={() => setHint(t.id)}
               onBlur={() => setHint((h) => (h === t.id ? null : h))}
               className={cn(
-                'tap-44 inline-flex min-h-[44px] items-center justify-start gap-2 rounded-full border px-4 py-2 text-left text-[14px] font-semibold leading-tight transition-[transform,background-color,color] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
+                'tap-44 inline-flex items-center justify-start gap-2 rounded-full border text-left font-semibold leading-tight transition-[transform,background-color,color] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
+                compact ? 'min-h-[36px] px-3 py-1 text-[13px]' : 'min-h-[44px] px-4 py-2 text-[14px]',
                 on ? 'border-transparent bg-panel text-background' : 'border-warm-hairline-strong bg-white text-foreground hover:bg-muted',
                 !ok && 'opacity-55',
                 busy && 'cursor-not-allowed opacity-50',
               )}
             >
-              {TOOL_ICON[t.id]}
+              {compact ? <span className="hidden 2xl:inline-flex">{TOOL_ICON[t.id]}</span> : TOOL_ICON[t.id]}
               {t.label}
             </button>
           );
         })}
+        {helpLink && compact ? (
+          <a
+            href={`${CHECKER_HELP_PATH}#tools`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              'text-[12px] font-medium text-warm-secondary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+              compact && 'ml-auto self-center [@media(max-width:1535px)]:sr-only',
+            )}
+          >
+            What do these do?
+          </a>
+        ) : null}
       </div>
-      <p id="tool-hint" role="status" className="mt-2 min-h-[2.5rem] text-pretty text-[13px] leading-snug text-warm-secondary">
+      <p
+        id="tool-hint"
+        role="status"
+        className={cn(
+          'leading-snug text-warm-secondary',
+          // In a tile the hint is one line, and drops out below 800px of height.
+          compact ? 'mt-1.5 truncate text-[12px] [@media(max-height:799px)]:sr-only' : 'mt-2 min-h-[2.5rem] text-pretty text-[13px]',
+        )}
+      >
         {shown ? (available[shown.id] ? shown.hint : shown.unavailable) : TOOLS_IDLE_HINT}
       </p>
     </section>

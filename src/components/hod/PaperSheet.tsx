@@ -100,7 +100,7 @@ function SheetQuestion({
         </p>
         {editable ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="button" className={actionToneClass('brand')} disabled={busy} onClick={() => void run(() => api.setQuestionState(q.id, 'reopen'))}>
+            <button type="button" className={cn(actionToneClass('brand'), 'h-[46.5px]')} disabled={busy} onClick={() => void run(() => api.setQuestionState(q.id, 'reopen'))}>
               {busy ? 'Putting it back...' : 'Put it back'}
             </button>
           </div>

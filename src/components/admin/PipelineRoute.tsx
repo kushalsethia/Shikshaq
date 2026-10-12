@@ -2,7 +2,6 @@ import { RefreshCw } from 'lucide-react';
 import { BentoPanel } from '@/components/layout/PageContainer';
 import { AdminPanelHeader } from '@/pages/admin/AdminTable';
 import { AdminEmpty, AdminError, AdminLoading } from '@/components/admin/AdminState';
-import { AdminPillButton } from '@/components/admin/AdminPillButton';
 import { AnimatedNumber, Elbow, Lane, LiveDot, StopCard, UpdatedAgo } from '@/components/admin/PipelineRouteParts';
 import { usePipelineRoute, type PipelineRouteState } from '@/hooks/usePipelineRoute';
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
@@ -47,7 +46,16 @@ import { cn } from '@/lib/utils';
    PipelineRouteView is pure (props in, markup out) so it is tested by
    rendering it; PipelineRoute connects it to the 20-second refresh. */
 
-const PANEL = 'px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]';
+/* The same outer padding as every other BentoPanel (20px, 32px from lg), so the
+   route's content edge lines up with the desk panels and the page header. The
+   2px and 14px here are what the 18px inset of AdminPanelHeader and the route
+   rows add back: 2 + 18 = 20, and 14 + 18 = 32 from lg. */
+const PANEL = 'px-0.5 py-5 lg:px-3.5 lg:py-8';
+
+/* The in-screen text action (Refresh). The same words as the "Show in the list"
+   and "Open page" links on the stop cards: 40px tall, 13px semibold, warm grey. */
+const TEXT_ACTION =
+  'inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-warm-secondary transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60';
 
 /** Where each stop sits from lg: row 1 the siding, rows 2 and 3 the route. */
 const PLACE: Partial<Record<StopId, string>> = {
@@ -220,10 +228,17 @@ export function PipelineRouteView({
         }
         action={
           route ? (
-            <AdminPillButton variant="quiet" size="sm" onClick={onRefresh} busy={refreshing} aria-label="Refresh the numbers now">
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={refreshing}
+              aria-busy={refreshing || undefined}
+              aria-label="Refresh the numbers now"
+              className={TEXT_ACTION}
+            >
               <RefreshCw className={cn('h-4 w-4', refreshing && animate && 'animate-spin')} aria-hidden />
               Refresh
-            </AdminPillButton>
+            </button>
           ) : undefined
         }
       />

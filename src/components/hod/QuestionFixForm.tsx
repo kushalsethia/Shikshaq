@@ -91,7 +91,7 @@ export function QuestionFixForm({
         </p>
       ) : null}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button type="button" className={actionToneClass('mint')} disabled={busy || marksInvalid || !body.trim()} onClick={() => build(onSave)}>
+        <button type="button" className={cn(actionToneClass('brand'), 'h-[46.5px]')} disabled={busy || marksInvalid || !body.trim()} onClick={() => build(onSave)}>
           {busy ? 'Saving...' : primaryLabel}
         </button>
         {secondary ? (

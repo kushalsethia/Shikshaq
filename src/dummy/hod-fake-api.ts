@@ -363,6 +363,9 @@ export function createFakeHodApi(): FakeHodApi {
       log.push(`profile ${who.name} grade ${input.grade}`);
       note('hod_set_verifier_profile', null);
     },
+    async subjects() {
+      return ['Biology', 'Chemistry', 'English', 'Mathematics', 'Physics'].map((name) => ({ id: `subject-${name.toLowerCase()}`, name, slug: name.toLowerCase() }));
+    },
     async setPreferred(userId, subjects) {
       const cur = profiles[userId];
       if (!cur) throw pgError('That person is not a verifier');

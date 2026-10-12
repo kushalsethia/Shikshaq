@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { HeaderEditor } from '@/components/hod/HeaderEditor';
 import { EmptyNote, ListSkeleton, LoadError, Tile, ago, deskLink, quietButton } from '@/components/hod/HodShared';
 import { RouteTrail } from '@/components/hod/RouteTrail';
-import { actionToneClass } from '@/lib/checker-button-styles';
+import { CHIP, actionToneClass } from '@/lib/checker-button-styles';
 import type { HodApi } from '@/lib/hod-api';
 import {
   LIVE_FIELDS,
@@ -28,6 +28,10 @@ import { cn } from '@/lib/utils';
    field at a time and logged, so History and undo keep working. */
 
 export const LIVE_KEY = (scope: string) => ['hod', scope, 'live'] as const;
+
+/* Action buttons in a card's row: they grow to fill the phone row they share and
+   keep their own width from sm up. */
+const ACTION_FILL = 'grow text-center sm:grow-0';
 
 const STATUS_FILTERS: { key: LiveStatus; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -74,8 +78,8 @@ function LiveRow({ p, api, onChanged }: { p: HodLivePaper; api: HodApi; onChange
 
   return (
     <li className="rounded-[18px] bg-muted p-4" data-testid="live-paper" data-live={p.is_published}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <p className="text-[15px] font-bold text-foreground">{p.title}</p>
           <p className="mt-0.5 text-[12px] text-warm-meta">
             {[p.school, p.cls ? `Class ${p.cls}` : null, p.board, p.exam, p.year].filter(Boolean).join(' · ')}
@@ -101,26 +105,28 @@ function LiveRow({ p, api, onChanged }: { p: HodLivePaper; api: HodApi; onChange
       ) : null}
       <RouteTrail stage="live" className="mt-3" />
 
+      {/* On a phone the actions share a row while they fit and the rest take a full row,
+          so no button is left alone on the left. From sm up they sit side by side. */}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {p.is_published ? (
           <>
-            <Link to={`/past-papers/${encodeURIComponent(p.paper_id)}`} className={quietButton}>
+            <Link to={`/past-papers/${encodeURIComponent(p.paper_id)}`} className={cn(quietButton, ACTION_FILL)}>
               See it on the site
             </Link>
-            <button type="button" className={quietButton} disabled={busy} aria-expanded={mode === 'hide'} onClick={() => setMode(mode === 'hide' ? null : 'hide')}>
+            <button type="button" className={cn(quietButton, ACTION_FILL)} disabled={busy} aria-expanded={mode === 'hide'} onClick={() => setMode(mode === 'hide' ? null : 'hide')}>
               Hide
             </button>
           </>
         ) : (
-          <button type="button" className={actionToneClass('mint')} disabled={busy} onClick={() => void run(() => api.restorePaper(p.paper_id), 'Paper is back on the site.')}>
+          <button type="button" className={cn(actionToneClass('brand'), 'h-[46.5px]', ACTION_FILL)} disabled={busy} onClick={() => void run(() => api.restorePaper(p.paper_id), 'Paper is back on the site.')}>
             {busy ? 'Putting it back...' : 'Restore'}
           </button>
         )}
-        <button type="button" className={actionToneClass('dark')} disabled={busy} aria-expanded={mode === 'edit'} onClick={() => setMode(mode === 'edit' ? null : 'edit')}>
+        <button type="button" className={cn(actionToneClass('dark'), ACTION_FILL)} disabled={busy} aria-expanded={mode === 'edit'} onClick={() => setMode(mode === 'edit' ? null : 'edit')}>
           Edit details
         </button>
         {p.audit_paper_id && p.waiting_you > 0 ? (
-          <Link to={deskLink('needs-you', p.audit_paper_id)} className={actionToneClass('brand')}>
+          <Link to={deskLink('needs-you', p.audit_paper_id)} className={cn(actionToneClass('brand'), 'h-[46.5px]', ACTION_FILL)}>
             See what needs you
           </Link>
         ) : null}
@@ -203,7 +209,7 @@ export function LiveTab({ api, scope }: { api: HodApi; scope: string }) {
   if (q.isError) return <LoadError what="The live papers" onRetry={() => void q.refetch()} />;
   if (rows.length === 0) return <EmptyNote>There are no papers in the library yet.</EmptyNote>;
 
-  const select = 'min-h-[44px] rounded-xl bg-muted px-3 text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand';
+  const select = 'min-h-[44px] rounded-xl bg-muted px-3 text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand';
   return (
     <div>
       <div className="mb-4 grid grid-cols-2 gap-3 sm:max-w-sm" data-testid="live-counts">
@@ -211,22 +217,29 @@ export function LiveTab({ api, scope }: { api: HodApi; scope: string }) {
         <Tile label="Hidden" value={counts.hidden} hint="Papers taken off the site. They can be restored." />
       </div>
 
-      <div className="mb-4 flex flex-wrap items-end gap-2">
-        <div role="group" aria-label="Show papers" className="flex gap-1.5">
-          {STATUS_FILTERS.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              aria-pressed={filter.status === f.key}
-              onClick={() => set({ status: f.key })}
-              className={cn(
-                'tap-44 rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
-                filter.status === f.key ? 'bg-panel text-background' : 'bg-muted text-warm-secondary hover:text-foreground',
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
+      {/* Every control here is the same shape: a 12px caption over a 44px row, so the
+          chips, the dropdowns and the search all sit on one centre line. On a phone the
+          row becomes two columns, with the chips and the search each taking a full row. */}
+      <div className="mb-4 grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap sm:gap-2">
+        <div className="col-span-2 flex flex-col gap-0.5 text-[12px] font-semibold text-warm-secondary">
+          <span>Show</span>
+          <div role="group" aria-label="Show papers" className="flex h-11 items-center gap-1.5">
+            {STATUS_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                aria-pressed={filter.status === f.key}
+                onClick={() => set({ status: f.key })}
+                className={cn(
+                  CHIP,
+                  'h-11 px-3.5 transition-[transform,background-color,color]',
+                  filter.status === f.key ? 'bg-panel text-background' : 'bg-muted text-warm-secondary hover:text-foreground',
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
         <label className="flex flex-col gap-0.5 text-[12px] font-semibold text-warm-secondary">
           Subject
@@ -250,18 +263,18 @@ export function LiveTab({ api, scope }: { api: HodApi; scope: string }) {
             ))}
           </select>
         </label>
-        <label className="flex min-w-[10rem] flex-1 flex-col gap-0.5 text-[12px] font-semibold text-warm-secondary">
+        <label className="col-span-2 flex min-w-[10rem] flex-1 flex-col gap-0.5 text-[12px] font-semibold text-warm-secondary">
           Search
           <input
             type="search"
             value={filter.q}
             onChange={(ev) => set({ q: ev.target.value })}
             placeholder="School, exam or year"
-            className={cn(select, 'text-[16px]')}
+            className={select}
           />
         </label>
         {applied ? (
-          <button type="button" className={quietButton} onClick={() => set(NO_LIVE_FILTER)}>
+          <button type="button" className={cn(quietButton, 'col-span-2 justify-self-start')} onClick={() => set(NO_LIVE_FILTER)}>
             Clear filters
           </button>
         ) : null}

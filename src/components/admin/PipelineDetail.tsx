@@ -72,7 +72,7 @@ function Tile({
       {state === 'loading' ? (
         <span className="mt-2 block h-7 w-16 animate-pulse rounded-lg bg-card/60 motion-reduce:animate-none" role="status" aria-label={`Loading ${label}`} />
       ) : (
-        <span className={cn('mt-1 block text-2xl font-bold tabular-nums', t.value)}>{state === 'unknown' ? '?' : value}</span>
+        <span className={cn('mt-1 block text-3xl font-extrabold tabular-nums', t.value)}>{state === 'unknown' ? '?' : value}</span>
       )}
       {sub ? <span className={cn('mt-0.5 block text-[13px]', t.sub)}>{state === 'unknown' ? 'Did not load' : sub}</span> : null}
     </>
@@ -172,7 +172,9 @@ export function DayBars({ points, field, label, barClass }: {
 
 export type StatsStatus = 'loading' | 'ok' | 'error';
 
-const PANEL = 'px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]';
+/* Same outer padding as the route panel above (see PipelineRoute.tsx), so the
+   library panels line up with it and with the desk. */
+const PANEL = 'px-0.5 py-5 lg:px-3.5 lg:py-8';
 
 /** A panel fed by the stats read: its own skeleton while that loads, its own error with Try again if it fails. */
 export function StatsPanel({
@@ -289,7 +291,7 @@ export function PipelineDetailFold({
     >
       <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-bento bg-card px-[18px] py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
         <span className="min-w-0">
-          <span className="block text-[15px] font-extrabold text-foreground">The paper list and the library numbers</span>
+          <h3 className="block text-[14px] font-bold text-foreground">The paper list and the library numbers</h3>
           <span className="block text-[13px] text-warm-secondary">
             {isAdminView
               ? "Admins only. The desk's list of every paper (longer than the PDFs saved on the main computer), then the library, the newest papers and the activity."
@@ -353,7 +355,7 @@ export function PipelineDetailFold({
               {isAdminView ? (
                 <div className="mt-3 px-[18px]">
                   <Link to="/admin/library" className={adminPillClass('quiet', 'sm', 'px-3')}>
-                    See all in Library
+                    Open the Library
                   </Link>
                 </div>
               ) : null}
@@ -378,7 +380,7 @@ export function PipelineDetailFold({
                 <AdminTable columns={feedColumns} rows={feedRows} readOnly />
                 <div className="mt-3 px-[18px]">
                   <Link to="/admin/activity" className={adminPillClass('quiet', 'sm', 'px-3')}>
-                    See full activity
+                    Open the full activity
                   </Link>
                 </div>
               </>
@@ -398,7 +400,7 @@ export function PipelineDetailFold({
         >
           {stats ? (
             <details className="group px-[18px]">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-xl bg-muted px-4 text-[14px] font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-full bg-muted px-5 text-[13px] font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
                 Show the charts and the subject bars
                 <ChevronDown className="h-4 w-4 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none" aria-hidden />
               </summary>
@@ -407,7 +409,7 @@ export function PipelineDetailFold({
                 <DayBars points={stats.daily} field="questions_cleared" label="Questions cleared" barClass="fill-emerald-500" />
                 <DayBars points={stats.daily} field="papers_added" label="Papers added to the library" barClass="fill-amber-400" />
               </div>
-              <h3 className="mb-2 mt-6 text-[15px] font-extrabold text-foreground">By subject</h3>
+              <h3 className="mb-2 mt-6 text-[14px] font-bold text-foreground">By subject</h3>
               <div className="mb-3">
                 <StackLegend
                   counts={{

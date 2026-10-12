@@ -228,11 +228,15 @@ async function fetchAllPages(): Promise<PaperRow[]> {
    the same 1000-row cap loadPaperIndex() above just got fixed for. Kept as
    three call sites (each counts a slightly different filter) rather than
    merged into one, but the pagination is shared rather than tripled. */
-export async function fetchBankSchoolValues(onlyWithSchool = false): Promise<(string | null)[]> {
+/* `readableOnly` keeps schools that have at least one READABLE paper (not
+   Coming soon: lib/readable-papers.ts). The school total uses it; pickers that
+   list every school with a listed paper do not. */
+export async function fetchBankSchoolValues(onlyWithSchool = false, readableOnly = false): Promise<(string | null)[]> {
   const values: (string | null)[] = [];
   for (let from = 0; ; from += PAGE) {
     let q = supabase.from('bank_papers').select('school').eq('is_published', true).gt('question_count', 0);
     if (onlyWithSchool) q = q.eq('has_school', true);
+    if (readableOnly) q = q.eq('needs_review', false);
     const { data, error } = await q.range(from, from + PAGE - 1);
     if (error) throw new Error(`bank papers schools: ${error.message}`);
     values.push(...(data ?? []).map((r) => r.school));

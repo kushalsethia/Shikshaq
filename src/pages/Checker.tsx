@@ -176,56 +176,79 @@ export function CheckerPage({
   const verify = (id: string) => setParams({ paper: id, verify: '1' });
   const toList = () => setParams({});
 
-  return (
-    <BentoStack className="min-h-screen bg-muted">
-      <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-5xl">
-        {banner}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-lg font-bold text-foreground">My papers</h1>
-          <div className="flex flex-wrap items-center gap-2">
-            {isAdmin ? (
-              <Link to="/admin" className={cn(CHIP, 'bg-muted text-warm-secondary')}>
-                Back to admin
-              </Link>
-            ) : null}
-            {isHod ? (
-              <Link to="/hod" className={cn(CHIP, 'bg-muted text-warm-secondary')}>
-                HOD desk
-              </Link>
-            ) : null}
-            {statsQuery.data ? (
-              <span className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold tabular-nums text-warm-secondary" data-testid="my-counts">
-                Today {statsQuery.data.today_count} · Total {statsQuery.data.total_count}
-              </span>
-            ) : statsQuery.isError ? null : (
-              <span className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-warm-meta" data-testid="my-counts">
-                Counting...
-              </span>
-            )}
-            <Chip onClick={() => setMenuOpen(true)} tone="brand">
-              Menu
-            </Chip>
-          </div>
-        </div>
+  // The verify screen is one bento grid that fits the viewport (owner, 12 Oct
+  // 2026): the page itself never scrolls there, so it gets its own shell, with
+  // the page's small controls moved into the screen's top tile.
+  const verifyView = Boolean(paperId && verifying);
 
-        {paperId && verifying ? (
+  const counts = statsQuery.data ? (
+    <span className={cn('rounded-full bg-muted px-3 py-1 text-[13px] font-semibold tabular-nums text-warm-secondary', verifyView && '[@media(max-width:639px)]:hidden')} data-testid="my-counts">
+      Today {statsQuery.data.today_count} · Total {statsQuery.data.total_count}
+    </span>
+  ) : statsQuery.isError ? null : (
+    <span className={cn('rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-warm-meta', verifyView && '[@media(max-width:639px)]:hidden')} data-testid="my-counts">
+      Counting...
+    </span>
+  );
+  // On a phone the top tile has no room for the two desk links: they are in the Menu.
+  const deskLinkClass = verifyView ? 'hidden md:inline-flex' : '';
+
+  const header = (
+    <div className="flex flex-wrap items-center gap-2">
+      {isAdmin ? (
+        <Link to="/admin" className={cn(CHIP, 'bg-muted text-warm-secondary', deskLinkClass)}>
+          Back to admin
+        </Link>
+      ) : null}
+      {isHod ? (
+        <Link to="/hod" className={cn(CHIP, 'bg-muted text-warm-secondary', deskLinkClass)}>
+          HOD desk
+        </Link>
+      ) : null}
+      {counts}
+      <Chip onClick={() => setMenuOpen(true)} tone="brand">
+        Menu
+      </Chip>
+    </div>
+  );
+
+  return (
+    <BentoStack className={cn('min-h-screen bg-muted', verifyView && 'h-[100dvh] min-h-0 overflow-hidden')}>
+      {verifyView ? (
+        <BentoPanel
+          fill="muted"
+          className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col px-2.5 pb-2.5 pt-[68px] lg:px-3 lg:pb-3 lg:pt-[72px]"
+        >
+          {banner}
+          <h1 className="sr-only">My papers</h1>
           <VerifyScreen
             key={paperId}
             api={api}
             scope={scope}
             dummy={dummy}
-            paperId={paperId}
+            paperId={paperId!}
             userId={user?.id}
             userName={profile?.full_name}
-            onExit={() => open(paperId)}
+            onExit={() => open(paperId!)}
             onList={toList}
+            toolbar={header}
           />
-        ) : paperId ? (
-          <PaperOverview api={api} scope={scope} paperId={paperId} onBack={toList} onStart={() => verify(paperId)} />
-        ) : (
-          <PaperList api={api} scope={scope} onOpen={open} onStart={verify} />
-        )}
-      </BentoPanel>
+        </BentoPanel>
+      ) : (
+        <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-5xl">
+          {banner}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-lg font-bold text-foreground">My papers</h1>
+            {header}
+          </div>
+
+          {paperId ? (
+            <PaperOverview api={api} scope={scope} paperId={paperId} onBack={toList} onStart={() => verify(paperId)} />
+          ) : (
+            <PaperList api={api} scope={scope} onOpen={open} onStart={verify} />
+          )}
+        </BentoPanel>
+      )}
 
       {menuOpen ? (
         <Modal onClose={() => setMenuOpen(false)} labelledBy="checker-menu-title">
@@ -234,6 +257,16 @@ export function CheckerPage({
           </h2>
           <p className="mb-3 text-[13px] text-warm-secondary">Nothing here changes any question.</p>
           <div className="flex flex-col gap-2">
+            {isAdmin ? (
+              <Link to="/admin" className={actionToneClass('muted') + ' text-center'}>
+                Back to admin
+              </Link>
+            ) : null}
+            {isHod ? (
+              <Link to="/hod" className={actionToneClass('muted') + ' text-center'}>
+                HOD desk
+              </Link>
+            ) : null}
             <Link to={CHECKER_PRACTICE_PATH} className={actionToneClass('brand') + ' text-center'}>
               Practice round
             </Link>

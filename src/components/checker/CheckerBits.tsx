@@ -79,10 +79,13 @@ export function CheckGuidance({
   summary,
   line,
   detail,
+  className,
 }: {
   summary?: ReturnType<typeof describeLanes> | null;
   line?: string | null;
   detail?: string | null;
+  /** Replaces the default bottom margin. */
+  className?: string;
 }) {
   const [hidden, setHidden] = useState(readTipsHidden);
   const asked = summary ? summary.blocks.filter((b) => b.asked) : [];
@@ -98,7 +101,7 @@ export function CheckGuidance({
     writeTipsHidden(!hidden);
   };
   return (
-    <section aria-label="How to check" className="mb-4" data-testid="check-guidance">
+    <section aria-label="How to check" className={className ?? 'mb-4'} data-testid="check-guidance">
       <div className="flex items-center justify-between gap-3">
         <p className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-warm-meta">
           <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -160,7 +163,7 @@ export function CheckerSkeleton() {
 
 export function Callout({ tone, title, children }: { tone: 'warn'; title: string; children: React.ReactNode }) {
   return (
-    <div role="note" className={cn('mb-3 rounded-2xl p-3', tone === 'warn' && 'bg-destructive/10')}>
+    <div role="note" className={cn('mb-3 rounded-[10px] p-3', tone === 'warn' && 'bg-destructive/10')}>
       <p className="text-[14px] font-semibold text-foreground">{title}</p>
       <p className="mt-0.5 text-[13px] leading-snug text-warm-secondary">{children}</p>
     </div>
@@ -279,7 +282,7 @@ export function Modal({
    being checked highlighted. Bodies go through MathText verbatim. */
 export function WholeQuestion({ context }: { context: QuestionContext }) {
   return (
-    <div className="mb-3 rounded-2xl border border-warm-hairline p-3">
+    <div className="mb-3 rounded-[10px] border border-warm-hairline p-3">
       <p className="mb-2 text-[13px] font-semibold text-foreground">{contextHeading(context)}</p>
       {context.parent ? (
         <div

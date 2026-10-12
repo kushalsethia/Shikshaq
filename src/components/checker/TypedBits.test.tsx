@@ -168,7 +168,9 @@ describe('wiring in the verify screen and the practice round', () => {
     // QA 2026-10-11 finding 6: on the Printed tab the words being checked were
     // hidden, and Looks right worked without them on screen.
     expect(screen).toContain("useState<PanelId>('typed')");
-    expect(screen).toMatch(/setPanel\('typed'\);\s+setShowPage\(false\)/);
+    // 12 Oct 2026 (bento ask): the tile you were on now stays for the next question,
+    // except Fix, which goes back to the words (tileForNextQuestion, checker-bento.test.ts).
+    expect(screen).toMatch(/setPanel\(\(p\) => tileForNextQuestion\(p\)\);\s+setShowPage\(false\)/);
     expect(practice).toContain("useState<PanelId>('typed')");
   });
 

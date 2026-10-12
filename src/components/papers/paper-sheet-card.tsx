@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { getSubjectPalette } from "@/lib/subject-palette";
 import { IconDisc } from "@/components/ui/icon-disc";
 import { paperSourceName } from "@/lib/school-display";
+import { isComingSoon } from "@/lib/readable-papers";
 
 /* Redesign C3 (components.md §2).
 
@@ -41,7 +42,7 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
   const href = `/past-papers/${paper.id}`;
   const [leaving, setLeaving] = React.useState(false);
   const [justDownloaded, setJustDownloaded] = React.useState(false);
-  const comingSoon = Boolean(paper.needsReview);
+  const comingSoon = isComingSoon(paper);
   /* 0 is how an undated bank paper arrives (see PastPapers / PaperResults).
      It is not a year, so it is not printed. */
   const year = Number.isFinite(paper.year) && paper.year > 0 ? paper.year : null;

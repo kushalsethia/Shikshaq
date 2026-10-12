@@ -45,8 +45,7 @@ export function createFakePipelineRouteApi(mode: Mode = 'full', delayMs = 700): 
     s.not_started = Math.max(0, s.not_started - moved);
     s.ocr_queued += moved - step(moved);
     s.ocr_done += step(3);
-    d.registry.read_total += step(3);
-    d.registry.ai_read_total += step(2);
+    d.registry.swarm_read.papers += step(2);
     d.desk.questions_passed = Math.min(d.desk.questions, d.desk.questions_passed + step(40));
     d.checking.questions = Math.max(0, d.checking.questions - step(30));
     d.open.questions_by_pile.kid = d.checking.questions;

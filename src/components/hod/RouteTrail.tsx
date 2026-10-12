@@ -20,8 +20,8 @@ export function RouteTrail({ stage, className }: { stage: TrailStage; className?
             aria-current={i === cur ? 'step' : undefined}
             data-state={i < cur ? 'done' : i === cur ? 'current' : 'later'}
             className={cn(
-              'inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[12px] leading-none',
-              i === cur ? 'bg-panel font-bold text-background' : i < cur ? 'bg-card font-semibold text-warm-secondary' : 'bg-card/60 text-warm-meta',
+              'inline-flex h-[26px] items-center gap-1 rounded-full px-3 py-1 text-[12px] font-bold leading-none',
+              i === cur ? 'bg-panel text-background' : i < cur ? 'bg-card text-warm-secondary' : 'bg-card/60 text-warm-meta',
             )}
           >
             {i < cur ? <Check className="h-3 w-3" aria-hidden /> : null}

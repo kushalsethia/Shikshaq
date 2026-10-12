@@ -171,11 +171,34 @@ export function Figures({ figures }: { figures: NonNullable<RouteStop['figures']
     <ul className="mt-3 space-y-1.5" aria-label="More numbers for this stop">
       {figures.map((f) => (
         <li key={f.label} className="flex items-baseline justify-between gap-3">
-          <span className="min-w-0 text-[13px] text-warm-secondary">{f.label}</span>
+          <span className="min-w-0 text-[13px] text-warm-secondary">
+            {f.label}
+            {f.note ? <span className="block text-[12px] text-warm-meta">{f.note}</span> : null}
+          </span>
           <span className="shrink-0 text-right text-[14px] font-bold tabular-nums text-foreground">{f.value}</span>
         </li>
       ))}
     </ul>
+  );
+}
+
+/** A few labelled values side by side (papers, pictures, size). Each column is a small tile; a long value wraps inside its own tile, never into the next. */
+export function SideBySide({ items }: { items: NonNullable<RouteStop['sideBySide']> }) {
+  if (items.length === 0) return null;
+  return (
+    <dl
+      aria-label="The queue in three numbers"
+      data-side-by-side
+      className="mt-3 grid gap-2"
+      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+    >
+      {items.map((f) => (
+        <div key={f.label} className="min-w-0 rounded-xl bg-card px-2 py-2">
+          <dt className="text-[12px] text-warm-secondary">{f.label}</dt>
+          <dd className="whitespace-nowrap text-[15px] font-bold tabular-nums text-foreground">{f.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -223,11 +246,11 @@ export function TrustBox({ trust }: { trust: TrustView }) {
 export function StopCard({
   stop,
   animate,
-  compact = false,
   onShowRegistry,
 }: {
   stop: RouteStop;
   animate: boolean;
+  /** Kept for callers. Every stop number is the same size now (24px/800, the stat-number style). */
   compact?: boolean;
   onShowRegistry: (states: ProcessedState[]) => void;
 }) {
@@ -279,14 +302,14 @@ export function StopCard({
         <p className="shrink-0 whitespace-nowrap text-right lg:text-left">
           {stop.count === null ? (
             <>
-              <span className={cn('font-extrabold leading-none text-foreground', compact ? 'text-2xl' : 'text-3xl')} data-unknown>
+              <span className="text-2xl font-extrabold leading-none text-foreground" data-unknown>
                 ?
               </span>
               <span className="ml-1.5 text-[13px] text-warm-secondary">not sent yet</span>
             </>
           ) : (
             <>
-              <AnimatedNumber value={stop.count} animate={animate} className={cn('font-extrabold leading-none text-foreground', compact ? 'text-2xl' : 'text-3xl')} />
+              <AnimatedNumber value={stop.count} animate={animate} className="text-2xl font-extrabold leading-none text-foreground" />
               <span className="ml-1.5 text-[13px] text-warm-secondary">{unitWord(stop.unit, stop.count)}</span>
             </>
           )}
@@ -302,6 +325,7 @@ export function StopCard({
           ))}
         </ul>
       ) : null}
+      {stop.sideBySide ? <SideBySide items={stop.sideBySide} /> : null}
       {stop.figures ? <Figures figures={stop.figures} /> : null}
       {stop.trust ? <TrustBox trust={stop.trust} /> : null}
       {stop.bands ? <BandBars bands={stop.bands} tone={stop.look.bar} /> : null}
