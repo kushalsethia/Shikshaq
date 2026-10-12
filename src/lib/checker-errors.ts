@@ -28,7 +28,7 @@ export function checkerErrorAdvice(err: unknown): CheckerErrorAdvice {
   const { code, text } = parts(err);
   if (/not currently assigned/i.test(text) || /not routed to the paper checker/i.test(text)) {
     return {
-      message: 'This question was open too long, or someone else took it, so it was not saved. Here is the next one.',
+      message: 'This question was open too long, or someone else took it, so it was not saved. Here is the next one, or this one again.',
       moveOn: true,
     };
   }

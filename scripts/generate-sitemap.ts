@@ -401,9 +401,12 @@ async function main() {
   /* A floor, not just a ceiling. The 50,000 check below guards a limit we are
      nowhere near; the failure that actually happened was the opposite one --
      shipping far too few URLs and reporting success. This is deliberately well
-     under the real count (1,560+) so ordinary content changes never trip it,
-     while a truncation or a silently-empty table still does. */
-  const MIN_EXPECTED_URLS = 1200;
+     under the real count (1,147 after the 2026-10-12 removal of the non-Maths
+     library papers; it was 1,560+ before) so ordinary content changes never
+     trip it, while a truncation or a silently-empty table still does: the
+     Maths papers alone are over 600 URLs, so an unreachable papers table drops
+     the total to roughly 530. */
+  const MIN_EXPECTED_URLS = 900;
   if (allURLs.length < MIN_EXPECTED_URLS) {
     fail(`Only ${allURLs.length} URLs, expected at least ${MIN_EXPECTED_URLS}. `
       + 'Likely a truncated query or an unreachable table.');

@@ -56,14 +56,16 @@ describe('Escalations: Save and settle', () => {
   });
 });
 
-describe('Escalations: source guards', () => {
-  const src = readFileSync('src/components/hod/EscalationsTab.tsx', 'utf8');
+describe('Needs you: source guards', () => {
+  const src = readFileSync('src/components/hod/NeedsYouTab.tsx', 'utf8') + readFileSync('src/components/hod/QuestionFixForm.tsx', 'utf8');
   it('does not strip numbers from the words it saves', () => {
     expect(src).not.toMatch(/stripLeadingNumberPrefix/);
   });
-  it('Cancel resets the number and marks as well as the words', () => {
-    expect(src).toMatch(/setNumber\(e\.display_number \?\? ''\)/);
-    expect(src).toMatch(/setMarks\(e\.marks != null \? String\(e\.marks\) : ''\)/);
+  it('the fix form starts from the stored words, number and marks, and Cancel closes it', () => {
+    expect(src).toMatch(/useState\(target\.body\)/);
+    expect(src).toMatch(/useState\(target\.display_number \?\? ''\)/);
+    expect(src).toMatch(/useState\(target\.marks != null \? String\(target\.marks\) : ''\)/);
+    expect(src).toMatch(/onClick=\{onCancel\}/);
   });
 });
 

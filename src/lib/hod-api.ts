@@ -1,15 +1,33 @@
 import { supabase } from '@/integrations/supabase/client';
-import {
-  checkerFixQuestion,
-  checkerPassQuestion,
-  checkerPictureUrl,
-  paperPagePictures,
-} from '@/lib/checker-api';
+import { checkerPictureUrl, paperPagePictures } from '@/lib/checker-api';
 import type { RawOption } from '@/lib/checker-options';
 import { paperLabel } from '@/lib/checker-progress';
 import { isVerifierGrade } from '@/lib/verifier-papers';
 import type { PaperPage } from '@/lib/paper-pages';
 import { normaliseTrustRows, type TrustDecision, type TrustLevel, type TrustRow } from '@/lib/ai-trust';
+import {
+  normaliseDeskCounts,
+  normaliseExplanation,
+  normaliseLivePapers,
+  normaliseNeedsQuestions,
+  normaliseNeedsYouPapers,
+  normalisePreview,
+  normaliseReadyPapers,
+  normaliseTrail,
+  normaliseTrustOverall,
+  normaliseUploads,
+  type AiTrustOverall,
+  type AssignmentExplanation,
+  type HodDeskCounts,
+  type HodLivePaper,
+  type HodNeedsQuestion,
+  type HodNeedsYouPaper,
+  type HodPreview,
+  type HodReadyPaper,
+  type HodStudentUpload,
+  type HodTrailRow,
+  type UploadStatus,
+} from '@/lib/hod-publish';
 
 /**
  * Client wrapper for the Head of Department (HOD) screens. Every call is one
@@ -506,7 +524,6 @@ export interface HodFixPatch {
 
 export interface HodApi {
   isHod(): Promise<boolean>;
-  escalations(): Promise<HodEscalation[]>;
   team(): Promise<HodTeamMember[]>;
   assignments(): Promise<HodAssignment[]>;
   unassignedPapers(limit?: number): Promise<UnassignedPaper[]>;
@@ -519,16 +536,60 @@ export interface HodApi {
   setPreferred(userId: string, subjects: string[]): Promise<void>;
   /** hod_action_history(): newest first; pass the oldest `at` seen as `before` for the next page. */
   history(filter: { actor?: string | null; role?: string | null; before?: string | null; limit?: number }): Promise<HistoryRow[]>;
-  pass(questionId: string, version: number): Promise<void>;
-  fix(questionId: string, version: number, patch: HodFixPatch): Promise<void>;
+  /** hod_send_back(): a question a student sent up goes back to the students. */
   sendBack(questionId: string, note: string): Promise<void>;
-  setAside(questionId: string, reason: string): Promise<void>;
   pictureUrl(path: string): Promise<string | null>;
+  /** The public address of a figure already on the site (paper-figures bucket); no network call. */
+  figureUrl(path: string): string | null;
   paperPages(paperId: string): Promise<PaperPage[]>;
   /** ai_trust_meter(): how far each AI confidence level has got toward the trust bar. */
   aiTrust(): Promise<TrustRow[]>;
   /** admin_set_ai_trust(): admin only; the server refuses to trust a level that has not earned it. */
   setAiTrust(level: TrustLevel, decision: TrustDecision, trusted: boolean): Promise<void>;
+
+  // ---- the go-live side (20261012*): every call checks is_hod() inside; the server's own
+  // sentence is the error message and is shown as written.
+  /** hod_desk_counts(): the numbers on the tab badges. */
+  deskCounts(): Promise<HodDeskCounts>;
+  /** hod_paper_trail(): where each pipeline paper is on the route. */
+  paperTrail(): Promise<HodTrailRow[]>;
+  /** hod_needs_you_papers(): papers with questions only an HOD can settle. */
+  needsYouPapers(): Promise<HodNeedsYouPaper[]>;
+  /** hod_needs_you_questions(): the open questions on one paper, in order. */
+  needsYouQuestions(auditPaperId: string): Promise<HodNeedsQuestion[]>;
+  /** hod_set_question_state(): 'pass' | 'set_aside' (needs a note) | 'reopen'. Returns the new state. */
+  setQuestionState(questionId: string, state: 'pass' | 'set_aside' | 'reopen', note?: string): Promise<string>;
+  /** hod_edit_question(): a versioned edit; returns the new version. Only the changed keys are sent. */
+  editQuestion(questionId: string, version: number, changes: Record<string, unknown>, note?: string): Promise<number>;
+  /** hod_ready_papers(): papers waiting for a yes, with the four checks. */
+  readyPapers(): Promise<HodReadyPaper[]>;
+  /** hod_paper_preview(): the paper, its questions, counts, pages and the four checks. */
+  paperPreview(auditPaperId: string): Promise<HodPreview>;
+  /** hod_update_publish_meta(): one header field before the paper goes live. */
+  updatePublishMeta(auditPaperId: string, field: string, value: string): Promise<void>;
+  /**
+   * hod_approve_paper(): refuses unless all four checks pass; publishes. Questions left out
+   * (set aside) no longer block, but the HOD must confirm them: pass `confirmLeftOut` true
+   * (p_confirm_left_out). The parameter is sent only when true, so a server that does not
+   * know it yet still answers.
+   */
+  approvePaper(auditPaperId: string, note?: string, confirmLeftOut?: boolean): Promise<{ live_bank_paper_id: string | null; question_count: number }>;
+  /** hod_live_papers(): every library paper, live and hidden. */
+  livePapers(): Promise<HodLivePaper[]>;
+  hidePaper(paperId: string, reason: string): Promise<void>;
+  restorePaper(paperId: string): Promise<void>;
+  /** hod_edit_live_paper(): one detail of a live paper; null clears it. */
+  editLivePaper(paperId: string, field: string, value: string | null): Promise<void>;
+  /** hod_student_uploads() */
+  studentUploads(status: UploadStatus): Promise<HodStudentUpload[]>;
+  /** hod_review_upload() */
+  reviewUpload(id: string, decision: 'approved' | 'rejected', note?: string): Promise<void>;
+  /** A 10-minute signed link to one uploaded file, or null. */
+  uploadFileUrl(path: string): Promise<string | null>;
+  /** ai_trust_overall(): the one counter. */
+  aiTrustOverall(): Promise<AiTrustOverall>;
+  /** explain_assignment(): why this paper suits (or does not suit) this verifier. */
+  explainAssignment(checkerId: string, auditPaperId: string): Promise<AssignmentExplanation>;
 }
 
 async function call(fn: string, args?: Record<string, unknown>): Promise<unknown> {
@@ -547,9 +608,6 @@ export async function isHod(): Promise<boolean> {
 
 export const realHodApi: HodApi = {
   isHod,
-  async escalations() {
-    return normaliseEscalations(await call('hod_escalations'));
-  },
   async team() {
     return normaliseTeam(await call('hod_team'));
   },
@@ -589,28 +647,84 @@ export const realHodApi: HodApi = {
   async unassign(assignmentId) {
     await call('hod_unassign', { p_assignment_id: assignmentId });
   },
-  // The HOD settles an escalation with the same versioned functions a checker
-  // uses; the server lets an HOD act on an escalated question.
-  pass: (id, version) => checkerPassQuestion(id, version),
-  fix: (id, version, patch) =>
-    checkerFixQuestion(
-      id,
-      { body: patch.body ?? null, display_number: patch.display_number ?? null, marks: patch.marks ?? null },
-      { version },
-    ),
   async sendBack(questionId, note) {
     await call('hod_send_back', { p_question_id: questionId, p_note: note });
   },
-  async setAside(questionId, reason) {
-    await call('hod_set_aside', { p_question_id: questionId, p_reason: reason });
-  },
   pictureUrl: checkerPictureUrl,
+  figureUrl(path) {
+    const base = String(import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/+$/, '');
+    return `${base}/storage/v1/object/public/paper-figures/${path.replace(/^\/+/, '')}`;
+  },
   paperPages: paperPagePictures,
   async aiTrust() {
     return normaliseTrustRows(await call('ai_trust_meter'));
   },
   async setAiTrust(level, decision, trusted) {
     await call('admin_set_ai_trust', { p_level: level, p_decision: decision, p_trusted: trusted });
+  },
+  async deskCounts() {
+    return normaliseDeskCounts(await call('hod_desk_counts'));
+  },
+  async paperTrail() {
+    return normaliseTrail(await call('hod_paper_trail'));
+  },
+  async needsYouPapers() {
+    return normaliseNeedsYouPapers(await call('hod_needs_you_papers'));
+  },
+  async needsYouQuestions(auditPaperId) {
+    return normaliseNeedsQuestions(await call('hod_needs_you_questions', { p_audit_paper_id: auditPaperId }));
+  },
+  async setQuestionState(questionId, state, note) {
+    const out = await call('hod_set_question_state', { p_question_id: questionId, p_state: state, p_note: note ?? null });
+    return typeof out === 'string' ? out : state === 'pass' ? 'passed' : state === 'reopen' ? 'open' : 'set_aside';
+  },
+  async editQuestion(questionId, version, changes, note) {
+    return num(
+      await call('hod_edit_question', { p_question_id: questionId, p_version: version, p_changes: changes, p_note: note ?? null }),
+    );
+  },
+  async readyPapers() {
+    return normaliseReadyPapers(await call('hod_ready_papers'));
+  },
+  async paperPreview(auditPaperId) {
+    return normalisePreview(await call('hod_paper_preview', { p_audit_paper_id: auditPaperId }));
+  },
+  async updatePublishMeta(auditPaperId, field, value) {
+    await call('hod_update_publish_meta', { p_audit_paper_id: auditPaperId, p_field: field, p_value: value });
+  },
+  async approvePaper(auditPaperId, note, confirmLeftOut) {
+    const args: Record<string, unknown> = { p_audit_paper_id: auditPaperId, p_note: note?.trim() ? note.trim() : null };
+    if (confirmLeftOut === true) args.p_confirm_left_out = true;
+    const out = obj(await call('hod_approve_paper', args));
+    return { live_bank_paper_id: str(out.live_bank_paper_id), question_count: num(out.question_count) };
+  },
+  async livePapers() {
+    return normaliseLivePapers(await call('hod_live_papers'));
+  },
+  async hidePaper(paperId, reason) {
+    await call('hod_hide_paper', { p_paper_id: paperId, p_reason: reason });
+  },
+  async restorePaper(paperId) {
+    await call('hod_restore_paper', { p_paper_id: paperId });
+  },
+  async editLivePaper(paperId, field, value) {
+    await call('hod_edit_live_paper', { p_paper_id: paperId, p_field: field, p_value: value });
+  },
+  async studentUploads(status) {
+    return normaliseUploads(await call('hod_student_uploads', { p_status: status }));
+  },
+  async reviewUpload(id, decision, note) {
+    await call('hod_review_upload', { p_id: id, p_decision: decision, p_note: note?.trim() ? note.trim() : null });
+  },
+  async uploadFileUrl(path) {
+    const { data, error } = await supabase.storage.from('paper-submissions').createSignedUrl(path, 600);
+    return error ? null : data?.signedUrl ?? null;
+  },
+  async aiTrustOverall() {
+    return normaliseTrustOverall(await call('ai_trust_overall'));
+  },
+  async explainAssignment(checkerId, auditPaperId) {
+    return normaliseExplanation(await call('explain_assignment', { p_checker: checkerId, p_audit_paper: auditPaperId }));
   },
 };
 

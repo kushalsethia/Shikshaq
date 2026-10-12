@@ -3,9 +3,10 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminStack } from '@/pages/admin/embed';
 import { AdminPageIntroPanel, InfoTip } from '@/components/admin/AdminHelp';
 import { AdminPanelHeader } from '@/pages/admin/AdminTable';
-import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
+import { BentoPanel } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { QuestionTimeline } from '@/components/admin/QuestionTimeline';
 import { AdminDialog } from '@/components/admin/AdminDialog';
@@ -153,7 +154,7 @@ export function AdminTeamPage({
 
   if (checkingAdmin || !settled) {
     return (
-      <BentoStack className="min-h-screen bg-muted">
+      <AdminStack>
         <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
         <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
           <div className="px-[18px]">
@@ -161,7 +162,7 @@ export function AdminTeamPage({
           </div>
         </BentoPanel>
         <AdminAuditNote />
-      </BentoStack>
+      </AdminStack>
     );
   }
   if (!isAdmin) return null;
@@ -169,7 +170,7 @@ export function AdminTeamPage({
   const view = loadView({ settled, error: loadError, count: stats.length + progress.length });
 
   return (
-    <BentoStack className="min-h-screen bg-muted">
+    <AdminStack>
       <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
       <AdminPageIntroPanel page="team" />
       {banner}
@@ -232,7 +233,7 @@ export function AdminTeamPage({
           />
         ) : null}
       </AdminDialog>
-    </BentoStack>
+    </AdminStack>
   );
 }
 

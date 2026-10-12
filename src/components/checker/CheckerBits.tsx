@@ -4,7 +4,7 @@ import { MathText } from '@/components/papers/math-text';
 import { OptionList } from '@/components/checker/OptionList';
 import { cn } from '@/lib/utils';
 import type { CheckerApi } from '@/lib/checker-api';
-import { describeLanes } from '@/lib/checker-lanes';
+import { describeLanes, NOT_FOR_STUDENT_LINE } from '@/lib/checker-lanes';
 import { contextHeading, partLabel, type QuestionContext } from '@/lib/checker-context';
 import { canSplitAt, splitOrPlan, SPLIT_OR_NOTE } from '@/lib/checker-body';
 import { CHIP } from '@/lib/checker-button-styles';
@@ -102,7 +102,7 @@ export function CheckGuidance({
       <div className="flex items-center justify-between gap-3">
         <p className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-warm-meta">
           <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span className="min-w-0">{soloLane ? `How to check: ${soloLane.lane.name}` : 'How to check'}</span>
+          <span className="min-w-0">{soloLane ? `How to check: ${soloLane.title}` : 'How to check'}</span>
         </p>
         <button
           type="button"
@@ -123,8 +123,8 @@ export function CheckGuidance({
           ) : null}
           {asked.map((b) => (
             <div key={b.lane.id} data-lane={b.lane.id}>
-              {soloLane ? null : <p className="text-[13px] font-semibold leading-snug text-warm-secondary">{b.lane.name}</p>}
-              <p className="text-[13px] leading-snug text-warm-secondary">{b.lane.what_to_do}</p>
+              {soloLane ? null : <p className="text-[13px] font-semibold leading-snug text-warm-secondary">{b.title}</p>}
+              <p className="text-[13px] leading-snug text-warm-secondary">{b.text}</p>
               {b.detail ? <p className="mt-0.5 text-[12px] text-warm-meta">What the computer noticed: {b.detail}</p> : null}
             </div>
           ))}
@@ -135,7 +135,7 @@ export function CheckGuidance({
           ))}
           {quiet.length > 0 ? (
             <p className="text-[12px] leading-snug text-warm-meta">
-              Not for you to settle: {quiet.map((b) => b.lane.name.toLowerCase()).join(', ')}. Someone else sorts that out.
+              {NOT_FOR_STUDENT_LINE}
             </p>
           ) : null}
           {note ? <p className="text-[12px] text-warm-meta">What the computer noticed: {note}</p> : null}

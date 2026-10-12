@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -6,6 +6,7 @@ import { ArrowRight, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminStack } from '@/pages/admin/embed';
 import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
 import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
 import { AdminEmpty, AdminError, AdminLoading, type AdminLoadingShape } from '@/components/admin/AdminState';
@@ -24,11 +25,11 @@ import {
   readPipeline,
 } from '@/lib/pipeline-stats';
 import { realPipelineApi } from '@/lib/pipeline-api';
-import { PaperRegistryPanel, type RegistrySummaryStatus } from '@/components/admin/PaperRegistryPanel';
+import { PaperRegistryPanel } from '@/components/admin/PaperRegistryPanel';
 import { PipelineRoute } from '@/components/admin/PipelineRoute';
 import { realPipelineRouteApi, type PipelineRouteApi } from '@/lib/pipeline-route';
 import { realPaperRegistryApi } from '@/lib/paper-registry-api';
-import { headlineCounts, type PaperRegistryApi, type ProcessedState, type RegistrySummary } from '@/lib/paper-registry';
+import type { PaperRegistryApi, ProcessedState } from '@/lib/paper-registry';
 import { feedActionWords, feedActorWords } from '@/lib/activity-format';
 import { relativeWords, timeWords } from '@/lib/history-labels';
 import { cn } from '@/lib/utils';
@@ -37,25 +38,31 @@ import { isDummyMode } from '@/lib/dummy-mode';
 
 const DummyAdminPipeline = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminPipelineDummy')) : null;
 
-/* /admin/pipeline: the papers pipeline in one place (owner 2026-10-02:
-   "how many papers, last papers ... graphs stats logs etc in one place").
-   Read-only. Everything comes from two admin-only RPCs: admin_pipeline_stats()
-   (counts, newest papers, a 30-day series) and the existing
-   admin_activity_feed() (the log). No question text reaches this page.
+/* The pipeline overview: the System tab of /admin (owner 2026-10-02: "how many
+   papers, last papers ... graphs stats logs etc in one place"; 2026-10-12:
+   "one pipeline overview page ... brought up to speed with this entire new way
+   of working", for admin AND HOD).
 
-   Words used here match the library's: Verified = published and checked,
-   Needs review = published but not fully checked, Hidden = not published.
-   "Student queue" is the checker's pile (every row has its page image),
-   "Admin queue" is the admin pile.
+   The top of the page is the papers route (PipelineRoute): PDFs on Kanishk's
+   computer, read by the swarm, pictures waiting, checking by students, needs
+   you, ready to go live, live, with the time of the desk's last sync. It comes
+   from admin_pipeline_route(), which HODs may call too; HODs get the same route
+   on /hod/pipeline (pages/HodPipeline.tsx).
 
-   Admin rework, Batch 6:
-   - Only the admin check gates the page. The header, the intro, the "Needs
-     attention" strip and the paper registry always render; each stats panel
-     has its own skeleton or its own error with Try again.
-   - The numbers somebody has to act on come first, as a strip of links.
-     The 30-day charts and the by-subject bars are folded away.
+   Under it, folded away, is the admin-only detail: the desk's list of every
+   paper (admin_paper_registry*), the library numbers and newest papers
+   (admin_pipeline_stats()) and the activity log (admin_activity_feed()). No
+   question text reaches this page.
+
+   - Only the admin check gates the page. The header, the intro, the route and
+     the paper registry always render; each stats panel has its own skeleton or
+     its own error with Try again.
+   - The old "Needs attention" strip and "Checking" panel are gone: they counted
+     the frozen earlier-library copies too, so they disagreed with the route.
    - Each panel says what it counts, because PDFs, desk papers and library
-     papers are three different totals. */
+     papers are three different totals.
+   - Words match the library's: Verified = published and checked, Needs review
+     = published but not fully checked, Hidden = not published. */
 
 type Tone = 'alert' | 'plain' | 'good';
 
@@ -197,70 +204,6 @@ export type StatsStatus = 'loading' | 'ok' | 'error';
 
 const PANEL = 'px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]';
 
-/** The numbers somebody has to act on, each a way into its list. A number that did not load is "?", never 0. */
-export function AttentionStrip({
-  stats,
-  status,
-  notStarted,
-  registryStatus,
-  onShowNotStarted,
-  onRetry,
-}: {
-  stats: PipelineStats | null;
-  status: StatsStatus;
-  /** From the registry summary, or null while it has not loaded. */
-  notStarted: number | null;
-  registryStatus: RegistrySummaryStatus;
-  onShowNotStarted: () => void;
-  onRetry: () => void;
-}) {
-  const q = stats?.queues;
-  const desk = stats?.desk;
-  const statState: 'ok' | 'loading' | 'unknown' = status === 'ok' ? 'ok' : status === 'loading' ? 'loading' : 'unknown';
-  const regState: 'ok' | 'loading' | 'unknown' = registryStatus === 'ok' && notStarted !== null ? 'ok' : registryStatus === 'loading' ? 'loading' : 'unknown';
-  return (
-    <BentoPanel fill="card" className={PANEL}>
-      <AdminPanelHeader title="Needs attention" subtitle="Where work is waiting. A number with an arrow opens the list behind it." />
-      <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-4" data-testid="needs-attention">
-        <Tile
-          label="Not started"
-          tone={(notStarted ?? 0) > 0 ? 'alert' : 'plain'}
-          value={(notStarted ?? 0).toLocaleString()}
-          sub="PDFs nobody has touched"
-          state={regState}
-          onClick={onShowNotStarted}
-        />
-        <Tile
-          label="Admin queue"
-          tone={q && q.admin_queue > 0 ? 'alert' : 'plain'}
-          value={q?.admin_queue.toLocaleString()}
-          sub="questions waiting for an admin"
-          state={statState}
-          to="/admin/admin-queue"
-        />
-        <Tile
-          label="Student queue"
-          value={q?.student_queue.toLocaleString()}
-          sub="questions waiting for verifiers"
-          state={statState}
-          to="/admin/team"
-        />
-        <Tile
-          label="New scans"
-          value={desk?.new_scans.toLocaleString()}
-          sub="papers read from fresh scans"
-          state={statState}
-        />
-      </div>
-      {status === 'error' ? (
-        <div className="mt-3 px-[18px]">
-          <AdminError what="the queue numbers" onRetry={onRetry} />
-        </div>
-      ) : null}
-    </BentoPanel>
-  );
-}
-
 /** A panel fed by the stats read: its own skeleton while that loads, its own error with Try again if it fails. */
 export function StatsPanel({
   title,
@@ -323,7 +266,6 @@ export function AdminPipelinePage({
   // The log can fail on its own without blanking the numbers; a failed read is never shown as "no activity".
   const [feedFailed, setFeedFailed] = useState(false);
   const [status, setStatus] = useState<StatsStatus>('loading');
-  const [registry, setRegistry] = useState<{ summary: RegistrySummary | null; status: RegistrySummaryStatus }>({ summary: null, status: 'loading' });
   const [focus, setFocus] = useState<{ states: ProcessedState[]; nonce: number } | null>(null);
   // The paper list and the library numbers are folded away under the route. A stop that filters the list opens the fold.
   const [foldOpen, setFoldOpen] = useState(false);
@@ -356,7 +298,6 @@ export function AdminPipelinePage({
     }
   }
 
-  const onSummary = useCallback((summary: RegistrySummary | null, st: RegistrySummaryStatus) => setRegistry({ summary, status: st }), []);
   const showRegistry = (states: ProcessedState[]) => {
     setFoldOpen(true);
     setFocus({ states, nonce: Date.now() });
@@ -376,13 +317,13 @@ export function AdminPipelinePage({
 
   if (checkingAdmin) {
     return (
-      <BentoStack className="min-h-screen bg-muted">
+      <AdminStack>
         <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? signedInName} />
         <BentoPanel fill="card" className="px-[18px] py-[18px] lg:px-[18px] lg:py-[18px]">
           <AdminLoading shape="tiles" rows={4} label="Loading the pipeline" />
         </BentoPanel>
         <AdminAuditNote />
-      </BentoStack>
+      </AdminStack>
     );
   }
 
@@ -390,8 +331,6 @@ export function AdminPipelinePage({
   if (!isAdmin) return null;
 
   const lib = stats?.library;
-  const q = stats?.queues;
-  const desk = stats?.desk;
   const mathsLive = lib ? lib.maths_verified + lib.maths_needs_review : 0;
 
   const recentColumns: AdminTableColumn[] = [
@@ -433,12 +372,12 @@ export function AdminPipelinePage({
   }));
 
   return (
-    <BentoStack className="min-h-screen bg-muted">
+    <AdminStack>
       <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? signedInName} />
       <AdminPageIntroPanel page="pipeline" />
       {banner}
 
-      <PipelineRoute api={routeApi} onShowRegistry={showRegistry} />
+      <PipelineRoute api={routeApi} audience="admin" onShowRegistry={showRegistry} />
 
       <details
         open={foldOpen}
@@ -450,27 +389,18 @@ export function AdminPipelinePage({
           <span className="min-w-0">
             <span className="block text-[15px] font-extrabold text-foreground">The paper list and the library numbers</span>
             <span className="block text-[13px] text-warm-secondary">
-              Search every PDF, then the library, the checking desk, the newest papers and the activity.
+              Admins only. The desk's list of every paper (longer than the files on the computer), then the library, the newest papers and the activity.
             </span>
           </span>
           <ChevronDown className="h-5 w-5 shrink-0 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none" aria-hidden />
         </summary>
 
         <BentoStack className="mt-3 bg-muted">
-        <AttentionStrip
-          stats={stats}
-          status={status}
-          notStarted={registry.summary ? headlineCounts(registry.summary).notStarted : null}
-          registryStatus={registry.status}
-          onShowNotStarted={() => showRegistry(['not_started'])}
-          onRetry={() => void load()}
-        />
-
-        <PaperRegistryPanel api={registryApi} onSummary={onSummary} focus={focus} />
+        <PaperRegistryPanel api={registryApi} focus={focus} />
 
         <StatsPanel
           title="Papers library"
-          subtitle="Papers published on the website. This counts library papers, so it differs from the PDF count above."
+          subtitle="Papers published on the website. This counts library papers, so it differs from the PDF count on the route."
           meta={stats ? `updated ${formatDistanceToNow(new Date(stats.generated_at), { addSuffix: true })}` : undefined}
           status={status}
           what="the library numbers"
@@ -501,23 +431,6 @@ export function AdminPipelinePage({
                 </div>
               </div>
             </>
-          ) : null}
-        </StatsPanel>
-
-        <StatsPanel
-          title="Checking"
-          subtitle="Papers on the checking desk and the questions cleared so far. The queues are in Needs attention."
-          meta={desk ? `${desk.papers.toLocaleString()} papers on the desk` : undefined}
-          status={status}
-          what="the checking numbers"
-          onRetry={() => void load()}
-        >
-          {desk && q ? (
-            <div className="grid grid-cols-2 gap-3 px-[18px] md:grid-cols-3">
-              <Tile label="Questions cleared" value={q.passed.toLocaleString()} sub={`${pct(q.passed, q.questions)}% of ${q.questions.toLocaleString()}`} />
-              <Tile label="Papers fully passed" value={desk.passed.toLocaleString()} sub={`of ${desk.papers.toLocaleString()} on the desk`} />
-              <Tile label="Papers flagged red" value={desk.red.toLocaleString()} sub="stopped for a problem" tone={desk.red > 0 ? 'alert' : 'plain'} />
-            </div>
           ) : null}
         </StatsPanel>
 
@@ -623,7 +536,7 @@ export function AdminPipelinePage({
       </details>
 
       <AdminAuditNote />
-    </BentoStack>
+    </AdminStack>
   );
 }
 

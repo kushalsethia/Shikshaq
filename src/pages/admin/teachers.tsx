@@ -12,12 +12,13 @@ import imageCompression from 'browser-image-compression';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { invalidateTeacherCache, removeCache } from '@/utils/cache';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminStack } from '@/pages/admin/embed';
 import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
 import { AdminEmpty, AdminError } from '@/components/admin/AdminState';
 import { AdminFilterChips, type AdminFilterChip } from '@/components/admin/AdminFilterChips';
 import { TeacherEditDialog } from '@/components/admin/TeacherEditDialog';
 import { AdminTable, AdminTableSkeleton, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
-import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
+import { BentoPanel } from '@/components/layout/PageContainer';
 import { fetchAdminContacts } from '@/lib/teacher-contact';
 import { formatFeeRange } from '@/lib/fee-range';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
@@ -350,7 +351,7 @@ export function AdminTeachersPage({
   }));
 
   return (
-    <BentoStack className="min-h-screen bg-muted">
+    <AdminStack>
       <AdminHeader nav={nav} signedInEmail={signedIn} />
       {banner}
       <AdminPageIntroPanel page="teachers" />
@@ -420,7 +421,7 @@ export function AdminTeachersPage({
         onClose={() => setEditing(null)}
         uploadHero={(id, file) => api.uploadHero(id, file)}
       />
-    </BentoStack>
+    </AdminStack>
   );
 }
 

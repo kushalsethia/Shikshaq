@@ -9,26 +9,35 @@ import { useIsCheckerBadge } from '@/hooks/useIsCheckerBadge';
 import { nextTabKey } from '@/components/admin/AdminTabs';
 import { AssignmentsTab } from '@/components/hod/AssignmentsTab';
 import { AiTrustTab } from '@/components/hod/AiTrustTab';
-import { ESCALATIONS_KEY, EscalationsTab } from '@/components/hod/EscalationsTab';
 import { HistoryTab } from '@/components/hod/HistoryTab';
 import { LoadError } from '@/components/hod/HodShared';
+import { LiveTab } from '@/components/hod/LiveTab';
+import { NeedsYouTab } from '@/components/hod/NeedsYouTab';
+import { ReadyTab } from '@/components/hod/ReadyTab';
+import { UploadsTab } from '@/components/hod/UploadsTab';
 import { VerifiersTab } from '@/components/hod/VerifiersTab';
 import { TeacherReviewersTab } from '@/components/hod/TeacherReviewersTab';
 import { CHIP } from '@/lib/checker-button-styles';
 import { realHodApi, type HodApi } from '@/lib/hod-api';
+import { resolveTabKey, tabBadge, tabBadgeLabel } from '@/lib/hod-tabs';
 import type { TeacherReviewerAdminApi } from '@/lib/teacher-review-api';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 import { cn } from '@/lib/utils';
 
-/* /hod: the Head of Department view (owner, 7 Oct 2026). Separate from the
-   checker's own screen: it shows what checkers sent up, how each checker is
-   doing, who holds which paper, and how far the AI has earned trust. Open to
-   HODs and admins; everyone else gets a polite "not for you" page. The server
-   checks is_hod() on every call, so this guard only decides what is drawn.
+/* /hod: the Head of Department desk (owner, 7 Oct 2026; go-live side 12 Oct
+   2026). Separate from the checker's own screen. It follows a paper down the
+   route: Needs you (questions only an HOD can settle), Ready to go live (the
+   preview flow and the four checks), Student uploads, Live papers; then who holds
+   which paper, how each verifier is doing, the history, and how far the AI has
+   earned trust. Open to HODs and admins; everyone else gets a polite "not for
+   you" page. The server checks is_hod() on every call, so this guard only
+   decides what is drawn.
 
    TABS is the one list to extend: add an entry and its component and it
-   shows up in the tab row, the URL (?tab=) and the keyboard order.
+   shows up in the tab row, the URL (?tab=) and the keyboard order. The order
+   and the old names that still work (?tab=escalated) are in src/lib/hod-tabs.ts.
+   A paper opened inside a tab is ?paper=<id>.
 
    In a test build with dummy mode on, the same page runs against an
    in-memory fake with no sign-in (src/dummy/HodDummy.tsx). */
@@ -65,11 +74,14 @@ export interface HodTabDef {
 }
 
 export const TABS: HodTabDef[] = [
-  { key: 'escalated', label: 'Escalated to me', hint: 'Questions verifiers could not settle and sent to you.', Component: EscalationsTab },
+  { key: 'needs-you', label: 'Needs you', hint: 'Questions only you can settle: pass, fix, send back to students or set aside.', Component: NeedsYouTab },
+  { key: 'ready', label: 'Ready to go live', hint: 'Papers with every question settled. Read one, run the four checks and publish it.', Component: ReadyTab },
+  { key: 'uploads', label: 'Student uploads', hint: 'Papers students sent in. Approve or reject them.', Component: UploadsTab },
+  { key: 'live', label: 'Live papers', hint: 'Every paper in the library. Hide, restore or change its details.', Component: LiveTab },
   { key: 'assignments', label: 'Assignments', hint: 'Who holds which paper, and papers nobody holds.', Component: AssignmentsTab },
   { key: 'verifiers', label: 'Verifiers', hint: 'How each verifier is doing, their details and preferred subjects.', Component: VerifiersTab },
   { key: 'history', label: 'History', hint: 'What HODs, admins and verifiers did.', Component: HistoryTab },
-  { key: 'ai-trust', label: 'AI trust', hint: 'How often people agree with the AI, level by level.', Component: AiTrustTab },
+  { key: 'ai-trust', label: 'AI trust', hint: 'How many checks it takes before the AI is trusted, and how often people agree with it.', Component: AiTrustTab },
   { key: 'teacher-reviewers', label: 'Teacher reviewers', hint: 'Who is on the teachers team: add or remove people who approve and edit teachers.', Component: TeacherReviewersTab },
 ];
 
@@ -87,7 +99,7 @@ export function HodPage({
   dummyRoles?: { isAdmin: boolean; isChecker: boolean };
   reviewerApi?: TeacherReviewerAdminApi;
 }) {
-  usePageMeta('HOD desk | Shikshaq', 'What verifiers sent up, how each verifier is doing and who holds which paper.');
+  usePageMeta('HOD desk | Shikshaq', 'Settle questions, check papers and put them live, and see how each verifier is doing.');
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const scope = dummy ? 'dummy' : 'live';
@@ -125,11 +137,13 @@ export function HodPage({
 
   const [params, setParams] = useSearchParams();
   const requested = params.get('tab');
-  const active = TABS.find((t) => t.key === requested) ?? TABS[0];
+  const active = TABS.find((t) => t.key === resolveTabKey(requested)) ?? TABS[0];
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const selectTab = (key: string) => {
     const next = new URLSearchParams(params);
     next.set('tab', key);
+    // A paper opened in one tab does not follow you to the next.
+    next.delete('paper');
     setParams(next, { replace: true });
   };
   // WAI-ARIA tabs: only the selected tab is a Tab stop; arrows, Home and End move and select.
@@ -141,14 +155,14 @@ export function HodPage({
     tabRefs.current[next]?.focus();
   };
 
-  const escalationsQ = useQuery({
-    queryKey: ESCALATIONS_KEY(scope),
-    queryFn: () => api.escalations(),
+  // The numbers on the tab badges come from one cheap call, kept fresh while the desk is open.
+  const countsQ = useQuery({
+    queryKey: ['hod', scope, 'counts'],
+    queryFn: () => api.deskCounts(),
     enabled: allowed === true,
     staleTime: 15_000,
     refetchOnMount: true,
   });
-  const waiting = escalationsQ.data?.length ?? 0;
 
   if (checkFailed && allowed === null) {
     return (
@@ -202,6 +216,9 @@ export function HodPage({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-lg font-bold text-foreground">HOD desk</h1>
           <div className="flex flex-wrap items-center gap-2">
+            <Link to="/hod/pipeline" className={cn(CHIP, 'bg-muted text-warm-secondary')}>
+              Pipeline
+            </Link>
             {isAdmin ? (
               <Link to="/admin" className={cn(CHIP, 'bg-muted text-warm-secondary')}>
                 Back to admin
@@ -237,9 +254,10 @@ export function HodPage({
               )}
             >
               {t.label}
-              {t.key === 'escalated' && waiting > 0 ? (
+              {tabBadge(t.key, countsQ.data) > 0 ? (
                 <span className="inline-flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-brand px-[5px] text-[11px] font-bold tabular-nums text-foreground">
-                  {waiting}
+                  <span aria-hidden>{tabBadge(t.key, countsQ.data)}</span>
+                  <span className="sr-only">{`: ${tabBadgeLabel(t.key, countsQ.data)}`}</span>
                 </span>
               ) : null}
             </button>
