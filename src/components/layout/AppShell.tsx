@@ -6,7 +6,7 @@ import { TopBar } from '@/components/layout/TopBar';
 import { Navbar } from '@/components/Navbar';
 import { BottomNav } from '@/components/BottomNav';
 import { PreFooter, preFooterFor, type PreFooterVariant, type B2Counts } from '@/components/layout/PreFooter';
-import { isChromelessPath, isFooterlessPath } from '@/lib/chromeless-routes';
+import { isChromelessLocation, isFooterlessPath } from '@/lib/chromeless-routes';
 
 /* Footer is always below the fold (it is, by definition, the LAST thing on
    every page) and its own `sanitize()` helper pulls in DOMPurify (~23KB) at
@@ -81,7 +81,7 @@ export function useChromeConfig(config: ChromeConfig | null) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const chromeless = isChromelessPath(location.pathname);
+  const chromeless = isChromelessLocation(location.pathname, location.search);
   // Work screens (the paper checker) keep the top nav only.
   const footerless = isFooterlessPath(location.pathname);
   /* The page's config is stored WITH the path it was set for, and staleness

@@ -128,6 +128,9 @@ export function isDefiniteRefusal(err: unknown): boolean {
   if (checkerErrorAdvice(err).moveOn) return true;
   const e = (err && typeof err === 'object' ? err : {}) as { code?: unknown; message?: unknown; details?: unknown };
   const text = [e.message, e.details].filter((v) => typeof v === 'string').join(' ');
+  // Any other 42501 the server raised about a question is final; only the bare
+  // "Not authorized" (possibly a session that needs a refresh) is worth a retry.
+  if (e.code === '42501' && text.trim() !== '' && !/^not authorized$/i.test(text.trim())) return true;
   return (
     e.code === '22023' ||
     /typo corrections are not switched on|printed typo fix must change the words|has no words|empty question/i.test(text)

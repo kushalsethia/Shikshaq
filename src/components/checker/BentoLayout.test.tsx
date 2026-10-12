@@ -80,18 +80,19 @@ describe('the tiles on a tablet and up', () => {
   });
 });
 
-describe('the three tiles on a phone', () => {
-  it('has Question, Page and Fix tabs, and marks the selected one', () => {
+describe('the two tiles on a phone', () => {
+  it('has Question and Page tabs, and marks the selected one', () => {
     for (const [value, label] of [
       ['typed', 'Question'],
       ['printed', 'Page'],
-      ['fix', 'Fix'],
     ] as const) {
       const html = renderToStaticMarkup(<PanelTabs value={value} onChange={noop} tabs={VERIFY_TABS} className="md:hidden" />);
       expect(html).toContain('role="tablist"');
-      expect(html).toContain('grid-cols-3');
+      expect(html).toContain('grid-cols-2');
       expect(html).toContain('md:hidden');
-      for (const t of ['Question', 'Page', 'Fix']) expect(html).toContain(t);
+      for (const t of ['Question', 'Page']) expect(html).toContain(t);
+      // The words, the tools and the editor are all in the Question tile: no Fix tab to hunt for.
+      expect(html).not.toContain('verify-tab-fix');
       const selected = [...html.matchAll(/<button[^>]*aria-selected="true"[^>]*id="verify-tab-(\w+)"|<button[^>]*id="verify-tab-(\w+)"[^>]*aria-selected="true"/g)];
       expect(selected).toHaveLength(1);
       expect(html).toMatch(new RegExp(`id="verify-tab-${value}"[^>]*aria-selected="true"|aria-selected="true"[^>]*id="verify-tab-${value}"`));
@@ -104,10 +105,9 @@ describe('the three tiles on a phone', () => {
       <>
         <TypedFrame tile>x</TypedFrame>
         <PrintedFrame tile>y</PrintedFrame>
-        <FixFrame>z</FixFrame>
       </>,
     );
-    for (const id of ['typed', 'printed', 'fix']) {
+    for (const id of ['typed', 'printed']) {
       expect(html).toMatch(new RegExp(`id="verify-panel-${id}"[^>]*role="tabpanel"[^>]*aria-labelledby="verify-tab-${id}"`));
     }
   });
@@ -159,7 +159,7 @@ describe('the verify screen is wired as one viewport', () => {
   });
 
   it('the question, the picture and the fix form scroll inside their tiles', () => {
-    expect((screen.match(/<FadeScroll/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    expect((screen.match(/<FadeScroll/g) ?? []).length).toBeGreaterThanOrEqual(4);
     // The tile row can shrink to nothing: a long question never pushes the actions away.
     expect(screen).toContain('min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)]');
   });
@@ -172,17 +172,17 @@ describe('the verify screen is wired as one viewport', () => {
     expect(screen).toContain('shrink-0 rounded-[20px]');
   });
 
-  it('a phone gets Question, Page and Fix, and Fix it opens the Fix tile', () => {
+  it('a phone gets Question and Page, and Fix it edits in the Question tile', () => {
     expect(screen).toContain('tabs={VERIFY_TABS}');
-    expect(screen).toContain("order={['typed', 'printed', 'fix']}");
-    expect(screen).toMatch(/setMode\('fix'\);\s+setPanel\('fix'\)/);
-    expect(screen).toMatch(/setMode\('split'\);\s+setPanel\('fix'\)/);
+    expect(screen).toContain("order={['typed', 'printed']}");
+    expect(screen).toMatch(/setMode\('fix'\);\s+setPanel\('typed'\)/);
+    expect(screen).toMatch(/setMode\('split'\);\s+setPanel\('typed'\)/);
+    expect(screen).not.toContain("setPanel('fix')");
   });
 
   it('keeps every action and chip the screen had', () => {
     for (const piece of [
       'data-testid="verify-header"',
-      'data-testid="back-to-my-papers"',
       'data-testid="save-error"',
       'data-testid="undo-last"',
       '<SaveStatusChip',
@@ -208,18 +208,33 @@ describe('the verify screen is wired as one viewport', () => {
 
   it('the page gets its own full-viewport shell, with its small controls moved into the top tile', () => {
     expect(page).toContain('h-[100dvh] min-h-0 overflow-hidden');
-    expect(page).toContain('toolbar={header}');
-    expect(page).toContain('pt-[68px]');
-    expect(page).toContain('lg:pt-[72px]');
+    expect(page).toContain('toolbar={menuButton}');
+    // The site header is not shown on this screen, so nothing reserves room for it.
+    expect(page).not.toContain('pt-[68px]');
+    expect(page).not.toContain('lg:pt-[72px]');
+    expect(page).toContain('p-2.5 lg:p-3');
+    expect(page).toContain('data-testid="back-to-my-papers"');
     expect(page).toContain('<h1 className="sr-only">My papers</h1>');
     expect(screen).toContain('{toolbar ?');
   });
 
-  it('the top tile is one thin tile: paper, progress, unsaved chip and the back buttons', () => {
+  it('the top tile is one calm row: a back arrow, the paper, progress, the unsaved chip and one Menu button', () => {
     const top = screen.slice(screen.indexOf('const topTile'), screen.indexOf('const actionBarShell'));
-    for (const piece of ['role="progressbar"', '<SaveStatusChip compact', 'onClick={onExit}', 'onClick={onList ?? onExit}', 'data-tour="paper"']) {
+    for (const piece of ['role="progressbar"', '<SaveStatusChip compact', 'onClick={onExit}', 'ArrowLeft', 'data-tour="paper"', '{toolbar ?', 'flex-nowrap']) {
       expect(top, piece).toContain(piece);
     }
+    // Every other way out lives in the Menu, not in the tile.
+    for (const gone of ['onClick={onList ?? onExit}', 'Back to admin', 'HOD desk', 'Today ', 'My papers']) {
+      expect(top, gone).not.toContain(gone);
+    }
+    // Only the title may shrink and cut off, and it carries the whole name as its tooltip.
+    expect(top).toContain('title={currentPaperLabel}');
+    expect((top.match(/truncate/g) || []).length).toBe(2);
+  });
+
+  it('the back arrow is a plain icon button with a tooltip and a name', () => {
+    expect(screen).toContain("aria-label=\"Back to this paper's questions\"");
+    expect(screen).toContain("title=\"Back to this paper's questions\"");
   });
 
   it('has no dash characters in its words', () => {

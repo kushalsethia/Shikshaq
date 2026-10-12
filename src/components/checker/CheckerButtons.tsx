@@ -13,6 +13,8 @@ export function ActionButton({
   children,
   tourId,
   className,
+  title,
+  ariaLabel,
 }: {
   tone: ActionTone;
   onClick: () => void;
@@ -22,9 +24,21 @@ export function ActionButton({
   tourId?: string;
   /** Extra classes, like a width for the phone's action grid. */
   className?: string;
+  /** The tooltip: the long name and the key. */
+  title?: string;
+  /** The full name for a screen reader, when the visible label is short. */
+  ariaLabel?: string;
 }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} data-tour={tourId} className={cn(actionToneClass(tone), className)}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      data-tour={tourId}
+      title={title}
+      aria-label={ariaLabel}
+      className={cn(actionToneClass(tone), className)}
+    >
       {children}
     </button>
   );

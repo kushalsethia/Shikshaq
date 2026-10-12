@@ -288,6 +288,18 @@ describe('outbox: order and refusals', () => {
     expect(isDefiniteRefusal(Object.assign(new Error('Not authorized'), { code: '42501' }))).toBe(false);
   });
 
+  it('every other 42501 about a question is final, so the screen never waits on it (12 Oct 2026)', () => {
+    for (const msg of [
+      'This question was sent to the HOD',
+      'Question not found',
+      'This paper is not eligible for checking',
+      'This question is not routed to the paper checker',
+      'Some future refusal text',
+    ]) {
+      expect(isDefiniteRefusal(Object.assign(new Error(msg), { code: '42501' })), msg).toBe(true);
+    }
+  });
+
   it('flush waits for what is on its way and says when something is held back', async () => {
     let release: () => void = () => undefined;
     const send = vi.fn(() => new Promise<void>((r) => (release = r)));

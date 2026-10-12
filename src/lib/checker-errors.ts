@@ -32,6 +32,21 @@ export function checkerErrorAdvice(err: unknown): CheckerErrorAdvice {
       moveOn: true,
     };
   }
+  if (/paper is not assigned to you/i.test(text)) {
+    return {
+      message: 'This paper is no longer assigned to you, so that answer was not saved. Ask your HOD to give it back, or pick another paper.',
+      moveOn: true,
+    };
+  }
+  // Every other refusal the server raises for a question (sent to the HOD,
+  // question gone, paper not open for checking): retrying cannot change it, and
+  // before this it was retried every 8 s while the screen sat on a skeleton.
+  if (/sent to the HOD|question not found|not eligible for checking/i.test(text)) {
+    return {
+      message: 'This question can no longer be checked from your screen (it moved on), so it was not saved. Here is the next one.',
+      moveOn: true,
+    };
+  }
   if (code === '40001' || /stale question text|unapplied split/i.test(text)) {
     return {
       // After a stale save the lease is still this checker's, so the server

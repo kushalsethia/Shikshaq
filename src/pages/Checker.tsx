@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Menu as MenuIcon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
@@ -181,27 +182,40 @@ export function CheckerPage({
   // the page's small controls moved into the screen's top tile.
   const verifyView = Boolean(paperId && verifying);
 
-  const counts = statsQuery.data ? (
-    <span className={cn('rounded-full bg-muted px-3 py-1 text-[13px] font-semibold tabular-nums text-warm-secondary', verifyView && '[@media(max-width:639px)]:hidden')} data-testid="my-counts">
-      Today {statsQuery.data.today_count} · Total {statsQuery.data.total_count}
-    </span>
-  ) : statsQuery.isError ? null : (
-    <span className={cn('rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-warm-meta', verifyView && '[@media(max-width:639px)]:hidden')} data-testid="my-counts">
-      Counting...
+  const countsText = statsQuery.data ? `Today ${statsQuery.data.today_count} · Total ${statsQuery.data.total_count}` : 'Counting...';
+  const counts = statsQuery.isError && !statsQuery.data ? null : (
+    <span
+      className={cn('rounded-full bg-muted px-3 py-1 text-[13px] font-semibold', statsQuery.data ? 'tabular-nums text-warm-secondary' : 'text-warm-meta')}
+      data-testid="my-counts"
+    >
+      {countsText}
     </span>
   );
-  // On a phone the top tile has no room for the two desk links: they are in the Menu.
-  const deskLinkClass = verifyView ? 'hidden md:inline-flex' : '';
+
+  // The verify screen's top tile holds one Menu button and nothing else (owner, 12 Oct 2026:
+  // "too crammed"): the way back to my papers, the desks and the day's counts are inside it.
+  const menuButton = verifyView ? (
+    <button
+      type="button"
+      onClick={() => setMenuOpen(true)}
+      aria-label="Menu"
+      data-testid="verify-menu-button"
+      className={cn(CHIP, 'gap-2 bg-brand-subtle text-foreground [@media(max-width:639px)]:h-11 [@media(max-width:639px)]:w-11 [@media(max-width:639px)]:justify-center [@media(max-width:639px)]:px-0')}
+    >
+      <MenuIcon className="h-[18px] w-[18px]" aria-hidden="true" />
+      <span className="[@media(max-width:639px)]:sr-only">Menu</span>
+    </button>
+  ) : null;
 
   const header = (
     <div className="flex flex-wrap items-center gap-2">
       {isAdmin ? (
-        <Link to="/admin" className={cn(CHIP, 'bg-muted text-warm-secondary', deskLinkClass)}>
+        <Link to="/admin" className={cn(CHIP, 'bg-muted text-warm-secondary')}>
           Back to admin
         </Link>
       ) : null}
       {isHod ? (
-        <Link to="/hod" className={cn(CHIP, 'bg-muted text-warm-secondary', deskLinkClass)}>
+        <Link to="/hod" className={cn(CHIP, 'bg-muted text-warm-secondary')}>
           HOD desk
         </Link>
       ) : null}
@@ -217,7 +231,7 @@ export function CheckerPage({
       {verifyView ? (
         <BentoPanel
           fill="muted"
-          className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col px-2.5 pb-2.5 pt-[68px] lg:px-3 lg:pb-3 lg:pt-[72px]"
+          className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col p-2.5 lg:p-3"
         >
           {banner}
           <h1 className="sr-only">My papers</h1>
@@ -231,7 +245,7 @@ export function CheckerPage({
             userName={profile?.full_name}
             onExit={() => open(paperId!)}
             onList={toList}
-            toolbar={header}
+            toolbar={menuButton}
           />
         </BentoPanel>
       ) : (
@@ -257,6 +271,22 @@ export function CheckerPage({
           </h2>
           <p className="mb-3 text-[13px] text-warm-secondary">Nothing here changes any question.</p>
           <div className="flex flex-col gap-2">
+            {verifyView ? (
+              <>
+                {counts}
+                <button
+                  type="button"
+                  data-testid="back-to-my-papers"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    toList();
+                  }}
+                  className={actionToneClass('muted')}
+                >
+                  Back to my papers
+                </button>
+              </>
+            ) : null}
             {isAdmin ? (
               <Link to="/admin" className={actionToneClass('muted') + ' text-center'}>
                 Back to admin

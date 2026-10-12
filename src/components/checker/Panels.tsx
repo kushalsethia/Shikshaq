@@ -30,12 +30,23 @@ const PAPER_RULES: React.CSSProperties = {
 /** Bento tile corners: 20 on a phone (30 outside minus 10), 18 from md up (30 minus 12). */
 const TILE_RADIUS = 'rounded-[20px] md:rounded-[18px]';
 
+/** The small "Typed by the computer" badge. On the verify screen it sits on the part card itself. */
+export function TypedBadge() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[12px] font-semibold text-warm-secondary">
+      <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
+      Typed by the computer
+    </span>
+  );
+}
+
 export function TypedFrame({
   children,
   className,
   panelClass,
   tile,
   tabbed = true,
+  chip = true,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -45,6 +56,8 @@ export function TypedFrame({
   tile?: boolean;
   /** False when no tab points at it (tablet and laptop): it is then a plain region. */
   tabbed?: boolean;
+  /** False when the caller puts the "Typed by the computer" badge on its own card (the verify screen). */
+  chip?: boolean;
 }) {
   return (
     <section
@@ -60,11 +73,8 @@ export function TypedFrame({
         className,
       )}
     >
-      <header className={cn('flex flex-wrap items-center gap-x-2.5 gap-y-1.5', tile ? 'mb-2 shrink-0' : 'mb-3')}>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[12px] font-semibold text-warm-secondary">
-          <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
-          Typed by the computer
-        </span>
+      <header className={cn('flex flex-wrap items-center gap-x-2.5 gap-y-1.5', chip ? (tile ? 'mb-2 shrink-0' : 'mb-3') : 'sr-only')}>
+        {chip ? <TypedBadge /> : null}
         <h3 className={cn('text-[15px] font-bold text-foreground', tile && 'sr-only')}>What the computer typed</h3>
       </header>
       {children}
@@ -185,11 +195,11 @@ const TYPED_PRINTED_TABS: PanelTabSpec[] = [
   { id: 'printed', label: 'Printed', sub: 'the paper photo', icon: <Camera className="h-5 w-5" aria-hidden="true" />, on: 'bg-brand text-foreground' },
 ];
 
-/** The verify screen on a phone: Question, Page and Fix, one tile at a time (swipe or tap). */
+/** The verify screen on a phone: Question and Page, one tile at a time (swipe or tap). The words, the
+ *  tools and the editor are all in the Question tile now, so there is no third tile to hunt for. */
 export const VERIFY_TABS: PanelTabSpec[] = [
-  { id: 'typed', label: 'Question', sub: 'the words', icon: <Keyboard className="h-5 w-5" aria-hidden="true" />, on: 'bg-panel text-background' },
+  { id: 'typed', label: 'Question', sub: 'the words and tools', icon: <Keyboard className="h-5 w-5" aria-hidden="true" />, on: 'bg-panel text-background' },
   { id: 'printed', label: 'Page', sub: 'the paper', icon: <Camera className="h-5 w-5" aria-hidden="true" />, on: 'bg-brand text-foreground' },
-  { id: 'fix', label: 'Fix', sub: 'the tools', icon: <Pencil className="h-5 w-5" aria-hidden="true" />, on: 'bg-panel text-background' },
 ];
 
 /** Big tabs for a phone. Hidden from lg up by default, where the panels sit side by side. */

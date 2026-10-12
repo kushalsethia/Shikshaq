@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Info } from 'lucide-react';
+import { ChevronDown, Info } from 'lucide-react';
 import { MathText } from '@/components/papers/math-text';
 import { OptionList } from '@/components/checker/OptionList';
 import { cn } from '@/lib/utils';
@@ -320,9 +320,86 @@ export function WholeQuestion({ context }: { context: QuestionContext }) {
   );
 }
 
-function CheckingTag() {
+/** How many other parts the whole question has besides the one being checked. */
+export function otherPartsCount(context: QuestionContext): number {
+  return Math.max(0, (context.parent ? 1 : 0) + context.parts.length - 1);
+}
+
+/**
+ * The rest of the question a part belongs to, folded away under the part card
+ * (owner, 12 Oct 2026: the long list with the part far down it hid the words
+ * being checked). Closed to begin with; opened, it scrolls the part being
+ * checked into view. That part is a one line marker here, not its words again:
+ * the words are in the card above. The other parts' bodies are shown as they
+ * are stored, through MathText.
+ */
+export function OtherParts({ context }: { context: QuestionContext }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement | null>(null);
+  const count = otherPartsCount(context);
+  useEffect(() => {
+    if (!open) return;
+    const el = box.current;
+    const mark = el?.querySelector<HTMLElement>('[aria-current="true"]');
+    if (!el || !mark) return;
+    // Inside the list only: scrollIntoView would also move the tile around it.
+    el.scrollTop = Math.max(0, mark.offsetTop - el.clientHeight / 2 + mark.offsetHeight / 2);
+  }, [open]);
+  if (count === 0) return null;
+  const rows: { id: string; label: string; body: string | null; options: QuestionContext['parts'][number]['options']; depth: number; current: boolean }[] = [];
+  if (context.parent) {
+    rows.push({ id: context.parent.id, label: 'The question', body: context.parent.body, options: context.parent.options, depth: 0, current: context.currentIsParent });
+  }
+  context.parts.forEach((part, i) => {
+    rows.push({ id: part.id, label: partLabel(part, i), body: part.body, options: part.options, depth: part.depth, current: part.id === context.currentId });
+  });
   return (
-    <span className="mb-1 inline-block rounded-full bg-brand px-2 py-0.5 text-[12px] font-bold text-foreground">
+    <div data-testid="other-parts" className="rounded-[10px] border border-warm-hairline">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls="other-parts-list"
+        className="tap-44 flex min-h-[44px] w-full items-center justify-between gap-2 rounded-[10px] px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      >
+        <span className="text-[14px] font-semibold text-foreground">
+          Other parts of this question <span className="tabular-nums text-warm-secondary">({count})</span>
+        </span>
+        <ChevronDown className={cn('h-4 w-4 shrink-0 text-warm-secondary transition-transform duration-200', open && 'rotate-180')} aria-hidden="true" />
+      </button>
+      {open ? (
+        <div id="other-parts-list" ref={box} className="relative max-h-56 overflow-y-auto px-3 pb-3">
+          <p className="mb-2 text-[13px] font-semibold text-warm-secondary">{contextHeading(context)}</p>
+          <ol className="space-y-2">
+            {rows.map((r) =>
+              r.current ? (
+                <li
+                  key={r.id}
+                  aria-current="true"
+                  style={{ marginLeft: Math.min(Math.max(r.depth - 1, 0), 3) * 12 }}
+                  className="flex flex-wrap items-center gap-2 rounded-xl bg-brand-subtle px-2.5 py-2 ring-2 ring-brand"
+                >
+                  <CheckingTag className="" />
+                  <span className="text-[13px] text-warm-secondary">{r.label}, the card above</span>
+                </li>
+              ) : (
+                <li key={r.id} className="rounded-xl bg-muted p-2.5" style={{ marginLeft: Math.min(Math.max(r.depth - 1, 0), 3) * 12 }}>
+                  {(r.body ?? '').trimStart().startsWith(r.label) ? null : <p className="mb-0.5 text-[12px] font-semibold text-warm-secondary">{r.label}</p>}
+                  <MathText text={r.body ?? ''} className="text-[14px] leading-relaxed text-foreground" />
+                  <OptionList options={r.options} />
+                </li>
+              ),
+            )}
+          </ol>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function CheckingTag({ className = 'mb-1' }: { className?: string }) {
+  return (
+    <span className={cn(className, 'inline-block rounded-full bg-brand px-2 py-0.5 text-[12px] font-bold text-foreground')}>
       You are checking this part
     </span>
   );
