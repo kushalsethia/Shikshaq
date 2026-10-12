@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { EmptyNote, ListSkeleton, LoadError, ago } from '@/components/hod/HodShared';
+import { AssignmentWhy } from '@/components/hod/AssignmentWhy';
 import { PROFILES_KEY, TEAM_KEY } from '@/components/hod/VerifiersTab';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { useAuth } from '@/lib/auth-context';
@@ -40,6 +41,7 @@ function PickVerifier({
   onPick,
   paperClass,
   profileOf,
+  extra,
 }: {
   label: string;
   buttonLabel: string;
@@ -49,9 +51,12 @@ function PickVerifier({
   /** The paper's class, so verifiers below it are shown but cannot be picked. */
   paperClass: string | null;
   profileOf: (userId: string) => HodVerifierProfile | undefined;
+  /** Shown under the picker once someone is picked, for example "Why this paper?". */
+  extra?: (userId: string) => ReactNode;
 }) {
   const [value, setValue] = useState('');
   return (
+    <>
     <span className="inline-flex flex-wrap items-center gap-1.5">
       <select
         aria-label={label}
@@ -88,6 +93,8 @@ function PickVerifier({
         {buttonLabel}
       </button>
     </span>
+    {value && extra ? <div className="basis-full">{extra(value)}</div> : null}
+    </>
   );
 }
 
@@ -205,6 +212,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
           </button>
         </div>
       </div>
+      <AssignmentWhy api={api} scope={scope} checkerId={a.user_id} paperId={a.paper_id} />
     </li>
   );
 
@@ -323,6 +331,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
                     paperClass={p.cls}
                     profileOf={profileOf}
                     onPick={(uid) => void act(() => api.assignPaper(p.paper_id, uid), () => `Given to ${nameOf(uid)}.`)}
+                    extra={(uid) => <AssignmentWhy api={api} scope={scope} checkerId={uid} paperId={p.paper_id} />}
                   />
                 </div>
               </li>

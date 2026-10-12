@@ -180,6 +180,37 @@ not. That difference is the whole bug class.
 **Refusals look like 401 with a `42501` body, not 404.** Read the body, not the
 status.
 
+### Student-checker leak audit and the `hod_*` family (11 to 12 October 2026)
+
+A read-only leak audit of the verifier/HOD plumbing (log in `Shikshaq Papers\pipeline\swarm\logs\leak_audit_20261011.md`)
+found six things, each fixed by a migration that was rehearsed in a rolled-back transaction, then applied and checked
+live (details and dates in `docs/GUARDRAILS.md`, section 2):
+
+| Finding | Migration | What changed |
+|---|---|---|
+| F1 view write holes | `20261011170000_close_view_writes` | `public_profiles`, `teacher_comments_public` and four sibling views accepted INSERT/UPDATE/DELETE from anon; writes revoked, SELECT kept |
+| F5 local path in `source` | `20261011180000_strip_local_path_from_source` | three verifier RPCs no longer return `source.snippet_path` |
+| F4 legacy checker RPCs | `20261011190000_close_legacy_checker_rpcs` | `checker_next_question`, `checker_pass_question`, `checker_fix_question` revoked from all three roles |
+| F3 hand-out | `20261011200000_distribute_papers_hod_only` | `distribute_unassigned_papers` is HOD, admin or service role only |
+| F2 audit pictures | `20261011210000_audit_figures_own_paper_only` | a student reads only the `audit-figures` objects of a paper they hold |
+| F18 profile fields | `20261011220000_verifier_profile_length_limits` | name, school and board have length limits (22023) |
+
+**3. Views owned by `postgres` leak by default** (the lesson of F1). A simple, updatable view runs as its owner, so it
+bypasses RLS on the table under it, and Supabase's default privileges had granted INSERT/UPDATE/DELETE/TRUNCATE on it to
+`anon` and `authenticated`. Anyone with the public key could edit a profile or an approved review through the view.
+Revoke the write privileges **by name** from `anon`, `authenticated` and `public` and keep only SELECT; make new views
+`security_invoker` where the reader allows it; audit with `has_table_privilege`, and prove it with an `UPDATE` as `anon`
+inside a rolled-back transaction, not by reading policy.
+
+**The `hod_*` function family** (HOD desk: needs-you, ready, preview, checks, publish, live papers, uploads, trail, counts;
+migrations `20261012100000` to `20261012400000`) follows one rule: SECURITY DEFINER, `set search_path = public, pg_temp`,
+`is_hod()` checked inside (an admin counts) and refusing with `42501`, EXECUTE revoked from `public`, `anon` AND
+`authenticated` and then granted to `authenticated` only. **Every new `hod_*` or `admin_*` function must close to anon the
+day it is written**; check with `has_function_privilege`. They exclude Maths live copies (`audit_papers.source = 'live_copy'`,
+frozen; per-paper calls raise `55000`). `hod_approve_paper` runs four hard checks (every question checked, pictures present,
+header complete, scanner junk gone) and then the same shared publish function as `admin_approve_paper`; questions set aside
+publish only when the HOD confirms (`p_confirm_left_out`). `ai_trust_overall()` is the single AI-trust counter (100 student checks).
+
 ## Architecture worth knowing
 
 - **Papers live in Supabase**, in `bank_papers` (1,960 rows as of 2026-09-29: 1,063 verified, 424 live but `needs_review`, 473 hidden; 893 `needs_review` in all) and `bank_questions` —
@@ -215,6 +246,12 @@ status.
   (localStorage, 5 min–24 h TTLs), papers and counts in React Query (in-memory,
   5 min stale). Two smaller hand-rolled localStorage caches remain in
   `upvotes-context.tsx` and `use-toggle-relation.ts`.
+- **The HOD desk and Admin are two different surfaces (12 October 2026).** `/hod` (`src/pages/Hod.tsx`, HODs and admins) is
+  where papers are settled and published: tabs Needs you, Ready to go live (preview, four checks, header editor, Publish),
+  Student uploads, Live papers, Assignments, Verifiers, History, AI trust, Teacher reviewers; every paper row carries a route
+  trail (Read, Checking by students, Needs you, Ready, Live). `/admin` is trimmed to four tabs, People, Teachers, Logs and
+  System (the pipeline route page and visitor feedback); the old Needs-you, Papers, Admin queue, Uploads and Library pages
+  redirect to the matching HOD tab. Design: `Shikshaq Papers\pipeline\swarm\DESIGN_HOD_DESK_20261012.md`.
 - **The funnel is instrumented.** `recordSignal` is the chokepoint every
   meaningful action passes through, and `src/lib/intent/analytics-mirror.ts`
   forwards a curated allowlist to GA4 and Clarity. It sends facets and a slug,

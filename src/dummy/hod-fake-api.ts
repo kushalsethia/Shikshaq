@@ -15,7 +15,6 @@ import type {
   HodAdminApi,
   HodApi,
   HodAssignment,
-  HodEscalation,
   HodRow,
   HodTeamMember,
   HodVerifierProfile,
@@ -25,6 +24,7 @@ import type { PaperPage } from '@/lib/paper-pages';
 import type { TrustRow } from '@/lib/ai-trust';
 import { formatGrade, isVerifierGrade } from '@/lib/verifier-papers';
 import { dummyPageDataUrl, dummyPictureDataUrl } from '@/dummy/checker-fixtures';
+import { createGoLiveFake } from '@/dummy/hod-golive-fake';
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
@@ -106,7 +106,6 @@ export function createFakeHodApi(): FakeHodApi {
 
   let assignments: HodAssignment[] = [];
   let unassigned: UnassignedPaper[] = [];
-  let escalations: HodEscalation[] = [];
   let trust: TrustRow[] = [];
   let nextId = 100;
   const log: string[] = [];
@@ -183,81 +182,6 @@ export function createFakeHodApi(): FakeHodApi {
     };
     history = seedHistory();
 
-    const esc = (e: Partial<HodEscalation> & Pick<HodEscalation, 'id' | 'paper_id' | 'body'>): HodEscalation => ({
-      display_number: null,
-      number_path: null,
-      instructions: null,
-      options: null,
-      marks: null,
-      version: 1,
-      flag_reasons: [],
-      subject: null,
-      school: null,
-      cls: null,
-      exam: null,
-      year: null,
-      page: null,
-      page_path: null,
-      snippet_path: null,
-      escalated_by: null,
-      escalated_by_name: null,
-      escalated_at: null,
-      reason: null,
-      ...paperBits[e.paper_id as keyof typeof paperBits],
-      ...e,
-    });
-    escalations = [
-      esc({
-        id: 'e2000000-0000-4000-8000-000000000001',
-        paper_id: P.maths,
-        display_number: '4(ii)',
-        marks: 3,
-        version: 2,
-        body: '(ii) Solve for $x$ and verify your answer: $$2x^2 - 7x + 3 = 0$$',
-        snippet_path: 'dummy/q-quadratic.png',
-        page: 2,
-        escalated_by: asha.user_id,
-        escalated_by_name: asha.name,
-        escalated_at: ago(12),
-        reason: 'The picture is of a different question',
-      }),
-      esc({
-        id: 'e2000000-0000-4000-8000-000000000002',
-        paper_id: P.physics,
-        display_number: '7',
-        marks: 2,
-        body: '7. State two uses of a lever in daily life. [2] 8. Define power. Give its unit. [2]',
-        page: 2,
-        page_path: `pages/${P.physics}/2.jpg`,
-        escalated_by: nikhil.user_id,
-        escalated_by_name: nikhil.name,
-        escalated_at: ago(70),
-        reason: 'There is no question here',
-      }),
-      esc({
-        id: 'e2000000-0000-4000-8000-000000000004',
-        paper_id: P.nopic,
-        display_number: '2',
-        marks: 2,
-        body: 'Define latitude and longitude in one sentence each.',
-        escalated_by: nikhil.user_id,
-        escalated_by_name: nikhil.name,
-        escalated_at: ago(60 * 3),
-        reason: 'The page pictures are missing',
-      }),
-      esc({
-        id: 'e2000000-0000-4000-8000-000000000003',
-        paper_id: P.eco,
-        display_number: '5',
-        marks: 4,
-        body: 'Name the three main types of rainfall and give one example of a place where each is found.',
-        escalated_by: asha.user_id,
-        escalated_by_name: asha.name,
-        escalated_at: ago(60 * 26),
-        reason: 'I cannot read the words',
-      }),
-    ];
-
     const row = (level: TrustRow['level'], decision: TrustRow['decision'], subject: string | null, checked: number, asIs: number, waiting: number, over: Partial<TrustRow> = {}): TrustRow => ({
       level,
       decision,
@@ -318,14 +242,19 @@ export function createFakeHodApi(): FakeHodApi {
     });
   }
 
+  const goLive = createGoLiveFake(
+    (what) => log.push(what),
+    (id) => checkers.find((c) => c.user_id === id)?.name ?? 'This verifier',
+  );
+
   const api: FakeHodApi = {
     log,
-    reset: seed,
+    reset() {
+      seed();
+      goLive.reset();
+    },
     async isHod() {
       return true;
-    },
-    async escalations() {
-      return escalations.map((e) => ({ ...e }));
     },
     async team() {
       return checkers.map((c) => {
@@ -457,31 +386,11 @@ export function createFakeHodApi(): FakeHodApi {
       note('hod_unassign', a.paper_id);
       log.push(`unassign ${a.paper_id}`);
     },
-    async pass(id, version) {
-      const e = escalations.find((x) => x.id === id);
-      if (!e) throw pgError('This question is not waiting for the HOD');
-      if (e.version !== version) throw Object.assign(new Error('stale question'), { code: '40001' });
-      escalations = escalations.filter((x) => x !== e);
-      log.push(`pass ${id}`);
-    },
-    async fix(id, version, patch) {
-      const e = escalations.find((x) => x.id === id);
-      if (!e) throw pgError('This question is not waiting for the HOD');
-      if (e.version !== version) throw Object.assign(new Error('stale question'), { code: '40001' });
-      if (patch.body !== undefined && patch.body !== null && patch.body.trim() === '') throw pgError('This question has no words; it cannot be passed');
-      escalations = escalations.filter((x) => x !== e);
-      log.push(`fix ${id} ${JSON.stringify(patch)}`);
-    },
+    ...goLive.api,
     async sendBack(id, noteText) {
-      escalations = escalations.filter((x) => x.id !== id);
+      await goLive.api.sendBack(id, noteText);
       log.push(`send back ${id} ${noteText}`);
       note('hod_send_back', null);
-    },
-    async setAside(id, reason) {
-      if (!reason.trim()) throw pgError('Say why it is being set aside');
-      escalations = escalations.filter((x) => x.id !== id);
-      log.push(`set aside ${id} ${reason}`);
-      note('hod_set_aside', null);
     },
     async pictureUrl(path) {
       return dummyPageDataUrl(path) ?? dummyPictureDataUrl(path);

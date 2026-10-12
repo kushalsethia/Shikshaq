@@ -347,7 +347,6 @@ describe('copy has no em or en dashes', () => {
       'src/lib/history-labels.ts',
       'src/lib/admin-approval.ts',
       'src/lib/admin-approval-shape.ts',
-      'src/pages/admin/paper-approvals.tsx',
       'src/pages/admin/paper-approval.tsx',
       'src/components/papers/held-question-card.tsx',
       ...readdirSync('src/components/admin/approval').map((f) => join('src/components/admin/approval', f)),

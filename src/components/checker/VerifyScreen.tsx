@@ -42,13 +42,23 @@ import {
   splitHalves,
   canSplitAt,
   bigEdit,
-  stripLeadingNumberPrefix,
   moveMarksOut,
   FIX_RULE_TITLE,
   FIX_RULE_NOTE,
   BIG_EDIT_WARNING,
 } from '@/lib/checker-body';
 import { checkerErrorAdvice, undoErrorMessage, UNDONE_NOTE, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE } from '@/lib/checker-errors';
+import { normaliseOptions } from '@/lib/checker-options';
+import {
+  clearDraft,
+  draftOwnerKey,
+  draftsFromQuestion,
+  isEdited,
+  loadDraft,
+  planAnswer,
+  sameDrafts,
+  saveDraft,
+} from '@/lib/checker-drafts';
 import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewChannel';
 import { isForeignChangeToOpenQuestion } from '@/lib/paper-review-realtime';
 import { DebugId } from '@/components/DebugId';
@@ -203,8 +213,14 @@ export function VerifyScreen({
   const pageShown = pageUrl && pageFailed !== pagePlanKey ? pageUrl : pageUrl === undefined ? undefined : null;
   const hasPage = pageShown === undefined ? pagePath !== '' : Boolean(pageShown);
   const hasPicture = hasCrop || hasPage;
+  // No crop and no page matched, or both failed to load: the whole paper is
+  // shown as a page-flip instead, never a dead end.
+  const flipShown = Boolean(picturePlanKey) && !hasPicture && pictureUrl !== undefined && (pagePath === '' || pageUrl !== undefined);
+  // The checker can compare against the paper when any of the three is on
+  // screen. The guidance says "you cannot see the paper" only when none is.
+  const canCompare = hasPicture || flipShown;
   const whatToCheckLine = question
-    ? whatToCheck(question.flag_reasons, question.flag_detail, { hasPicture })
+    ? whatToCheck(question.flag_reasons, question.flag_detail, { hasPicture: canCompare })
     : { line: null, detail: null };
   // Every flag has a lane in plain English (checker-lanes.ts). Without a
   // picture the older picture-aware sentences are used instead.
@@ -218,7 +234,9 @@ export function VerifyScreen({
 
   const [mode, setMode] = useState<Mode>('check');
   // Phone only: which side is showing. Both always hold the same question.
-  const [panel, setPanel] = useState<PanelId>('printed');
+  // It opens on the typed words (the thing being checked, and the only side
+  // you can type on) and goes back to them on every new question.
+  const [panel, setPanel] = useState<PanelId>('typed');
   // Which tool opened Fix it ("Fix the words" or "Edit a formula"), for the pressed look.
   const [fixTool, setFixTool] = useState<'fix' | 'formula'>('fix');
   // "Edit a formula": a number that goes up with every press, and whether the
@@ -244,28 +262,60 @@ export function VerifyScreen({
   // the page move on, or "Saved").
   const [notice, setNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
 
-  useEffect(() => {
+  /* The boxes belong to ONE question. They are reset while the new question
+     renders (React's "adjust state when a prop changes" pattern), not in an
+     effect one render later: an effect left a render in which the new
+     question sat beside the PREVIOUS question's words, and the Enter / P key
+     handler, bound in that very render, saved those words onto the new
+     question (release QA 2026-10-11, finding 1). Now no render, and so no
+     handler, ever sees a mix.
+
+     Keyed on the fetch, not only the id: after a split the first half comes
+     back with the SAME id and a shorter body, and keying on the id alone left
+     the old, whole text in the split box (a second split then failed as
+     "stale"). */
+  const ownerNow = draftOwnerKey(question, questionQuery.dataUpdatedAt);
+  const [draftFor, setDraftFor] = useState('');
+  // Typed work that came back from this browser session, and typed work that
+  // belongs to an older version of the question (shown for copying only).
+  const [restored, setRestored] = useState(false);
+  const [keptTyping, setKeptTyping] = useState<string | null>(null);
+  if (draftFor !== ownerNow) {
+    setDraftFor(ownerNow);
     if (question) {
-      setMode('check');
+      const kept = loadDraft(scope, question, lost);
+      const start = kept?.current ? kept.drafts : draftsFromQuestion(question, lost);
       setFixTool('fix');
       setFormulaReq((r) => ({ ...r, pending: false }));
-      setBodyDraft(lost ?? question.body ?? '');
-      setNumberDraft(question.display_number ?? '');
-      setMarksDraft(question.marks != null ? String(question.marks) : '');
+      setBodyDraft(start.body);
+      setNumberDraft(start.number);
+      setMarksDraft(start.marks);
+      setPrintedTypo(start.printedTypo);
+      setTypoNote(start.typoNote);
+      setMode(kept?.current ? 'fix' : 'check');
+      setRestored(Boolean(kept?.current));
+      setKeptTyping(kept && !kept.current ? kept.drafts.body : null);
+      setEditorKey((k) => k + 1);
+      setPanel('typed');
       setShowPage(false);
       setSplitAt(null);
-      setPrintedTypo(false);
-      setTypoNote('');
       setHelpOpen(false);
       setHelpReason('');
       setError(null);
     }
-    // Keyed on the fetch, not only the id: after a split the first half
-    // comes back with the SAME id and a shorter body, and keying on the id
-    // alone left the old, whole text in the split box (a second split then
-    // failed as "stale").
+  }
+
+  // Autosave: what is typed on this question is kept for this browser
+  // session, so a refresh, the Back buttons or a question that comes back
+  // after the lease ran out do not lose it. Removed when it matches the
+  // question again, and after every successful answer.
+  useEffect(() => {
+    if (!question || draftFor !== ownerNow) return;
+    const now = { body: bodyDraft, number: numberDraft, marks: marksDraft, printedTypo, typoNote };
+    if (sameDrafts(now, draftsFromQuestion(question, lost))) clearDraft(scope, question.id);
+    else saveDraft(scope, question, now);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [question?.id, question?.body, questionQuery.dataUpdatedAt]);
+  }, [bodyDraft, numberDraft, marksDraft, printedTypo, typoNote, draftFor, ownerNow]);
 
   useEffect(() => {
     if (!notice) return;
@@ -314,11 +364,7 @@ export function VerifyScreen({
   // an OR between two questions is not always flagged.
   const splitOffered = question ? !blank : false;
   const orOnly = question ? isOrOnlyBody(question.body) : false;
-  const edited = question
-    ? bodyDraft !== (question.body ?? '') ||
-      numberDraft !== (question.display_number ?? '') ||
-      marksDraft !== (question.marks != null ? String(question.marks) : '')
-    : false;
+  const edited = question ? isEdited(question, { body: bodyDraft, number: numberDraft, marks: marksDraft }) : false;
   // An empty question can never be "right" as it is; only after the checker
   // typed its words in from the picture.
   // A row that is only the word OR is not a question either: use the OR action.
@@ -326,14 +372,24 @@ export function VerifyScreen({
   const marksInvalid = marksDraft.trim() !== '' && !(Number.isFinite(Number(marksDraft)) && Number(marksDraft) >= 0);
   const showBigEditWarning = mode === 'fix' && question ? bigEdit(question.body ?? '', bodyDraft) : false;
 
-  async function run(action: () => Promise<unknown>, okText: string, kind: string) {
+  // A second click in the same tick, before React has shown "Saving...", must
+  // not send a second request.
+  const busyRef = useRef(false);
+
+  /** Runs one answer. True when the server took it; a typed draft for the
+   *  question is only dropped then (`dropDraft`), never on a failure. */
+  async function run(action: () => Promise<unknown>, okText: string, kind: string, dropDraftFor?: string): Promise<boolean> {
+    if (busyRef.current) return false;
+    busyRef.current = true;
     setSubmitting(true);
     setError(null);
     try {
       await action();
+      if (dropDraftFor) clearDraft(scope, dropDraftFor);
       setAnswered((a) => [...a, kind]);
       setNotice({ text: okText, tone: 'ok' });
       refresh();
+      return true;
     } catch (err) {
       const advice = checkerErrorAdvice(err);
       if (advice.moveOn) {
@@ -342,7 +398,9 @@ export function VerifyScreen({
       } else {
         setError(advice.message);
       }
+      return false;
     } finally {
+      busyRef.current = false;
       setSubmitting(false);
     }
   }
@@ -357,50 +415,43 @@ export function VerifyScreen({
       setError('Marks must be a number, like 2 or 0.5.');
       return;
     }
-    if (mode === 'fix' || edited) {
-      const savedNumber = numberDraft.trim() || null;
-      // Owner: "the number lives in the number box only". A leading-prefix
-      // removal ONLY -- never a rewrite of the rest of the text -- so a
-      // body that still repeats its own number ("15. Solve for x...") is
-      // not saved with the number twice. Logged because it silently changes
-      // what gets stored, even though it is always the same removal a
-      // checker could have made by hand.
-      const { stripped, removed } = stripLeadingNumberPrefix(bodyDraft, savedNumber);
-      if (removed) {
+    // One place decides pass or fix and what a fix sends (checker-drafts.ts):
+    // words that were not touched are never sent, and drafts that belong to
+    // another question are refused.
+    const plan = planAnswer(
+      { question, drafts: { body: bodyDraft, number: numberDraft, marks: marksDraft, printedTypo, typoNote }, draftsFor: draftFor, mode },
+      ownerNow,
+    );
+    if (plan.kind === 'refuse') return;
+    if (plan.kind === 'fix') {
+      // Logged because it changes what gets stored, even though it is always
+      // the same removal a checker could have made by hand.
+      if (plan.strippedPrefix) {
         console.info('[checker] stripped repeated leading number on save', {
           questionId: question.id,
-          displayNumber: savedNumber,
-          removed,
+          displayNumber: plan.patch.display_number,
+          removed: plan.strippedPrefix,
         });
       }
-      const finalBody = stripped;
-      const bodyChanged = finalBody !== (question.body ?? '');
-      const typo = mode === 'fix' && printedTypo;
-      const typoProblem = typoSaveProblem(typo, bodyChanged);
+      const typo = plan.printedTypo;
+      const typoProblem = typoSaveProblem(typo, plan.bodyChanged);
       if (typoProblem) {
         setError(typoProblem);
         return;
       }
       await run(
         () =>
-          api.fixQuestion(
-            question.id,
-            {
-              // Unchanged text is not sent at all (null keeps the stored body),
-              // so fixing only the marks can never rewrite the words.
-              body: bodyChanged ? finalBody : null,
-              display_number: savedNumber,
-              marks: marksDraft.trim() === '' ? null : Number(marksDraft),
-            },
-            // The version this checker saw: a save over a newer version is
-            // refused (40001) instead of silently overwriting it.
-            { version: question.version, printedTypo: typo, typoNote: typo ? typoNote : null },
-          ),
+          // plan.patch.body is null unless the words were edited, so fixing
+          // only the marks or the number can never rewrite the question.
+          // The version this checker saw: a save over a newer version is
+          // refused (40001) instead of silently overwriting it.
+          api.fixQuestion(question.id, plan.patch, { version: question.version, printedTypo: typo, typoNote: typo ? typoNote : null }),
         typo ? 'Saved with the typo corrected.' : 'Saved.',
         'fix',
+        question.id,
       );
     } else {
-      await run(() => api.passQuestion(question.id, question.version), 'Marked as right.', 'pass');
+      await run(() => api.passQuestion(question.id, question.version), 'Marked as right.', 'pass', question.id);
     }
   }
 
@@ -411,7 +462,7 @@ export function VerifyScreen({
 
   async function doSplit() {
     if (!question || submitting || !canSplitAt(bodyDraft, splitAt)) return;
-    await run(() => api.splitQuestion(question.id, bodyDraft, splitAt!), 'Split into two. Both will be checked again.', 'split');
+    await run(() => api.splitQuestion(question.id, bodyDraft, splitAt!), 'Split into two. Both will be checked again.', 'split', question.id);
   }
 
   async function doAskForHelp(reason: string) {
@@ -419,7 +470,7 @@ export function VerifyScreen({
     await run(async () => {
       await api.askForHelp(question.id, reason.trim() || 'Not sure how to fix this');
       setHelpOpen(false);
-    }, 'Sent to your HOD.', 'ask_help');
+    }, 'Sent to your HOD.', 'ask_help', question.id);
   }
 
   // Skip is always available, also on the last question left. A skipped
@@ -460,14 +511,16 @@ export function VerifyScreen({
 
   function cancelEdit() {
     if (!question) return;
-    setBodyDraft(lost ?? question.body ?? '');
-    setNumberDraft(question.display_number ?? '');
-    setMarksDraft(question.marks != null ? String(question.marks) : '');
+    const start = draftsFromQuestion(question, lost);
+    setBodyDraft(start.body);
+    setNumberDraft(start.number);
+    setMarksDraft(start.marks);
     setSplitAt(null);
     setPrintedTypo(false);
     setTypoNote('');
     setFormulaReq((r) => ({ ...r, pending: false }));
     setFixTool('fix');
+    setRestored(false);
     setMode('check');
   }
 
@@ -546,44 +599,54 @@ export function VerifyScreen({
     if (tourUserId) markWalkthroughSeen(tourUserId);
   }
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (submitting || tourOpen) return;
-      if (helpOpen) {
-        if (e.key === 'Escape') setHelpOpen(false);
-        return;
-      }
-      if (e.key === 'Escape' && mode !== 'check') {
-        e.preventDefault();
-        cancelEdit();
-        return;
-      }
-      const action = matchCheckerKeyboardEvent(e);
-      if (!action || !question || mode !== 'check') return;
-      if (action === 'pass' && canPass) {
-        e.preventDefault();
-        void doPass();
-      } else if (action === 'fix') {
-        e.preventDefault();
-        startFix('fix');
-      } else if (action === 'split' && splitOffered) {
-        e.preventDefault();
-        startSplit();
-      } else if (action === 'help') {
-        e.preventDefault();
-        setHelpOpen(true);
-      } else if (action === 'skip') {
-        e.preventDefault();
-        void doSkip();
-      } else if (action === 'undo' && answered.length > 0) {
-        e.preventDefault();
-        void doUndo();
-      }
+  /* Keyboard shortcuts. The listener is added ONCE and always calls the
+     handler of the latest render (through the ref), so it can never act on
+     a question or a draft from an earlier render. */
+  function onKeyDown(e: KeyboardEvent) {
+    if (submitting || tourOpen) return;
+    if (helpOpen) {
+      if (e.key === 'Escape') setHelpOpen(false);
+      return;
     }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, helpOpen, submitting, tourOpen, question?.id, canPass, splitOffered, answered.length]);
+    if (e.key === 'Escape' && mode !== 'check') {
+      e.preventDefault();
+      cancelEdit();
+      return;
+    }
+    const action = matchCheckerKeyboardEvent(e);
+    if (!action || !question || mode !== 'check') return;
+    // The boxes must belong to the question on screen (they always do after a
+    // render; this is the belt to the braces above).
+    if (draftFor !== ownerNow) return;
+    if (action === 'pass' && canPass) {
+      e.preventDefault();
+      void doPass();
+    } else if (action === 'fix') {
+      e.preventDefault();
+      startFix('fix');
+    } else if (action === 'split' && splitOffered) {
+      e.preventDefault();
+      startSplit();
+    } else if (action === 'help') {
+      e.preventDefault();
+      setHelpOpen(true);
+    } else if (action === 'skip') {
+      e.preventDefault();
+      void doSkip();
+    } else if (action === 'undo' && answered.length > 0) {
+      e.preventDefault();
+      void doUndo();
+    }
+  }
+  const keyHandlerRef = useRef(onKeyDown);
+  useEffect(() => {
+    keyHandlerRef.current = onKeyDown;
+  });
+  useEffect(() => {
+    const listener = (e: KeyboardEvent) => keyHandlerRef.current(e);
+    window.addEventListener('keydown', listener);
+    return () => window.removeEventListener('keydown', listener);
+  }, []);
 
   const metaChips = question
     ? [
@@ -688,7 +751,9 @@ export function VerifyScreen({
             {notice.text}
           </div>
         ) : null}
-        {error ? (
+        {/* With a question open the error sits beside the buttons (the sticky
+            footer below); this one is for the screens that have no buttons. */}
+        {error && !question ? (
           <div role="alert" className="mb-3 rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
             {error}
           </div>
@@ -765,7 +830,7 @@ export function VerifyScreen({
             </ul>
             {/* How to check: quiet guidance above the pair, never a card. The
                 comparison below (what the computer typed, the printed paper) is the job. */}
-            {hasPicture && laneSummary && (laneSummary.blocks.length > 0 || laneSummary.unmapped.length > 0) ? (
+            {canCompare && laneSummary && (laneSummary.blocks.length > 0 || laneSummary.unmapped.length > 0) ? (
               <CheckGuidance summary={laneSummary} />
             ) : whatToCheckLine.line ? (
               <CheckGuidance line={whatToCheckLine.line} detail={whatToCheckLine.detail} />
@@ -788,14 +853,45 @@ export function VerifyScreen({
                 disabled={submitting}
               />
 
+              {keptTyping !== null ? (
+                <div role="note" className="mb-3 rounded-2xl bg-destructive/10 p-3" data-testid="kept-typing">
+                  <p className="text-[14px] font-semibold text-foreground">What you typed was not saved</p>
+                  <p className="mt-0.5 text-[13px] leading-snug text-warm-secondary">
+                    This question changed after you typed this, so it was not put back. Copy anything you still need, then check the question as it is now.
+                  </p>
+                  <textarea
+                    readOnly
+                    value={keptTyping}
+                    rows={4}
+                    aria-label="What you typed earlier"
+                    className="mt-2 w-full rounded-[12px] bg-card p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  />
+                  <div className="mt-2">
+                    <ActionButton tone="muted" onClick={() => setKeptTyping(null)}>
+                      Done, hide this
+                    </ActionButton>
+                  </div>
+                </div>
+              ) : null}
+
+              {restored && mode === 'fix' ? (
+                <p role="status" className="mb-2 rounded-[12px] bg-brand-subtle px-3 py-2 text-[13px] font-semibold text-foreground">
+                  We kept what you typed last time. Check it, then save it or press Cancel.
+                </p>
+              ) : null}
+
               {lost ? (
                 <Callout tone="warn" title={LOST_TEXT_TITLE}>
                   {LOST_TEXT_NOTE}
                 </Callout>
+              ) : blank && question?.flag_reasons?.includes('incomplete_text') ? (
+                <Callout tone="warn" title="The words did not come through">
+                  Look at the page and press Fix it to type them. If the page does not show them either, press Ask the HOD.
+                </Callout>
               ) : blank ? (
                 <Callout tone="warn" title="There are no words to check here">
-                  The computer read this question together with another one, so its words are not on this row. Press Ask
-                  the HOD and your HOD will sort it out.
+                  The computer may have read this question together with another one. If the page shows the words, press Fix
+                  it and type them in. If it does not, press Ask the HOD and your HOD will sort it out.
                 </Callout>
               ) : garbled ? (
                 <Callout tone="warn" title="These words look scrambled">
@@ -884,6 +980,11 @@ export function VerifyScreen({
                     </label>
                   ) : null}
                   <OptionList options={question.options} />
+                  {normaliseOptions(question.options).length > 0 ? (
+                    <p className="mt-1 text-[13px] leading-snug text-warm-secondary" data-testid="options-cannot-edit">
+                      You cannot change the options here. If one is wrong or missing, press Ask the HOD.
+                    </p>
+                  ) : null}
                   {showBigEditWarning ? (
                     <p role="status" className="mt-1 text-[13px] leading-snug text-destructive">
                       {BIG_EDIT_WARNING}
@@ -984,7 +1085,7 @@ export function VerifyScreen({
                 </div>
               ) : null}
 
-              {picturePlanKey && !hasPicture && pictureUrl !== undefined && (pagePath === '' || pageUrl !== undefined) ? (
+              {flipShown ? (
                 // No crop and no page matched this question, or both failed
                 // to load: show the whole paper as a page-flip, never a dead end.
                 <div className="flex min-w-0 flex-col">
@@ -1007,6 +1108,13 @@ export function VerifyScreen({
             thumb while a long passage scrolls. */}
         {question && !questionQuery.isError ? (
           <div className="sticky bottom-0 z-10 -mx-1 mt-5 flex flex-wrap items-center gap-2.5 border-t border-warm-hairline bg-card px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-4">
+            {/* A save that failed says so right here, beside the buttons, not
+                at the top of a long page. */}
+            {error ? (
+              <div role="alert" data-testid="save-error" className="basis-full rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
+                {error}
+              </div>
+            ) : null}
             {undoButton}
             {mode === 'split' ? (
               <>

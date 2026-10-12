@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminStack } from '@/pages/admin/embed';
 import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
 import { AdminPanelHeader } from '@/pages/admin/AdminTable';
-import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
+import { BentoPanel } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { VersionHistory } from '@/components/admin/VersionHistory';
 import { AdminDialog } from '@/components/admin/AdminDialog';
@@ -130,13 +131,13 @@ export function AdminActivityPage({
 
   if (checkingAdmin) {
     return (
-      <BentoStack className="min-h-screen bg-muted">
+      <AdminStack>
         <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
         <BentoPanel fill="card" className="px-[18px] py-[18px] lg:px-[18px] lg:py-[18px]">
           <AdminLoading shape="rows" rows={5} label="Loading the activity" />
         </BentoPanel>
         <AdminAuditNote />
-      </BentoStack>
+      </AdminStack>
     );
   }
   if (guard.error && !dummy) return <AdminGuardErrorState onRetry={guard.retry} />;
@@ -145,7 +146,7 @@ export function AdminActivityPage({
   const hidden = rows ? rows.length - groups.length : 0;
 
   return (
-    <BentoStack className="min-h-screen bg-muted">
+    <AdminStack>
       <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
       <AdminPageIntroPanel page="activity" />
       {banner}
@@ -243,7 +244,7 @@ export function AdminActivityPage({
       >
         {open ? <VersionHistory api={api} table={open.table} rowId={open.rowId} /> : null}
       </AdminDialog>
-    </BentoStack>
+    </AdminStack>
   );
 }
 

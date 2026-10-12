@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useConfirm } from '@/components/ui/use-confirm';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminStack } from '@/pages/admin/embed';
 import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
 import { AdminEmpty, AdminError } from '@/components/admin/AdminState';
 import { AdminFilterChips, type AdminFilterChip } from '@/components/admin/AdminFilterChips';
@@ -25,7 +26,7 @@ import {
   type AdminTableColumn,
   type AdminTableRow,
 } from '@/pages/admin/AdminTable';
-import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
+import { BentoPanel } from '@/components/layout/PageContainer';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 import { APPLICATION_STATUS_LABEL, docsLabel } from '@/lib/teacher-review-api';
@@ -379,7 +380,7 @@ export function AdminApprovalsPage({
   }));
 
   return (
-    <BentoStack className="min-h-screen bg-muted">
+    <AdminStack>
       <AdminHeader nav={nav} signedInEmail={signedIn} />
       {banner}
       <AdminPageIntroPanel page="applications" />
@@ -453,7 +454,7 @@ export function AdminApprovalsPage({
         onTexted={(a, s) => void onTexted(a, s)}
       />
       {confirmDialog}
-    </BentoStack>
+    </AdminStack>
   );
 }
 

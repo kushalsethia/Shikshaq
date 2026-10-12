@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { adminFieldStyle, adminPanelStyle, adminToast, useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminStack } from '@/pages/admin/embed';
 import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
 import { useRefreshAdminCounts } from '@/pages/admin/useAdminSectionCounts';
 import { AdminStatusPill, AdminRowActions, rowSubject, AdminPanelHeader, type AdminStatus, type AdminRowAction } from '@/pages/admin/AdminTable';
-import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
+import { BentoPanel } from '@/components/layout/PageContainer';
 import { AdminEmpty, AdminError, AdminLoading } from '@/components/admin/AdminState';
 import { AdminFilterChips } from '@/components/admin/AdminFilterChips';
 import { AdminPillButton } from '@/components/admin/AdminPillButton';
@@ -48,7 +49,8 @@ const DummyAdminReviews = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminReview
 
 /* Handoff 09i AD-007 "Reviews" -- the single-page merge of the three legacy
    review-adjacent admin routes (comments, recommendations, upvotes), switched
-   by tabs that live in the URL as ?tab= (reviews, recommendations, upvotes).
+   by tabs that live in the URL as ?source= (reviews, recommendations, upvotes). It is
+   not ?tab=, which belongs to the Admin page this one sits inside.
    Visitor feedback (site ratings, unrelated to teacher reviews) has its own
    page at admin/feedback.tsx.
 
@@ -288,12 +290,12 @@ export function AdminReviewsPage({
   const { error: adminGuardError, retry: retryAdminGuard } = guard;
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get('tab');
+  const tabParam = searchParams.get('source');
   const source: Source = (SOURCES as string[]).includes(tabParam ?? '') ? (tabParam as Source) : 'reviews';
   function setSource(next: string) {
     const p = new URLSearchParams(searchParams);
-    if (next === 'reviews') p.delete('tab');
-    else p.set('tab', next);
+    if (next === 'reviews') p.delete('source');
+    else p.set('source', next);
     setSearchParams(p);
   }
 
@@ -741,7 +743,7 @@ export function AdminReviewsPage({
 
   if (checkingAdmin) {
     return (
-      <BentoStack className="min-h-screen bg-muted">
+      <AdminStack>
         <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
         <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
           <div className="px-[18px]">
@@ -749,7 +751,7 @@ export function AdminReviewsPage({
           </div>
         </BentoPanel>
         <AdminAuditNote />
-      </BentoStack>
+      </AdminStack>
     );
   }
 
@@ -776,7 +778,7 @@ export function AdminReviewsPage({
       : { title: 'No reviews found', hint: 'Parents have not written any reviews yet.' };
 
   return (
-    <BentoStack className="min-h-screen bg-muted">
+    <AdminStack>
       <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
       <AdminPageIntroPanel page="reviews" />
       {banner}
@@ -874,7 +876,7 @@ export function AdminReviewsPage({
 
       <AdminAuditNote />
       {confirmDialog}
-    </BentoStack>
+    </AdminStack>
   );
 }
 

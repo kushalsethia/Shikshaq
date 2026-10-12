@@ -28,7 +28,8 @@ export const KID_SENTENCE: Record<string, string> = {
   personal_data_suspected: 'This may have a real name, roll number or phone number in it. Check carefully.',
   low_ocr_confidence: 'The computer was not sure it read these words correctly. Compare them with the paper.',
   figure_ambiguous: 'It is not clear which picture or diagram goes with this question.',
-  mcq_malformed: 'The answer options may be missing or mixed up. Check each option.',
+  mcq_malformed:
+    'The answer options may be missing or mixed up. Check each option. You cannot change an option here: if one is wrong or missing, press Ask the HOD.',
   type_mismatch: 'This may be marked as the wrong kind of question.',
   numbering_gap: 'A question number seems to be missing near this one.',
   empty_body: 'This question has no words yet.',
@@ -68,7 +69,8 @@ export const KID_SENTENCE: Record<string, string> = {
   gate_reference: "This question says 'he', 'this person' or 'the poem' without saying who or which. Check a student could still tell what it means.",
   gate_labels: 'It may be filed as the wrong kind of question. You do not need to fix that, just check it reads right.',
   gate_type_marks: 'The marks may not fit this kind of question. Check the marks.',
-  gate_mcq: 'The answer options may be missing or mixed up. Check every option is there.',
+  gate_mcq:
+    'The answer options may be missing or mixed up. Check every option is there. You cannot change an option here: if one is wrong or missing, press Ask the HOD.',
   gate_instruction: "The instruction may be missing (like 'Fill in the blanks'), or this may be only an instruction with no question.",
   gate_format: 'This may need underlining, bold or a blank line that got lost. Check the question still works without it.',
   gate_merged: 'Several separate questions may be stuck together in this one.',
@@ -126,6 +128,23 @@ export const INFO_ONLY_CODES = new Set([
 ]);
 
 /**
+ * Words a student must never read, whoever wrote the sentence (release QA,
+ * 2026-10-11): the machine's names and the pipeline's own vocabulary. Matched
+ * as whole words, so "main" or "paid" are fine; "AI" is matched in capitals
+ * only, so an ordinary word is not caught by accident.
+ */
+const NEVER_SHOWN_TO_STUDENTS: RegExp[] = [
+  /\bAI\b|\bA\.I\./,
+  /\b(?:haiku|sonnet|opus|claude|gemini|gpt|llm|swarm|pipeline|model|models|confidence|auditor)\b/i,
+];
+
+/** False when the text would show a student a machine word (AI, Haiku, swarm, ...). */
+export function studentSafe(text: string | null | undefined): boolean {
+  if (!text) return true;
+  return !NEVER_SHOWN_TO_STUDENTS.some((re) => re.test(text));
+}
+
+/**
  * The pipeline's evidence, only when a student can read it. A lot of it is
  * written for engineers ("chapter is null -- ch= was '?'", "fused_group
  * 'grpB3'", "paper.max_marks is 80.0", "Computer note: truncated_end",
@@ -138,6 +157,7 @@ export function kidDetail(detail: string | null | undefined): string | null {
   if (!detail) return null;
   const text = detail.replace(/^\s*computer (check|note)\s*:\s*/i, '').trim();
   if (!text) return null;
+  if (!studentSafe(text)) return null;
   const machine = [
     /\b[a-z]+_[a-z0-9_]+\b/, // snake_case identifiers
     /\s--\s/, // engineer's dash

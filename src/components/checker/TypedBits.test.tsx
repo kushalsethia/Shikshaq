@@ -164,8 +164,12 @@ describe('wiring in the verify screen and the practice round', () => {
     }
   });
 
-  it('shows the printed side first on a phone', () => {
-    expect(screen).toContain("useState<PanelId>('printed')");
+  it('opens on the typed words on a phone, and goes back to them on every new question', () => {
+    // QA 2026-10-11 finding 6: on the Printed tab the words being checked were
+    // hidden, and Looks right worked without them on screen.
+    expect(screen).toContain("useState<PanelId>('typed')");
+    expect(screen).toMatch(/setPanel\('typed'\);\s+setShowPage\(false\)/);
+    expect(practice).toContain("useState<PanelId>('typed')");
   });
 
   it('keeps Looks right, Fix it, Ask the HOD, Skip and Undo in the sticky footer', () => {

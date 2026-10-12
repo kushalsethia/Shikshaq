@@ -406,8 +406,12 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
       setMessage('Details saved.');
       void profileQuery.refetch();
     } catch (err) {
-      const raw = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : '';
-      setFormError(raw || 'Could not save that. Try again in a moment.');
+      // Only the server's own plain sentences (errcode 22023, like "Name is
+      // too long") are shown as they are; a network failure says "Failed to
+      // fetch", which is not for a student.
+      const e = err as { code?: unknown; message?: unknown } | null;
+      const plain = e && e.code === '22023' && typeof e.message === 'string' ? e.message.trim() : '';
+      setFormError(plain || 'Could not save that. Check your internet and try again in a moment.');
     } finally {
       setBusy(false);
     }
