@@ -270,7 +270,7 @@ export function HodPage({
               onClick={() => selectTab(t.key)}
               onKeyDown={onTabKeyDown}
               className={cn(
-                'flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                'flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
                 active.key === t.key ? 'bg-card text-foreground' : 'text-warm-secondary hover:text-foreground',
               )}
             >
