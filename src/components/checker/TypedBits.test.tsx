@@ -4,8 +4,9 @@ import { resolve } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ChangesChip, ChangesPanel, ChangesSection, MarksInsideHint, QuestionChips, ToolsRow, ToolsToolbar, toolTooltip } from '@/components/checker/TypedBits';
 import { PartCard } from '@/components/checker/PartCard';
-import { OtherParts, otherPartsCount } from '@/components/checker/CheckerBits';
-import { assembleQuestionContext, type ContextRow } from '@/lib/checker-context';
+import { ContextPart } from '@/components/checker/CheckerBits';
+import { revealOffset } from '@/components/checker/BentoParts';
+import { assembleQuestionContext, wholeQuestionRows, type ContextRow } from '@/lib/checker-context';
 import { PanelTabs, PrintedFrame, TypedFrame } from '@/components/checker/Panels';
 import { CHECKER_TOOLS } from '@/lib/checker-tools';
 
@@ -166,7 +167,7 @@ describe('wiring in the verify screen and the practice round', () => {
       expect(screen, piece).toContain(piece);
       expect(practice, piece).toContain(piece);
     }
-    for (const piece of ['<PartCard', '<ToolsToolbar', '<ChangesChip', '<ChangesPanel', '<OtherParts', '<ShortcutsPopover', '<RulesInfo']) {
+    for (const piece of ['<PartCard', '<ToolsToolbar', '<ChangesChip', '<ChangesPanel', '<ContextPart', '<ShortcutsPopover', '<RulesInfo']) {
       expect(screen, piece).toContain(piece);
     }
     for (const piece of ['<ToolsRow', '<ChangesSection']) {
@@ -310,60 +311,133 @@ describe('the changes chip', () => {
   });
 });
 
-describe('the rest of the question is folded away under the card', () => {
+describe('the whole question is shown, with the checked part as the one card', () => {
   const rows: ContextRow[] = [
     { id: 'p', ord: 1, display_number: '3', number_path: '3', body: 'Read the passage.', options: null, source: null, is_current: false, is_parent: true, depth: 0 },
     { id: 'a', ord: 2, display_number: '(a)', number_path: '3.a', body: '(a) Name the river.', options: null, source: null, is_current: false, is_parent: false, depth: 1 },
     { id: 'b', ord: 3, display_number: '(b)', number_path: '3.b', body: '(b) Where does it rise?', options: null, source: null, is_current: true, is_parent: false, depth: 1 },
+    { id: 'c', ord: 4, display_number: '(c)', number_path: '3.c', body: '(c) Where does it end?', options: null, source: null, is_current: false, is_parent: false, depth: 1 },
   ];
   const ctx = assembleQuestionContext(rows, 'b')!;
 
-  it('counts the other parts and starts closed, with none of their words on screen', () => {
-    expect(otherPartsCount(ctx)).toBe(2);
-    const html = renderToStaticMarkup(<OtherParts context={ctx} />);
-    expect(html).toContain('Other parts of this question');
-    expect(html).toContain('(2)');
-    expect(html).toContain('aria-expanded="false"');
-    expect(html).not.toContain('Name the river');
-    expect(html).not.toContain('Read the passage');
-    expect(html).not.toContain('Where does it rise');
+  it('lists the stem first, then every part in order, with the checked one flagged in its own place', () => {
+    const list = wholeQuestionRows(ctx);
+    expect(list.map((r) => r.id)).toEqual(['p', 'a', 'b', 'c']);
+    expect(list.map((r) => r.current)).toEqual([false, false, true, false]);
+    expect(list.map((r) => r.isParent)).toEqual([true, false, false, false]);
+    expect(list.map((r) => r.label)).toEqual(['', '(a)', '(b)', '(c)']);
+    expect(list.map((r) => r.depth)).toEqual([0, 1, 1, 1]);
   });
 
-  it('counts a single other part too', () => {
-    const lone = assembleQuestionContext([{ ...rows[2], id: 'z' }, { ...rows[1], id: 'y', is_current: false }], 'z')!;
-    expect(otherPartsCount(lone)).toBe(1);
-    expect(renderToStaticMarkup(<OtherParts context={lone} />)).toContain('(1)');
+  it('flags the stem when the stem itself is being checked', () => {
+    const own = assembleQuestionContext(rows, 'p')!;
+    expect(wholeQuestionRows(own).map((r) => r.current)).toEqual([true, false, false, false]);
+  });
+
+  it('is empty for a stand-alone question, so the screen shows just the card', () => {
+    expect(wholeQuestionRows(null)).toEqual([]);
+    expect(wholeQuestionRows(assembleQuestionContext([rows[2]], 'b'))).toEqual([]);
+  });
+
+  it('shows each other part read-only and calm: its words, no editor, no box of its own', () => {
+    const list = wholeQuestionRows(ctx);
+    const stem = renderToStaticMarkup(<ContextPart row={list[0]} />);
+    const part = renderToStaticMarkup(<ContextPart row={list[1]} />);
+    expect(stem).toContain('data-testid="context-stem"');
+    expect(part).toContain('data-testid="context-part"');
+    for (const html of [stem, part]) {
+      expect(html).not.toContain('<textarea');
+      // Calm: no ring, no filled box, no border all round (only the keyboard focus ring and the thin left rule).
+      expect(html).not.toMatch(/(^|[\s"])ring-2/);
+      expect(html).not.toMatch(/\bborder border-/);
+      expect(html).not.toContain('border-2 ');
+      expect(html).not.toContain('bg-white');
+      expect(html).not.toContain('bg-brand-subtle');
+    }
+    // A thin rule at the left, not a box, and a short label only when the words do not carry it.
+    expect(part).toContain('border-l-2');
+    expect(renderToStaticMarkup(<ContextPart row={{ ...list[1], body: 'Name the river.' }} />)).toContain('>(a)<');
+    expect(part).not.toContain('>(a)<');
+  });
+
+  it('has no folded Other parts row any more', () => {
+    const bits = readFileSync(resolve(__dirname, './CheckerBits.tsx'), 'utf8');
+    expect(bits).not.toContain('Other parts of this question');
+    expect(bits).not.toContain('OtherParts');
+    expect(bits).not.toContain('<details');
   });
 });
 
-describe('the verify screen puts the computer text first', () => {
+describe('the verify screen lays the whole question out around the card', () => {
   const screen = readFileSync(resolve(__dirname, './VerifyScreen.tsx'), 'utf8');
   const left = screen.slice(screen.indexOf('const leftContent'), screen.indexOf('/* ----', screen.indexOf('const leftContent')));
 
-  it('stacks the part card, then the tools, then the context', () => {
-    const order = ['{partCard}', '{tools}', '{details}'].map((p) => left.indexOf(p));
-    expect(order.every((i) => i > 0)).toBe(true);
-    expect([...order].sort((a, b) => a - b)).toEqual(order);
-    // Only rare alerts come before the card.
-    expect(left.indexOf('{alerts}')).toBeLessThan(left.indexOf('{partCard}'));
-  });
-
-  it('shows the part card without the surrounding parts list, which is a folded disclosure', () => {
-    expect(screen).toContain('<OtherParts context={context}');
+  it('renders every row of the question in order, the checked one as the card, the others as read-only parts', () => {
+    expect(left).toContain('contextRows.map(');
+    expect(left).toMatch(/r\.current \? checkedPart : <ContextPart row=\{r\}/);
+    expect(left).toContain('focused={r.id === focusId}');
+    expect(left).toContain('data-testid="whole-question"');
+    expect(screen).toContain('wholeQuestionRows(context)');
+    expect(screen).not.toContain('<OtherParts');
     expect(screen).not.toContain('<WholeQuestion');
-    expect(screen).not.toContain('The part you are checking</p>');
   });
 
-  it('no longer has a second editor box or the three line rules callout', () => {
+  it('puts the rules line, the card, the tools right under it, and the marks hint together as the checked part', () => {
+    const checked = screen.slice(screen.indexOf('const checkedPart'), screen.indexOf('const leftContent'));
+    const order = ['{rulesLine}', '{partCard}', '{tools}', '{marksHint}'].map((p) => checked.indexOf(p));
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it('keeps the stem above the parts, the passage under the stem, and instructions at the very top', () => {
+    expect(left.indexOf('{instructionsBlock}')).toBeLessThan(left.indexOf('data-testid="whole-question"'));
+    expect(left).toContain('i === 0 && r.isParent ? passageBlock : null');
+  });
+
+  it('has one scroll area for the whole pane, with no inner scroller on the passage', () => {
+    expect(screen).not.toContain('max-h-[40vh]');
+    // The left pane and the right pane each reveal the highlighted part (wide, and the phone's two tabs).
+    expect(screen).toContain("const FOCUSED_SELECTOR = '[data-focused=\"true\"]'");
+    expect((screen.match(/revealKey=/g) ?? []).length).toBe(4);
+  });
+
+  it('a stand-alone question is unchanged: the card, the tools, then its passage and instructions', () => {
+    expect(left).toMatch(/\{questionTop\}\s+\{alerts\}\s+\{checkedPart\}\s+\{passageBlock\}\s+\{instructionsBlock\}/);
+  });
+});
+
+describe('the card stays the only editor', () => {
+  const screen = readFileSync(resolve(__dirname, './VerifyScreen.tsx'), 'utf8');
+
+  it('has no second editor box and no three line rules callout', () => {
     expect(screen).not.toContain('const fixEditor');
     expect(screen).not.toContain('<BodyEditor');
     expect(screen).not.toContain('FIX_RULE_NOTE');
     expect(screen).toContain('FIX_RULE_LINE');
   });
 
-  it('keeps the tools docked at the foot of the tile while the card is long', () => {
+  it('keeps the tools docked at the foot of the pane while the card is long', () => {
     expect(screen).toContain('sticky bottom-0 z-[1]');
     expect(screen).toContain('data-testid="tools-dock"');
+  });
+});
+
+describe('scrolling the checked part into view', () => {
+  it('does not move when the part is already in view', () => {
+    expect(revealOffset({ scrollTop: 0, viewHeight: 400, top: 100, height: 120 })).toBe(0);
+    expect(revealOffset({ scrollTop: 50, viewHeight: 400, top: 200, height: 100 })).toBe(50);
+  });
+
+  it('moves just far enough to show a part below a long passage, leaving the stem above it', () => {
+    const next = revealOffset({ scrollTop: 0, viewHeight: 400, top: 900, height: 150 });
+    // Bottom edge of the part (plus 12px of air) lands on the bottom of the area, not its top.
+    expect(next).toBe(900 + 150 + 12 - 400);
+    expect(900 - next).toBeGreaterThan(100);
+  });
+
+  it('brings a part that is above the view back, and lines up a part taller than the area at its top', () => {
+    expect(revealOffset({ scrollTop: 500, viewHeight: 400, top: 300, height: 100 })).toBe(288);
+    expect(revealOffset({ scrollTop: 0, viewHeight: 300, top: 400, height: 500 })).toBe(388);
   });
 });
 

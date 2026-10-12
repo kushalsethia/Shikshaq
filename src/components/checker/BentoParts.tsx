@@ -36,6 +36,20 @@ export function useBentoWide(): boolean {
 }
 
 /**
+ * Where a scroll area should be so that a block (`top` and `height`, measured from the top of the scrolled
+ * content) is fully in view with a little air around it. Nothing moves when it already is. A block taller
+ * than the area is lined up at its top. Pure, so it is tested without a browser.
+ */
+export function revealOffset(a: { scrollTop: number; viewHeight: number; top: number; height: number; margin?: number }): number {
+  const margin = a.margin ?? 12;
+  const bottom = a.top + a.height;
+  if (a.height + margin * 2 > a.viewHeight) return Math.max(0, a.top - margin);
+  if (a.top - margin < a.scrollTop) return Math.max(0, a.top - margin);
+  if (bottom + margin > a.scrollTop + a.viewHeight) return bottom + margin - a.viewHeight;
+  return a.scrollTop;
+}
+
+/**
  * A scroll area inside a tile, with a soft edge at the foot while there is more
  * below (and a hairline at the top once it has scrolled). It fills the room its
  * parent gives it and never grows past it, so a long question scrolls here and
@@ -47,6 +61,8 @@ export function FadeScroll({
   innerClassName,
   white,
   testId = 'tile-scroll',
+  revealKey,
+  revealSelector,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -54,22 +70,50 @@ export function FadeScroll({
   /** The tile behind is white paper, not the card fill. */
   white?: boolean;
   testId?: string;
+  /** When this changes to a non-empty value, `revealSelector` is scrolled into view (see {@link revealOffset}). */
+  revealKey?: string;
+  revealSelector?: string;
 }) {
   const scroller = useRef<HTMLDivElement | null>(null);
   const inner = useRef<HTMLDivElement | null>(null);
   const [more, setMore] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  // The docked tools row sits at the foot of the area: the soft edge goes above it, not over it.
+  const [dockHeight, setDockHeight] = useState(0);
 
   const measure = useCallback(() => {
     const el = scroller.current;
     if (!el) return;
     setMore(el.scrollHeight - el.scrollTop - el.clientHeight > 4);
     setScrolled(el.scrollTop > 4);
+    setDockHeight(el.querySelector<HTMLElement>('[data-testid="tools-dock"]')?.offsetHeight ?? 0);
   }, []);
 
   useLayoutEffect(() => {
     measure();
   });
+  // A long question opens with the part being checked in view (it may sit below a long passage),
+  // scrolled only as far as needed so the stem above it stays visible.
+  useLayoutEffect(() => {
+    if (!revealKey || !revealSelector) return;
+    const el = scroller.current;
+    const target = el?.querySelector<HTMLElement>(revealSelector);
+    if (!el || !target) return;
+    // Layout position inside the scrolled content. offsetTop ignores the transform a card has while it
+    // slides in (getBoundingClientRect does not), so the target is not mis-measured during the entrance.
+    let top = 0;
+    let node: HTMLElement | null = target;
+    while (node && node !== el) {
+      top += node.offsetTop;
+      node = node.offsetParent as HTMLElement | null;
+    }
+    if (node !== el) top = target.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+    const dock = el.querySelector<HTMLElement>('[data-testid="tools-dock"]')?.offsetHeight ?? 0;
+    el.scrollTop = revealOffset({ scrollTop: el.scrollTop, viewHeight: el.clientHeight, top, height: target.offsetHeight + dock });
+    measure();
+    // Only when the key changes: later renders (typing, opening Fix it) must not move the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealKey]);
   useEffect(() => {
     const el = scroller.current;
     const body = inner.current;
@@ -82,13 +126,14 @@ export function FadeScroll({
 
   return (
     <div className={cn('relative min-h-0 flex-1', className)} data-testid={testId} data-more={more ? 'true' : 'false'} data-scrolled={scrolled ? 'true' : 'false'}>
-      <div ref={scroller} onScroll={measure} className="checker-tile-scroll h-full overflow-y-auto">
+      <div ref={scroller} onScroll={measure} className="checker-tile-scroll relative h-full overflow-y-auto">
         <div ref={inner} className={innerClassName}>
           {children}
         </div>
       </div>
       <div
         aria-hidden="true"
+        style={dockHeight ? { bottom: dockHeight } : undefined}
         data-testid="scroll-cue"
         className={cn(
           'checker-fade pointer-events-none absolute inset-x-0 bottom-0 h-8 transition-opacity duration-150',

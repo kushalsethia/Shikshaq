@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MathText } from '@/components/papers/math-text';
@@ -11,14 +11,15 @@ import { tileForNextQuestion } from '@/lib/checker-bento';
 import { BentoTile, FadeScroll, ImageLightbox, TilePager, useBentoWide } from '@/components/checker/BentoParts';
 import { ChangesChip, ChangesPanel, MarksInsideHint, QuestionChips, ToolsToolbar } from '@/components/checker/TypedBits';
 import { toolBlockedByUnsavedEdit, toolById, type CheckerToolId } from '@/lib/checker-tools';
-import { CheckerSkeleton, Callout, CheckGuidance, Modal, OtherParts, SplitPreview, useSignedUrl } from '@/components/checker/CheckerBits';
+import { CheckerSkeleton, Callout, CheckGuidance, ContextPart, Modal, SplitPreview, useSignedUrl, useSignedUrls } from '@/components/checker/CheckerBits';
+import { PartPictures } from '@/components/checker/PartPictures';
 import { ArrowLeft, Check, CircleHelp, Maximize2, Pencil, SkipForward, Undo2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CheckerApi, CheckerQuestion } from '@/lib/checker-api';
 import { whatToCheck } from '@/lib/checker-kid-reasons';
 import { englishContext, passageHeading } from '@/lib/checker-english';
-import { assembleQuestionContext, type QuestionContext } from '@/lib/checker-context';
-import { planCheckerPicture, pictureHeading, PICTURE_MAY_MISS_PARTS, type PicturePlan } from '@/lib/checker-pictures';
+import { assembleQuestionContext, wholeQuestionRows, type QuestionContext } from '@/lib/checker-context';
+import { focusedPartId, planCheckerPicture, planPartPictures, pictureHeading, PICTURE_MAY_MISS_PARTS, type PartPicture, type PicturePlan } from '@/lib/checker-pictures';
 import { planVerifiedPage, PAGE_HEADING, type PagePlan } from '@/lib/checker-page';
 import { describeLanes, unmappedCodes } from '@/lib/checker-lanes';
 import { lostTextSuggestion, LOST_TEXT_CONFIRM, LOST_TEXT_HEADING, LOST_TEXT_NOTE, LOST_TEXT_TITLE } from '@/lib/checker-lost-text';
@@ -256,8 +257,28 @@ export function VerifyScreen({
   // The one picture of the printed paper (checker-pictures.ts). Null plan =
   // no trustworthy crop, so no signed URL is asked for. Owner, 2026-09-28:
   // never a tap-to-show button, never a doubtful crop.
-  const picturePlan: PicturePlan | null =
-    question && !contextQuery.isLoading ? planCheckerPicture(question, context) : null;
+  // A question with parts shows one picture per part, mirroring the typed words
+  // (planPartPictures); with no crop of its own on any part it is the single picture below.
+  const partRows = wholeQuestionRows(context);
+  const partPictures: PartPicture[] | null = question && !contextQuery.isLoading ? planPartPictures(partRows) : null;
+  const checkedPartPath = partPictures?.find((p) => p.current)?.path ?? '';
+  const picturePlan: PicturePlan | null = !question || contextQuery.isLoading
+    ? null
+    : partPictures
+      ? checkedPartPath
+        ? { path: checkedPartPath, kind: 'own', doubtful: false, mayMissParts: false }
+        : null
+      : planCheckerPicture(question, context);
+  // The view aid: which part the highlight pair (typed words left, picture right) is on. It
+  // starts on the part being checked and only ever moves the view: the checked question, the
+  // lease and the saved verdict are decided by `question`, never by this.
+  const [focusPick, setFocusPick] = useState<{ questionId: string; partId: string } | null>(null);
+  const focusId = question
+    ? focusedPartId(focusPick, question.id, partRows.map((r) => r.id))
+    : '';
+  const focusPart = (partId: string) => {
+    if (question) setFocusPick({ questionId: question.id, partId });
+  };
   // The verified whole page, beside every question that has one, crop or not
   // (owner round 24, checker-page.ts). Null when the page is not verified.
   const pagePlan: PagePlan | null = question && !contextQuery.isLoading ? planVerifiedPage(question) : null;
@@ -278,6 +299,12 @@ export function VerifyScreen({
   // A crop that failed to load leaves the page as the picture: show it.
   const pageOpen = pagePath !== '' && (showPage || !hasCrop);
   const pagePlanKey = question && !contextQuery.isLoading && pageOpen ? `${question.id}|${pagePath}` : '';
+  // The other parts' pictures (the checked part's is `pictureUrl`, above).
+  const otherPartPaths: Record<string, string> = {};
+  for (const p of partPictures ?? []) if (p.path && !p.current) otherPartPaths[p.id] = p.path;
+  const otherPartsKey =
+    question && partPictures ? `${question.id}|${Object.entries(otherPartPaths).map(([id, path]) => `${id}:${path}`).join(',')}` : '';
+  const otherPartUrls = useSignedUrls(picApi, otherPartsKey, otherPartPaths);
   const pageUrl = useSignedUrl(picApi, pagePlanKey, pagePath);
   const [pageFailed, setPageFailed] = useState<string>('');
   const pageShown = pageUrl && pageFailed !== pagePlanKey ? pageUrl : pageUrl === undefined ? undefined : null;
@@ -303,6 +330,8 @@ export function VerifyScreen({
   const english = question ? englishContext(question.source) : null;
 
   const [mode, setMode] = useState<Mode>('check');
+  // Choosing a tool (or finishing one) brings the view back to the part being checked.
+  useEffect(() => setFocusPick(null), [mode]);
   // Phone only: which tile is showing (Question, Page or Fix). All hold the
   // same question. It opens on the typed words (the thing being checked). The
   // next question keeps the tile you were on (the owner's bento ask), except
@@ -1252,33 +1281,32 @@ export function VerifyScreen({
           </>
         );
 
-        /** Everything that is context, not the thing being checked: under the part card and the tools. */
-        const details = (
-          <div className="flex flex-col gap-3">
-            {mode !== 'split' && !blank ? (
-              <MarksInsideHint body={bodyDraft} currentMarks={marksDraft} onMove={moveMarks} disabled={submitting} />
-            ) : null}
+        /* The question as the paper has it, around the part being checked (owner, 12 Oct 2026:
+           "show the entire paper question, not just the sub-part"). All of it is plain, calm
+           reading with no box of its own; only the checked part is a card. */
+        const marksHint =
+          mode !== 'split' && !blank ? (
+            <MarksInsideHint body={bodyDraft} currentMarks={marksDraft} onMove={moveMarks} disabled={submitting} />
+          ) : null;
 
-            {context ? <OtherParts context={context} /> : null}
-
-            {/* W14: the passage an English question is about. */}
-            {english?.passage ? (
-              <div className="rounded-[10px] bg-muted px-4 py-3">
-                <p className="mb-1 text-[12px] font-semibold text-warm-meta">{passageHeading(english.passage.kind)}</p>
-                <div className="max-h-[40vh] overflow-y-auto">
-                  <MathText text={english.passage.text} className="text-[14px] leading-relaxed text-foreground" />
-                </div>
-              </div>
-            ) : null}
-            {english?.setText ? <p className="text-[12px] text-warm-secondary">From: {english.setText}</p> : null}
-
-            {question.instructions ? (
-              <div className="rounded-[10px] bg-muted px-4 py-2">
-                <MathText text={question.instructions} className="text-[14px] italic leading-relaxed text-warm-secondary" />
-              </div>
-            ) : null}
+        // W14: the passage an English question is about, whole, in the pane's one scroll area.
+        const passageBlock = english?.passage ? (
+          <div className="mb-3 border-l-2 border-warm-hairline pl-3" data-testid="context-passage">
+            <p className="mb-1 text-[12px] font-semibold text-warm-meta">{passageHeading(english.passage.kind)}</p>
+            <MathText text={english.passage.text} className="break-words text-[15px] leading-relaxed text-foreground" />
+            {english.setText ? <p className="mt-1 text-[12px] text-warm-secondary">From: {english.setText}</p> : null}
           </div>
-        );
+        ) : english?.setText ? (
+          <p className="mb-3 text-[12px] text-warm-secondary">From: {english.setText}</p>
+        ) : null;
+
+        const instructionsBlock = question.instructions ? (
+          <div className="mb-3" data-testid="context-instructions">
+            <MathText text={question.instructions} className="text-[14px] italic leading-relaxed text-warm-secondary" />
+          </div>
+        ) : null;
+
+        const contextRows = partRows;
 
         /** The one line above the card while it is being edited, with the full rules behind the info icon. */
         const rulesLine =
@@ -1381,6 +1409,8 @@ export function VerifyScreen({
               options={question.options}
               lostHeading={lost ? LOST_TEXT_HEADING : null}
               disabled={submitting}
+              focused={focusId === question.id}
+              onFocus={() => focusPart(question.id)}
               changesChip={changesChip}
               changesPanel={changesPanel}
               onBody={setBodyDraft}
@@ -1407,31 +1437,85 @@ export function VerifyScreen({
           </div>
         );
 
-        /** The whole left side, top to bottom: the words first, the tools right under them, the context last. */
-        const leftContent = (
+        /** The checked part: the editable card, its rules line above and the tools right under it. */
+        const checkedPart = (
           <>
-            {questionTop}
-            {alerts}
             {rulesLine}
             {partCard}
             {tools}
-            {details}
+            {marksHint}
           </>
         );
+
+        /** The whole left side, top to bottom. A part of a bigger question shows the whole question from its
+         *  stem, every part in order, with the checked part as the one card in its natural place. */
+        const leftContent =
+          contextRows.length > 0 ? (
+            <>
+              {questionTop}
+              {alerts}
+              {instructionsBlock}
+              <div data-testid="whole-question" role="group" aria-label="The whole question">
+                {contextRows[0].isParent ? null : passageBlock}
+                {contextRows.map((r, i) => (
+                  <Fragment key={r.id}>
+                    {r.current ? checkedPart : <ContextPart row={r} focused={r.id === focusId} onFocus={() => focusPart(r.id)} />}
+                    {/* The passage sits under the stem, before the parts. */}
+                    {i === 0 && r.isParent ? passageBlock : null}
+                  </Fragment>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              {questionTop}
+              {alerts}
+              {checkedPart}
+              {passageBlock}
+              {instructionsBlock}
+            </>
+          );
 
         /* ------------------------------------------------ the printed side */
 
         const cropAlt = picturePlan && picturePlan.kind !== 'own' ? 'the printed whole question' : 'the printed question';
         const pageAlt = pagePlan ? `the whole printed page ${pagePlan.page}, as scanned` : 'the whole printed page';
-        const cropVisible = !picturePlanKey || (viewPath !== '' && cropShown !== null);
+        // One picture tile per part, in the same order as the typed words (see PartPictures).
+        const tilesOn = Boolean(partPictures);
+        const checkedPartId = partPictures?.find((p) => p.current)?.id ?? question.id;
+        const partUrls: Record<string, string | null | undefined> = tilesOn ? { ...otherPartUrls, [checkedPartId]: cropShown } : {};
+        const focusedUrl = tilesOn ? partUrls[focusId] : undefined;
+        // Scrolls the left words and the right picture to the same part. A picture arriving late moves the tiles, so it re-aims.
+        const loadedTiles = Object.values(partUrls).filter(Boolean).length;
+        const leftRevealKey = contextRows.length > 0 ? `${question.id}|${focusId}` : '';
+        const rightRevealKey = tilesOn ? `${question.id}|${focusId}|${loadedTiles}` : '';
+        const FOCUSED_SELECTOR = '[data-focused="true"]';
+        const cropVisible = tilesOn || !picturePlanKey || (viewPath !== '' && cropShown !== null);
         const pageToggle = Boolean(pagePlan && viewPath !== '' && hasCrop);
         const pageViewerOn = Boolean(pagePlan && pageOpen && pageShown !== null);
         const pageTileOn = pageViewerOn || flipShown;
         const cropLabel = picturePlan && picturePlan.kind !== 'own' && cropShown ? 'Photo of the printed whole question' : 'Photo of the printed paper';
 
-        const enlargeCrop = cropShown ? () => setLightbox({ src: cropShown, alt: cropAlt }) : undefined;
+        const enlargeCrop = tilesOn
+          ? focusedUrl
+            ? () => setLightbox({ src: focusedUrl, alt: 'the printed question' })
+            : undefined
+          : cropShown
+            ? () => setLightbox({ src: cropShown, alt: cropAlt })
+            : undefined;
         const enlargeButtonClass =
           'tap-44 rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand';
+
+        const partsBody = partPictures ? (
+          <PartPictures
+            parts={partPictures}
+            urls={partUrls}
+            focusId={focusId}
+            onFocus={focusPart}
+            onEnlarge={(src, alt) => setLightbox({ src, alt })}
+            onCurrentFailed={() => setPictureFailed(picturePlanKey)}
+          />
+        ) : null;
 
         /** The crop. `fit` (tablet and up) fits it to the tile; otherwise it is its natural size and the tile scrolls. */
         const cropBody = (fit: boolean) =>
@@ -1525,7 +1609,9 @@ export function VerifyScreen({
                 {/* Left: what the computer typed, with its details in plain sight. */}
                 <div className="flex min-h-0 min-w-0 flex-col gap-3" data-testid="bento-left">
                   <TypedFrame tile tabbed={false} chip={false} panelClass="flex min-h-0 flex-1">
-                    <FadeScroll>{leftContent}</FadeScroll>
+                    <FadeScroll revealKey={leftRevealKey} revealSelector={FOCUSED_SELECTOR}>
+                      {leftContent}
+                    </FadeScroll>
                   </TypedFrame>
                   {guidance ? (
                     <BentoTile data-testid="flags-tile" className="max-h-[24%] shrink-0 overflow-y-auto px-3 py-2">
@@ -1552,7 +1638,13 @@ export function VerifyScreen({
                         ) : null
                       }
                     >
-                      {cropBody(true)}
+                      {tilesOn ? (
+                        <FadeScroll white revealKey={rightRevealKey} revealSelector={FOCUSED_SELECTOR}>
+                          {partsBody}
+                        </FadeScroll>
+                      ) : (
+                        cropBody(true)
+                      )}
                     </PrintedFrame>
                   ) : null}
 
@@ -1599,7 +1691,7 @@ export function VerifyScreen({
         /* --------------------------------------- phone: Question | Page | Fix */
         const typedPane = (
           <TypedFrame tile chip={false} panelClass="flex min-h-0 flex-1">
-            <FadeScroll>
+            <FadeScroll revealKey={leftRevealKey} revealSelector={FOCUSED_SELECTOR}>
               {leftContent}
               {guidance ? <div className="mt-3">{guidance}</div> : null}
             </FadeScroll>
@@ -1613,8 +1705,13 @@ export function VerifyScreen({
             title={pictureHeading(cropShown ? picturePlan : null)}
             panelClass="flex min-h-0 flex-1"
           >
-            <FadeScroll white innerClassName="flex flex-col gap-2.5">
-              {cropVisible ? cropBody(false) : null}
+            <FadeScroll
+              white
+              innerClassName="flex flex-col gap-2.5"
+              revealKey={panel === 'printed' ? rightRevealKey : ''}
+              revealSelector={FOCUSED_SELECTOR}
+            >
+              {tilesOn ? partsBody : cropVisible ? cropBody(false) : null}
               {pageToggle ? pageToggleButton('self-start') : null}
               {pageViewerOn ? (
                 <div className="flex min-w-0 flex-col">

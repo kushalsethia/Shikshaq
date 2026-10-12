@@ -386,6 +386,12 @@ reproducible from this repo alone.
 
 - [x] `anon` cannot read question bodies, WhatsApp, phone, email or paper files
       — verified by curl, not by reading policy
+- [x] `teachers_list.whatsapp_number` closed to `anon` and `authenticated` (12 Oct 2026,
+      migration `20261012700000`, applied live after PR 83 and 84 were deployed): it had been
+      readable by one REST call, 148 numbers, through a table-level SELECT grant. Verified live
+      as a signed-out visitor: naming the column returns 401 / `42501`, the listing and profile
+      selects return 200, and the teacher pages load. Side effect, deliberate: the view
+      `teachers_enriched` (security_invoker, unused by the site) is no longer readable by anon
 - [x] `authenticated` cannot either, as of `20260918100000`
 - [x] Bulk dump closed: was 148 contacts in one request and 46,873 questions in
       ~47; now every read goes through a function that sees `auth.uid()`
