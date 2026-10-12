@@ -33,6 +33,18 @@ export const DUMMY_PICTURES: Record<string, string[]> = {
     '   (b) Find the total number of trees planted.     [2]',
     '   (c) Which two districts planted the same number? [1]',
   ],
+  // Question 5, part by part: one made-up crop per row of the whole question. Part (c) has none on purpose.
+  'dummy/q-trees_stem.png': ['5. Read the table and answer the questions that follow.', '   District     Trees planted', '   North            120', '   South            120', '   East              85'],
+  'dummy/q-trees_a.png': ['   (a) Name the district with the most trees.      [1]'],
+  'dummy/q-trees_b.png': ['   (b) Find the total number of trees planted.     [2]'],
+  // English question 2: stem, then the parts. Parts (d) and (g) have no crop of their own on purpose.
+  'dummy/q-eng2_stem.png': ['2. Read the extract below carefully and answer the', '   questions that follow.'],
+  'dummy/q-eng2_a.png': ['   (a) What was Anil carrying with him?             [1]'],
+  'dummy/q-eng2_b.png': ['   (b) Why did the gate seem smaller now than when', '       he was nine?                                  [2]'],
+  'dummy/q-eng2_c.png': ['   (c) Name two sounds Anil heard from behind the', '       wall.                                         [2]'],
+  'dummy/q-eng2_e.png': ['   (e) What did the letter from his aunt say? Answer', '       in your own words.                            [2]'],
+  'dummy/q-eng2_f.png': ['   (f) Why did the narrator wait at the gate for so', '       long before knocking?                         [2]'],
+  'dummy/q-eng2_h.png': ['   (h) Pick out the phrase that shows how tired', '       Anil was after the long journey.              [1]'],
   'dummy/q-bank-lost.png': [
     '6. (a) State one difference between a Commercial Bank and',
     '       the Central Bank.                                [2]',
@@ -197,7 +209,8 @@ export function dummyQuestions(): CheckerQuestion[] {
       marks: 2,
       body: '(b) Find the total number of trees planted.',
       flag_reasons: ['merged_subparts'],
-      source: { snippet_object: 'dummy/q-trees_b.png', align_score: 0.5 },
+      // Part (b) of question 5: its own crop is good, so the right pane shows one picture tile per part.
+      source: { snippet_object: 'dummy/q-trees_b.png', align_score: 0.95 },
     }),
     q({
       id: 'd0000004-0000-4000-8000-000000000004',
@@ -355,12 +368,13 @@ export function dummyContext(questionId: string): ContextRow[] {
       is_parent: true,
       depth: 0,
       source: {
+        snippet_object: 'dummy/q-trees_stem.png',
         whole_snippet_object: 'dummy/q-trees_whole.png',
         whole_snippet_members: { located: 3, members: 3, min_align: 0.95 },
       },
     }),
-    row({ id: 'd0000003-0000-4000-8000-0000000000aa', ord: 3, display_number: '(a)', body: '(a) Name the district with the most trees.' }),
-    row({ id: 'd0000003-0000-4000-8000-000000000003', ord: 4, display_number: '(b)', body: '(b) Find the total number of trees planted.', is_current: true }),
+    row({ id: 'd0000003-0000-4000-8000-0000000000aa', ord: 3, display_number: '(a)', body: '(a) Name the district with the most trees.', source: { snippet_object: 'dummy/q-trees_a.png', align_score: 0.97 } }),
+    row({ id: 'd0000003-0000-4000-8000-000000000003', ord: 4, display_number: '(b)', body: '(b) Find the total number of trees planted.', is_current: true, source: { snippet_object: 'dummy/q-trees_b.png', align_score: 0.95 } }),
     row({ id: 'd0000003-0000-4000-8000-0000000000cc', ord: 5, display_number: '(c)', body: '(c) Which two districts planted the same number?' }),
   ];
 }
@@ -436,8 +450,15 @@ function englishContext(): ContextRow[] {
     depth: 1,
     ...r,
   });
-  const part = (letter: string, ord: number, body: string): ContextRow =>
-    row({ id: `d0000013-0000-4000-8000-0000000000${letter.charCodeAt(0).toString(16)}`, ord, display_number: `(${letter})`, body: `(${letter}) ${body}` });
+  // `crop`: this part has a crop of its own (d and g do not).
+  const part = (letter: string, ord: number, body: string, crop = true): ContextRow =>
+    row({
+      id: `d0000013-0000-4000-8000-0000000000${letter.charCodeAt(0).toString(16)}`,
+      ord,
+      display_number: `(${letter})`,
+      body: `(${letter}) ${body}`,
+      source: crop ? { snippet_object: `dummy/q-eng2_${letter}.png` } : null,
+    });
   return [
     row({
       id: 'd0000013-0000-4000-8000-0000000000ff',
@@ -446,14 +467,15 @@ function englishContext(): ContextRow[] {
       body: '2. Read the extract below carefully and answer the questions that follow.',
       is_parent: true,
       depth: 0,
+      source: { snippet_object: 'dummy/q-eng2_stem.png' },
     }),
     part('a', 11, 'What was Anil carrying with him? [1]'),
     part('b', 12, 'Why did the gate seem smaller now than when he was nine? [2]'),
     part('c', 13, 'Name two sounds Anil heard from behind the wall. [2]'),
-    part('d', 14, 'What had Anil rehearsed on the train, and how was the real scene different? [2]'),
+    part('d', 14, 'What had Anil rehearsed on the train, and how was the real scene different? [2]', false),
     part('e', 15, 'What did the letter from his aunt say? Answer in your own words. [2]'),
-    row({ id: ENGLISH_PART_ID, ord: 16, display_number: '(f)', body: '(f) Why did the narrator wait at the gate for so long before knocking?', is_current: true }),
-    part('g', 17, 'How does the little girl behave towards Anil? Give one example. [2]'),
+    row({ id: ENGLISH_PART_ID, ord: 16, display_number: '(f)', body: '(f) Why did the narrator wait at the gate for so long before knocking?', is_current: true, source: { snippet_object: 'dummy/q-eng2_f.png' } }),
+    part('g', 17, 'How does the little girl behave towards Anil? Give one example. [2]', false),
     part('h', 18, 'Pick out the phrase that shows how tired Anil was after the long journey. [1]'),
   ];
 }

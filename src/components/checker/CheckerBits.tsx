@@ -44,6 +44,35 @@ export function useSignedUrl(api: CheckerApi, key: string, path: string): string
   return state.url;
 }
 
+/**
+ * Signed links for several pictures at once (one per part of a whole question).
+ * `key` names the set; an empty key asks for nothing. Each id is undefined while
+ * its link is on the way, then a URL, or null when it is missing or failed.
+ */
+export function useSignedUrls(api: CheckerApi, key: string, paths: Record<string, string>): Record<string, string | null | undefined> {
+  const [state, setState] = useState<{ key: string; urls: Record<string, string | null> } | null>(null);
+  useEffect(() => {
+    if (!key) return;
+    let cancelled = false;
+    for (const [id, path] of Object.entries(paths)) {
+      api
+        .pictureUrl(path)
+        .catch(() => null)
+        .then((url) => {
+          if (cancelled) return;
+          setState((prev) => ({ key, urls: { ...(prev && prev.key === key ? prev.urls : {}), [id]: url } }));
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+    // `paths` is part of `key`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, api]);
+  if (!key || !state || state.key !== key) return {};
+  return state.urls;
+}
+
 const HIDE_TIPS_KEY = 'shikshaq.checker.hide-tips';
 
 function readTipsHidden(): boolean {
@@ -285,13 +314,48 @@ export function Modal({
    among them (PartCard), and every other row is this: read-only and calm, with no
    box of its own, just a thin rule at its left, so the eye goes to the checked
    part. Bodies are shown as stored, through MathText. */
-export function ContextPart({ row }: { row: WholeQuestionRow }) {
+export function ContextPart({
+  row,
+  focused = false,
+  onFocus,
+}: {
+  row: WholeQuestionRow;
+  /** The highlight pair is on this row (a view aid only). */
+  focused?: boolean;
+  /** Tapping the row moves the highlight pair here. Never changes which question is checked. */
+  onFocus?: () => void;
+}) {
   // The printed label, unless the body already starts with it ("(a)" over "(a) Name the...").
   const showLabel = row.label !== '' && !(row.body ?? '').trimStart().startsWith(row.label);
+  const tappable = Boolean(onFocus);
   return (
     <div
       data-testid={row.isParent ? 'context-stem' : 'context-part'}
-      className={cn('mb-3', row.isParent ? '' : 'border-l-2 border-warm-hairline pl-3')}
+      data-part-id={row.id}
+      data-focused={focused ? 'true' : undefined}
+      role={tappable ? 'button' : undefined}
+      tabIndex={tappable ? 0 : undefined}
+      aria-pressed={tappable ? focused : undefined}
+      aria-label={tappable ? (row.isParent ? 'Show the picture of the question' : `Show the picture of ${row.label || 'this part'}`) : undefined}
+      onClick={onFocus}
+      onKeyDown={
+        onFocus
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onFocus();
+              }
+            }
+          : undefined
+      }
+      className={cn(
+        'mb-3 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+        row.isParent ? 'rounded-[6px]' : 'rounded-r-[6px] border-l-2 pl-3',
+        row.isParent ? '' : focused ? 'border-brand' : 'border-warm-hairline',
+        focused && 'bg-brand-subtle py-1 pr-2',
+        row.isParent && focused && 'px-2',
+        tappable && 'cursor-pointer',
+      )}
       style={row.isParent ? undefined : { marginLeft: Math.min(Math.max(row.depth - 1, 0), 3) * 12 }}
     >
       {showLabel ? <p className="mb-0.5 text-[12px] font-semibold text-warm-meta">{row.label}</p> : null}

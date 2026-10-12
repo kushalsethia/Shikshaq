@@ -86,6 +86,8 @@ export interface WholeQuestionRow {
   label: string;
   body: string | null;
   options: ContextRow['options'];
+  /** The row's own `source` (where its printed picture lives), as the RPC returned it. */
+  source: ContextRow['source'];
   /** 0 for the stem, 1 and up for parts (a sub-part of a sub-part is 2). */
   depth: number;
   /** The part being checked: the one that is the editable card. */
@@ -108,6 +110,7 @@ export function wholeQuestionRows(ctx: QuestionContext | null): WholeQuestionRow
       label: '',
       body: ctx.parent.body,
       options: ctx.parent.options,
+      source: ctx.parent.source,
       depth: 0,
       current: ctx.currentIsParent,
       isParent: true,
@@ -119,6 +122,7 @@ export function wholeQuestionRows(ctx: QuestionContext | null): WholeQuestionRow
       label: partLabel(part, i),
       body: part.body,
       options: part.options,
+      source: part.source,
       depth: part.depth,
       current: part.id === ctx.currentId,
       isParent: false,

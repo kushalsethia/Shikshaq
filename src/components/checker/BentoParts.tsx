@@ -99,7 +99,15 @@ export function FadeScroll({
     const el = scroller.current;
     const target = el?.querySelector<HTMLElement>(revealSelector);
     if (!el || !target) return;
-    const top = target.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+    // Layout position inside the scrolled content. offsetTop ignores the transform a card has while it
+    // slides in (getBoundingClientRect does not), so the target is not mis-measured during the entrance.
+    let top = 0;
+    let node: HTMLElement | null = target;
+    while (node && node !== el) {
+      top += node.offsetTop;
+      node = node.offsetParent as HTMLElement | null;
+    }
+    if (node !== el) top = target.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
     const dock = el.querySelector<HTMLElement>('[data-testid="tools-dock"]')?.offsetHeight ?? 0;
     el.scrollTop = revealOffset({ scrollTop: el.scrollTop, viewHeight: el.clientHeight, top, height: target.offsetHeight + dock });
     measure();
@@ -118,7 +126,7 @@ export function FadeScroll({
 
   return (
     <div className={cn('relative min-h-0 flex-1', className)} data-testid={testId} data-more={more ? 'true' : 'false'} data-scrolled={scrolled ? 'true' : 'false'}>
-      <div ref={scroller} onScroll={measure} className="checker-tile-scroll h-full overflow-y-auto">
+      <div ref={scroller} onScroll={measure} className="checker-tile-scroll relative h-full overflow-y-auto">
         <div ref={inner} className={innerClassName}>
           {children}
         </div>

@@ -41,6 +41,10 @@ export function PartCard({
   /** Split: the instruction, the caret box and the preview. */
   splitBody,
   splitFooter,
+  /** The highlight pair is on this card. False while the view has been moved to another part to look at its picture. */
+  focused = true,
+  /** Tapping a calm card brings the highlight pair back to it (a view aid only). */
+  onFocus,
 }: {
   mode: PartCardMode;
   body: string;
@@ -56,7 +60,11 @@ export function PartCard({
   editFooter?: ReactNode;
   splitBody?: ReactNode;
   splitFooter?: ReactNode;
+  focused?: boolean;
+  onFocus?: () => void;
 }) {
+  // Editing and splitting always keep the ring: that is where the typing happens.
+  const calm = mode === 'read' && !focused;
   const editing = mode === 'edit';
   const badges = (
     <>
@@ -83,10 +91,12 @@ export function PartCard({
       data-testid="part-card"
       data-tour="question"
       data-mode={mode}
+      data-focused={focused ? 'true' : undefined}
+      onClick={calm ? onFocus : undefined}
       className={cn(
         'mb-3 shrink-0 rounded-[10px] bg-white transition-shadow duration-150',
         // Always outlined in the brand colour, so the eye lands on the checked part among the calm rest; editing adds a soft ring.
-        'border-2 border-brand',
+        calm ? 'cursor-pointer border-2 border-warm-hairline' : 'border-2 border-brand',
         mode !== 'read' && 'ring-2 ring-brand/30',
       )}
     >

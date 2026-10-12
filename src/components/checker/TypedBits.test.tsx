@@ -347,9 +347,12 @@ describe('the whole question is shown, with the checked part as the one card', (
     expect(part).toContain('data-testid="context-part"');
     for (const html of [stem, part]) {
       expect(html).not.toContain('<textarea');
-      expect(html).not.toContain('ring-2');
+      // Calm: no ring, no filled box, no border all round (only the keyboard focus ring and the thin left rule).
+      expect(html).not.toMatch(/(^|[\s"])ring-2/);
       expect(html).not.toMatch(/\bborder border-/);
-      expect(html).not.toContain('rounded');
+      expect(html).not.toContain('border-2 ');
+      expect(html).not.toContain('bg-white');
+      expect(html).not.toContain('bg-brand-subtle');
     }
     // A thin rule at the left, not a box, and a short label only when the words do not carry it.
     expect(part).toContain('border-l-2');
@@ -371,7 +374,8 @@ describe('the verify screen lays the whole question out around the card', () => 
 
   it('renders every row of the question in order, the checked one as the card, the others as read-only parts', () => {
     expect(left).toContain('contextRows.map(');
-    expect(left).toContain('r.current ? checkedPart : <ContextPart row={r} />');
+    expect(left).toMatch(/r\.current \? checkedPart : <ContextPart row=\{r\}/);
+    expect(left).toContain('focused={r.id === focusId}');
     expect(left).toContain('data-testid="whole-question"');
     expect(screen).toContain('wholeQuestionRows(context)');
     expect(screen).not.toContain('<OtherParts');
@@ -392,8 +396,9 @@ describe('the verify screen lays the whole question out around the card', () => 
 
   it('has one scroll area for the whole pane, with no inner scroller on the passage', () => {
     expect(screen).not.toContain('max-h-[40vh]');
-    expect(screen).toContain('revealSelector="[data-testid=part-card]"');
-    expect((screen.match(/revealKey=/g) ?? []).length).toBe(2);
+    // The left pane and the right pane each reveal the highlighted part (wide, and the phone's two tabs).
+    expect(screen).toContain("const FOCUSED_SELECTOR = '[data-focused=\"true\"]'");
+    expect((screen.match(/revealKey=/g) ?? []).length).toBe(4);
   });
 
   it('a stand-alone question is unchanged: the card, the tools, then its passage and instructions', () => {
