@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { MathText } from '@/components/papers/math-text';
 import { OptionList } from '@/components/checker/OptionList';
 import { cn } from '@/lib/utils';
 import type { CheckerApi } from '@/lib/checker-api';
 import { describeLanes, NOT_FOR_STUDENT_LINE } from '@/lib/checker-lanes';
-import { contextHeading, partLabel, type QuestionContext } from '@/lib/checker-context';
+import type { WholeQuestionRow } from '@/lib/checker-context';
 import { canSplitAt, splitOrPlan, SPLIT_OR_NOTE } from '@/lib/checker-body';
 import { CHIP } from '@/lib/checker-button-styles';
 
@@ -278,130 +278,26 @@ export function Modal({
   );
 }
 
-/* W11: the whole question a sub-part belongs to, read-only, with the part
-   being checked highlighted. Bodies go through MathText verbatim. */
-export function WholeQuestion({ context }: { context: QuestionContext }) {
+/* W11: the whole question a part belongs to. The owner (12 Oct 2026): "you should
+   be showing me the entire paper question in the left pane, not just the
+   sub-part". So the verify screen lays the question out from its stem down, every
+   part in order and all visible; the part being checked is the one editable card
+   among them (PartCard), and every other row is this: read-only and calm, with no
+   box of its own, just a thin rule at its left, so the eye goes to the checked
+   part. Bodies are shown as stored, through MathText. */
+export function ContextPart({ row }: { row: WholeQuestionRow }) {
+  // The printed label, unless the body already starts with it ("(a)" over "(a) Name the...").
+  const showLabel = row.label !== '' && !(row.body ?? '').trimStart().startsWith(row.label);
   return (
-    <div className="mb-3 rounded-[10px] border border-warm-hairline p-3">
-      <p className="mb-2 text-[13px] font-semibold text-foreground">{contextHeading(context)}</p>
-      {context.parent ? (
-        <div
-          aria-current={context.currentIsParent ? 'true' : undefined}
-          className={cn('rounded-xl p-2.5', context.currentIsParent ? 'bg-brand-subtle ring-2 ring-brand' : 'bg-muted')}
-        >
-          {context.currentIsParent ? <CheckingTag /> : null}
-          <MathText text={context.parent.body ?? ''} className="text-[14px] leading-relaxed text-foreground" />
-          <OptionList options={context.parent.options} />
-        </div>
-      ) : null}
-      <ol className="mt-2 space-y-2">
-        {context.parts.map((part, i) => {
-          const current = part.id === context.currentId;
-          return (
-            <li
-              key={part.id}
-              aria-current={current ? 'true' : undefined}
-              className={cn('rounded-xl p-2.5', current ? 'bg-brand-subtle ring-2 ring-brand' : 'bg-muted')}
-              style={{ marginLeft: Math.min(Math.max(part.depth - 1, 0), 3) * 12 }}
-            >
-              {current ? <CheckingTag /> : null}
-              {/* The printed label, unless the body already starts with it
-                  ("(a)" over "(a) Name the..." read twice). */}
-              {(part.body ?? '').trimStart().startsWith(partLabel(part, i)) ? null : (
-                <p className="mb-0.5 text-[12px] font-semibold text-warm-secondary">{partLabel(part, i)}</p>
-              )}
-              <MathText text={part.body ?? ''} className="text-[14px] leading-relaxed text-foreground" />
-              <OptionList options={part.options} />
-            </li>
-          );
-        })}
-      </ol>
+    <div
+      data-testid={row.isParent ? 'context-stem' : 'context-part'}
+      className={cn('mb-3', row.isParent ? '' : 'border-l-2 border-warm-hairline pl-3')}
+      style={row.isParent ? undefined : { marginLeft: Math.min(Math.max(row.depth - 1, 0), 3) * 12 }}
+    >
+      {showLabel ? <p className="mb-0.5 text-[12px] font-semibold text-warm-meta">{row.label}</p> : null}
+      <MathText text={row.body ?? ''} className={cn('break-words leading-relaxed', row.isParent ? 'text-[16px] text-foreground' : 'text-[15px] text-warm-secondary')} />
+      <OptionList options={row.options} />
     </div>
-  );
-}
-
-/** How many other parts the whole question has besides the one being checked. */
-export function otherPartsCount(context: QuestionContext): number {
-  return Math.max(0, (context.parent ? 1 : 0) + context.parts.length - 1);
-}
-
-/**
- * The rest of the question a part belongs to, folded away under the part card
- * (owner, 12 Oct 2026: the long list with the part far down it hid the words
- * being checked). Closed to begin with; opened, it scrolls the part being
- * checked into view. That part is a one line marker here, not its words again:
- * the words are in the card above. The other parts' bodies are shown as they
- * are stored, through MathText.
- */
-export function OtherParts({ context }: { context: QuestionContext }) {
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement | null>(null);
-  const count = otherPartsCount(context);
-  useEffect(() => {
-    if (!open) return;
-    const el = box.current;
-    const mark = el?.querySelector<HTMLElement>('[aria-current="true"]');
-    if (!el || !mark) return;
-    // Inside the list only: scrollIntoView would also move the tile around it.
-    el.scrollTop = Math.max(0, mark.offsetTop - el.clientHeight / 2 + mark.offsetHeight / 2);
-  }, [open]);
-  if (count === 0) return null;
-  const rows: { id: string; label: string; body: string | null; options: QuestionContext['parts'][number]['options']; depth: number; current: boolean }[] = [];
-  if (context.parent) {
-    rows.push({ id: context.parent.id, label: 'The question', body: context.parent.body, options: context.parent.options, depth: 0, current: context.currentIsParent });
-  }
-  context.parts.forEach((part, i) => {
-    rows.push({ id: part.id, label: partLabel(part, i), body: part.body, options: part.options, depth: part.depth, current: part.id === context.currentId });
-  });
-  return (
-    <div data-testid="other-parts" className="rounded-[10px] border border-warm-hairline">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-controls="other-parts-list"
-        className="tap-44 flex min-h-[44px] w-full items-center justify-between gap-2 rounded-[10px] px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-      >
-        <span className="text-[14px] font-semibold text-foreground">
-          Other parts of this question <span className="tabular-nums text-warm-secondary">({count})</span>
-        </span>
-        <ChevronDown className={cn('h-4 w-4 shrink-0 text-warm-secondary transition-transform duration-200', open && 'rotate-180')} aria-hidden="true" />
-      </button>
-      {open ? (
-        <div id="other-parts-list" ref={box} className="relative max-h-56 overflow-y-auto px-3 pb-3">
-          <p className="mb-2 text-[13px] font-semibold text-warm-secondary">{contextHeading(context)}</p>
-          <ol className="space-y-2">
-            {rows.map((r) =>
-              r.current ? (
-                <li
-                  key={r.id}
-                  aria-current="true"
-                  style={{ marginLeft: Math.min(Math.max(r.depth - 1, 0), 3) * 12 }}
-                  className="flex flex-wrap items-center gap-2 rounded-xl bg-brand-subtle px-2.5 py-2 ring-2 ring-brand"
-                >
-                  <CheckingTag className="" />
-                  <span className="text-[13px] text-warm-secondary">{r.label}, the card above</span>
-                </li>
-              ) : (
-                <li key={r.id} className="rounded-xl bg-muted p-2.5" style={{ marginLeft: Math.min(Math.max(r.depth - 1, 0), 3) * 12 }}>
-                  {(r.body ?? '').trimStart().startsWith(r.label) ? null : <p className="mb-0.5 text-[12px] font-semibold text-warm-secondary">{r.label}</p>}
-                  <MathText text={r.body ?? ''} className="text-[14px] leading-relaxed text-foreground" />
-                  <OptionList options={r.options} />
-                </li>
-              ),
-            )}
-          </ol>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function CheckingTag({ className = 'mb-1' }: { className?: string }) {
-  return (
-    <span className={cn(className, 'inline-block rounded-full bg-brand px-2 py-0.5 text-[12px] font-bold text-foreground')}>
-      You are checking this part
-    </span>
   );
 }
 

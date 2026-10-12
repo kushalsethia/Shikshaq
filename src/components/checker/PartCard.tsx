@@ -85,7 +85,9 @@ export function PartCard({
       data-mode={mode}
       className={cn(
         'mb-3 shrink-0 rounded-[10px] bg-white transition-shadow duration-150',
-        mode === 'read' ? 'border border-warm-hairline' : 'border-2 border-brand ring-2 ring-brand/30',
+        // Always outlined in the brand colour, so the eye lands on the checked part among the calm rest; editing adds a soft ring.
+        'border-2 border-brand',
+        mode !== 'read' && 'ring-2 ring-brand/30',
       )}
     >
       <div className="p-3">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MathText } from '@/components/papers/math-text';
@@ -11,13 +11,13 @@ import { tileForNextQuestion } from '@/lib/checker-bento';
 import { BentoTile, FadeScroll, ImageLightbox, TilePager, useBentoWide } from '@/components/checker/BentoParts';
 import { ChangesChip, ChangesPanel, MarksInsideHint, QuestionChips, ToolsToolbar } from '@/components/checker/TypedBits';
 import { toolBlockedByUnsavedEdit, toolById, type CheckerToolId } from '@/lib/checker-tools';
-import { CheckerSkeleton, Callout, CheckGuidance, Modal, OtherParts, SplitPreview, useSignedUrl } from '@/components/checker/CheckerBits';
+import { CheckerSkeleton, Callout, CheckGuidance, ContextPart, Modal, SplitPreview, useSignedUrl } from '@/components/checker/CheckerBits';
 import { ArrowLeft, Check, CircleHelp, Maximize2, Pencil, SkipForward, Undo2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CheckerApi, CheckerQuestion } from '@/lib/checker-api';
 import { whatToCheck } from '@/lib/checker-kid-reasons';
 import { englishContext, passageHeading } from '@/lib/checker-english';
-import { assembleQuestionContext, type QuestionContext } from '@/lib/checker-context';
+import { assembleQuestionContext, wholeQuestionRows, type QuestionContext } from '@/lib/checker-context';
 import { planCheckerPicture, pictureHeading, PICTURE_MAY_MISS_PARTS, type PicturePlan } from '@/lib/checker-pictures';
 import { planVerifiedPage, PAGE_HEADING, type PagePlan } from '@/lib/checker-page';
 import { describeLanes, unmappedCodes } from '@/lib/checker-lanes';
@@ -1252,33 +1252,32 @@ export function VerifyScreen({
           </>
         );
 
-        /** Everything that is context, not the thing being checked: under the part card and the tools. */
-        const details = (
-          <div className="flex flex-col gap-3">
-            {mode !== 'split' && !blank ? (
-              <MarksInsideHint body={bodyDraft} currentMarks={marksDraft} onMove={moveMarks} disabled={submitting} />
-            ) : null}
+        /* The question as the paper has it, around the part being checked (owner, 12 Oct 2026:
+           "show the entire paper question, not just the sub-part"). All of it is plain, calm
+           reading with no box of its own; only the checked part is a card. */
+        const marksHint =
+          mode !== 'split' && !blank ? (
+            <MarksInsideHint body={bodyDraft} currentMarks={marksDraft} onMove={moveMarks} disabled={submitting} />
+          ) : null;
 
-            {context ? <OtherParts context={context} /> : null}
-
-            {/* W14: the passage an English question is about. */}
-            {english?.passage ? (
-              <div className="rounded-[10px] bg-muted px-4 py-3">
-                <p className="mb-1 text-[12px] font-semibold text-warm-meta">{passageHeading(english.passage.kind)}</p>
-                <div className="max-h-[40vh] overflow-y-auto">
-                  <MathText text={english.passage.text} className="text-[14px] leading-relaxed text-foreground" />
-                </div>
-              </div>
-            ) : null}
-            {english?.setText ? <p className="text-[12px] text-warm-secondary">From: {english.setText}</p> : null}
-
-            {question.instructions ? (
-              <div className="rounded-[10px] bg-muted px-4 py-2">
-                <MathText text={question.instructions} className="text-[14px] italic leading-relaxed text-warm-secondary" />
-              </div>
-            ) : null}
+        // W14: the passage an English question is about, whole, in the pane's one scroll area.
+        const passageBlock = english?.passage ? (
+          <div className="mb-3 border-l-2 border-warm-hairline pl-3" data-testid="context-passage">
+            <p className="mb-1 text-[12px] font-semibold text-warm-meta">{passageHeading(english.passage.kind)}</p>
+            <MathText text={english.passage.text} className="break-words text-[15px] leading-relaxed text-foreground" />
+            {english.setText ? <p className="mt-1 text-[12px] text-warm-secondary">From: {english.setText}</p> : null}
           </div>
-        );
+        ) : english?.setText ? (
+          <p className="mb-3 text-[12px] text-warm-secondary">From: {english.setText}</p>
+        ) : null;
+
+        const instructionsBlock = question.instructions ? (
+          <div className="mb-3" data-testid="context-instructions">
+            <MathText text={question.instructions} className="text-[14px] italic leading-relaxed text-warm-secondary" />
+          </div>
+        ) : null;
+
+        const contextRows = wholeQuestionRows(context);
 
         /** The one line above the card while it is being edited, with the full rules behind the info icon. */
         const rulesLine =
@@ -1407,17 +1406,44 @@ export function VerifyScreen({
           </div>
         );
 
-        /** The whole left side, top to bottom: the words first, the tools right under them, the context last. */
-        const leftContent = (
+        /** The checked part: the editable card, its rules line above and the tools right under it. */
+        const checkedPart = (
           <>
-            {questionTop}
-            {alerts}
             {rulesLine}
             {partCard}
             {tools}
-            {details}
+            {marksHint}
           </>
         );
+
+        /** The whole left side, top to bottom. A part of a bigger question shows the whole question from its
+         *  stem, every part in order, with the checked part as the one card in its natural place. */
+        const leftContent =
+          contextRows.length > 0 ? (
+            <>
+              {questionTop}
+              {alerts}
+              {instructionsBlock}
+              <div data-testid="whole-question" role="group" aria-label="The whole question">
+                {contextRows[0].isParent ? null : passageBlock}
+                {contextRows.map((r, i) => (
+                  <Fragment key={r.id}>
+                    {r.current ? checkedPart : <ContextPart row={r} />}
+                    {/* The passage sits under the stem, before the parts. */}
+                    {i === 0 && r.isParent ? passageBlock : null}
+                  </Fragment>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              {questionTop}
+              {alerts}
+              {checkedPart}
+              {passageBlock}
+              {instructionsBlock}
+            </>
+          );
 
         /* ------------------------------------------------ the printed side */
 
@@ -1525,7 +1551,9 @@ export function VerifyScreen({
                 {/* Left: what the computer typed, with its details in plain sight. */}
                 <div className="flex min-h-0 min-w-0 flex-col gap-3" data-testid="bento-left">
                   <TypedFrame tile tabbed={false} chip={false} panelClass="flex min-h-0 flex-1">
-                    <FadeScroll>{leftContent}</FadeScroll>
+                    <FadeScroll revealKey={contextRows.length > 0 ? question.id : ''} revealSelector="[data-testid=part-card]">
+                      {leftContent}
+                    </FadeScroll>
                   </TypedFrame>
                   {guidance ? (
                     <BentoTile data-testid="flags-tile" className="max-h-[24%] shrink-0 overflow-y-auto px-3 py-2">
@@ -1599,7 +1627,7 @@ export function VerifyScreen({
         /* --------------------------------------- phone: Question | Page | Fix */
         const typedPane = (
           <TypedFrame tile chip={false} panelClass="flex min-h-0 flex-1">
-            <FadeScroll>
+            <FadeScroll revealKey={contextRows.length > 0 ? question.id : ''} revealSelector="[data-testid=part-card]">
               {leftContent}
               {guidance ? <div className="mt-3">{guidance}</div> : null}
             </FadeScroll>
