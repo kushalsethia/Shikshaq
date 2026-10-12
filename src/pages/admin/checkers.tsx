@@ -61,6 +61,24 @@ const DummyAdminCheckers = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminCheck
    an empty list. */
 
 export type CheckersView = 'verifiers' | 'hods' | 'reviewers';
+
+/* Which part of the HOD list a view draws. The reviewers section draws the
+   teacher reviewers, the HODs section (inside the Admin page) draws the HODs,
+   and the page on its own draws both under one tab. */
+export function sectionPart(view: CheckersView, embedded: boolean): 'both' | 'hods' | 'reviewers' {
+  if (view === 'reviewers') return 'reviewers';
+  return embedded ? 'hods' : 'both';
+}
+
+/* The browser tab title and the description for what is on screen. Each Admin
+   section mounts this page, so a fixed title would show "Verifiers" on the HODs
+   section too. Pure, so each section's title is checked on its own. */
+export function checkersPageMeta(view: CheckersView, part: 'both' | 'hods' | 'reviewers'): { title: string; description: string } {
+  if (view === 'verifiers') return { title: 'Verifiers | Shikshaq Admin', description: 'Who can verify papers, and their details.' };
+  if (part === 'reviewers') return { title: 'Teacher reviewers | Shikshaq Admin', description: 'Who can approve and edit teachers without being an admin.' };
+  if (part === 'hods') return { title: 'HODs | Shikshaq Admin', description: 'Who leads the verifiers and uses the HOD desk.' };
+  return { title: 'HODs and teacher reviewers | Shikshaq Admin', description: 'Who leads the verifiers, and who approves and edits teachers.' };
+}
 type View = CheckersView;
 
 const DETAILS_TONE: Record<DetailsState, AdminStatus> = { missing: 'pending', expired: 'hidden', ready: 'live', unknown: 'paused' };
@@ -102,8 +120,8 @@ export function VerifierListBody({
     { key: 'email', label: 'Verifier', width: '1.6fr', hint: TIPS['col.checker'] },
     { key: 'details', label: 'Details', width: '0.9fr', hint: DETAILS_HINT },
     { key: 'added', label: 'Added', width: '1fr', hint: TIPS['col.added'] },
-    { key: 'today', label: 'Today', width: '0.6fr', hint: TIPS['col.today'] },
-    { key: 'total', label: 'Total', width: '0.6fr', hint: TIPS['col.total'] },
+    { key: 'today', label: 'Checks today', width: '0.6fr', hint: TIPS['col.today'] },
+    { key: 'total', label: 'Checks in total', width: '0.6fr', hint: TIPS['col.total'] },
   ];
   const tableRows: AdminTableRow[] = sorted.map((r) => {
     const s = stateOf(r);
@@ -167,13 +185,14 @@ export function AdminCheckersPage({
   /** Which list to show. Left out, the address's ?view= decides (the page on its own). */
   view?: View;
 }) {
-  usePageMeta('Verifiers | Shikshaq Admin', 'Who can verify papers, and their details.');
   const { user, profile } = useAuth();
   const actorName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'Signed-in admin';
   const [searchParams, setSearchParams] = useSearchParams();
   const view: View = viewProp ?? (searchParams.get('view') === 'hods' ? 'hods' : 'verifiers');
   const embedded = useAdminEmbedded();
   const navigate = useNavigate();
+  const meta = checkersPageMeta(view, sectionPart(view, embedded));
+  usePageMeta(meta.title, meta.description);
 
   const [rows, setRows] = useState<CheckerAdminRow[] | null>(null);
   const [rowsError, setRowsError] = useState(false);
@@ -406,7 +425,7 @@ export function AdminCheckersPage({
               </section>
             ) : (
               <HodSection
-                part={view === 'reviewers' ? 'reviewers' : embedded ? 'hods' : 'both'}
+                part={sectionPart(view, embedded)}
                 hodApi={hodApi}
                 reviewerApi={reviewerApi}
                 searchUsers={api.searchUsers}

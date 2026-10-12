@@ -142,10 +142,10 @@ describe('the stops', () => {
     expect(stops.every((s) => s.track === 'main')).toBe(true);
   });
 
-  it('the first stop is the PDFs on Kanishk\'s computer, labelled exactly so, and counts the files the computer has', () => {
-    expect(COMPUTER_LABEL).toBe("Kanishk's computer");
+  it('the first stop is the PDFs saved on the main computer, labelled exactly so, and counts the PDFs the computer has', () => {
+    expect(COMPUTER_LABEL).toBe('the main computer');
     const computer = by().computer;
-    expect(computer.title).toBe("PDFs on Kanishk's computer");
+    expect(computer.title).toBe('PDFs saved on the main computer');
     expect(computer.count).toBe(6880);
     expect(computer.unit).toBe('PDF');
     expect(computer.facts).toContain('6,445 sorted by class and subject');
@@ -157,10 +157,10 @@ describe('the stops', () => {
   it('until the computer count has been synced it falls back to the desk list, and says so', () => {
     const computer = by('admin', normaliseRoute(UNSYNCED_ROUTE_RAW)).computer;
     expect(computer.count).toBe(8038);
-    expect(computer.facts[0]).toContain('has not counted the files on the computer yet');
+    expect(computer.facts[0]).toContain('has not counted the PDFs on the main computer yet');
   });
 
-  it('Read by the swarm counts OCR and AI cumulatively, and what is still waiting', () => {
+  it('Read by the AI counts the scans read and the AI reads cumulatively, and what is still waiting', () => {
     const read = by().read;
     expect(read.count).toBe(1159);
     expect(read.figures).toEqual([
@@ -258,16 +258,16 @@ describe('the stops', () => {
   it('three side stops: data, renderer, not yet sorted', () => {
     const side = buildSideStops(route());
     expect(side.map((s) => [s.id, s.title, s.count])).toEqual([
-      ['data', 'Held for data fixes', 11],
-      ['renderer', 'Held for the renderer', 0],
+      ['data', 'Waiting for data fixes', 11],
+      ['renderer', 'Waiting for a layout fix', 0],
       ['none', 'Not yet sorted', 158],
     ]);
     expect(side.every((s) => s.action === null)).toBe(true);
   });
 
-  it('admins can filter the paper list from the first stop; HODs cannot, the list is an admin page', () => {
+  it('admins and HODs can both filter the paper list from the first stop: the list is on both pipeline pages', () => {
     expect(by('admin').computer.action).toMatchObject({ kind: 'filter', states: [] });
-    expect(by('hod').computer.action).toBeNull();
+    expect(by('hod').computer.action).toMatchObject({ kind: 'filter', states: [] });
   });
 
   it('every link on the route opens a tab of the HOD desk, for admins and HODs alike', () => {

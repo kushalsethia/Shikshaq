@@ -35,13 +35,14 @@ import { cn } from '@/lib/utils';
    computer."
 
    Seven stops joined by lanes, top to bottom on a phone, rows of four and three
-   from lg. A siding for the frozen earlier-library papers hangs above the first
+   from lg. A siding for the kept-back earlier-library papers hangs above the first
    stop and never joins the counts. Three smaller piles sit under the route.
    The whole thing is also a real ordered list with the numbers as text; the
    lanes, parcels and the number count are aria-hidden decoration.
 
-   Two times are shown and never mixed up: "Checked 12 seconds ago" is when this
-   browser read the page, "Data as of ..." is when the desk last sent numbers.
+   Two times are shown and never mixed up: "This screen read the numbers 12 seconds
+   ago" is when this browser read the page, "The desk last sent numbers ..." is when
+   the desk last sent numbers.
 
    PipelineRouteView is pure (props in, markup out) so it is tested by
    rendering it; PipelineRoute connects it to the 20-second refresh. */
@@ -134,13 +135,13 @@ function RouteList({
 
   return (
     <ol
-      aria-label={`The papers route, from the PDFs on ${COMPUTER_LABEL} to live`}
+      aria-label={`The papers route, from the PDFs saved on ${COMPUTER_LABEL} to live`}
       className="flex list-none flex-col px-[18px] lg:grid lg:grid-cols-4 lg:gap-x-9 lg:gap-y-12"
     >
       {item(main[0], 0)}
       <li key="leftOut" data-stop="leftOut" data-count={siding.count ?? ''} className={cn('relative min-w-0', PLACE.leftOut)}>
         <div className="ml-6 mt-3 border-l-2 border-dashed border-warm-hairline-strong pl-4 lg:ml-0 lg:mt-0 lg:border-l-0 lg:pl-0">
-          <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-warm-label">Side track</p>
+          <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-warm-label">Set aside</p>
           <StopCard stop={siding} animate={animate} compact onShowRegistry={onShowRegistry} />
         </div>
         <span
@@ -185,7 +186,7 @@ function DataAsOfLine({ route, nowMs }: { route: Route; nowMs: number }) {
       className={cn('mx-[18px] mb-3 rounded-xl px-3 py-2 text-[13px]', d.stale ? 'bg-amber-100 text-amber-950' : 'bg-muted text-warm-secondary')}
       data-data-as-of={d.stale ? 'stale' : 'fresh'}
     >
-      <span className="font-bold">Data as of {d.when}</span> ({d.ago}), from the desk&apos;s last sync.
+      <span className="font-bold">The desk last sent numbers {d.ago}</span> ({d.when}).
       {d.stale ? ' The desk has not sent new numbers for a while, so some of these may be out of date.' : ''}
     </p>
   );
@@ -210,7 +211,7 @@ export function PipelineRouteView({
     <BentoPanel fill="card" className={PANEL} id="pipeline-route" data-reduced-motion={reducedMotion ? 'true' : 'false'}>
       <AdminPanelHeader
         title="The papers route"
-        subtitle={`Where every paper is right now, from the PDFs on ${COMPUTER_LABEL} to the live site. This page checks again by itself, but the numbers are only as new as the desk's last sync.`}
+        subtitle={`Where every paper is right now, from the PDFs saved on ${COMPUTER_LABEL} to the live site. This page checks again by itself, but the numbers are only as new as the desk's last sync.`}
         meta={
           <span className="inline-flex items-center gap-2">
             <LiveDot failed={refreshFailed} animate={animate} />
@@ -253,7 +254,7 @@ export function PipelineRouteView({
           <SidePiles route={route} animate={animate} />
           <ProgressStrip route={route} animate={animate} />
           <p className="mt-4 px-[18px] text-[13px] leading-[1.5] text-warm-meta">
-            The stops are counted from different lists, so do not add them up. Papers from the earlier library are frozen and are only in the PDF count, never in the stops after it. A number shown as ? has not been sent by the desk yet.
+            The stages are counted from different lists, so do not add them up. Papers from the earlier library are kept back and are only in the PDF count, never in the stages after it. A number shown as ? has not been sent by the desk yet.
           </p>
         </>
       )}

@@ -357,6 +357,9 @@ const App = () => (
               <Route path="/admin/paper-review" element={<LegacyAdminRedirect />} />
               <Route path="/admin/admin-queue" element={<LegacyAdminRedirect />} />
               <Route path="/admin/paper-approvals" element={<LegacyAdminRedirect />} />
+              <Route path="/admin/uploads" element={<LegacyAdminRedirect />} />
+              <Route path="/admin/queue" element={<LegacyAdminRedirect />} />
+              <Route path="/admin/needs-you" element={<LegacyAdminRedirect />} />
               <Route path="/checker" element={<Checker />} />
               <Route path="/checker/practice" element={<CheckerPractice />} />
               <Route path="/checker/help" element={<CheckerHelp />} />

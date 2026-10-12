@@ -547,10 +547,10 @@ function teacherRoutes(teachers: TeacherRow[], mine: Map<string, ShikshaqmineRow
       `</dl>`,
     ].join('');
 
-    /* No telephone passed, deliberately. generateTeacherPersonSchema accepts
-       phoneNumber, and this script could not supply it even if a template
-       asked -- anon has no SELECT on Shikshaqmine."Phone Number". Contact
-       stays behind the sign-in gate on the profile itself. */
+    /* No telephone, deliberately. generateTeacherPersonSchema no longer takes
+       one, and anon has no SELECT on Shikshaqmine."Phone Number" or
+       the teachers_list WhatsApp column anyway. Contact stays behind the sign-in
+       gate on the profile itself. */
     /* The bio and qualifications are withheld from the JSON-LD for the same
        reason they are withheld from the body block above -- a <script
        type="application/ld+json"> is plain text in the served HTML, so putting

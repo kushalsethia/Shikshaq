@@ -84,7 +84,7 @@ export default function CheckerDummy() {
         Start over
       </DummyButton>
       <DummyButton onClick={() => setDebugOn((v) => !v)}>
-        {debugOn ? 'Admin debug chips: on' : 'Admin debug chips: off'}
+        {debugOn ? 'Debug ids: on' : 'Debug ids: off'}
       </DummyButton>
       <DummyButton
         className="ml-auto"

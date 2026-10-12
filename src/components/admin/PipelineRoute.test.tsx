@@ -62,7 +62,7 @@ describe('the route with the example payload', () => {
 
   it('is a real ordered list with the seven stops and their numbers as text', () => {
     expect(html).toContain('<ol');
-    expect(html).toContain("aria-label=\"The papers route, from the PDFs on Kanishk&#x27;s computer to live\"");
+    expect(html).toContain('aria-label="The papers route, from the PDFs saved on the main computer to live"');
     for (const id of ['computer', 'read', 'pictures', 'students', 'needsYou', 'ready', 'live']) {
       expect(html).toContain(`data-stop="${id}"`);
     }
@@ -70,8 +70,8 @@ describe('the route with the example payload', () => {
     expect(html).toContain('data-stop="side-piles"');
   });
 
-  it("labels the computer exactly as Kanishk's computer, with the file count on it", () => {
-    expect(t).toContain("PDFs on Kanishk's computer");
+  it('labels the computer as the main computer, with the file count on it', () => {
+    expect(t).toContain('PDFs saved on the main computer');
     expect(t).toMatch(/6,880\s+PDFs/);
     expect(t).toContain('6,445 sorted by class and subject');
     expect(t).toContain('9.3 GB in all');
@@ -112,16 +112,16 @@ describe('the route with the example payload', () => {
   });
 
   it('the side piles read in plain words, and sit beneath the route', () => {
-    expect(t).toContain('Held for data fixes');
-    expect(t).toContain('Held for the renderer');
+    expect(t).toContain('Waiting for data fixes');
+    expect(t).toContain('Waiting for a layout fix');
     expect(t).toContain('Not yet sorted');
     expect(t).toContain('5,081 questions');
     expect(html.indexOf('data-stop="side-piles"')).toBeGreaterThan(html.indexOf('data-stop="live"'));
   });
 
-  it('the frozen papers are a side track, with the excluded small print on the computer stop', () => {
-    expect(t).toContain('Side track');
-    expect(t).toContain('earlier library, frozen on purpose');
+  it('the kept-back papers are set aside, with the excluded small print on the computer stop', () => {
+    expect(t).toContain('Set aside');
+    expect(t).toContain('earlier library, kept back on purpose');
     expect(t).toContain('11 files are not real papers, not counted');
     expect(t).toContain('1,385 of them are already live');
   });
@@ -141,14 +141,14 @@ describe('the route with the example payload', () => {
   });
 
   it('for admins the computer stop is a button that filters the paper list', () => {
-    expect(html).toMatch(/<button type="button"[^>]*>PDFs on Kanishk(&#x27;|')s computer<span class="sr-only">\. Show every paper in the list<\/span>/);
+    expect(html).toMatch(/<button type="button"[^>]*aria-label="PDFs saved on the main computer: show every paper in the list"[^>]*>PDFs saved on the main computer<\/button>/);
+    expect(html).not.toContain('. Show every paper');
   });
 
-  it('says when the browser read it AND when the desk last sent numbers, as two different things', () => {
-    expect(t).toContain('Checked 12 seconds ago');
-    expect(t).toMatch(/Data as of \d{1,2} Oct/);
+  it('says when this screen read the numbers AND when the desk last sent numbers, as two different things', () => {
+    expect(t).toContain('This screen read the numbers 12 seconds ago');
+    expect(t).toMatch(/The desk last sent numbers 30 minutes ago \(\d{1,2} Oct/);
     expect(t).toContain('30 minutes ago');
-    expect(t).toContain("from the desk's last sync");
     expect(html).toContain('data-data-as-of="fresh"');
     expect(html).toContain('data-live-dot="live"');
     expect(html).toContain('aria-label="Refresh the numbers now"');
@@ -190,9 +190,8 @@ describe('the route for an HOD', () => {
     expect(t).toContain('AI trust: 0 of 100 checks');
   });
 
-  it('hides the admin-only filter: the computer stop is plain text, not a button', () => {
-    expect(html).not.toMatch(/<button type="button"[^>]*>PDFs on/);
-    expect(html).not.toContain('Show every paper in the list');
+  it('offers the paper-list filter too: HODs have the list on their page', () => {
+    expect(html).toContain('aria-label="PDFs saved on the main computer: show every paper in the list"');
   });
 
   it('keeps every link, all of them tabs of the HOD desk', () => {
@@ -215,12 +214,12 @@ describe('numbers the desk has not sent yet', () => {
 
   it('the computer stop falls back to the desk list and says it has not counted the files', () => {
     expect(t).toMatch(/8,038\s+PDFs/);
-    expect(t).toContain('has not counted the files on the computer yet');
+    expect(t).toContain('has not counted the PDFs on the main computer yet');
   });
 
   it('the data time is the old registry change, and the line turns amber with a warning', () => {
     expect(html).toContain('data-data-as-of="stale"');
-    expect(t).toMatch(/Data as of \d{1,2} Oct/);
+    expect(t).toMatch(/The desk last sent numbers 3 days ago \(\d{1,2} \w{3}/);
     expect(t).toContain('3 days ago');
     expect(t).toContain('may be out of date');
   });
@@ -251,7 +250,7 @@ describe('a refresh that fails', () => {
   });
 
   it('still says how old the browser read is', () => {
-    expect(t).toContain('Checked 1 minute ago');
+    expect(t).toContain('This screen read the numbers 1 minute ago');
   });
 
   it('does not show the loud error for the whole route', () => {
@@ -292,7 +291,7 @@ describe('reduced motion', () => {
     expect(t).toMatch(/6,880\s+PDFs/);
     expect(t).toContain('Questions: 171 of 14,929 cleared');
     expect(html).toContain('data-stop="live"');
-    expect(t).toContain('Checked 12 seconds ago');
+    expect(t).toContain('This screen read the numbers 12 seconds ago');
   });
 
   it('turns the movement off: no parcels, a still elbow, no ping on the live dot', () => {

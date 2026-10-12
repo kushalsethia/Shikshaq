@@ -29,7 +29,7 @@ import {
 import { BentoPanel } from '@/components/layout/PageContainer';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
-import { APPLICATION_STATUS_LABEL, docsLabel } from '@/lib/teacher-review-api';
+import { APPLICATION_STATUS_LABEL, docsLabel, placeWords } from '@/lib/teacher-review-api';
 import {
   APPLICATION_COLUMNS,
   STATUS_TONE,
@@ -132,9 +132,9 @@ const COLUMNS: AdminTableColumn[] = [
   { key: 'applicant', label: 'Applicant', width: '1.6fr' },
   { key: 'contact', label: 'Contact', width: '1.3fr' },
   { key: 'subjects', label: 'Subjects', width: '1.6fr', wrap: true },
-  { key: 'area', label: 'Area', width: '1.1fr', wrap: true },
+  { key: 'area', label: 'Where they teach', width: '1.1fr', wrap: true },
   { key: 'submitted', label: 'Submitted', width: '1fr', wrap: true },
-  { key: 'docs', label: 'Sent with it', width: '1.1fr', wrap: true },
+  { key: 'docs', label: 'Documents sent', width: '1.1fr', wrap: true },
   { key: 'status', label: 'Status', width: '1fr' },
 ];
 
@@ -186,7 +186,7 @@ export function ApplicationsBody({
         {a.texted_status !== 'not_texted' ? <p className="truncate text-[12px] font-semibold text-brand-blue">{textedLabel(a.texted_status)}</p> : null}
       </div>,
       [a.subjects, a.classes_taught_for_backend].filter(Boolean).join(' · ') || 'Not said',
-      a.location_v2 || 'Not said',
+      placeWords(a.location_v2),
       formatDistanceToNow(new Date(a.created_at), { addSuffix: true }),
       docsLabel(a),
       <AdminStatusPill key="status" status={STATUS_TONE[a.status]} label={APPLICATION_STATUS_LABEL[a.status]} />,

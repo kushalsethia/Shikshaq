@@ -32,7 +32,7 @@ export function AnimatedNumber({ value, animate, className }: { value: number; a
   );
 }
 
-/** "Checked 12 seconds ago": when this browser last read the numbers. It says nothing about how fresh the data is (that is "Data as of"). Ticks once a second on its own so the rest of the route does not re-render. `now` is for tests. */
+/** "This screen read the numbers 12 seconds ago": when this browser last read the numbers. It says nothing about how fresh the data is (that is "The desk last sent numbers").Ticks once a second on its own so the rest of the route does not re-render. `now` is for tests. */
 export function UpdatedAgo({ updatedAt, now }: { updatedAt: number | null; now?: number }) {
   const [tick, setTick] = useState(() => Date.now());
   useEffect(() => {
@@ -41,7 +41,7 @@ export function UpdatedAgo({ updatedAt, now }: { updatedAt: number | null; now?:
     return () => window.clearInterval(id);
   }, [now]);
   if (updatedAt === null) return <span>Reading the numbers</span>;
-  return <span>Checked {updatedWords((now ?? tick) - updatedAt)}</span>;
+  return <span>This screen read the numbers {updatedWords((now ?? tick) - updatedAt)}</span>;
 }
 
 /** The small live dot. Green and pinging while reads succeed, amber and still when the last one failed. */
@@ -235,17 +235,18 @@ export function StopCard({
   const titleClass = cn('text-left', action && STRETCH);
   const headingClass = 'min-w-0 text-pretty text-[14px] font-bold leading-snug text-foreground';
   const title = stop.title;
+  // The name a screen reader hears: the title, then what the link does. Kept in
+  // aria-label so the visible text is only the title.
+  const readAs = action ? `${title}: ${action.label.charAt(0).toLowerCase()}${action.label.slice(1)}` : title;
   const titleNode = !action ? (
     title
   ) : action.kind === 'link' ? (
-    <Link to={action.href} className={titleClass}>
+    <Link to={action.href} className={titleClass} aria-label={readAs}>
       {title}
-      <span className="sr-only">. {action.label}</span>
     </Link>
   ) : (
-    <button type="button" onClick={() => onShowRegistry(action.states)} className={titleClass}>
+    <button type="button" onClick={() => onShowRegistry(action.states)} className={titleClass} aria-label={readAs}>
       {title}
-      <span className="sr-only">. {action.label}</span>
     </button>
   );
 

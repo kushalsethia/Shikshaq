@@ -16,7 +16,7 @@ import { AdminEmpty, AdminError, AdminLoading } from '@/components/admin/AdminSt
 import { DebugId } from '@/components/DebugId';
 import { formatSeconds } from '@/lib/format-seconds';
 import { loadView } from '@/lib/admin-load-view';
-import { PAPER_PAGE, moreCount, nextPaperLimit, papersShownText, summaryLine, totalsOf } from '@/lib/team-view';
+import { PAPER_PAGE, activeWords, moreCount, nextPaperLimit, papersShownText, progressWords, summaryLine, totalsOf } from '@/lib/team-view';
 import {
   realTeamDashboardApi,
   type TeamDashboardApi,
@@ -176,7 +176,7 @@ export function AdminTeamPage({
       {banner}
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-        <AdminPanelHeader title="Verifier progress" meta={view === 'list' || view === 'empty' ? `${stats.length} ${stats.length === 1 ? 'verifier' : 'verifiers'} active` : undefined} />
+        <AdminPanelHeader title="Verifier progress" meta={(view === 'list' || view === 'empty') && stats.length > 0 ? activeWords(stats) : undefined} />
 
         <div className="mb-3 px-[18px]">
           <AdminFilterChips
@@ -477,7 +477,7 @@ function PaperProgressCard({ row }: { row: PaperProgressRow }) {
           <DebugId label="paper" value={row.live_bank_paper_id ?? row.audit_paper_id} />
           <DebugId label="audit-paper" value={row.audit_paper_id} />
         </div>
-        <span className="text-[12px] tabular-nums text-warm-secondary">{row.open_doubts} open · {row.pct_done}% done</span>
+        <span className="text-[12px] tabular-nums text-warm-secondary">{progressWords(row)}</span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-warm-hairline">
         <div className="h-full rounded-full bg-mint" style={{ width: `${Math.min(100, row.pct_done)}%` }} />

@@ -22,7 +22,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { schoolSlug } from '@/lib/school-slug';
-import { displaySchool, isRealSchoolLabel } from '@/lib/school-display';
+import { displaySchool, isRealSchoolLabel, paperSourceName } from '@/lib/school-display';
 
 /** One question, as the reader needs it. Paper-level facts live on BankPaper. */
 export interface BankQuestion {
@@ -361,7 +361,7 @@ function withVisibleCount(paper: BankPaper): Promise<BankPaper> {
 
 /** The title a paper is listed under across the papers surface. */
 export function paperTitle(p: BankPaper): string {
-  return [displaySchool(p.school), `Class ${p.cls} ${p.subject}`, hasYear(p.year) ? p.year : null]
+  return [paperSourceName(p.school), `Class ${p.cls} ${p.subject}`, hasYear(p.year) ? p.year : null]
     .filter(Boolean)
     .join(' · ');
 }

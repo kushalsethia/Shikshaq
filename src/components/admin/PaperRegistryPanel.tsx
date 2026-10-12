@@ -9,6 +9,7 @@ import { AdminPillButton, adminPillClass } from '@/components/admin/AdminPillBut
 import { reportLoadError } from '@/lib/load-error';
 import { useRememberedOpen } from '@/lib/use-remembered-open';
 import { cn } from '@/lib/utils';
+import type { Audience } from '@/lib/pipeline-route';
 import { realPaperRegistryApi } from '@/lib/paper-registry-api';
 import {
   PROCESSED_STATES,
@@ -113,7 +114,7 @@ function StateLegend({ counts }: { counts: (s: ProcessedState) => number }) {
   );
 }
 
-function RowItem({ row }: { row: RegistryRow }) {
+function RowItem({ row, audience }: { row: RegistryRow; audience: Audience }) {
   const href = adminPaperHref(row);
   const sub = rowSubline(row);
   const qs = questionsLine(row);
@@ -142,10 +143,13 @@ function RowItem({ row }: { row: RegistryRow }) {
         ) : null}
       </div>
       <div className="md:justify-self-end">
-        {href ? (
+        {href && audience === 'admin' ? (
           <Link to={href} className={adminPillClass('secondary', 'md', 'px-4 text-foreground')}>
             Open paper
           </Link>
+        ) : href ? (
+          // An HOD cannot open the admin Library page, so the row only says where the paper is.
+          <span className="text-[13px] text-warm-meta">In the library</span>
         ) : (
           <span className="text-[13px] text-warm-meta">Not in the library yet</span>
         )}
@@ -158,8 +162,11 @@ export function PaperRegistryPanel({
   api = realPaperRegistryApi,
   onSummary,
   focus,
+  audience = 'admin',
 }: {
   api?: PaperRegistryApi;
+  /** An HOD sees the same list but no link into the admin Library. */
+  audience?: Audience;
   /** Told whenever the summary changes, so the page can show Not started elsewhere. */
   onSummary?: (summary: RegistrySummary | null, status: RegistrySummaryStatus) => void;
   /** Filter the list to these states (none = every paper) and scroll to it. A new `nonce` repeats the request. */
@@ -405,7 +412,7 @@ export function PaperRegistryPanel({
         ) : (
           <ul className={cn('divide-y divide-warm-hairline transition-opacity duration-150', listLoading && 'opacity-50')}
             aria-busy={listLoading}>
-            {rows.map((r) => <RowItem key={r.registry_key} row={r} />)}
+            {rows.map((r) => <RowItem key={r.registry_key} row={r} audience={audience} />)}
           </ul>
         )}
 
