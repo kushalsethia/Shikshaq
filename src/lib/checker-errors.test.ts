@@ -9,6 +9,23 @@ describe('checkerErrorAdvice', () => {
     expect(a.message).not.toMatch(/internet/);
   });
 
+  it('says plainly when the paper itself is no longer assigned (12 Oct 2026: admin self-assign was swept away)', () => {
+    const a = checkerErrorAdvice({ code: '42501', message: 'This paper is not assigned to you' });
+    expect(a.moveOn).toBe(true);
+    expect(a.message).toMatch(/no longer assigned to you/);
+    expect(a.message).not.toMatch(/internet|42501/);
+  });
+
+  it('moves on for a question sent to the HOD, gone, or on a paper not open for checking', () => {
+    for (const message of [
+      'This question was sent to the HOD',
+      'Question not found',
+      'This paper is not eligible for checking',
+    ]) {
+      expect(checkerErrorAdvice({ code: '42501', message }).moveOn, message).toBe(true);
+    }
+  });
+
   it('moves on when someone else changed the question (40001)', () => {
     expect(checkerErrorAdvice({ code: '40001', message: 'stale question text, reload and retry' }).moveOn).toBe(true);
     expect(
