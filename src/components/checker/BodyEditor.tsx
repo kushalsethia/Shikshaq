@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { segmentBody, reassemble, type BodySegment } from '@/lib/math-segments';
 import { MathPreview } from './MathPreview';
@@ -33,6 +33,13 @@ export interface BodyEditorProps {
    *  and tells the caller it has handled it. */
   formulaRequest?: number;
   onFormulaHandled?: (request: number) => void;
+  /** 'card' (the verify screen): the editor sits inside the part card, so its top row carries
+   *  `leading` on the left and a small "Show code" text link on the right. */
+  variant?: 'default' | 'card';
+  /** Card variant: what goes at the left of the top row (the badges). */
+  leading?: ReactNode;
+  /** Card variant: what goes under the top row (an opened "What the computer changed"). */
+  afterHeader?: ReactNode;
 }
 
 export const NO_FORMULA_NOTE =
@@ -88,6 +95,9 @@ export function BodyEditor({
   textareaClassName,
   formulaRequest = 0,
   onFormulaHandled,
+  variant = 'default',
+  leading,
+  afterHeader,
 }: BodyEditorProps) {
   const initial = useState(() => segmentBody(value))[0];
   const [segments, setSegments] = useState<BodySegment[]>(initial.segments);
@@ -215,16 +225,34 @@ export function BodyEditor({
 
   return (
     <div>
-      <div className="mb-2 flex items-center justify-end">
-        <button
-          type="button"
-          onClick={toggleCode}
-          disabled={disabled || (codeMode && fellBack)}
-          className="rounded-full bg-muted px-3 py-1 text-[12px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"
-        >
-          {codeMode ? 'Show as maths' : 'Show code'}
-        </button>
-      </div>
+      {variant === 'card' ? (
+        <>
+          <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            {leading}
+            <button
+              type="button"
+              onClick={toggleCode}
+              disabled={disabled || (codeMode && fellBack)}
+              data-testid="show-code"
+              className="tap-44 ml-auto rounded-[6px] px-1 py-0.5 text-[13px] font-medium text-warm-secondary underline underline-offset-2 transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"
+            >
+              {codeMode ? 'Show as maths' : 'Show code'}
+            </button>
+          </div>
+          {afterHeader}
+        </>
+      ) : (
+        <div className="mb-2 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={toggleCode}
+            disabled={disabled || (codeMode && fellBack)}
+            className="rounded-full bg-muted px-3 py-1 text-[12px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"
+          >
+            {codeMode ? 'Show as maths' : 'Show code'}
+          </button>
+        </div>
+      )}
 
       {fellBack && codeMode ? (
         <p className="mb-2 text-[12px] text-warm-secondary">

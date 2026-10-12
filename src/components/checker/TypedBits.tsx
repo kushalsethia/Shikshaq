@@ -252,6 +252,126 @@ export function ToolsRow({
   );
 }
 
+/** The long tooltip of a tool: its full name, what it does (or why it does not apply) and its key. */
+export function toolTooltip(id: CheckerToolId, ok: boolean): string {
+  const t = CHECKER_TOOLS.find((x) => x.id === id)!;
+  return `${t.label}. ${ok ? t.hint : t.unavailable}${t.key ? ` Key: ${t.key}.` : ''}`;
+}
+
+/**
+ * The tools as one row of icon buttons, directly under the part card (11 Oct to
+ * 12 Oct 2026: the owner had to scroll to find them). Each has an icon and a
+ * short label, a tooltip with the long name and the key, and the full name for
+ * a screen reader. A tool that does not apply is dimmed but still answers a tap
+ * with the reason, instead of a button that silently does nothing.
+ */
+export function ToolsToolbar({
+  active,
+  available,
+  onPick,
+  busy,
+}: {
+  /** The tool whose mode is open, if any. */
+  active: CheckerToolId | null;
+  available: Record<CheckerToolId, boolean>;
+  onPick: (id: CheckerToolId, available: boolean) => void;
+  busy?: boolean;
+}) {
+  return (
+    <section aria-label={TOOLS_HEADING} data-tour="tools" data-testid="tools-row" className="shrink-0">
+      <div className="grid grid-cols-4 gap-2">
+        {CHECKER_TOOLS.map((t) => {
+          const ok = available[t.id];
+          const on = active === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              data-testid={`tool-${t.id}`}
+              aria-label={t.label}
+              aria-pressed={on}
+              aria-disabled={!ok || undefined}
+              title={toolTooltip(t.id, ok)}
+              disabled={busy}
+              onClick={() => onPick(t.id, ok)}
+              className={cn(
+                'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-[12px] border px-1 py-1.5 text-[12px] font-semibold leading-tight transition-[transform,background-color,color] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
+                on ? 'border-transparent bg-panel text-background' : 'border-warm-hairline-strong bg-white text-foreground hover:bg-muted',
+                !ok && 'opacity-55',
+                busy && 'cursor-not-allowed opacity-50',
+              )}
+            >
+              {TOOL_ICON[t.id]}
+              <span aria-hidden="true">
+                {t.short}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/** The list inside "What the computer changed": the computer's edits and, on a tap, its first reading. */
+function ChangesBody({ source, rawOcr, className }: { source: unknown; rawOcr: unknown; className?: string }) {
+  const [showRaw, setShowRaw] = React.useState(false);
+  const { lines, hidden } = describeEditLog(source);
+  const raw = rawReading(rawOcr);
+  return (
+    <div id="what-changed-body" className={className ?? 'px-3.5 pb-3.5'}>
+      <p className="mb-2 text-pretty text-[13px] leading-snug text-warm-secondary">{CHANGES_NOTE}</p>
+      {lines.length > 0 ? (
+        <ul className="flex flex-col gap-1.5" aria-label={CHANGES_HEADING}>
+          {lines.map((l, i) => (
+            <li key={`${l.kind}-${i}`} className="flex gap-2 text-[14px] leading-snug text-foreground">
+              <span aria-hidden="true" className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-brand" />
+              <span className="min-w-0 break-words">
+                {l.from !== null ? (
+                  <>
+                    {l.label}: <Word>{l.from}</Word>
+                    {l.to !== null ? (
+                      <>
+                        {' '}
+                        became <Word>{l.to}</Word>
+                      </>
+                    ) : null}
+                  </>
+                ) : (
+                  l.text
+                )}
+              </span>
+            </li>
+          ))}
+          {hidden > 0 ? <li className="text-[13px] text-warm-secondary">and {hidden} more</li> : null}
+        </ul>
+      ) : (
+        <p className="text-[14px] text-warm-secondary">{CHANGES_NONE_WRITTEN}</p>
+      )}
+      {raw !== null ? (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => setShowRaw((v) => !v)}
+            aria-expanded={showRaw}
+            data-testid="toggle-raw"
+            className="tap-44 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            {showRaw ? RAW_HIDE : RAW_SHOW}
+          </button>
+          {showRaw ? (
+            <div className="mt-2 rounded-[10px] border border-dashed border-warm-hairline-strong bg-white p-3" data-testid="raw-reading">
+              <p className="text-[12px] font-bold text-foreground">{RAW_HEADING}</p>
+              <p className="mb-1.5 text-[12px] text-warm-secondary">{RAW_NOTE}</p>
+              <pre className="whitespace-pre-wrap break-words font-mono text-[13px] leading-relaxed text-foreground">{raw}</pre>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * "What the computer changed": under the typed words, closed to begin with.
  * Lists the computer's own edits in plain language and can show its very first
@@ -260,10 +380,8 @@ export function ToolsRow({
  */
 export function ChangesSection({ source, rawOcr }: { source: unknown; rawOcr: unknown }) {
   const [open, setOpen] = React.useState(false);
-  const [showRaw, setShowRaw] = React.useState(false);
   if (!hasChangesToShow(source, rawOcr)) return null;
-  const { lines, hidden, total } = describeEditLog(source);
-  const raw = rawReading(rawOcr);
+  const { total } = describeEditLog(source);
   return (
     <section data-tour="changes" data-testid="what-changed" className="mt-4 rounded-[12px] bg-muted">
       <button
@@ -279,58 +397,40 @@ export function ChangesSection({ source, rawOcr }: { source: unknown; rawOcr: un
         </span>
         <ChevronDown className={cn('h-4 w-4 shrink-0 text-warm-secondary transition-transform duration-200', open && 'rotate-180')} aria-hidden="true" />
       </button>
-      {open ? (
-        <div id="what-changed-body" className="px-3.5 pb-3.5">
-          <p className="mb-2 text-pretty text-[13px] leading-snug text-warm-secondary">{CHANGES_NOTE}</p>
-          {lines.length > 0 ? (
-            <ul className="flex flex-col gap-1.5" aria-label={CHANGES_HEADING}>
-              {lines.map((l, i) => (
-                <li key={`${l.kind}-${i}`} className="flex gap-2 text-[14px] leading-snug text-foreground">
-                  <span aria-hidden="true" className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-brand" />
-                  <span className="min-w-0 break-words">
-                    {l.from !== null ? (
-                      <>
-                        {l.label}: <Word>{l.from}</Word>
-                        {l.to !== null ? (
-                          <>
-                            {' '}
-                            became <Word>{l.to}</Word>
-                          </>
-                        ) : null}
-                      </>
-                    ) : (
-                      l.text
-                    )}
-                  </span>
-                </li>
-              ))}
-              {hidden > 0 ? <li className="text-[13px] text-warm-secondary">and {hidden} more</li> : null}
-            </ul>
-          ) : (
-            <p className="text-[14px] text-warm-secondary">{CHANGES_NONE_WRITTEN}</p>
-          )}
-          {raw !== null ? (
-            <div className="mt-3">
-              <button
-                type="button"
-                onClick={() => setShowRaw((v) => !v)}
-                aria-expanded={showRaw}
-                data-testid="toggle-raw"
-                className="tap-44 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-              >
-                {showRaw ? RAW_HIDE : RAW_SHOW}
-              </button>
-              {showRaw ? (
-                <div className="mt-2 rounded-[10px] border border-dashed border-warm-hairline-strong bg-white p-3" data-testid="raw-reading">
-                  <p className="text-[12px] font-bold text-foreground">{RAW_HEADING}</p>
-                  <p className="mb-1.5 text-[12px] text-warm-secondary">{RAW_NOTE}</p>
-                  <pre className="whitespace-pre-wrap break-words font-mono text-[13px] leading-relaxed text-foreground">{raw}</pre>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      {open ? <ChangesBody source={source} rawOcr={rawOcr} /> : null}
+    </section>
+  );
+}
+
+/** The verify screen's version: a small chip on the part card's top row. Tapping it opens the list inline,
+ *  under that row (the screen holds `open` and puts {@link ChangesPanel} there). Null when there is nothing to show. */
+export function ChangesChip({ source, rawOcr, open, onToggle }: { source: unknown; rawOcr: unknown; open: boolean; onToggle: () => void }) {
+  if (!hasChangesToShow(source, rawOcr)) return null;
+  const { total } = describeEditLog(source);
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-controls="what-changed-body"
+      data-tour="changes"
+      data-testid="changes-chip"
+      title={`${CHANGES_HEADING}. Tap to see what the computer fixed on its own.`}
+      className="tap-44 inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[12px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+    >
+      {CHANGES_HEADING}
+      {total > 0 ? <span className="rounded-full bg-white px-1.5 text-[12px] font-semibold tabular-nums text-foreground">{total}</span> : null}
+      <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform duration-200', open && 'rotate-180')} aria-hidden="true" />
+    </button>
+  );
+}
+
+/** The opened list of {@link ChangesChip}, a small scrolling box so it can never push the words off the tile. */
+export function ChangesPanel({ source, rawOcr }: { source: unknown; rawOcr: unknown }) {
+  if (!hasChangesToShow(source, rawOcr)) return null;
+  return (
+    <section data-testid="what-changed" aria-label={CHANGES_HEADING} className="mb-2 max-h-48 overflow-y-auto rounded-[8px] bg-muted p-2.5">
+      <ChangesBody source={source} rawOcr={rawOcr} className="" />
     </section>
   );
 }

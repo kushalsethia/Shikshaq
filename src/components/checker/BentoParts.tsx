@@ -201,7 +201,7 @@ export function TilePager({
   value: PanelId;
   onChange: (next: PanelId) => void;
   order: PanelId[];
-  panes: Record<PanelId, React.ReactNode>;
+  panes: Partial<Record<PanelId, React.ReactNode>>;
   reducedMotion: boolean;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);

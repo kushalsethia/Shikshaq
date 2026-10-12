@@ -2,16 +2,17 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MathText } from '@/components/papers/math-text';
-import { BodyEditor } from '@/components/checker/BodyEditor';
 import { OptionList } from '@/components/checker/OptionList';
+import { PartCard } from '@/components/checker/PartCard';
+import { FIX_RULE_LINE, RulesInfo, ShortcutsPopover } from '@/components/checker/CheckerPopovers';
 import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
-import { FixFrame, PanelTabs, PrintedFrame, TypedFrame, VERIFY_TABS, type PanelId } from '@/components/checker/Panels';
+import { PanelTabs, PrintedFrame, TypedFrame, VERIFY_TABS, type PanelId } from '@/components/checker/Panels';
 import { tileForNextQuestion } from '@/lib/checker-bento';
 import { BentoTile, FadeScroll, ImageLightbox, TilePager, useBentoWide } from '@/components/checker/BentoParts';
-import { ChangesSection, MarksInsideHint, QuestionChips, ToolsRow } from '@/components/checker/TypedBits';
+import { ChangesChip, ChangesPanel, MarksInsideHint, QuestionChips, ToolsToolbar } from '@/components/checker/TypedBits';
 import { toolBlockedByUnsavedEdit, toolById, type CheckerToolId } from '@/lib/checker-tools';
-import { CheckerSkeleton, Callout, CheckGuidance, Modal, SplitPreview, WholeQuestion, useSignedUrl } from '@/components/checker/CheckerBits';
-import { Maximize2, Undo2 } from 'lucide-react';
+import { CheckerSkeleton, Callout, CheckGuidance, Modal, OtherParts, SplitPreview, useSignedUrl } from '@/components/checker/CheckerBits';
+import { ArrowLeft, Check, CircleHelp, Maximize2, Pencil, SkipForward, Undo2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CheckerApi, CheckerQuestion } from '@/lib/checker-api';
 import { whatToCheck } from '@/lib/checker-kid-reasons';
@@ -25,13 +26,12 @@ import {
   typoSaveProblem,
   TYPO_CHECKBOX_LABEL,
   TYPO_RULE_TITLE,
-  TYPO_RULE_NOTE,
   TYPO_NOTE_LABEL,
   TYPO_NOTE_MAX,
 } from '@/lib/checker-save';
 import { DebugFacts } from '@/components/admin/DebugFacts';
 import { PageImageViewer } from '@/components/checker/PageImageViewer';
-import { matchCheckerKeyboardEvent, shortcutHint } from '@/lib/checker-shortcuts';
+import { matchCheckerKeyboardEvent } from '@/lib/checker-shortcuts';
 import {
   isBlankBody,
   isOrOnlyBody,
@@ -45,8 +45,6 @@ import {
   canSplitAt,
   bigEdit,
   moveMarksOut,
-  FIX_RULE_TITLE,
-  FIX_RULE_NOTE,
   BIG_EDIT_WARNING,
 } from '@/lib/checker-body';
 import { checkerErrorAdvice, undoErrorMessage, UNDONE_NOTE, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE } from '@/lib/checker-errors';
@@ -65,6 +63,7 @@ import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewCha
 import { isForeignChangeToOpenQuestion } from '@/lib/paper-review-realtime';
 import { DebugId } from '@/components/DebugId';
 import { ActionButton } from '@/components/checker/CheckerButtons';
+import { ACTION_ICON_CLASS } from '@/lib/checker-button-styles';
 import { CheckerWalkthrough } from '@/components/checker/CheckerWalkthrough';
 import { CHECKER_PRACTICE_PATH, CHECKER_TOUR_PARAM, hasSeenWalkthrough, markWalkthroughSeen } from '@/lib/checker-onboarding';
 import { paperLabel, paperProgress } from '@/lib/checker-progress';
@@ -323,6 +322,8 @@ export function VerifyScreen({
   const [splitAt, setSplitAt] = useState<number | null>(null);
   const [printedTypo, setPrintedTypo] = useState(false);
   const [typoNote, setTypoNote] = useState('');
+  // "What the computer changed" on the part card, opened inline.
+  const [changesOpen, setChangesOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpReason, setHelpReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -373,6 +374,7 @@ export function VerifyScreen({
       setShowPage(false);
       setLightbox(null);
       setSplitAt(null);
+      setChangesOpen(false);
       setHelpOpen(false);
       setHelpReason('');
       setError(null);
@@ -782,17 +784,17 @@ export function VerifyScreen({
     setMode('check');
   }
 
-  /** Open Fix it, and show the Fix tile on a phone (the only place you can type). */
+  /** Open Fix it: the part card turns into the editor in place. On a phone the Question tile is the one with the card. */
   function startFix(tool: 'fix' | 'formula' = 'fix') {
     setSplitAt(null);
     setFixTool(tool);
     setMode('fix');
-    setPanel('fix');
+    setPanel('typed');
   }
 
   function startSplit() {
     setMode('split');
-    setPanel('fix');
+    setPanel('typed');
   }
 
   /** One of the four tools under the typed words. */
@@ -920,7 +922,8 @@ export function VerifyScreen({
 
   // Rewind: enabled once the verifier has answered something in this visit.
   // Also shown on the "done" screens, where the last answer is the one most
-  // often clicked by mistake.
+  // often clicked by mistake. On a phone it is icon-only, to leave the room to
+  // the two words that matter.
   const undoButton = (
     <button
       type="button"
@@ -928,21 +931,40 @@ export function VerifyScreen({
       disabled={submitting || answered.length === 0}
       data-testid="undo-last"
       data-tour="undo"
+      aria-label="Undo last"
       title={answered.length === 0 ? 'Nothing to undo yet' : 'Take back your last answer (U)'}
-      className="tap-44 order-3 col-span-2 inline-flex items-center justify-center gap-1.5 rounded-full bg-muted px-2 py-2 text-[14px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50 md:order-none md:col-auto md:px-4"
+      className="tap-44 order-3 inline-flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-full bg-muted text-[15px] font-bold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50 md:order-none md:w-auto md:px-4"
     >
-      <Undo2 className="h-4 w-4" aria-hidden="true" />
-      Undo last
+      <Undo2 className={ACTION_ICON_CLASS} aria-hidden="true" />
+      <span className="hidden md:inline">Undo last</span>
     </button>
   );
 
-  /* The top tile: which paper, how far through it, the unsaved-answers chip and
-     the page's own small controls. One thin row on a tablet and up, two on a
-     phone. It stays while the question tiles swap, so nothing in it jumps. */
+  /* The top tile: ONE calm row (owner, 12 Oct 2026: "too crammed"). A back
+     arrow to the paper's questions, which paper, how far through it, the
+     unsaved-answers chip when there is one, and one Menu button. Every other
+     way out (my papers, admin, the HOD desk) and the day's counts are in the
+     Menu. Only the title may shrink and cut off; it carries the whole name as
+     its tooltip. On a phone the progress bar is a thin line along the foot of
+     the tile. */
   const topTile = (
-    <div data-tour="paper" data-testid="verify-header" className="shrink-0 rounded-[20px] border border-warm-hairline bg-card px-3 py-2 md:rounded-[18px]">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 md:flex md:flex-nowrap">
-        <div className="order-1 min-w-0 md:flex-none md:basis-[32%]">
+    <div
+      data-tour="paper"
+      data-testid="verify-header"
+      className="relative shrink-0 overflow-hidden rounded-[20px] border border-warm-hairline bg-card px-3 py-2 md:rounded-[18px] md:px-4"
+    >
+      <div className="flex flex-nowrap items-center gap-3 md:gap-4">
+        <button
+          type="button"
+          onClick={onExit}
+          aria-label="Back to this paper's questions"
+          title="Back to this paper's questions"
+          data-testid="back-to-questions"
+          className="tap-44 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+        </button>
+        <div className="min-w-0 flex-1 md:flex-none md:basis-[34%]">
           <p className="truncate text-[12px] font-semibold uppercase tracking-[.04em] text-warm-meta">
             Verifying
             {question ? (
@@ -966,12 +988,12 @@ export function VerifyScreen({
           </h2>
         </div>
         {progress && question ? (
-          <div className="order-3 flex min-w-0 items-center gap-2.5 md:order-2 md:flex-1">
-            <p className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground" aria-live="polite">
+          <>
+            <p className="shrink-0 whitespace-nowrap text-[13px] font-semibold tabular-nums text-foreground" aria-live="polite">
               {progress.label}
             </p>
             <div
-              className="h-2 min-w-[48px] flex-1 overflow-hidden rounded-full bg-muted"
+              className="absolute inset-x-0 bottom-0 h-1 overflow-hidden bg-muted md:static md:h-2 md:min-w-[48px] md:flex-1 md:rounded-full"
               role="progressbar"
               aria-valuemin={0}
               aria-valuemax={100}
@@ -980,41 +1002,18 @@ export function VerifyScreen({
             >
               <div className="h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${Math.max(progress.percent, 4)}%` }} />
             </div>
-          </div>
+          </>
         ) : (
-          <div className="order-3 md:order-2 md:flex-1" aria-hidden="true" />
+          <div className="hidden md:block md:flex-1" aria-hidden="true" />
         )}
-        <div className="order-5 col-span-2 empty:hidden md:order-3 md:col-auto">
-          <SaveStatusChip compact waiting={outboxState.entries.length} failing={outboxState.failing} onRetry={box.retryNow} />
-        </div>
-        <div className="order-4 flex shrink-0 items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onExit}
-            aria-label="Back to this paper's questions"
-            className="tap-44 rounded-full bg-muted px-2.5 py-1.5 sm:px-3 text-[13px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            <span className="xl:hidden">Questions</span>
-            <span className="hidden xl:inline">Back to this paper's questions</span>
-          </button>
-          <button
-            type="button"
-            onClick={onList ?? onExit}
-            data-testid="back-to-my-papers"
-            aria-label="Back to my papers"
-            className="tap-44 rounded-full bg-muted px-2.5 py-1.5 sm:px-3 text-[13px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            <span className="xl:hidden">My papers</span>
-            <span className="hidden xl:inline">Back to my papers</span>
-          </button>
-        </div>
-        {toolbar ? <div className="order-2 flex shrink-0 items-center justify-end gap-1.5 md:order-5">{toolbar}</div> : null}
+        <SaveStatusChip compact waiting={outboxState.entries.length} failing={outboxState.failing} onRetry={box.retryNow} />
+        {toolbar ? <div className="flex shrink-0 items-center">{toolbar}</div> : null}
       </div>
     </div>
   );
 
   /* The action bar: always visible, under the tiles. On a phone it is two rows
-     (the two big answers, then the three small ones) pinned to the bottom; on a
+     (the two big answers, then undo, ask and skip) pinned to the bottom; on a
      tablet and up one row. */
   const actionBarShell = (children: ReactNode, testId?: string) => (
     // Action footer: sticky so the buttons stay under the thumb, and outside the
@@ -1027,6 +1026,9 @@ export function VerifyScreen({
     </div>
   );
 
+  const answerButtonClass = 'order-1 min-w-0 basis-[calc(50%-4px)] grow px-3 md:order-none md:basis-auto md:grow-0 md:px-5 md:py-2';
+  const smallButtonClass = 'min-w-0 grow px-2 text-[14px] md:grow-0 md:basis-auto md:px-5 md:py-2 md:text-[15px]';
+
   const actionBar =
     question && !questionQuery.isError
       ? actionBarShell(
@@ -1038,19 +1040,21 @@ export function VerifyScreen({
                 {error}
               </div>
             ) : null}
-            <div className="grid grid-cols-6 items-center gap-2 md:flex md:flex-wrap">
+            <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
               {undoButton}
               {mode === 'split' ? (
                 <>
                   <ActionButton
                     tone="mint"
-                    className="order-1 col-span-3 md:order-none md:col-auto md:py-2"
+                    className={answerButtonClass}
                     onClick={doSplit}
                     disabled={!canSplitAt(bodyDraft, splitAt) || submitting}
                   >
+                    <Check className={ACTION_ICON_CLASS} aria-hidden="true" />
                     {submitting ? 'Saving...' : 'Split here'}
                   </ActionButton>
-                  <ActionButton tone="muted" className="order-2 col-span-3 md:order-none md:col-auto md:py-2" onClick={cancelEdit} disabled={submitting}>
+                  <ActionButton tone="muted" className={answerButtonClass} onClick={cancelEdit} disabled={submitting}>
+                    <X className={ACTION_ICON_CLASS} aria-hidden="true" />
                     Cancel
                   </ActionButton>
                 </>
@@ -1059,10 +1063,12 @@ export function VerifyScreen({
                   <ActionButton
                     tourId="pass"
                     tone={blank && !lost && mode === 'check' ? 'muted' : 'mint'}
-                    className="order-1 col-span-3 px-3 md:order-none md:col-auto md:px-5 md:py-2"
+                    className={answerButtonClass}
                     onClick={doPass}
                     disabled={submitting || !canPass || marksInvalid}
+                    title="Looks right (Enter or P)"
                   >
+                    <Check className={ACTION_ICON_CLASS} aria-hidden="true" />
                     {submitting
                       ? 'Saving...'
                       : mode === 'fix'
@@ -1074,49 +1080,44 @@ export function VerifyScreen({
                           : 'Looks right'}
                   </ActionButton>
                   {mode === 'check' ? (
-                    <ActionButton
-                      tourId="fix"
-                      tone="dark"
-                      className="order-2 col-span-3 px-3 md:order-none md:col-auto md:px-5 md:py-2"
-                      onClick={() => startFix('fix')}
-                      disabled={submitting}
-                    >
+                    <ActionButton tourId="fix" tone="dark" className={answerButtonClass} onClick={() => startFix('fix')} disabled={submitting} title="Fix it (F)">
+                      <Pencil className={ACTION_ICON_CLASS} aria-hidden="true" />
                       Fix it
                     </ActionButton>
                   ) : (
-                    <ActionButton
-                      tone="muted"
-                      className="order-2 col-span-3 px-3 md:order-none md:col-auto md:px-5 md:py-2"
-                      onClick={cancelEdit}
-                      disabled={submitting}
-                    >
+                    <ActionButton tone="muted" className={answerButtonClass} onClick={cancelEdit} disabled={submitting} title="Cancel (Esc)">
+                      <X className={ACTION_ICON_CLASS} aria-hidden="true" />
                       Cancel
                     </ActionButton>
                   )}
                   <ActionButton
                     tourId="help"
-                    tone="brand"
-                    className="order-4 col-span-2 px-2 text-[14px] md:order-none md:col-auto md:px-5 md:py-2 md:text-[15px]"
+                    tone="outline"
+                    className={cn('order-4 md:order-none', smallButtonClass)}
                     onClick={() => setHelpOpen(true)}
                     disabled={submitting}
+                    title="Ask the HOD (H)"
                   >
+                    <CircleHelp className={ACTION_ICON_CLASS} aria-hidden="true" />
                     Ask the HOD
                   </ActionButton>
                   <ActionButton
                     tourId="skip"
                     tone="muted"
-                    className="order-5 col-span-2 px-2 text-[14px] md:order-none md:col-auto md:px-5 md:py-2 md:text-[15px]"
+                    className={cn('order-5 md:order-none', smallButtonClass)}
                     onClick={doSkip}
                     disabled={submitting}
+                    ariaLabel="Skip this question"
+                    title="Skip this question (K)"
                   >
-                    <span className="md:hidden">Skip</span>
-                    <span className="hidden md:inline">Skip this question</span>
+                    <SkipForward className={ACTION_ICON_CLASS} aria-hidden="true" />
+                    Skip
                   </ActionButton>
                 </>
               )}
-              <p className="col-span-6 ml-auto hidden min-w-0 flex-1 text-right text-[12px] leading-tight text-warm-meta lg:line-clamp-2 lg:block">
-                {mode === 'check' ? shortcutHint({ canSplit: splitOffered, canPass, canUndo: answered.length > 0 }) : 'Esc cancels'}
-              </p>
+              <span className="order-6 ml-auto hidden md:order-none md:inline-flex">
+                <ShortcutsPopover canSplit={splitOffered} canPass={canPass} canUndo={answered.length > 0} editing={mode !== 'check'} />
+              </span>
             </div>
           </>,
         )
@@ -1125,20 +1126,23 @@ export function VerifyScreen({
   const incomingBar =
     showIncoming && !nextFailed
       ? actionBarShell(
-          <div className="grid grid-cols-6 items-center gap-2 md:flex md:flex-wrap">
+          <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
             {undoButton}
-            <ActionButton tone="mint" className="order-1 col-span-3 md:order-none md:col-auto md:py-2" onClick={() => undefined} disabled>
+            <ActionButton tone="mint" className={answerButtonClass} onClick={() => undefined} disabled>
+              <Check className={ACTION_ICON_CLASS} aria-hidden="true" />
               Looks right
             </ActionButton>
-            <ActionButton tone="dark" className="order-2 col-span-3 md:order-none md:col-auto md:py-2" onClick={() => undefined} disabled>
+            <ActionButton tone="dark" className={answerButtonClass} onClick={() => undefined} disabled>
+              <Pencil className={ACTION_ICON_CLASS} aria-hidden="true" />
               Fix it
             </ActionButton>
-            <ActionButton tone="brand" className="order-4 col-span-2 px-2 text-[14px] md:order-none md:col-auto md:px-5 md:py-2 md:text-[15px]" onClick={() => undefined} disabled>
+            <ActionButton tone="outline" className={cn('order-4 md:order-none', smallButtonClass)} onClick={() => undefined} disabled>
+              <CircleHelp className={ACTION_ICON_CLASS} aria-hidden="true" />
               Ask the HOD
             </ActionButton>
-            <ActionButton tone="muted" className="order-5 col-span-2 px-2 text-[14px] md:order-none md:col-auto md:px-5 md:py-2 md:text-[15px]" onClick={() => undefined} disabled>
-              <span className="md:hidden">Skip</span>
-              <span className="hidden md:inline">Skip this question</span>
+            <ActionButton tone="muted" className={cn('order-5 md:order-none', smallButtonClass)} onClick={() => undefined} disabled>
+              <SkipForward className={ACTION_ICON_CLASS} aria-hidden="true" />
+              Skip
             </ActionButton>
           </div>,
           'incoming-footer',
@@ -1154,8 +1158,8 @@ export function VerifyScreen({
         const editingHere = mode === 'fix';
 
         const metaList = (
-          // The same four facts are in the top tile's title, so a short tablet or laptop screen drops them here to give the words the room.
-          <ul className="flex flex-wrap items-center gap-1.5 md:[@media(max-height:799px)]:hidden" aria-label="About this question" data-testid="question-meta">
+          // The same four facts are in the top tile's title, so a phone and a short tablet or laptop screen drop them here to give the words the room.
+          <ul className="hidden flex-wrap items-center gap-1.5 md:flex md:[@media(max-height:799px)]:hidden" aria-label="About this question" data-testid="question-meta">
             {metaChips.map((c) => (
               <li key={c} className="rounded-full bg-muted px-3 py-1 text-[12px] font-semibold text-warm-secondary">
                 {c}
@@ -1164,14 +1168,14 @@ export function VerifyScreen({
           </ul>
         );
 
-        /** Question number and marks, then the subject, class, school and year, on one wrapping row. */
-        const questionTop = (editing: boolean, withMeta = true) => (
+        /** Question number and marks as chips (the boxes to change them are under the words, in the part card), then the subject, class, school and year. */
+        const questionTop = (
           <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <QuestionChips
               className="mb-0"
-              number={editing || editingHere ? numberDraft || null : (question.display_number ?? null)}
-              marks={editing ? (question.marks ?? null) : editingHere && marksDraft.trim() !== '' && !marksInvalid ? Number(marksDraft) : (question.marks ?? null)}
-              editing={editing}
+              number={editingHere ? numberDraft || null : (question.display_number ?? null)}
+              marks={editingHere && marksDraft.trim() !== '' && !marksInvalid ? Number(marksDraft) : (question.marks ?? null)}
+              editing={false}
               numberDraft={numberDraft}
               marksDraft={marksDraft}
               onNumber={setNumberDraft}
@@ -1179,7 +1183,7 @@ export function VerifyScreen({
               marksInvalid={marksInvalid}
               disabled={submitting}
             />
-            {withMeta && metaChips.length > 0 ? metaList : null}
+            {metaChips.length > 0 ? metaList : null}
           </div>
         );
 
@@ -1192,7 +1196,8 @@ export function VerifyScreen({
             <CheckGuidance line={whatToCheckLine.line} detail={whatToCheckLine.detail} className="mb-0" />
           ) : null;
 
-        const notes = (
+        /** Things that need doing before the words can be judged. They are rare, and they sit ABOVE the part card. */
+        const alerts = (
           <>
             {keptTyping !== null ? (
               <div role="note" className="mb-3 rounded-[10px] bg-destructive/10 p-3" data-testid="kept-typing">
@@ -1244,68 +1249,88 @@ export function VerifyScreen({
                 </span>
               </Callout>
             ) : null}
+          </>
+        );
 
+        /** Everything that is context, not the thing being checked: under the part card and the tools. */
+        const details = (
+          <div className="flex flex-col gap-3">
             {mode !== 'split' && !blank ? (
               <MarksInsideHint body={bodyDraft} currentMarks={marksDraft} onMove={moveMarks} disabled={submitting} />
             ) : null}
 
-            {context ? <WholeQuestion context={context} /> : null}
+            {context ? <OtherParts context={context} /> : null}
 
             {/* W14: the passage an English question is about. */}
             {english?.passage ? (
-              <div className="mb-2 rounded-[10px] bg-muted px-4 py-3">
+              <div className="rounded-[10px] bg-muted px-4 py-3">
                 <p className="mb-1 text-[12px] font-semibold text-warm-meta">{passageHeading(english.passage.kind)}</p>
                 <div className="max-h-[40vh] overflow-y-auto">
                   <MathText text={english.passage.text} className="text-[14px] leading-relaxed text-foreground" />
                 </div>
               </div>
             ) : null}
-            {english?.setText ? <p className="mb-2 text-[12px] text-warm-secondary">From: {english.setText}</p> : null}
+            {english?.setText ? <p className="text-[12px] text-warm-secondary">From: {english.setText}</p> : null}
 
             {question.instructions ? (
-              <div className="mb-2 rounded-[10px] bg-muted px-4 py-2">
+              <div className="rounded-[10px] bg-muted px-4 py-2">
                 <MathText text={question.instructions} className="text-[14px] italic leading-relaxed text-warm-secondary" />
               </div>
             ) : null}
-
-            {context ? <p className="mb-1 text-[13px] font-semibold text-foreground">The part you are checking</p> : null}
-          </>
+          </div>
         );
 
-        const fixEditor = (
-          <div>
-            {restored ? (
-              <p role="status" className="mb-2 rounded-[10px] bg-brand-subtle px-3 py-2 text-[13px] font-semibold text-foreground">
-                We kept what you typed last time. Check it, then save it or press Cancel.
-              </p>
-            ) : null}
-            <div className="mb-2 rounded-[10px] bg-brand-subtle px-3 py-2">
-              <p className="text-[13px] font-semibold text-foreground">{printedTypo ? TYPO_RULE_TITLE : FIX_RULE_TITLE}</p>
-              <p className="text-[13px] leading-snug text-warm-secondary">{printedTypo ? TYPO_RULE_NOTE : FIX_RULE_NOTE}</p>
+        /** The one line above the card while it is being edited, with the full rules behind the info icon. */
+        const rulesLine =
+          mode === 'fix' ? (
+            <div className="mb-2 flex flex-col gap-1.5" data-testid="fix-rules">
+              {restored ? (
+                <p role="status" className="rounded-[10px] bg-brand-subtle px-3 py-1.5 text-[13px] font-semibold text-foreground">
+                  We kept what you typed last time. Check it, then save it or press Cancel.
+                </p>
+              ) : null}
+              <div className="flex items-center gap-1">
+                <p className="min-w-0 text-[13px] font-semibold leading-snug text-foreground">{printedTypo ? TYPO_RULE_TITLE : FIX_RULE_LINE}</p>
+                <RulesInfo />
+              </div>
             </div>
-            <BodyEditor
-              key={editorKey}
-              value={bodyDraft}
-              onChange={setBodyDraft}
+          ) : null;
+
+        const changesChip = (
+          <ChangesChip source={question.source} rawOcr={question.raw_ocr} open={changesOpen} onToggle={() => setChangesOpen((v) => !v)} />
+        );
+        const changesPanel = changesOpen ? <ChangesPanel source={question.source} rawOcr={question.raw_ocr} /> : null;
+
+        /** What sits under the words while the card is the editor: number and marks, the typo box, notes. */
+        const editFooter = (
+          <>
+            <QuestionChips
+              className="mb-0"
+              number={numberDraft || null}
+              marks={null}
+              editing
+              numberDraft={numberDraft}
+              marksDraft={marksDraft}
+              onNumber={setNumberDraft}
+              onMarks={setMarksDraft}
+              marksInvalid={marksInvalid}
               disabled={submitting}
-              formulaRequest={formulaReq.pending ? formulaReq.n : 0}
-              onFormulaHandled={() => setFormulaReq((r) => ({ ...r, pending: false }))}
             />
             {/* Owner round 24: a student may correct a typo printed on
                 the paper. Off by default; the printed version is kept
                 in version history and an admin can put it back. */}
-            <label className="tap-44 mt-2 flex cursor-pointer items-start gap-2.5 rounded-[10px] bg-muted px-3 py-2.5 text-[14px] text-foreground">
+            <label className="tap-44 flex min-h-[40px] cursor-pointer items-center gap-2.5 text-[13px] text-foreground">
               <input
                 type="checkbox"
                 checked={printedTypo}
                 onChange={(e) => setPrintedTypo(e.target.checked)}
                 disabled={submitting}
-                className="mt-0.5 h-5 w-5 shrink-0 accent-brand-blue"
+                className="h-5 w-5 shrink-0 accent-brand-blue"
               />
               <span className="leading-snug">{TYPO_CHECKBOX_LABEL}</span>
             </label>
             {printedTypo ? (
-              <label className="mt-2 flex flex-col gap-1 text-[13px] font-medium text-warm-secondary">
+              <label className="flex flex-col gap-1 text-[13px] font-medium text-warm-secondary">
                 {TYPO_NOTE_LABEL}
                 <input
                   value={typoNote}
@@ -1317,21 +1342,21 @@ export function VerifyScreen({
                 />
               </label>
             ) : null}
-            <OptionList options={question.options} />
             {normaliseOptions(question.options).length > 0 ? (
-              <p className="mt-1 text-[13px] leading-snug text-warm-secondary" data-testid="options-cannot-edit">
+              <p className="text-[13px] leading-snug text-warm-secondary" data-testid="options-cannot-edit">
                 You cannot change the options here. If one is wrong or missing, press Ask the HOD.
               </p>
             ) : null}
             {showBigEditWarning ? (
-              <p role="status" className="mt-1 text-[13px] leading-snug text-destructive">
+              <p role="status" className="text-[13px] leading-snug text-destructive">
                 {BIG_EDIT_WARNING}
               </p>
             ) : null}
-          </div>
+          </>
         );
 
-        const splitEditor = (
+        /** Split: the card itself is where you tap to choose where the second question starts. */
+        const splitBody = (
           <div>
             <p className="mb-2 text-[13px] text-warm-secondary">Tap right before where the second question starts, then press Split here.</p>
             <textarea
@@ -1340,33 +1365,59 @@ export function VerifyScreen({
               onClick={(e) => onSplitCaret(e.currentTarget)}
               onKeyUp={(e) => onSplitCaret(e.currentTarget)}
               onSelect={(e) => onSplitCaret(e.currentTarget)}
-              rows={8}
+              rows={5}
               aria-label="Tap where the second question starts"
-              className="w-full rounded-[10px] bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="w-full resize-none rounded-[8px] bg-muted p-3 text-[18px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
             />
-            <SplitPreview body={bodyDraft} at={splitAt} />
           </div>
         );
 
-        const readWords =
-          blank && !lost ? null : (
-            <div data-tour="question" className="rounded-[10px] border border-warm-hairline bg-white p-3">
-              {lost ? <p className="mb-2 text-[12px] font-semibold text-warm-meta">{LOST_TEXT_HEADING}</p> : null}
-              <MathText text={bodyDraft} className="break-words text-[17px] leading-relaxed text-foreground" />
-              <OptionList options={question.options} />
-            </div>
+        /** The card: absent only when there are no words and nothing to type over (the alert above says what to do). */
+        const partCard =
+          blank && !lost && mode === 'check' ? null : (
+            <PartCard
+              mode={mode === 'fix' ? 'edit' : mode === 'split' ? 'split' : 'read'}
+              body={bodyDraft}
+              options={question.options}
+              lostHeading={lost ? LOST_TEXT_HEADING : null}
+              disabled={submitting}
+              changesChip={changesChip}
+              changesPanel={changesPanel}
+              onBody={setBodyDraft}
+              editorKey={editorKey}
+              formulaRequest={formulaReq.pending ? formulaReq.n : 0}
+              onFormulaHandled={() => setFormulaReq((r) => ({ ...r, pending: false }))}
+              editFooter={editFooter}
+              splitBody={splitBody}
+              splitFooter={<SplitPreview body={bodyDraft} at={splitAt} />}
+            />
           );
 
+        // Directly under the card. While the card is taller than the tile (a long
+        // question in Fix it) the row stays pinned to the foot of the tile instead of
+        // scrolling away, so a tool is never a scroll from the words.
         const tools = (
-          <ToolsRow
-            compact
-            active={mode === 'split' ? 'split' : mode === 'fix' ? fixTool : null}
-            available={{ fix: true, split: splitOffered, formula: true, or: orOnly }}
-            onPick={pickTool}
-            busy={submitting}
-          />
+          <div className="sticky bottom-0 z-[1] mb-3 bg-card pb-1 pt-1" data-testid="tools-dock">
+            <ToolsToolbar
+              active={mode === 'split' ? 'split' : mode === 'fix' ? fixTool : null}
+              available={{ fix: true, split: splitOffered, formula: true, or: orOnly }}
+              onPick={pickTool}
+              busy={submitting}
+            />
+          </div>
         );
-        const changes = <ChangesSection key={question.id} source={question.source} rawOcr={question.raw_ocr} />;
+
+        /** The whole left side, top to bottom: the words first, the tools right under them, the context last. */
+        const leftContent = (
+          <>
+            {questionTop}
+            {alerts}
+            {rulesLine}
+            {partCard}
+            {tools}
+            {details}
+          </>
+        );
 
         /* ------------------------------------------------ the printed side */
 
@@ -1473,14 +1524,8 @@ export function VerifyScreen({
               <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3" data-testid="bento-grid">
                 {/* Left: what the computer typed, with its details in plain sight. */}
                 <div className="flex min-h-0 min-w-0 flex-col gap-3" data-testid="bento-left">
-                  <TypedFrame tile tabbed={false} panelClass="flex min-h-0 flex-1">
-                    <FadeScroll>
-                      {questionTop(editingHere)}
-                      {notes}
-                      {mode === 'fix' ? fixEditor : mode === 'split' ? splitEditor : readWords}
-                      {changes}
-                    </FadeScroll>
-                    {tools}
+                  <TypedFrame tile tabbed={false} chip={false} panelClass="flex min-h-0 flex-1">
+                    <FadeScroll>{leftContent}</FadeScroll>
                   </TypedFrame>
                   {guidance ? (
                     <BentoTile data-testid="flags-tile" className="max-h-[24%] shrink-0 overflow-y-auto px-3 py-2">
@@ -1553,11 +1598,9 @@ export function VerifyScreen({
 
         /* --------------------------------------- phone: Question | Page | Fix */
         const typedPane = (
-          <TypedFrame tile panelClass="flex min-h-0 flex-1">
+          <TypedFrame tile chip={false} panelClass="flex min-h-0 flex-1">
             <FadeScroll>
-              {questionTop(false)}
-              {notes}
-              {readWords}
+              {leftContent}
               {guidance ? <div className="mt-3">{guidance}</div> : null}
             </FadeScroll>
           </TypedFrame>
@@ -1591,27 +1634,6 @@ export function VerifyScreen({
             </FadeScroll>
           </PrintedFrame>
         );
-        const fixPane = (
-          <FixFrame panelClass="flex min-h-0 flex-1">
-            <FadeScroll>
-              {mode === 'fix' ? (
-                <>
-                  {questionTop(true, false)}
-                  {fixEditor}
-                </>
-              ) : mode === 'split' ? (
-                splitEditor
-              ) : (
-                <p className="mb-3 text-[14px] leading-snug text-warm-secondary" data-testid="fix-idle">
-                  Nothing is being changed. Press Fix it below to type over the words, or pick a tool.
-                </p>
-              )}
-              {/* On a phone the tools scroll with the tile: pinned, they would take half of it. */}
-              <div className="mt-3">{tools}</div>
-              {changes}
-            </FadeScroll>
-          </FixFrame>
-        );
         return (
           <div className="flex h-full min-h-0 min-w-0 flex-col gap-2">
             {stripInfo ? <PaperStrip info={stripInfo} /> : null}
@@ -1619,8 +1641,8 @@ export function VerifyScreen({
             <TilePager
               value={panel}
               onChange={setPanel}
-              order={['typed', 'printed', 'fix']}
-              panes={{ typed: typedPane, printed: printedPane, fix: fixPane }}
+              order={['typed', 'printed']}
+              panes={{ typed: typedPane, printed: printedPane }}
               reducedMotion={reducedMotion || tourOpen}
             />
           </div>
@@ -1745,8 +1767,7 @@ export function VerifyScreen({
           onShowTarget={(target) => {
             // On a phone only one tile shows at a time: bring up the tile a step is about.
             if (target === 'picture') setPanel('printed');
-            else if (target === 'question') setPanel('typed');
-            else if (target === 'tools' || target === 'changes') setPanel('fix');
+            else if (target === 'question' || target === 'tools' || target === 'changes') setPanel('typed');
           }}
           onClose={closeTour}
           onPractice={() => {

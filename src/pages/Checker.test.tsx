@@ -49,3 +49,34 @@ describe('the verifier home when a read fails', () => {
     expect(src).toContain('We could not check your access');
   });
 });
+
+describe('the verify screen Menu (one button in the top tile)', () => {
+  const src = readFileSync('src/pages/Checker.tsx', 'utf8');
+  const menu = src.slice(src.indexOf('id="checker-menu-title"'));
+
+  it('the top tile gets only the Menu button, with the desks and counts moved inside it', () => {
+    expect(src).toContain('toolbar={menuButton}');
+    expect(src).toContain('aria-label="Menu"');
+    expect(src).not.toContain('toolbar={header}');
+  });
+
+  it('the Menu holds the counts, Back to my papers, Back to admin, the HOD desk, the practice round and the rules', () => {
+    for (const piece of ['{counts}', 'data-testid="back-to-my-papers"', 'Back to admin', 'HOD desk', 'Practice round', 'Rules and shortcuts']) {
+      expect(menu, piece).toContain(piece);
+    }
+    // Back to my papers closes the Menu before it goes, so the Menu is not left open on the list.
+    expect(menu).toMatch(/setMenuOpen\(false\);\s+toList\(\);/);
+  });
+
+  it('the day counts keep their testid and show Today and Total', () => {
+    expect(src).toContain('data-testid="my-counts"');
+    expect(src).toContain('Today ${statsQuery.data.today_count}');
+    expect(src).toContain('Total ${statsQuery.data.total_count}');
+  });
+
+  it('the global site header is switched off for the verify screen by the shell', () => {
+    const shell = readFileSync('src/components/layout/AppShell.tsx', 'utf8');
+    expect(shell).toContain('isChromelessLocation(location.pathname, location.search)');
+  });
+});
+

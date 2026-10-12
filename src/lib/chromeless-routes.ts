@@ -38,7 +38,25 @@ export function isFooterlessPath(pathname: string): boolean {
   return FOOTERLESS_ROUTES.includes(p);
 }
 
+/** The checker's verify screen, `/checker?paper=<id>&verify=1`. */
+export function isVerifyScreen(pathname: string, search: string): boolean {
+  const p = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+  if (p !== '/checker') return false;
+  const params = new URLSearchParams(search);
+  return params.get('verify') === '1' && Boolean(params.get('paper'));
+}
+
+/**
+ * The verify screen is one focused work screen (owner, 12 Oct 2026: the site
+ * header stacked on its top tile was "too crammed"): it shows no site header at
+ * all. The other checker pages keep the normal one. Anything that asks "is
+ * this route chromeless?" gets the same answer here.
+ */
+export function isChromelessLocation(pathname: string, search: string): boolean {
+  return isChromelessPath(pathname) || isVerifyScreen(pathname, search);
+}
+
 export function useIsChromelessRoute() {
-  const { pathname } = useLocation();
-  return isChromelessPath(pathname);
+  const { pathname, search } = useLocation();
+  return isChromelessLocation(pathname, search);
 }
