@@ -422,7 +422,7 @@ export function VerifyScreen({
 
   useEffect(() => {
     if (!notice) return;
-    const t = setTimeout(() => setNotice(null), notice.tone === 'ok' ? 2500 : 8000);
+    const t = setTimeout(() => setNotice(null), notice.tone === 'ok' ? 2500 : 20000);
     return () => clearTimeout(t);
   }, [notice]);
 
@@ -1476,7 +1476,7 @@ export function VerifyScreen({
         /** The crop. `fit` (tablet and up) fits it to the tile; otherwise it is its natural size and the tile scrolls. */
         const cropBody = (fit: boolean) =>
           !picturePlanKey ? (
-            <div className={cn('animate-pulse rounded-[8px] bg-muted', fit ? 'min-h-0 flex-1' : 'h-40 shrink-0')} aria-label="Loading the picture" />
+            <div className={cn('animate-pulse rounded-[8px] bg-muted', fit ? 'min-h-0 flex-1' : 'h-40 shrink-0')} role="status" aria-label="Loading the picture" />
           ) : (
             <>
               {picturePlan?.mayMissParts && cropShown ? (
@@ -1745,10 +1745,21 @@ export function VerifyScreen({
         ) : nextFailed || (questionQuery.isError && !showIncoming) ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <p className="text-lg font-semibold text-foreground">{LOAD_FAILED_TITLE}</p>
-            <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
-            <ActionButton tone="mint" onClick={nextFailed ? retryNext : () => void questionQuery.refetch()}>
-              Try again
-            </ActionButton>
+            {(questionQuery.error as { code?: unknown } | null)?.code === '42501' ? (
+              <>
+                <p className="max-w-[40ch] text-[14px] text-warm-secondary">Your sign-in no longer lets you check papers. Sign in again, or ask an admin or the HOD.</p>
+                <a href="/auth" className="tap-44 inline-flex items-center rounded-full bg-brand px-5 text-[15px] font-bold text-foreground">
+                  Sign in again
+                </a>
+              </>
+            ) : (
+              <>
+                <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
+                <ActionButton tone="mint" onClick={nextFailed ? retryNext : () => void questionQuery.refetch()}>
+                  Try again
+                </ActionButton>
+              </>
+            )}
           </div>
         ) : showIncoming ? (
           // The next question's card, up before its words: the picture is warm.

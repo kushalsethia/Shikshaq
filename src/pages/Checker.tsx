@@ -168,6 +168,9 @@ export function CheckerPage({
         <BentoPanel fill="card" edge="top" className="mx-auto max-w-lg py-24 text-center">
           <h1 className="text-balance text-xl font-bold text-foreground">You are not a verifier yet</h1>
           <p className="mt-2 text-[14px] text-warm-secondary">Ask an admin or an HOD to add your account as a verifier.</p>
+          <Link to="/past-papers" className="tap-44 mt-4 inline-flex items-center rounded-full bg-muted px-5 text-[15px] font-bold text-foreground">
+            Browse past papers
+          </Link>
         </BentoPanel>
       </BentoStack>
     );
