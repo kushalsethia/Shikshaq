@@ -50,7 +50,7 @@ function Files({ api, upload }: { api: HodApi; upload: HodStudentUpload }) {
               <span className="sr-only"> (opens in a new tab)</span>
             </a>
           ) : (
-            <span className="text-[14px] text-destructive">File {i + 1} could not be opened.</span>
+            <span className="text-[14px] text-destructive">File {i + 1} could not be opened. Reload the list to get a fresh link.</span>
           )}
         </li>
       ))}

@@ -438,7 +438,7 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
   const [formError, setFormError] = useState<string | null>(null);
 
   const cardState = loadGate(profileQuery);
-  if (cardState === 'loading') return null;
+  if (cardState === 'loading') return <div role="status" aria-label="Loading your details" className="h-16 animate-pulse rounded-2xl bg-muted" />;
   // Saving is a full overwrite, so a form opened from a failed read would blank
   // the verifier's real details. Show no form until the read has worked.
   if (cardState === 'error') return <ProfileLoadError onRetry={() => void profileQuery.refetch()} />;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react';
+import { toast } from 'sonner';
 import { Link, useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { BentoPanel } from '@/components/layout/PageContainer';
@@ -159,9 +160,12 @@ function AccountMenu({ email }: { email: string }) {
     // Stop the nav counts and forget who was confirmed before the session goes.
     setAdminConfirmed(null);
     try {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
     } catch {
-      // Signing out locally is still the right outcome if the call fails.
+      // Stay on the page: going home while still signed in would look like it worked.
+      toast.error('Could not sign you out. Check your connection and try again.');
+      return;
     }
     navigate('/');
   }
