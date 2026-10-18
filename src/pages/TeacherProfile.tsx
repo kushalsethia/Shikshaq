@@ -989,6 +989,12 @@ export default function TeacherProfile() {
                       alt={`${teacher.name}, ${subjectsForTitle(metaSubjects)} tutor in ${areaForTitle(metaArea)}, Kolkata`}
                       width={224}
                       height={280}
+                      onError={(ev) => {
+                        // Photo missing: hide the broken icon and let the tinted panel stand in.
+                        const img = ev.currentTarget;
+                        img.style.visibility = 'hidden';
+                        if (img.parentElement) img.parentElement.style.backgroundColor = accentPalette.tint;
+                      }}
                       decoding="async"
                       /* React 18 does not recognise `fetchPriority` as a prop —
                          it warns and drops it. (React 19 added it.) Spreading
