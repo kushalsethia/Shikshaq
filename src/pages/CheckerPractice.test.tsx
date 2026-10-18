@@ -12,9 +12,9 @@ describe('practice round screen', () => {
     </MemoryRouter>,
   );
 
-  it('offers Undo last, switched off until something has been answered', () => {
-    expect(html).toContain('data-testid="practice-undo"');
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*data-testid="practice-undo"|<button[^>]*data-testid="practice-undo"[^>]*disabled=""/);
+  it('has no Undo last button (owner, 18 Oct 2026)', () => {
+    expect(html).not.toContain('practice-undo');
+    expect(html).not.toContain('Undo last');
   });
 
   it('starts on the first question of eleven', () => {

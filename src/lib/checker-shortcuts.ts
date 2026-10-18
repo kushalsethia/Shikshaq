@@ -2,12 +2,12 @@
  * Keyboard shortcuts for the paper-checker (Kid Mode) screen. Ported from
  * the standalone auditor's `shortcuts.ts` / `lib/useShortcuts.ts`
  * (UnlimitedOCR/auditor/web/src), trimmed to the actions Kid Mode
- * actually has: Looks right / Fix it / Split / Ask the HOD / Skip / Undo. Kept as
+ * actually has: Looks right / Fix it / Split / Ask the HOD / Skip. Kept as
  * pure functions (no DOM/React here) so they can be unit tested directly --
  * `matchCheckerShortcut` is the one thing a test needs to call.
  */
 
-export type CheckerAction = 'pass' | 'fix' | 'split' | 'help' | 'skip' | 'undo';
+export type CheckerAction = 'pass' | 'fix' | 'split' | 'help' | 'skip';
 
 export interface CheckerShortcutDef {
   action: CheckerAction;
@@ -22,7 +22,6 @@ export const CHECKER_SHORTCUTS: CheckerShortcutDef[] = [
   { action: 'split', keys: 'S', key: 's' },
   { action: 'help', keys: 'H', key: 'h' },
   { action: 'skip', keys: 'K', key: 'k' },
-  { action: 'undo', keys: 'U', key: 'u' },
 ];
 
 function isTypingTarget(el: EventTarget | null): boolean {
@@ -31,9 +30,12 @@ function isTypingTarget(el: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
 }
 
-/** A focused button or link already acts on Enter by itself. */
+/** A focused button or link already acts on Enter by itself, except the view-only buttons (a picture tile,
+ *  See the whole page) that mark themselves `data-enter-passes`: after tapping one, Enter still means
+ *  Looks right, as the checker expects. */
 function isActivatableTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
+  if (el.closest('[data-enter-passes]')) return false;
   const tag = el.tagName;
   return tag === 'BUTTON' || tag === 'A' || tag === 'SUMMARY' || el.getAttribute('role') === 'button';
 }
@@ -81,13 +83,12 @@ export function matchCheckerKeyboardEvent(e: KeyboardEvent): CheckerAction | nul
 }
 
 /** The hint under the buttons, naming only what works on this question. */
-export function shortcutHint(opts: { canSplit: boolean; canPass: boolean; canUndo?: boolean }): string {
+export function shortcutHint(opts: { canSplit: boolean; canPass: boolean }): string {
   const parts: string[] = [];
   if (opts.canPass) parts.push('Enter or P looks right');
   parts.push('F fix it');
   if (opts.canSplit) parts.push('S split');
   parts.push('H ask the HOD', 'K skip');
-  if (opts.canUndo) parts.push('U undo');
   return parts.join(', ');
 }
 
@@ -102,13 +103,12 @@ export interface ShortcutRow {
  * on this question is listed; while a fix or a split is open the one key that
  * works is Escape.
  */
-export function shortcutRows(opts: { canSplit: boolean; canPass: boolean; canUndo?: boolean; editing?: boolean }): ShortcutRow[] {
+export function shortcutRows(opts: { canSplit: boolean; canPass: boolean; editing?: boolean }): ShortcutRow[] {
   if (opts.editing) return [{ keys: 'Esc', does: 'Cancel and go back' }];
   const rows: ShortcutRow[] = [];
   if (opts.canPass) rows.push({ keys: 'Enter or P', does: 'Looks right' });
   rows.push({ keys: 'F', does: 'Fix it' });
   if (opts.canSplit) rows.push({ keys: 'S', does: 'Split into two questions' });
   rows.push({ keys: 'H', does: 'Ask the HOD' }, { keys: 'K', does: 'Skip' });
-  if (opts.canUndo) rows.push({ keys: 'U', does: 'Undo last' });
   return rows;
 }

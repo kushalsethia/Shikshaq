@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { matchCheckerShortcut, CHECKER_SHORTCUTS, shortcutHint, shortcutRows } from './checker-shortcuts';
@@ -12,6 +14,20 @@ describe('matchCheckerShortcut, browser shortcuts and focused buttons', () => {
   it('lets a focused button handle Enter itself instead of also passing', () => {
     expect(matchCheckerShortcut('Enter', { isTyping: false, onActivatable: true })).toBeNull();
     expect(matchCheckerShortcut('p', { isTyping: false, onActivatable: true })).toBe('pass');
+  });
+});
+
+describe('Enter after tapping a view-only button (owner, 18 Oct 2026)', () => {
+  const read = (rel: string) => readFileSync(resolve(__dirname, rel), 'utf8');
+
+  it('a picture tile and See the whole page do not swallow Enter, so it still means Looks right', () => {
+    expect(read('./checker-shortcuts.ts')).toContain("el.closest('[data-enter-passes]')");
+    expect(read('../components/checker/PartPictures.tsx')).toContain('data-enter-passes="true"');
+    expect(read('../components/checker/VerifyScreen.tsx')).toContain('data-enter-passes="true"');
+  });
+
+  it('every other focused button still keeps its own Enter (Cancel then Enter must not also pass)', () => {
+    expect(matchCheckerShortcut('Enter', { isTyping: false, onActivatable: true })).toBeNull();
   });
 });
 
@@ -75,18 +91,18 @@ describe('matchCheckerShortcut', () => {
 
 describe('shortcutRows (the "?" popover)', () => {
   it('lists only what works on this question', () => {
-    const all = shortcutRows({ canSplit: true, canPass: true, canUndo: true }).map((r) => r.keys);
-    expect(all).toEqual(['Enter or P', 'F', 'S', 'H', 'K', 'U']);
-    const few = shortcutRows({ canSplit: false, canPass: false, canUndo: false }).map((r) => r.keys);
+    const all = shortcutRows({ canSplit: true, canPass: true }).map((r) => r.keys);
+    expect(all).toEqual(['Enter or P', 'F', 'S', 'H', 'K']);
+    const few = shortcutRows({ canSplit: false, canPass: false }).map((r) => r.keys);
     expect(few).toEqual(['F', 'H', 'K']);
   });
 
   it('while a fix or a split is open the one key that works is Escape', () => {
-    expect(shortcutRows({ canSplit: true, canPass: true, canUndo: true, editing: true })).toEqual([{ keys: 'Esc', does: 'Cancel and go back' }]);
+    expect(shortcutRows({ canSplit: true, canPass: true, editing: true })).toEqual([{ keys: 'Esc', does: 'Cancel and go back' }]);
   });
 
   it('names the same keys as the old hint line did', () => {
-    for (const r of shortcutRows({ canSplit: true, canPass: true, canUndo: true })) {
+    for (const r of shortcutRows({ canSplit: true, canPass: true })) {
       for (const k of r.keys.split(' or ')) expect(CHECKER_SHORTCUTS.some((s) => s.keys.includes(k))).toBe(true);
     }
   });

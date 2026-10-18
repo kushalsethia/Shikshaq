@@ -184,7 +184,6 @@ describe('the verify screen is wired as one viewport', () => {
     for (const piece of [
       'data-testid="verify-header"',
       'data-testid="save-error"',
-      'data-testid="undo-last"',
       '<SaveStatusChip',
       '<PaperStrip info={stripInfo} />',
       'The words did not come through',
