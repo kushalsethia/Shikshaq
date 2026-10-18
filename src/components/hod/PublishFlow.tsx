@@ -387,9 +387,9 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
               >
                 {busy ? 'Publishing...' : alreadyLive ? 'Record the approval' : 'Publish'}
               </button>
-              {!canPublish && waiting ? (
+              {!canPublish ? (
                 <p id="publish-why" className="text-[13px] text-warm-secondary">
-                  {!pass ? 'Publish switches on when all four checks are green.' : 'Tick the box above to say you know about the questions left out.'}
+                  {!waiting ? 'This paper is not waiting to go live. See the note at the top of this page.' : !pass ? 'Publish switches on when all four checks are green.' : 'Tick the box above to say you know about the questions left out.'}
                 </p>
               ) : null}
             </div>

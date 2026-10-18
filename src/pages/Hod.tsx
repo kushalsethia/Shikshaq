@@ -284,6 +284,11 @@ export function HodPage({
             </button>
           ))}
         </div>
+        {countsQ.isError ? (
+          <p role="status" className="mt-1 text-[12px] text-warm-meta">
+            The numbers on the tabs could not load. The tabs still work.
+          </p>
+        ) : null}
 
         <div role="tabpanel" id="hod-panel" aria-labelledby={`hod-tab-${active.key}`}>
           <active.Component api={api} scope={scope} canSwitchTrust={isAdmin} reviewerApi={reviewerApi} />
