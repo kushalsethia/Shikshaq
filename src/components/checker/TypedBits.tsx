@@ -75,6 +75,11 @@ export function QuestionChips({
             aria-invalid={marksInvalid || undefined}
             className={cn(INPUT, 'w-24', marksInvalid && 'ring-2 ring-destructive')}
           />
+          {marksInvalid ? (
+            <span role="alert" className="max-w-[16rem] text-[12px] font-normal text-destructive">
+              Marks must be a number, like 2 or 0.5. Looks right stays off until it is.
+            </span>
+          ) : null}
         </label>
       </div>
     );

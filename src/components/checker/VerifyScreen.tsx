@@ -1,3 +1,4 @@
+import { useOnline } from '@/hooks/useOnline';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -357,6 +358,7 @@ export function VerifyScreen({
   const [helpReason, setHelpReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const online = useOnline();
   // A message that survives moving to the next question (an error that made
   // the page move on, or "Saved").
   const [notice, setNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
@@ -702,7 +704,10 @@ export function VerifyScreen({
       { question, drafts: { body: bodyDraft, number: numberDraft, marks: marksDraft, printedTypo, typoNote }, draftsFor: draftFor, mode },
       ownerNow,
     );
-    if (plan.kind === 'refuse') return;
+    if (plan.kind === 'refuse') {
+      setError('This question changed while you were editing, so nothing was saved. Check the words again, then press Looks right.');
+      return;
+    }
     if (plan.kind === 'fix') {
       // Logged because it changes what gets stored, even though it is always
       // the same removal a checker could have made by hand.
@@ -1001,6 +1006,11 @@ export function VerifyScreen({
           <>
             {/* A save that failed says so right here, beside the buttons, not
                 at the top of a long page. */}
+            {!online ? (
+              <div role="status" data-testid="offline-note" className="mb-2 rounded-[12px] bg-brand-subtle px-3 py-2 text-[14px] font-semibold text-foreground">
+                You are offline. Answers stay on this device and are sent when the connection is back.
+              </div>
+            ) : null}
             {error ? (
               <div role="alert" data-testid="save-error" className="mb-2 rounded-[12px] bg-destructive/10 px-3 py-2 text-[14px] text-destructive">
                 {error}
@@ -1031,7 +1041,13 @@ export function VerifyScreen({
                     className={answerButtonClass}
                     onClick={doPass}
                     disabled={submitting || !canPass || marksInvalid}
-                    title="Looks right (Enter or P)"
+                    title={
+                      !canPass
+                        ? 'This question has no words, so it cannot be marked as right'
+                        : marksInvalid
+                          ? 'Marks must be a number, like 2 or 0.5'
+                          : 'Looks right (Enter or P)'
+                    }
                   >
                     <Check className={ACTION_ICON_CLASS} aria-hidden="true" />
                     {submitting

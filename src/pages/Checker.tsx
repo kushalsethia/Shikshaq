@@ -731,7 +731,10 @@ function PaperOverview({
         <CheckerSkeleton />
       ) : questionsQuery.isError ? (
         <div role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
-          Could not load this paper. It may not be yours any more.
+          <p>Could not load this paper. Check your connection, or it may not be yours any more.</p>
+          <button type="button" className="tap-44 mt-2 rounded-full bg-card px-4 py-1.5 text-[13px] font-semibold text-foreground" onClick={() => void questionsQuery.refetch()}>
+            Try again
+          </button>
         </div>
       ) : list.length === 0 ? (
         <p className="rounded-2xl bg-muted px-4 py-6 text-center text-[14px] text-warm-secondary">This paper has no questions to show.</p>
