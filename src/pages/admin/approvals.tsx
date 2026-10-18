@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Search } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
+import { writeErrorWords } from '@/lib/admin-approval-shape';
 import { useAuth } from '@/lib/auth-context';
 import { recordAdminAction } from '@/lib/audit';
 import { formatDistanceToNow } from 'date-fns';
@@ -329,7 +330,7 @@ export function AdminApprovalsPage({
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error approving application:', error);
       if (isAlreadyDecided(error)) handleAlreadyDecided(app);
-      else sonnerToast.error('Failed to approve application');
+      else sonnerToast.error(writeErrorWords(error, 'Failed to approve application. Nothing was changed.'));
     } finally {
       setProcessingId(null);
     }
@@ -344,7 +345,7 @@ export function AdminApprovalsPage({
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error rejecting application:', error);
       if (isAlreadyDecided(error)) handleAlreadyDecided(app);
-      else sonnerToast.error('Failed to reject application');
+      else sonnerToast.error(writeErrorWords(error, 'Failed to reject application. Nothing was changed.'));
     } finally {
       setProcessingId(null);
     }

@@ -241,6 +241,9 @@ function QuestionCard({
           </>
         )}
       </div>
+      {panel === null && !q.body.trim() ? (
+        <p className="mt-2 text-[12px] text-warm-meta">Pass is off because this question has no text. Fix it to add the words, or leave it out.</p>
+      ) : null}
       {panel === null && q.review_bucket !== 'escalated' ? (
         <p className="mt-2 text-[12px] text-warm-meta">A student did not send this one up, so it cannot go back to them. Pass it, fix it or leave it out.</p>
       ) : null}

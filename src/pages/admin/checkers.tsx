@@ -3,6 +3,7 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { toast as sonnerToast } from 'sonner';
+import { writeErrorWords } from '@/lib/admin-approval-shape';
 import { useAuth } from '@/lib/auth-context';
 import { recordAdminAction } from '@/lib/audit';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
@@ -264,7 +265,10 @@ export function AdminCheckersPage({
       const found = (await profileApi.profiles()).find((p) => p.user_id === userId);
       if (found) initial = found;
     } catch {
-      /* the form still works blank */
+      // A blank form would overwrite what is saved on Save, so do not open it.
+      sonnerToast.error('Could not load their details, so the form was not opened. Nothing was changed. Try again.');
+      setOpeningId(null);
+      return;
     }
     setOpeningId(null);
     setDetailsFor({ user_id: userId, label, initial });
@@ -326,7 +330,7 @@ export function AdminCheckersPage({
       }
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error removing checker:', error);
-      sonnerToast.error('Failed to remove that verifier');
+      sonnerToast.error(writeErrorWords(error, 'Failed to remove that verifier. Nothing was changed.'));
     }
   }
 

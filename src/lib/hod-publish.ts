@@ -995,6 +995,7 @@ export function reasonMark(ok: boolean | null): string {
 export function errorWords(err: unknown, fallback = 'That did not go through. Nothing was changed. Try again.'): string {
   if (!err || typeof err !== 'object') return fallback;
   const e = err as { code?: unknown; message?: unknown };
+  if (e.code === '42501') return 'Your account is not set up for the HOD desk, so nothing was changed. Ask an admin to add you.';
   if (e.code === '40001') return 'Someone changed this question while you had it open, so nothing was saved. It has been refreshed.';
   const m = typeof e.message === 'string' ? e.message.trim() : '';
   return m || fallback;
