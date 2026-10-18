@@ -35,7 +35,7 @@ export function historyText(r: HistoryRow): string {
     }
   }
   // Never the code in words ("hod unassign"): an unknown code reads as a plain change.
-  return r.meaning ?? 'made a change';
+  return r.meaning ?? 'made a change (details are in the admin log)';
 }
 
 export function HistoryTab({ api, scope }: { api: HodApi; scope: string }) {

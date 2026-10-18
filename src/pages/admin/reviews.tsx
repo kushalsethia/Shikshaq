@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
+import { writeErrorWords } from '@/lib/admin-approval-shape';
 import { useSearchParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/lib/auth-context';
@@ -377,7 +378,7 @@ export function AdminReviewsPage({
       await api.publishComment(c.id);
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error approving comment:', error);
-      adminToast('Failed to publish review');
+      adminToast('Failed to publish review', { description: writeErrorWords(error, 'Nothing was changed. Try again.') });
       return;
     }
     adminToast('Review published');
@@ -407,7 +408,7 @@ export function AdminReviewsPage({
       await api.removeComment(c.id);
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error deleting comment:', error);
-      adminToast('Failed to remove review');
+      adminToast('Failed to remove review', { description: writeErrorWords(error, 'Nothing was changed. Try again.') });
       return;
     }
     adminToast('Review removed');
@@ -539,7 +540,7 @@ export function AdminReviewsPage({
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error updating recommendation:', error);
       setRecs((prev) => prev.map((r) => (r.id === rec.id ? { ...r, status: previous } : r)));
-      adminToast('Failed to update recommendation');
+      adminToast('Failed to update recommendation', { description: writeErrorWords(error, 'Nothing was changed. Try again.') });
       return;
     }
     // Now that it is saved, the card shows who decided and when, not "Sent ...".
@@ -640,7 +641,7 @@ export function AdminReviewsPage({
       await api.clearUpvotes(stat.teacher_id);
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error clearing upvotes:', error);
-      adminToast('Failed to clear upvotes');
+      adminToast('Failed to clear upvotes', { description: writeErrorWords(error, 'Nothing was changed. Try again.') });
       return;
     }
     adminToast('Upvotes cleared');

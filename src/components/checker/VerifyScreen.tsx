@@ -1,3 +1,4 @@
+import { useOnline } from '@/hooks/useOnline';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -357,6 +358,7 @@ export function VerifyScreen({
   const [helpReason, setHelpReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const online = useOnline();
   // A message that survives moving to the next question (an error that made
   // the page move on, or "Saved").
   const [notice, setNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
@@ -420,7 +422,7 @@ export function VerifyScreen({
 
   useEffect(() => {
     if (!notice) return;
-    const t = setTimeout(() => setNotice(null), notice.tone === 'ok' ? 2500 : 8000);
+    const t = setTimeout(() => setNotice(null), notice.tone === 'ok' ? 2500 : 20000);
     return () => clearTimeout(t);
   }, [notice]);
 
@@ -702,7 +704,10 @@ export function VerifyScreen({
       { question, drafts: { body: bodyDraft, number: numberDraft, marks: marksDraft, printedTypo, typoNote }, draftsFor: draftFor, mode },
       ownerNow,
     );
-    if (plan.kind === 'refuse') return;
+    if (plan.kind === 'refuse') {
+      setError('This question changed while you were editing, so nothing was saved. Check the words again, then press Looks right.');
+      return;
+    }
     if (plan.kind === 'fix') {
       // Logged because it changes what gets stored, even though it is always
       // the same removal a checker could have made by hand.
@@ -1001,6 +1006,11 @@ export function VerifyScreen({
           <>
             {/* A save that failed says so right here, beside the buttons, not
                 at the top of a long page. */}
+            {!online ? (
+              <div role="status" data-testid="offline-note" className="mb-2 rounded-[12px] bg-brand-subtle px-3 py-2 text-[14px] font-semibold text-foreground">
+                You are offline. Answers stay on this device and are sent when the connection is back.
+              </div>
+            ) : null}
             {error ? (
               <div role="alert" data-testid="save-error" className="mb-2 rounded-[12px] bg-destructive/10 px-3 py-2 text-[14px] text-destructive">
                 {error}
@@ -1031,7 +1041,13 @@ export function VerifyScreen({
                     className={answerButtonClass}
                     onClick={doPass}
                     disabled={submitting || !canPass || marksInvalid}
-                    title="Looks right (Enter or P)"
+                    title={
+                      !canPass
+                        ? 'This question has no words, so it cannot be marked as right'
+                        : marksInvalid
+                          ? 'Marks must be a number, like 2 or 0.5'
+                          : 'Looks right (Enter or P)'
+                    }
                   >
                     <Check className={ACTION_ICON_CLASS} aria-hidden="true" />
                     {submitting
@@ -1460,7 +1476,7 @@ export function VerifyScreen({
         /** The crop. `fit` (tablet and up) fits it to the tile; otherwise it is its natural size and the tile scrolls. */
         const cropBody = (fit: boolean) =>
           !picturePlanKey ? (
-            <div className={cn('animate-pulse rounded-[8px] bg-muted', fit ? 'min-h-0 flex-1' : 'h-40 shrink-0')} aria-label="Loading the picture" />
+            <div className={cn('animate-pulse rounded-[8px] bg-muted', fit ? 'min-h-0 flex-1' : 'h-40 shrink-0')} role="status" aria-label="Loading the picture" />
           ) : (
             <>
               {picturePlan?.mayMissParts && cropShown ? (
@@ -1729,10 +1745,21 @@ export function VerifyScreen({
         ) : nextFailed || (questionQuery.isError && !showIncoming) ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <p className="text-lg font-semibold text-foreground">{LOAD_FAILED_TITLE}</p>
-            <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
-            <ActionButton tone="mint" onClick={nextFailed ? retryNext : () => void questionQuery.refetch()}>
-              Try again
-            </ActionButton>
+            {(questionQuery.error as { code?: unknown } | null)?.code === '42501' ? (
+              <>
+                <p className="max-w-[40ch] text-[14px] text-warm-secondary">Your sign-in no longer lets you check papers. Sign in again, or ask an admin or the HOD.</p>
+                <a href="/auth" className="tap-44 inline-flex items-center rounded-full bg-brand px-5 text-[15px] font-bold text-foreground">
+                  Sign in again
+                </a>
+              </>
+            ) : (
+              <>
+                <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
+                <ActionButton tone="mint" onClick={nextFailed ? retryNext : () => void questionQuery.refetch()}>
+                  Try again
+                </ActionButton>
+              </>
+            )}
           </div>
         ) : showIncoming ? (
           // The next question's card, up before its words: the picture is warm.

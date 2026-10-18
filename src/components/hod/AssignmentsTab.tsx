@@ -328,6 +328,13 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
 
   /** Auto assign all: the server returns only a count, so who got what is read back from the lists. */
   async function autoAssignAll() {
+    const waiting = unassignedQ.data?.length ?? 0;
+    const ok = await confirm({
+      title: waiting > 0 ? `Hand out ${waiting > UNASSIGNED_SHOWN ? `${UNASSIGNED_SHOWN}+` : waiting} free ${waiting === 1 ? 'paper' : 'papers'} now?` : 'Hand out the free papers now?',
+      description: 'Each paper goes to one verifier, never above their grade. You will see how many went to whom and how many are left. Taking a paper back is one tap on its row.',
+      confirmLabel: 'Auto assign all',
+    });
+    if (!ok) return;
     setBusy(true);
     setGiving(true);
     setRefusal(null);

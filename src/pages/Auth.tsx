@@ -106,6 +106,10 @@ export default function Auth() {
     confirmNewPassword: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // After sign-up, or a sign-in that Supabase refused because the email was never confirmed:
+  // a standing "check your inbox" panel with a resend, instead of a toast that vanishes.
+  const [pendingConfirm, setPendingConfirm] = useState<{ email: string; why: 'signup' | 'signin' } | null>(null);
+  const [resending, setResending] = useState(false);
 
   const {
     signInWithGoogle,
@@ -299,7 +303,7 @@ export default function Auth() {
         }
         setLoading(false);
       } else {
-        toast.success('Account created successfully! Please check your email to verify your account. If you don\'t see it, check your Spam or Junk folder.');
+        setPendingConfirm({ email: formData.email, why: 'signup' });
         // Reset form
         setFormData({ fullName: '', email: '', password: '', confirmPassword: '', newPassword: '', confirmNewPassword: '' });
         setErrors({});
@@ -308,6 +312,20 @@ export default function Auth() {
     } catch (error: any) {
       toast.error('Something went wrong. Please try again.');
       setLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!pendingConfirm || resending) return;
+    setResending(true);
+    try {
+      const { error } = await supabase.auth.resend({ type: 'signup', email: pendingConfirm.email });
+      if (error) throw error;
+      toast.success(`Sent again to ${pendingConfirm.email}. Check Spam or Junk too.`);
+    } catch {
+      toast.error('Could not send it again. Wait a minute and try again.');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -336,6 +354,9 @@ export default function Auth() {
         // Use generic error messages to prevent information disclosure
         if (error.message.includes('Google')) {
           setErrors({ email: 'You previously signed in with Google. Please use the "Continue with Google" button.' });
+        } else if (/not confirmed/i.test(error.message)) {
+          // Supabase only says this once the password was right, so it discloses nothing new.
+          setPendingConfirm({ email: formData.email, why: 'signin' });
         } else {
           // Always show generic error for sign-in failures
           setErrors({ password: 'Invalid email or password' });
@@ -722,6 +743,35 @@ export default function Auth() {
                   </div>
                 )}
 
+                {pendingConfirm ? (
+                  <div role="status" data-testid="confirm-email-panel" className="rounded-[18px] bg-white/[0.08] px-4 py-3 text-[14px] leading-[1.5] text-background/80">
+                    <p className="font-semibold text-background">
+                      {pendingConfirm.why === 'signup' ? 'Check your inbox' : 'Confirm your email first'}
+                    </p>
+                    <p className="mt-1">
+                      {pendingConfirm.why === 'signup' ? 'We sent a link to ' : 'This account is not confirmed yet. We sent a link to '}
+                      <span className="font-semibold text-background">{pendingConfirm.email}</span>. Open it, then sign in. If you do not see it, look in Spam or Junk.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-x-4">
+                      <button
+                        type="button"
+                        onClick={handleResendConfirmation}
+                        disabled={resending}
+                        className="shikshaq-tap inline-flex min-h-11 items-center text-[14px] font-semibold text-indigo-link-on-dark disabled:opacity-60"
+                      >
+                        {resending ? 'Sending...' : 'Send it again'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingConfirm(null)}
+                        className="shikshaq-tap inline-flex min-h-11 items-center text-[14px] font-semibold text-indigo-link-on-dark"
+                      >
+                        Use a different email
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
                 {!showForgotPassword && (
                   <div>
                     <label htmlFor="email" className="mb-2 block text-sm font-semibold text-background">Email</label>
@@ -748,10 +798,29 @@ export default function Auth() {
                         continues below; this is the default path, not the only
                         one, because eight existing accounts have passwords. */}
                     {isLogin && (magicSent ? (
-                      <p className="mt-3 rounded-[18px] bg-white/[0.08] px-4 py-3 text-[14px] leading-[1.5] text-background/80">
-                        Link sent to <span className="font-semibold text-background">{formData.email}</span>. Open it on
-                        this device and you are in, no password needed.
-                      </p>
+                      <div className="mt-3 rounded-[18px] bg-white/[0.08] px-4 py-3 text-[14px] leading-[1.5] text-background/80">
+                        <p>
+                          Link sent to <span className="font-semibold text-background">{formData.email}</span>. Open it on
+                          this device and you are in, no password needed. If you do not see it, look in Spam or Junk.
+                        </p>
+                        <div className="mt-1 flex flex-wrap gap-x-4">
+                          <button
+                            type="button"
+                            onClick={handleMagicLink}
+                            disabled={magicLoading}
+                            className="shikshaq-tap inline-flex min-h-11 items-center text-[14px] font-semibold text-indigo-link-on-dark disabled:opacity-60"
+                          >
+                            {magicLoading ? 'Sending...' : 'Send it again'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMagicSent(false)}
+                            className="shikshaq-tap inline-flex min-h-11 items-center text-[14px] font-semibold text-indigo-link-on-dark"
+                          >
+                            Use a different email
+                          </button>
+                        </div>
+                      </div>
                     ) : (
                       /* Demoted to a plain-text toggle, not a second full-weight
                          button: Google is the one dominant CTA on this screen

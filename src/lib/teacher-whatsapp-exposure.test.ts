@@ -71,7 +71,7 @@ describe('teachers_list.whatsapp_number is not reachable from anon-facing code',
     const src = readFileSync(join(ROOT, 'src/lib/teachers.ts'), 'utf8');
     expect(src).toMatch(/supabase\.rpc\('teacher_whatsapp_link'/);
     const profile = readFileSync(join(ROOT, 'src/pages/TeacherProfile.tsx'), 'utf8');
-    expect(profile).toMatch(/getWhatsAppLinkBySlug\(teacher\.slug\)/);
+    expect(profile).toMatch(/lookupWhatsAppLink\(teacher\.slug\)/);
   });
 });
 
