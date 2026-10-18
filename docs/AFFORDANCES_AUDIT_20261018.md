@@ -4,7 +4,7 @@
 
 **How it was done.** Three read-only Haiku auditors read the checker, the HOD desk plus Admin, and the public site, against the code as of `cf0b14f` (Undo last removed, Enter after a tile tap, enlarge icon moved, whole-page failure explained, HOD Move keeps its pick). They produced 72 candidate findings. Every one listed below as FIXED or OWNER was checked against the code by hand. Haiku over-reports, so several were dropped (see the end).
 
-Status key: **FIXED** in this branch, **OWNER** needs a decision or a database/server change, **LATER** real but not yet done.
+Status key: **FIXED** in this branch, **OWNER** needs a decision or a database/server change, **LATER** real but not yet done. The owner decisions are now recorded below.
 
 ## Top findings, ranked
 
@@ -25,26 +25,26 @@ Status key: **FIXED** in this branch, **OWNER** needs a decision or a database/s
 | 13 | Public | Past papers "Load more" failure was silent | FIXED: toast says results are still there |
 | 14 | Public | Feedback "Send it" disabled with no hint | FIXED: line says to pick how it felt |
 
-## Needs the owner (decisions, product copy or server work)
+## Owner decisions, 18 October 2026 (asked and answered)
 
-1. **Checker says "Saved." before the server confirms.** `submitVerdict` writes to the outbox and shows "Saved." / "Marked as right." / "Sent to your HOD." at once. The not-saved chip appears only after the first failed send. This is how the outbox was designed (the screen moves on at once). Options: say "Kept, sending" until acknowledged, or keep as is. The offline banner now covers the worst case (no connection).
-2. **WhatsApp falls back to Shikshaq's own number** when the teacher lookup fails or a teacher has no link (`src/utils/whatsapp.ts`, `src/pages/WhatsAppRedirect.tsx`), while the screen still names the teacher, and a contact is recorded. The fallback is documented, but it does not tell "no number on file" from "lookup failed". Needs a product decision before changing a contact path.
-3. **Sign-in says "Invalid email or password" for every failure** (`src/pages/Auth.tsx:335`). It is deliberate (no information disclosure), but an unconfirmed email gets the same words and there is no resend there. Decision: allow a distinct "confirm your email" message with a resend.
-4. **Teacher dashboard pill is hard-coded "Live and verified"** for any unpaused profile (`TeacherDashboard.tsx:1150`). A truth claim; needs a real approval field or softer copy.
-5. **Footer fallback copy** claims every teacher is verified when the content fetch fails (`Footer.tsx`).
-6. **Sign-up success** is one toast plus a cleared form; `SignUpSuccess.tsx` (with resend) exists but is not used on this path. **Teacher application "Save and continue"** saves nothing (state is in memory only). Both are flow changes.
-7. **"Auto assign all"** hands out every unassigned paper with no count and no confirm (`AssignmentsTab.tsx`). The code comment says it is deliberate; the owner may want a "Give N papers to M verifiers?" confirm.
-8. **No server change was needed or made.** No migrations, no database writes.
+| Question | Answer | Result |
+|---|---|---|
+| Checker says "Saved." before the server confirms | Keep as is | No change. Offline banner and the not-saved chip cover failures. |
+| WhatsApp lookup failed, parent sent to Shikshaq's number | Show error and retry | DONE. A failed lookup now shows "could not get the number" with Try again and nothing is recorded. A teacher with no number still opens Shikshaq support, and the screen says so. |
+| Sign-in says "Invalid email or password" for everything | Add a confirm-email message | DONE. An unconfirmed email gets a standing panel with Send it again and Use a different email. Wrong password stays generic. |
+| "Live and verified" pill and footer fallback claim | Keep | No change. |
+| Sign-up success page | Build | DONE, in the Auth page itself (the existing SignUpSuccess page needs a signed-in user, and email sign-up has no session yet): a standing "Check your inbox" panel with resend, replacing the vanishing toast and cleared form. |
+| Teacher application draft | Build | DONE. Kept in this browser tab only (sessionStorage, gone when the tab closes), restored on refresh, cleared on send. Consent is never restored. The page says so. |
+| Auto assign all | Build a confirm | DONE. Asks "Hand out N free papers now?" first. |
+| Smaller gaps | Do all | Mostly DONE, see below. |
 
-## Still to do (real, smaller, not done in this pass)
+Note on the draft: it includes the phone number and reference number typed into the form, held only in that tab. If you would rather those two fields are never stored, say so and they will be dropped from the draft.
 
-Checker: warn notices disappear after 8 seconds even when they carry an instruction; the next-question failure shows "check your internet" for an expired sign-in too; "You are not a verifier yet" has no link onward; loading placeholders lack `role="status"`; the profile card is blank while loading.
+## Smaller gaps, status after the second pass
 
-HOD: the Publish refusal does not say "nothing was published"; "Save, keep open" with no changes does nothing visible; "Check again" gives no result line; undo failure shows at the top of the list, not on the line; add-reviewer, verifier details and trust-switch errors lose the server reason; the tab badges vanish without a note when counts fail.
+DONE: checker next-question failure for an expired sign-in (Sign in again link), warn notices last 20 seconds instead of 8, the not-a-verifier page offers Browse past papers, a picture loader announces itself; HOD refusals say nothing was changed (verifier details, trust switch, add reviewer, publish), Publish says why it is off when the paper is not waiting, "Save, keep open" with no changes says so, Check again says it ran, undo failure also toasts, tab badges say when counts failed; Admin activity feed refusal, Verify-this-paper reason, conflict reload failure, and the four reviews failure toasts now give the reason; public: paper page and paper reader Try again, diagrams, teacher card photos and profile photos that fail to load fall back, recommend-a-teacher plain failure copy, saved pages keep the return path through sign-in, terms checkbox hint, pause button shows Saving, magic-link sent has resend and a spam note, copy-link failure shows the link, guardian dashboard turns Save off when its load failed, and a site-wide offline banner (the checker keeps its own).
 
-Admin: sign-out failure is swallowed and the page still navigates; activity-feed failure always blames the internet; Verify-this-paper and conflict-reload failures use thin text; `reviews.tsx` catch blocks were not read.
-
-Public: paper page and paper reader load failures have no Try again; broken paper figures and teacher photos show a broken-image icon; saved-teachers, guardian dashboard and upvote counts fail silently into an empty or zero state; recommend-a-teacher shows raw network text; magic-link "sent" has no resend; saved pages lose the return path on sign-in; no global offline banner outside the checker.
+NOT DONE (low impact, left on purpose): sign-out failure on Admin (the code deliberately signs out locally anyway, so the audit's "still signed in" claim does not hold), "Load older feedback" retry (already a toast and the button stays), saved-teacher hearts and upvote counts that fall back to empty or zero when their load fails (they hide a count of real upvotes; needs a small error flag in two shared hooks), HistoryTab unknown action tooltip, a skeleton in the checker profile card, Uploads card error placement.
 
 ## Auditor claims checked and dropped or softened
 
