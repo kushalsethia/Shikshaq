@@ -93,14 +93,16 @@ function QuestionReport({
   async function submit() {
     if (state === 'sending') return;
     setState('sending');
-    const { data: sessionData } = await supabase.auth.getSession();
-    const { error } = await supabase.from('question_reports').insert({
-      question_id: questionId,
-      paper_id: paperId,
-      note: note.trim() ? note.trim().slice(0, 1000) : null,
-      reporter_id: sessionData.session?.user.id ?? null,
-    });
-    if (error) {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const { error } = await supabase.from('question_reports').insert({
+        question_id: questionId,
+        paper_id: paperId,
+        note: note.trim() ? note.trim().slice(0, 1000) : null,
+        reporter_id: sessionData.session?.user.id ?? null,
+      });
+      if (error) throw error;
+    } catch (error) {
       logger.error('question report failed', error);
       setState('error');
       return;
