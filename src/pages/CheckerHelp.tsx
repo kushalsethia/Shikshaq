@@ -55,7 +55,7 @@ export default function CheckerHelp() {
           ))}
         </ul>
 
-        <h2 className="mb-2 mt-6 text-[16px] font-bold text-foreground">Taking back, skipping, OR and more</h2>
+        <h2 className="mb-2 mt-6 text-[16px] font-bold text-foreground">Skipping, OR and more</h2>
         <ul className="flex flex-col gap-2" data-testid="checker-help-extras">
           {CHECKER_HELP_EXTRAS.map((r) => (
             <li key={r.title} className="rounded-2xl bg-muted p-3">

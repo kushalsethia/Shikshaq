@@ -100,7 +100,8 @@ describe('Assignments: moving a paper away from someone is confirmed', () => {
   const src = readFileSync('src/components/hod/AssignmentsTab.tsx', 'utf8');
   it('Take it myself and Move go through reassign(), which asks first', () => {
     expect(src).toMatch(/void reassign\(a, myId, 'you'/);
-    expect(src).toMatch(/void reassign\(a, uid, nameOf\(uid\)/);
+    // Returned (not voided) so the picker keeps its choice when the move is cancelled or refused.
+    expect(src).toMatch(/=> reassign\(a, uid, nameOf\(uid\)/);
     expect(src).not.toMatch(/act\(\(\) => api\.assignPaper\(a\.paper_id, (myId|uid)/);
   });
   it('a failed team or grades load is shown, not read as an empty team', () => {

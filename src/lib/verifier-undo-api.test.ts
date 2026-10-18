@@ -175,11 +175,10 @@ describe('undo: wording and shortcut', () => {
     expect(UNDONE_NOTE).toBe('Undone. Here is that question again.');
   });
 
-  it('U is the shortcut, shown in the hint only once there is something to undo', () => {
-    expect(matchCheckerShortcut('u', false)).toBe('undo');
+  it('there is no Undo shortcut any more (owner, 18 Oct 2026): U does nothing and the hint never mentions undo', () => {
+    expect(matchCheckerShortcut('u', false)).toBeNull();
     expect(shortcutHint({ canSplit: false, canPass: true })).not.toMatch(/undo/i);
-    expect(shortcutHint({ canSplit: false, canPass: true, canUndo: true })).toMatch(/U undo/);
-    expect(shortcutHint({ canSplit: false, canPass: true, canUndo: true })).not.toMatch(/[–—]/);
+    expect(shortcutHint({ canSplit: false, canPass: true })).not.toMatch(/[–—]/);
   });
 });
 

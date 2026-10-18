@@ -186,9 +186,9 @@ describe('wiring in the verify screen and the practice round', () => {
     expect(practice).toContain("useState<PanelId>('typed')");
   });
 
-  it('keeps Looks right, Fix it, Ask the HOD, Skip and Undo in the sticky footer', () => {
+  it('keeps Looks right, Fix it, Ask the HOD and Skip in the sticky footer', () => {
     const footer = screen.slice(screen.indexOf('Action footer'));
-    for (const label of ['Looks right', 'Fix it', 'Ask the HOD', 'Skip this question', '{undoButton}']) {
+    for (const label of ['Looks right', 'Fix it', 'Ask the HOD', 'Skip this question']) {
       expect(footer).toContain(label);
     }
     expect(footer).toContain('sticky bottom-0');
@@ -450,7 +450,6 @@ describe('the action bar', () => {
     expect(bar).toMatch(/tone="dark"[\s\S]*?<Pencil /);
     expect(bar).toMatch(/tone="outline"[\s\S]*?<CircleHelp /);
     expect(bar).toMatch(/tone="muted"[\s\S]*?<SkipForward /);
-    expect(screen).toContain('<Undo2 ');
   });
 
   it('collapses the long keyboard hint line into a "?" button that opens the shortcuts', () => {
