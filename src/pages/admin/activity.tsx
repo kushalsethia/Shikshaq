@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { writeErrorWords } from '@/lib/admin-approval-shape';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
@@ -90,9 +91,14 @@ export function AdminActivityPage({
         if (id !== requestId.current) return;
         setRows(got);
         setDone(got.length < PAGE);
-      } catch {
+      } catch (e) {
         if (id !== requestId.current) return;
-        setError('Could not load the activity. Check your internet and try again.');
+        const code = (e as { code?: unknown } | null)?.code;
+        setError(
+          code === '42501'
+            ? writeErrorWords(e, '')
+            : 'Could not load the activity. Check your internet and try again.',
+        );
       }
     },
     [api],

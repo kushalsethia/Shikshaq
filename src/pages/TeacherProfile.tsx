@@ -14,7 +14,7 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { resolveTeacherWhatsAppUrl } from '@/utils/whatsapp';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getSubjectPalette } from '@/lib/subject-palette';
-import { getTeacherBySlug, getTeachersByIds, getWhatsAppLinkBySlug } from '@/lib/teachers';
+import { getTeacherBySlug, getTeachersByIds, lookupWhatsAppLink } from '@/lib/teachers';
 import { excerptDescription } from '@/lib/excerpt-description';
 import { ContentGuard } from '@/components/ContentGuard';
 import { CaptureShield } from '@/components/CaptureShield';
@@ -181,6 +181,8 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
     </h2>
   );
 }
+
+const WHATSAPP_LOOKUP_FAILED = "We could not get this teacher's WhatsApp number. Check your connection and try again.";
 
 export default function TeacherProfile() {
   const { slug } = useParams<{ slug: string }>();
@@ -357,9 +359,13 @@ export default function TeacherProfile() {
       }
       // Signed in by this point (the effect's own `!user` guard above), so
       // the gate on getWhatsAppLinkBySlug already returns the real number.
-      void getWhatsAppLinkBySlug(teacher.slug).then((link) => {
+      void lookupWhatsAppLink(teacher.slug).then(({ failed, link }) => {
+        if (failed) {
+          toast.error(WHATSAPP_LOOKUP_FAILED);
+          return;
+        }
         const url = resolveTeacherWhatsAppUrl(link);
-        navigate(`/tuition-teachers/${teacher.slug}/whatsapp-click`, { state: { url, name: teacher.name } });
+        navigate(`/tuition-teachers/${teacher.slug}/whatsapp-click`, { state: { url, name: teacher.name, support: !link } });
       });
     }
   }, [user, teacher]);
@@ -727,9 +733,13 @@ export default function TeacherProfile() {
       openSignInSheet('message');
       return;
     }
-    const link = await getWhatsAppLinkBySlug(teacher.slug);
+    const { failed, link } = await lookupWhatsAppLink(teacher.slug);
+    if (failed) {
+      toast.error(WHATSAPP_LOOKUP_FAILED);
+      return;
+    }
     const url = resolveTeacherWhatsAppUrl(link);
-    navigate(`/tuition-teachers/${teacher.slug}/whatsapp-click`, { state: { url, name: teacher.name } });
+    navigate(`/tuition-teachers/${teacher.slug}/whatsapp-click`, { state: { url, name: teacher.name, support: !link } });
   };
 
   const handleShareClick = async () => {
@@ -746,7 +756,7 @@ export default function TeacherProfile() {
       await navigator.clipboard.writeText(shareUrl);
       toast.success('Link copied');
     } catch {
-      // clipboard unavailable — no-op, share button stays non-fatal
+      toast.error(`Could not copy the link. Copy it from here: ${shareUrl}`);
     }
   };
 
@@ -979,6 +989,12 @@ export default function TeacherProfile() {
                       alt={`${teacher.name}, ${subjectsForTitle(metaSubjects)} tutor in ${areaForTitle(metaArea)}, Kolkata`}
                       width={224}
                       height={280}
+                      onError={(ev) => {
+                        // Photo missing: hide the broken icon and let the tinted panel stand in.
+                        const img = ev.currentTarget;
+                        img.style.visibility = 'hidden';
+                        if (img.parentElement) img.parentElement.style.backgroundColor = accentPalette.tint;
+                      }}
                       decoding="async"
                       /* React 18 does not recognise `fetchPriority` as a prop —
                          it warns and drops it. (React 19 added it.) Spreading

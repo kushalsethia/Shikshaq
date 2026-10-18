@@ -168,6 +168,9 @@ export function CheckerPage({
         <BentoPanel fill="card" edge="top" className="mx-auto max-w-lg py-24 text-center">
           <h1 className="text-balance text-xl font-bold text-foreground">You are not a verifier yet</h1>
           <p className="mt-2 text-[14px] text-warm-secondary">Ask an admin or an HOD to add your account as a verifier.</p>
+          <Link to="/past-papers" className="tap-44 mt-4 inline-flex items-center rounded-full bg-muted px-5 text-[15px] font-bold text-foreground">
+            Browse past papers
+          </Link>
         </BentoPanel>
       </BentoStack>
     );
@@ -435,7 +438,7 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
   const [formError, setFormError] = useState<string | null>(null);
 
   const cardState = loadGate(profileQuery);
-  if (cardState === 'loading') return null;
+  if (cardState === 'loading') return <div role="status" aria-label="Loading your details" className="h-16 animate-pulse rounded-2xl bg-muted" />;
   // Saving is a full overwrite, so a form opened from a failed read would blank
   // the verifier's real details. Show no form until the read has worked.
   if (cardState === 'error') return <ProfileLoadError onRetry={() => void profileQuery.refetch()} />;
@@ -731,7 +734,10 @@ function PaperOverview({
         <CheckerSkeleton />
       ) : questionsQuery.isError ? (
         <div role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
-          Could not load this paper. It may not be yours any more.
+          <p>Could not load this paper. Check your connection, or it may not be yours any more.</p>
+          <button type="button" className="tap-44 mt-2 rounded-full bg-card px-4 py-1.5 text-[13px] font-semibold text-foreground" onClick={() => void questionsQuery.refetch()}>
+            Try again
+          </button>
         </div>
       ) : list.length === 0 ? (
         <p className="rounded-2xl bg-muted px-4 py-6 text-center text-[14px] text-warm-secondary">This paper has no questions to show.</p>

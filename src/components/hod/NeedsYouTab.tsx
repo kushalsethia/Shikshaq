@@ -134,7 +134,10 @@ function QuestionCard({
                 label: 'Save, keep open',
                 onSave: (changes) =>
                   void run(async () => {
-                    if (Object.keys(changes).length === 0) return;
+                    if (Object.keys(changes).length === 0) {
+                      setSaved('Nothing to save yet. Change the words, number or marks first.');
+                      return;
+                    }
                     await api.editQuestion(q.id, q.version, changes, '');
                     setSaved('Saved. Pass it when it reads right.');
                     setPanel(null);
@@ -241,6 +244,9 @@ function QuestionCard({
           </>
         )}
       </div>
+      {panel === null && !q.body.trim() ? (
+        <p className="mt-2 text-[12px] text-warm-meta">Pass is off because this question has no text. Fix it to add the words, or leave it out.</p>
+      ) : null}
       {panel === null && q.review_bucket !== 'escalated' ? (
         <p className="mt-2 text-[12px] text-warm-meta">A student did not send this one up, so it cannot go back to them. Pass it, fix it or leave it out.</p>
       ) : null}
@@ -301,6 +307,7 @@ function PaperQuestions({ api, scope, paperId, paper }: { api: HodApi; scope: st
       refresh();
     } catch (err) {
       setUndoError(errorWords(err));
+      toast.error(`Question ${labelOf(s.q)} could not be put back. ${errorWords(err)}`);
     } finally {
       setUndoing(null);
     }

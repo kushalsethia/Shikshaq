@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useOnline } from '@/hooks/useOnline';
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -81,6 +82,7 @@ export function useChromeConfig(config: ChromeConfig | null) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const online = useOnline();
   const chromeless = isChromelessLocation(location.pathname, location.search);
   // Work screens (the paper checker) keep the top nav only.
   const footerless = isFooterlessPath(location.pathname);
@@ -120,6 +122,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Navbar />
         </>
       )}
+
+      {!online && !location.pathname.startsWith('/checker') ? (
+        <div
+          role="status"
+          data-testid="offline-banner"
+          className="fixed inset-x-3 top-3 z-[60] mx-auto max-w-md rounded-full bg-panel px-4 py-2 text-center text-[13px] font-semibold text-background shadow-lg"
+        >
+          You are offline. Saves and sends will not work until the connection is back.
+        </div>
+      ) : null}
 
       {children}
 

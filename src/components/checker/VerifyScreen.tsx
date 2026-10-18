@@ -1,3 +1,4 @@
+import { useOnline } from '@/hooks/useOnline';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,7 +14,7 @@ import { ChangesChip, ChangesPanel, MarksInsideHint, QuestionChips, ToolsToolbar
 import { toolBlockedByUnsavedEdit, toolById, type CheckerToolId } from '@/lib/checker-tools';
 import { CheckerSkeleton, Callout, CheckGuidance, ContextPart, Modal, SplitPreview, useSignedUrl, useSignedUrls } from '@/components/checker/CheckerBits';
 import { PartPictures } from '@/components/checker/PartPictures';
-import { ArrowLeft, Check, CircleHelp, Maximize2, Pencil, SkipForward, Undo2, X } from 'lucide-react';
+import { ArrowLeft, Check, CircleHelp, Maximize2, Pencil, SkipForward, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CheckerApi, CheckerQuestion } from '@/lib/checker-api';
 import { whatToCheck } from '@/lib/checker-kid-reasons';
@@ -48,7 +49,7 @@ import {
   moveMarksOut,
   BIG_EDIT_WARNING,
 } from '@/lib/checker-body';
-import { checkerErrorAdvice, undoErrorMessage, UNDONE_NOTE, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE } from '@/lib/checker-errors';
+import { checkerErrorAdvice, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE } from '@/lib/checker-errors';
 import { normaliseOptions } from '@/lib/checker-options';
 import {
   clearDraft,
@@ -356,11 +357,8 @@ export function VerifyScreen({
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpReason, setHelpReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  // What the verifier has answered in this visit, newest last, so Undo knows
-  // whether there is anything to take back. The server decides what can
-  // really be undone (30 minutes, nobody else touched it).
-  const [answered, setAnswered] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const online = useOnline();
   // A message that survives moving to the next question (an error that made
   // the page move on, or "Saved").
   const [notice, setNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
@@ -424,7 +422,7 @@ export function VerifyScreen({
 
   useEffect(() => {
     if (!notice) return;
-    const t = setTimeout(() => setNotice(null), notice.tone === 'ok' ? 2500 : 8000);
+    const t = setTimeout(() => setNotice(null), notice.tone === 'ok' ? 2500 : 20000);
     return () => clearTimeout(t);
   }, [notice]);
 
@@ -638,7 +636,6 @@ export function VerifyScreen({
     setAdvancing(true);
     setNextFailed(false);
     setError(null);
-    setAnswered((a) => [...a, kind]);
     setNotice({ text: okText, tone: 'ok' });
     afterQueued?.();
     return true;
@@ -672,8 +669,7 @@ export function VerifyScreen({
     try {
       await action();
       if (dropDraftFor) clearDraft(scope, dropDraftFor);
-      setAnswered((a) => [...a, kind]);
-      setNotice({ text: okText, tone: 'ok' });
+        setNotice({ text: okText, tone: 'ok' });
       refresh();
       return true;
     } catch (err) {
@@ -708,7 +704,10 @@ export function VerifyScreen({
       { question, drafts: { body: bodyDraft, number: numberDraft, marks: marksDraft, printedTypo, typoNote }, draftsFor: draftFor, mode },
       ownerNow,
     );
-    if (plan.kind === 'refuse') return;
+    if (plan.kind === 'refuse') {
+      setError('This question changed while you were editing, so nothing was saved. Check the words again, then press Looks right.');
+      return;
+    }
     if (plan.kind === 'fix') {
       // Logged because it changes what gets stored, even though it is always
       // the same removal a checker could have made by hand.
@@ -762,40 +761,6 @@ export function VerifyScreen({
     if (!question || submitting) return;
     // Skipping while going through the skipped ones sends it back to waiting.
     submitVerdict('skip', {}, 'Skipped. It stays on this paper for later.', false, () => setIncludeSkipped(false));
-  }
-
-  // Take back the last answer (verifier_undo_last). The server decides what is
-  // allowed; its refusal is a plain sentence, shown as it is.
-  async function doUndo() {
-    if (submitting || answered.length === 0) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      // Undo works on the last answer the SERVER has, so the ones still on
-      // their way go first.
-      if (!(await box.flush())) {
-        setError('Your last answer is still being saved. Try again in a moment.');
-        return;
-      }
-      const result = await api.undoLast(paperId);
-      setAnswered((a) => a.slice(0, -1));
-      // Anything still on its way is older than this and must not replace it.
-      appliedSeq.current = ++fetchSeq.current;
-      unmask(result.question_id);
-      primePicture(api, result.question);
-      qc.setQueryData(nextKey, result.question);
-      setAdvancing(false);
-      setNextFailed(false);
-      setIncoming(null);
-      qc.invalidateQueries({ queryKey: ['checker-my-stats', scope] });
-      qc.invalidateQueries({ queryKey: ['verifier-papers', scope] });
-      qc.invalidateQueries({ queryKey: ['verifier-paper-questions', scope, paperId] });
-      setNotice({ text: UNDONE_NOTE, tone: 'ok' });
-    } catch (err) {
-      setError(undoErrorMessage(err));
-    } finally {
-      setSubmitting(false);
-    }
   }
 
   function cancelEdit() {
@@ -925,9 +890,6 @@ export function VerifyScreen({
     } else if (action === 'skip') {
       e.preventDefault();
       doSkip();
-    } else if (action === 'undo' && answered.length > 0) {
-      e.preventDefault();
-      void doUndo();
     }
   }
   const keyHandlerRef = useRef(onKeyDown);
@@ -948,26 +910,6 @@ export function VerifyScreen({
         question.year,
       ].filter((x): x is string => Boolean(x))
     : [];
-
-  // Rewind: enabled once the verifier has answered something in this visit.
-  // Also shown on the "done" screens, where the last answer is the one most
-  // often clicked by mistake. On a phone it is icon-only, to leave the room to
-  // the two words that matter.
-  const undoButton = (
-    <button
-      type="button"
-      onClick={() => void doUndo()}
-      disabled={submitting || answered.length === 0}
-      data-testid="undo-last"
-      data-tour="undo"
-      aria-label="Undo last"
-      title={answered.length === 0 ? 'Nothing to undo yet' : 'Take back your last answer (U)'}
-      className="tap-44 order-3 inline-flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-full bg-muted text-[15px] font-bold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50 md:order-none md:w-auto md:px-4"
-    >
-      <Undo2 className={ACTION_ICON_CLASS} aria-hidden="true" />
-      <span className="hidden md:inline">Undo last</span>
-    </button>
-  );
 
   /* The top tile: ONE calm row (owner, 12 Oct 2026: "too crammed"). A back
      arrow to the paper's questions, which paper, how far through it, the
@@ -1042,7 +984,7 @@ export function VerifyScreen({
   );
 
   /* The action bar: always visible, under the tiles. On a phone it is two rows
-     (the two big answers, then undo, ask and skip) pinned to the bottom; on a
+     (the two big answers, then ask and skip) pinned to the bottom; on a
      tablet and up one row. */
   const actionBarShell = (children: ReactNode, testId?: string) => (
     // Action footer: sticky so the buttons stay under the thumb, and outside the
@@ -1064,13 +1006,17 @@ export function VerifyScreen({
           <>
             {/* A save that failed says so right here, beside the buttons, not
                 at the top of a long page. */}
+            {!online ? (
+              <div role="status" data-testid="offline-note" className="mb-2 rounded-[12px] bg-brand-subtle px-3 py-2 text-[14px] font-semibold text-foreground">
+                You are offline. Answers stay on this device and are sent when the connection is back.
+              </div>
+            ) : null}
             {error ? (
               <div role="alert" data-testid="save-error" className="mb-2 rounded-[12px] bg-destructive/10 px-3 py-2 text-[14px] text-destructive">
                 {error}
               </div>
             ) : null}
             <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
-              {undoButton}
               {mode === 'split' ? (
                 <>
                   <ActionButton
@@ -1095,7 +1041,13 @@ export function VerifyScreen({
                     className={answerButtonClass}
                     onClick={doPass}
                     disabled={submitting || !canPass || marksInvalid}
-                    title="Looks right (Enter or P)"
+                    title={
+                      !canPass
+                        ? 'This question has no words, so it cannot be marked as right'
+                        : marksInvalid
+                          ? 'Marks must be a number, like 2 or 0.5'
+                          : 'Looks right (Enter or P)'
+                    }
                   >
                     <Check className={ACTION_ICON_CLASS} aria-hidden="true" />
                     {submitting
@@ -1145,7 +1097,7 @@ export function VerifyScreen({
                 </>
               )}
               <span className="order-6 ml-auto hidden md:order-none md:inline-flex">
-                <ShortcutsPopover canSplit={splitOffered} canPass={canPass} canUndo={answered.length > 0} editing={mode !== 'check'} />
+                <ShortcutsPopover canSplit={splitOffered} canPass={canPass} editing={mode !== 'check'} />
               </span>
             </div>
           </>,
@@ -1156,7 +1108,6 @@ export function VerifyScreen({
     showIncoming && !nextFailed
       ? actionBarShell(
           <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
-            {undoButton}
             <ActionButton tone="mint" className={answerButtonClass} onClick={() => undefined} disabled>
               <Check className={ACTION_ICON_CLASS} aria-hidden="true" />
               Looks right
@@ -1494,6 +1445,11 @@ export function VerifyScreen({
         const pageToggle = Boolean(pagePlan && viewPath !== '' && hasCrop);
         const pageViewerOn = Boolean(pagePlan && pageOpen && pageShown !== null);
         const pageTileOn = pageViewerOn || flipShown;
+        // The page was asked for (a tap) but its picture could not be loaded, for
+        // example because it is not in storage yet. Say so, so the button never
+        // looks dead.
+        const pageUnavailable = Boolean(pagePlan && showPage && pageOpen && pageShown === null);
+        const PAGE_UNAVAILABLE = 'The whole page could not be loaded for this question. The photo above is still right.';
         const cropLabel = picturePlan && picturePlan.kind !== 'own' && cropShown ? 'Photo of the printed whole question' : 'Photo of the printed paper';
 
         const enlargeCrop = tilesOn
@@ -1520,7 +1476,7 @@ export function VerifyScreen({
         /** The crop. `fit` (tablet and up) fits it to the tile; otherwise it is its natural size and the tile scrolls. */
         const cropBody = (fit: boolean) =>
           !picturePlanKey ? (
-            <div className={cn('animate-pulse rounded-[8px] bg-muted', fit ? 'min-h-0 flex-1' : 'h-40 shrink-0')} aria-label="Loading the picture" />
+            <div className={cn('animate-pulse rounded-[8px] bg-muted', fit ? 'min-h-0 flex-1' : 'h-40 shrink-0')} role="status" aria-label="Loading the picture" />
           ) : (
             <>
               {picturePlan?.mayMissParts && cropShown ? (
@@ -1563,6 +1519,7 @@ export function VerifyScreen({
           <button
             type="button"
             aria-expanded={showPage}
+            data-enter-passes="true"
             onClick={() => setShowPage((v) => !v)}
             className={cn(
               'tap-44 rounded-full bg-brand-subtle px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
@@ -1655,8 +1612,10 @@ export function VerifyScreen({
                       data-testid="page-strip"
                       className="flex shrink-0 items-center gap-2 rounded-[20px] border-2 border-brand bg-brand-subtle px-3 py-1.5 shadow-card-bone md:rounded-[18px]"
                     >
-                      <span className="text-[12px] font-bold text-foreground">The whole page</span>
-                      {pageToggleButton('ml-auto bg-white')}
+                      <span role={pageUnavailable ? 'status' : undefined} className="text-[12px] font-bold text-foreground">
+                        {pageUnavailable ? PAGE_UNAVAILABLE : 'The whole page'}
+                      </span>
+                      {pageToggleButton('ml-auto shrink-0 bg-white')}
                     </div>
                   ) : null}
                   {pageTileOn ? (
@@ -1713,6 +1672,11 @@ export function VerifyScreen({
             >
               {tilesOn ? partsBody : cropVisible ? cropBody(false) : null}
               {pageToggle ? pageToggleButton('self-start') : null}
+              {pageUnavailable ? (
+                <p role="status" className="text-[13px] font-semibold text-warm-secondary">
+                  {PAGE_UNAVAILABLE}
+                </p>
+              ) : null}
               {pageViewerOn ? (
                 <div className="flex min-w-0 flex-col">
                   <p className="mb-1 text-[12px] font-semibold text-warm-secondary">{PAGE_HEADING}</p>
@@ -1781,10 +1745,21 @@ export function VerifyScreen({
         ) : nextFailed || (questionQuery.isError && !showIncoming) ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <p className="text-lg font-semibold text-foreground">{LOAD_FAILED_TITLE}</p>
-            <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
-            <ActionButton tone="mint" onClick={nextFailed ? retryNext : () => void questionQuery.refetch()}>
-              Try again
-            </ActionButton>
+            {(questionQuery.error as { code?: unknown } | null)?.code === '42501' ? (
+              <>
+                <p className="max-w-[40ch] text-[14px] text-warm-secondary">Your sign-in no longer lets you check papers. Sign in again, or ask an admin or the HOD.</p>
+                <a href="/auth" className="tap-44 inline-flex items-center rounded-full bg-brand px-5 text-[15px] font-bold text-foreground">
+                  Sign in again
+                </a>
+              </>
+            ) : (
+              <>
+                <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
+                <ActionButton tone="mint" onClick={nextFailed ? retryNext : () => void questionQuery.refetch()}>
+                  Try again
+                </ActionButton>
+              </>
+            )}
           </div>
         ) : showIncoming ? (
           // The next question's card, up before its words: the picture is warm.
@@ -1829,7 +1804,6 @@ export function VerifyScreen({
               >
                 Go through skipped ones now
               </ActionButton>
-              {undoButton}
             </div>
           </div>
         ) : !question ? (
@@ -1842,7 +1816,6 @@ export function VerifyScreen({
               <ActionButton tone="mint" onClick={onList ?? onExit}>
                 Back to my papers
               </ActionButton>
-              {undoButton}
             </div>
           </div>
         ) : (

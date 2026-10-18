@@ -69,7 +69,8 @@ function PickVerifier({
   buttonLabel: string;
   options: HodTeamMember[];
   busy: boolean;
-  onPick: (userId: string) => void;
+  /** Return false (or a promise of false) when nothing happened, so the pick stays in the box to retry. */
+  onPick: (userId: string) => void | boolean | Promise<boolean | void>;
   /** The paper's class, so verifiers below it are shown but cannot be picked. */
   paperClass: string | null;
   profileOf: (userId: string) => HodVerifierProfile | undefined;
@@ -108,8 +109,12 @@ function PickVerifier({
         type="button"
         disabled={busy || value === ''}
         onClick={() => {
-          onPick(value);
-          setValue('');
+          // Clear the box only once the move really happened. A cancelled
+          // confirm or a server refusal keeps the pick, so it never looks as
+          // if the click was swallowed.
+          void Promise.resolve(onPick(value)).then((done) => {
+            if (done !== false) setValue('');
+          });
         }}
         className={cn(actionToneClass('dark'), 'shrink-0')}
       >
@@ -292,18 +297,25 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
   const verifiers = (teamQ.data ?? []).filter((m) => m.active);
 
-  async function act(fn: () => Promise<unknown>, done: (r: unknown) => string) {
+  /** Runs one change. True when it went through, false when the server refused it. */
+  async function act(fn: () => Promise<unknown>, done: (r: unknown) => string): Promise<boolean> {
     setBusy(true);
     setRefusal(null);
     try {
       const r = await fn();
       toast.success(done(r));
       refresh();
+      return true;
     } catch (err) {
       const raw = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : '';
-      setRefusal(raw || 'That did not work. Try again.');
+      const reason = raw || 'That did not work. Try again.';
+      setRefusal(reason);
+      // The banner sits at the top of the tab, which may be scrolled out of view
+      // from a row far down the list, so say it where the HOD is looking as well.
+      toast.error(reason, { duration: 10_000 });
       // A refusal often means the lists on screen are out of date.
       refresh();
+      return false;
     } finally {
       setBusy(false);
     }
@@ -316,6 +328,13 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
 
   /** Auto assign all: the server returns only a count, so who got what is read back from the lists. */
   async function autoAssignAll() {
+    const waiting = unassignedQ.data?.length ?? 0;
+    const ok = await confirm({
+      title: waiting > 0 ? `Hand out ${waiting > UNASSIGNED_SHOWN ? `${UNASSIGNED_SHOWN}+` : waiting} free ${waiting === 1 ? 'paper' : 'papers'} now?` : 'Hand out the free papers now?',
+      description: 'Each paper goes to one verifier, never above their grade. You will see how many went to whom and how many are left. Taking a paper back is one tap on its row.',
+      confirmLabel: 'Auto assign all',
+    });
+    if (!ok) return;
     setBusy(true);
     setGiving(true);
     setRefusal(null);
@@ -382,14 +401,14 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   }
 
   /** Moving a paper takes it from its holder, so ask first, naming who loses it (like Unassign does). */
-  async function reassign(a: HodAssignment, toId: string, toName: string, done: string) {
+  async function reassign(a: HodAssignment, toId: string, toName: string, done: string): Promise<boolean> {
     const ok = await confirm({
       title: `Move ${paperLabel(a)} from ${a.checker_name ?? 'this verifier'} to ${toName}?`,
       description: `${a.checker_name ?? 'They'} will no longer have this paper. Work already done on it stays.`,
       confirmLabel: 'Move it',
     });
-    if (!ok) return;
-    await act(() => api.assignPaper(a.paper_id, toId), () => done);
+    if (!ok) return false;
+    return act(() => api.assignPaper(a.paper_id, toId), () => done);
   }
 
   if (assignmentsQ.isLoading || unassignedQ.isLoading || teamQ.isLoading) return <ListSkeleton label="Loading assignments" />;
@@ -441,7 +460,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
             options={verifiers.filter((m) => m.user_id !== a.user_id)}
             paperClass={a.cls}
             profileOf={profileOf}
-            onPick={(uid) => void reassign(a, uid, nameOf(uid), `Moved to ${nameOf(uid)}.`)}
+            onPick={(uid) => reassign(a, uid, nameOf(uid), `Moved to ${nameOf(uid)}.`)}
           />
           <button type="button" disabled={busy} onClick={() => void unassign(a)} className={actionToneClass('muted')}>
             Unassign
@@ -585,7 +604,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
                     options={verifiers}
                     paperClass={p.cls}
                     profileOf={profileOf}
-                    onPick={(uid) => void act(() => api.assignPaper(p.paper_id, uid), () => `Given to ${nameOf(uid)}.`)}
+                    onPick={(uid) => act(() => api.assignPaper(p.paper_id, uid), () => `Given to ${nameOf(uid)}.`)}
                     extra={(uid) => <AssignmentWhy api={api} scope={scope} checkerId={uid} paperId={p.paper_id} />}
                   />
                 </div>

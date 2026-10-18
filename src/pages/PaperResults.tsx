@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowUp, FileText } from 'lucide-react';
@@ -373,6 +374,7 @@ export default function PaperResults() {
     } catch {
       // Leave the existing results in place; the button stays put so the
       // student can just try again rather than losing what already loaded.
+      toast.error('Could not load more papers. Your results are still here. Try again.');
     } finally {
       if (searchGen.isCurrent(gen)) setLoadingMore(false);
     }

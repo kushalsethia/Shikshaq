@@ -84,7 +84,7 @@ describe('BankPaper', () => {
 
   it('keeps loading and error distinct from not found', () => {
     expect(code).toContain("if (failed) {");
-    expect(code).toContain('This paper did not load. Refresh to try again.');
+    expect(code).toContain('This paper did not load. Check your connection and try again.');
     expect(code).toContain('NOT_FOUND_TITLE');
   });
 

@@ -377,6 +377,18 @@ export async function getWhatsAppLinkBySlug(slug: string): Promise<string | null
   return data ?? null;
 }
 
+/** Like getWhatsAppLinkBySlug, but says whether the lookup FAILED (network or server)
+ *  apart from the teacher having no number on file. A failed lookup must never be
+ *  turned into Shikshaq's own number: the parent would be sent to the wrong chat. */
+export async function lookupWhatsAppLink(slug: string): Promise<{ failed: boolean; link: string | null }> {
+  const { data, error } = await supabase.rpc('teacher_whatsapp_link', { p_slug: slug });
+  if (error) {
+    if (import.meta.env.DEV) console.warn('lookupWhatsAppLink error:', error);
+    return { failed: true, link: null };
+  }
+  return { failed: false, link: data ?? null };
+}
+
 /* ---------------------------------------------------------------------------
    Paging and chunking mechanics, lifted out of Browse.tsx.
 

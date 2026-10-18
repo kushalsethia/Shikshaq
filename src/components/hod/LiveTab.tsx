@@ -86,7 +86,7 @@ function LiveRow({ p, api, onChanged }: { p: HodLivePaper; api: HodApi; onChange
           </p>
           <p className="mt-1 text-[12px] tabular-nums text-warm-secondary">
             {p.question_count} {p.question_count === 1 ? 'question' : 'questions'}
-            {p.marks !== null ? ` · ${p.marks} marks` : ''}
+            {p.marks ? ` · ${p.marks} marks` : ''}
             {waiting ? ` · ${waiting}` : ''}
           </p>
         </div>

@@ -93,14 +93,16 @@ function QuestionReport({
   async function submit() {
     if (state === 'sending') return;
     setState('sending');
-    const { data: sessionData } = await supabase.auth.getSession();
-    const { error } = await supabase.from('question_reports').insert({
-      question_id: questionId,
-      paper_id: paperId,
-      note: note.trim() ? note.trim().slice(0, 1000) : null,
-      reporter_id: sessionData.session?.user.id ?? null,
-    });
-    if (error) {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const { error } = await supabase.from('question_reports').insert({
+        question_id: questionId,
+        paper_id: paperId,
+        note: note.trim() ? note.trim().slice(0, 1000) : null,
+        reporter_id: sessionData.session?.user.id ?? null,
+      });
+      if (error) throw error;
+    } catch (error) {
       logger.error('question report failed', error);
       setState('error');
       return;
@@ -192,12 +194,36 @@ function FadeLabel({ show, children }: { show: boolean; children: import('react'
   );
 }
 
+/** A question's diagram. If the picture cannot load, a plain note stands in, so it does not read as a broken part of the question. */
+function FigureImage({ src, alt, dims }: { src: string; alt: string; dims?: [number, number] }) {
+  const [bad, setBad] = useState(false);
+  if (bad) {
+    return (
+      <p role="status" className="rounded-[12px] bg-card px-3 py-2 text-[13px] text-warm-secondary">
+        The diagram for this question did not load. Reload the page to try again.
+      </p>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      {...(dims ? { width: dims[0], height: dims[1] } : {})}
+      loading="lazy"
+      decoding="async"
+      onError={() => setBad(true)}
+      className="max-h-[300px] w-auto max-w-full rounded-[12px] bg-card p-2 shadow-border"
+    />
+  );
+}
+
 export default function BankPaper() {
   const { id } = useParams<{ id: string }>();
   const [paper, setPaper] = useState<BankPaperMeta | null>(null);
   const [questions, setQuestions] = useState<BankQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
   const [chapter, setChapter] = useState('');
   const [q, setQ] = useState('');
   const [reportFor, setReportFor] = useState('');
@@ -278,7 +304,7 @@ export default function BankPaper() {
       })
       .catch(() => { if (!cancelled) { setFailed(true); setLoading(false); } });
     return () => { cancelled = true; };
-  }, [id, user?.id]);
+  }, [id, user?.id, retryTick]);
 
   useEffect(() => { setChapter(''); setQ(''); setReportFor(''); }, [id]);
 
@@ -690,15 +716,10 @@ export default function BankPaper() {
               bundle -- see supabase/migrations/20260925130000_paper_figures_bucket.sql.
               getPublicUrl does no network call, just URL construction, so
               this costs nothing extra per card. */}
-          <img
+          <FigureImage
             src={supabase.storage.from('paper-figures').getPublicUrl(row.f).data.publicUrl}
             alt={`Figure for question ${resolveDisplayNumber(row.dn, displayNumbers.get(row.i), row.n) ?? ''}`}
-            {...(figureDims?.[row.f]
-              ? { width: figureDims[row.f][0], height: figureDims[row.f][1] }
-              : {})}
-            loading="lazy"
-            decoding="async"
-            className="max-h-[300px] w-auto max-w-full rounded-[12px] bg-card p-2 shadow-border"
+            dims={figureDims?.[row.f]}
           />
         </figure>
       )}
@@ -711,7 +732,15 @@ export default function BankPaper() {
     return (
       <div className="flex min-h-screen flex-col bg-panel">
         <main id="main-content" className={`flex-1 ${CONTAINER} py-10`}>
-          <p className="text-[15px] text-white/80">This paper did not load. Refresh to try again.</p>
+          <p role="alert" className="text-[15px] text-white/80">This paper did not load. Check your connection and try again.</p>
+          <button
+            type="button"
+            onClick={() => { setFailed(false); setLoading(true); setRetryTick((n) => n + 1); }}
+            className="tap-44 mt-3 inline-flex items-center rounded-full bg-brand px-5 text-[15px] font-bold text-foreground"
+          >
+            Try again
+          </button>
+          <br />
           <Link to="/past-papers" className="mt-3 inline-flex min-h-11 items-center font-semibold text-brand-blue">
             Back to past papers
           </Link>

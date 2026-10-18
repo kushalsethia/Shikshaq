@@ -88,6 +88,7 @@ function PartPictureTile({
       <button
         type="button"
         onClick={onClick}
+        data-enter-passes="true"
         aria-pressed={focused}
         aria-label={focused && src ? `Enlarge the printed picture of ${part.label}` : `Show ${part.label}`}
         className={cn(
@@ -95,7 +96,16 @@ function PartPictureTile({
           focused && src ? 'cursor-zoom-in' : 'cursor-pointer',
         )}
       >
-        <span className={cn('text-[12px] font-semibold', focused ? 'text-foreground' : 'text-warm-meta')}>{part.label}</span>
+        {/* The enlarge icon lives in this row, never on the picture: a one-line question ends at the
+            top-right corner of its picture, and an icon there hid its last word. */}
+        <span className="flex items-center justify-between gap-2">
+          <span className={cn('text-[12px] font-semibold', focused ? 'text-foreground' : 'text-warm-meta')}>{part.label}</span>
+          {focused && src ? (
+            <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
+              <Maximize2 className="h-3.5 w-3.5" />
+            </span>
+          ) : null}
+        </span>
         {url === undefined && part.path ? (
           <span className="block h-20 animate-pulse rounded-[4px] bg-muted" aria-label="Loading the picture" />
         ) : src ? (
@@ -109,14 +119,6 @@ function PartPictureTile({
               }}
               className="mx-auto block h-auto max-w-full"
             />
-            {focused ? (
-              <span
-                aria-hidden="true"
-                className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-white text-foreground shadow-sm"
-              >
-                <Maximize2 className="h-3.5 w-3.5" />
-              </span>
-            ) : null}
           </span>
         ) : (
           <span data-testid="no-part-picture" className="block rounded-[4px] bg-muted px-3 py-2 text-[13px] text-warm-secondary">
