@@ -62,7 +62,9 @@ export function TeacherReviewersSection({ api }: { api: TeacherReviewerAdminApi 
       setError(
         err instanceof Error && /no account|not found|sign up/i.test(err.message)
           ? 'No Shikshaq account has that email yet. They may not have signed up, or they used a different email.'
-          : 'Could not add that person. Check the email and try again.',
+          : err && typeof err === 'object' && (err as { code?: unknown }).code === '42501'
+            ? 'Your account cannot change the teacher reviewers. Ask an admin or the HOD. Nothing was changed.'
+            : 'Could not add that person. Nothing was changed. Check the email and try again.',
       );
     } finally {
       setAdding(false);

@@ -22,7 +22,7 @@ import {
 } from '@/lib/ai-trust';
 import type { HodApi } from '@/lib/hod-api';
 import { actionToneClass } from '@/lib/checker-button-styles';
-import { overallProgress, overallRateText, overallStatus, overallUnlocks } from '@/lib/hod-publish';
+import { errorWords, overallProgress, overallRateText, overallStatus, overallUnlocks } from '@/lib/hod-publish';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { cn } from '@/lib/utils';
 
@@ -159,7 +159,7 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
       toast.success(sw.action === 'trust' ? 'This level is now trusted.' : 'This level goes to people again.');
       void qc.invalidateQueries({ queryKey: AI_TRUST_KEY(scope) });
     } catch (err) {
-      toast.error(err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : 'Could not change that.');
+      toast.error(errorWords(err, 'Could not change that. This level is still as it was.'));
     } finally {
       setBusy(false);
     }

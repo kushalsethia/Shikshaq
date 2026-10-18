@@ -134,7 +134,10 @@ function QuestionCard({
                 label: 'Save, keep open',
                 onSave: (changes) =>
                   void run(async () => {
-                    if (Object.keys(changes).length === 0) return;
+                    if (Object.keys(changes).length === 0) {
+                      setSaved('Nothing to save yet. Change the words, number or marks first.');
+                      return;
+                    }
                     await api.editQuestion(q.id, q.version, changes, '');
                     setSaved('Saved. Pass it when it reads right.');
                     setPanel(null);
@@ -304,6 +307,7 @@ function PaperQuestions({ api, scope, paperId, paper }: { api: HodApi; scope: st
       refresh();
     } catch (err) {
       setUndoError(errorWords(err));
+      toast.error(`Question ${labelOf(s.q)} could not be put back. ${errorWords(err)}`);
     } finally {
       setUndoing(null);
     }

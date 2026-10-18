@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { errorWords } from '@/lib/hod-publish';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { EmptyNote, ListSkeleton, LoadError, Tile, ago } from '@/components/hod/HodShared';
@@ -111,8 +112,7 @@ function AnalyticsTable({ team }: { team: HodTeamMember[] }) {
 }
 
 function errorText(err: unknown): string {
-  const raw = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : '';
-  return raw || 'That did not work. Try again.';
+  return errorWords(err, 'That did not work. Nothing was changed. Try again.');
 }
 
 /** One verifier's row: the disclosure button, the inline form, and the request banner. Exported for tests. */

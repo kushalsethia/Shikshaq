@@ -215,7 +215,7 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
       refresh();
     } catch (err) {
       // The server's sentence, as written: it names every check that failed.
-      setPublishError(errorWords(err));
+      setPublishError(`Not published. The paper is still waiting for you. ${errorWords(err)}`);
       refresh();
     } finally {
       setBusy(false);
@@ -283,7 +283,7 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
           <>
             <p className="mb-3 text-[13px] text-warm-secondary">All four must be green before the paper can go live.</p>
             <CheckList preview={data} go={setStep} paperId={paperId} />
-            <button type="button" className={cn(quietButton, 'mt-3')} onClick={() => void q.refetch()}>
+            <button type="button" className={cn(quietButton, 'mt-3')} onClick={() => void q.refetch().then(() => toast.message('Checked just now. The list above is up to date.'))}>
               Check again
             </button>
           </>
