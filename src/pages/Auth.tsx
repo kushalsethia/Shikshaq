@@ -798,10 +798,29 @@ export default function Auth() {
                         continues below; this is the default path, not the only
                         one, because eight existing accounts have passwords. */}
                     {isLogin && (magicSent ? (
-                      <p className="mt-3 rounded-[18px] bg-white/[0.08] px-4 py-3 text-[14px] leading-[1.5] text-background/80">
-                        Link sent to <span className="font-semibold text-background">{formData.email}</span>. Open it on
-                        this device and you are in, no password needed.
-                      </p>
+                      <div className="mt-3 rounded-[18px] bg-white/[0.08] px-4 py-3 text-[14px] leading-[1.5] text-background/80">
+                        <p>
+                          Link sent to <span className="font-semibold text-background">{formData.email}</span>. Open it on
+                          this device and you are in, no password needed. If you do not see it, look in Spam or Junk.
+                        </p>
+                        <div className="mt-1 flex flex-wrap gap-x-4">
+                          <button
+                            type="button"
+                            onClick={handleMagicLink}
+                            disabled={magicLoading}
+                            className="shikshaq-tap inline-flex min-h-11 items-center text-[14px] font-semibold text-indigo-link-on-dark disabled:opacity-60"
+                          >
+                            {magicLoading ? 'Sending...' : 'Send it again'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMagicSent(false)}
+                            className="shikshaq-tap inline-flex min-h-11 items-center text-[14px] font-semibold text-indigo-link-on-dark"
+                          >
+                            Use a different email
+                          </button>
+                        </div>
+                      </div>
                     ) : (
                       /* Demoted to a plain-text toggle, not a second full-weight
                          button: Google is the one dominant CTA on this screen

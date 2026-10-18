@@ -340,7 +340,7 @@ export default function PaperReader() {
       await navigator.clipboard.writeText(shareUrl);
       toast.success('Link copied');
     } catch {
-      // clipboard unavailable — no-op, share button stays non-fatal
+      toast.error(`Could not copy the link. Copy it from here: ${shareUrl}`);
     }
   }
 
