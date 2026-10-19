@@ -19,7 +19,7 @@ const INTERNAL_FNS = [
   '_guard_admin_removal(uuid)',
 ];
 
-const esc = (s: string) => s.replace(/[()]/g, '\\$&');
+const esc = (s: string) => s.replace(/[\\()]/g, '\\$&');
 
 function body(name: string): string {
   const start = sql.indexOf(`function public.${name}(`);
