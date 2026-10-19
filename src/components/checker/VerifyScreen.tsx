@@ -7,7 +7,7 @@ import { OptionList } from '@/components/checker/OptionList';
 import { PartCard } from '@/components/checker/PartCard';
 import { FIX_RULE_LINE, RulesInfo, ShortcutsPopover } from '@/components/checker/CheckerPopovers';
 import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
-import { PanelTabs, PrintedFrame, TypedFrame, VERIFY_TABS, type PanelId } from '@/components/checker/Panels';
+import { AiSurePill, PanelTabs, PrintedFrame, TypedFrame, VERIFY_TABS, type PanelId } from '@/components/checker/Panels';
 import { tileForNextQuestion } from '@/lib/checker-bento';
 import { BentoTile, FadeScroll, ImageLightbox, TilePager, useBentoWide } from '@/components/checker/BentoParts';
 import { ChangesChip, ChangesPanel, MarksInsideHint, QuestionChips, ToolsToolbar } from '@/components/checker/TypedBits';
@@ -267,6 +267,18 @@ export function VerifyScreen({
   const skippedCount = paperRow?.skipped ?? 0;
   if (question) labelRef.current = paperLabel(paperRow ?? question);
   const currentPaperLabel = question ? paperLabel(paperRow ?? question) : labelRef.current;
+
+  // How sure the computer was, as a whole percent, for the question on screen (null for most questions: no pill then).
+  // A hint only: it loads after the card, is cached per question, and a failure is just "no pill".
+  const sureQuery = useQuery({
+    queryKey: ['checker-ai-sure', scope, question?.id ?? null],
+    queryFn: () => api.questionAiSure(question!.id),
+    enabled: Boolean(question),
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const sureChip = question && sureQuery.data != null ? <AiSurePill percent={sureQuery.data} /> : null;
 
   // Lost text: no words, but the AI transcribed the page (checker-lost-text.ts).
   const lost = question ? lostTextSuggestion(question.body, question.flag_detail) : null;
@@ -1455,6 +1467,7 @@ export function VerifyScreen({
               onFocus={() => focusPart(question.id)}
               changesChip={changesChip}
               changesPanel={changesPanel}
+              sureChip={sureChip}
               onBody={setBodyDraft}
               editorKey={editorKey}
               formulaRequest={formulaReq.pending ? formulaReq.n : 0}

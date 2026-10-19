@@ -465,6 +465,15 @@ export function createFakeCheckerApi(): FakeCheckerApi {
       return api.verdictAndNext({ action: 'pass', questionId, paperId, version, includeSkipped: options.includeSkipped });
     },
 
+    // Like checker_question_ai_sure (20261019110000): a whole percent for some questions, null for the rest, so the
+    // pill can be seen both ways. Spread by position in the queue: 92, none, 78, none, 99, none, 64, none ...
+    async questionAiSure(questionId) {
+      await gate();
+      const i = allQuestions.findIndex((x) => x.id === questionId);
+      if (i < 0 || i % 2 === 1) return null;
+      return [92, 78, 99, 64, 85][(i / 2) % 5];
+    },
+
     // Like verifier_reopen_question (20261019100000): a Done question goes back to "to verify", leased to
     // the caller, and is served first (the real nextInPaper serves the caller's own lease first).
     async reopenQuestion(questionId) {

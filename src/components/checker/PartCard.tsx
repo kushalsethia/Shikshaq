@@ -31,6 +31,8 @@ export function PartCard({
   changesChip,
   /** The opened list, shown under the top row. */
   changesPanel,
+  /** The "Computer 92% sure" pill, shown next to the Typed badge (null when the computer gave no number). */
+  sureChip,
   /** Edit: the new text of the body. */
   onBody,
   editorKey,
@@ -53,6 +55,7 @@ export function PartCard({
   disabled?: boolean;
   changesChip?: ReactNode;
   changesPanel?: ReactNode;
+  sureChip?: ReactNode;
   onBody?: (next: string) => void;
   editorKey?: number;
   formulaRequest?: number;
@@ -69,6 +72,7 @@ export function PartCard({
   const badges = (
     <>
       <TypedBadge />
+      {sureChip ?? null}
       {editing ? (
         <span className={cn(BADGE, 'bg-brand')} data-testid="editing-badge">
           <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
