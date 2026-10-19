@@ -50,7 +50,7 @@ export function markWalkthroughSeen(userId: string): void {
 
 export interface WalkthroughStep {
   /** Matches `data-tour="..."` on the real element in Checker.tsx. */
-  target: 'paper' | 'picture' | 'question' | 'tools' | 'changes' | 'pass' | 'fix' | 'help' | 'skip';
+  target: 'paper' | 'picture' | 'question' | 'tools' | 'changes' | 'pass' | 'fix' | 'help' | 'skip' | 'undo';
   title: string;
   body: string;
 }
@@ -102,6 +102,11 @@ export const WALKTHROUGH_STEPS: WalkthroughStep[] = [
     title: 'Skip this question',
     body: 'Press this to skip the question for now. It stays on this paper for later, and you move to the next question.',
   },
+  {
+    target: 'undo',
+    title: 'Undo last',
+    body: 'Pressed something by mistake? Press this to take back your last answer. It works for 30 minutes, only on your own answers, and you can press it again to go back further.',
+  },
 ];
 
 /* ---- the rules, in plain words ---------------------------------------- */
@@ -146,10 +151,14 @@ export const CHECKER_RULES: CheckerRule[] = [
   },
 ];
 
-/* ---- skipping, and OR ---------------------------------------- */
+/* ---- going back, skipping, and OR ---------------------------------------- */
 
-/** Shown on the help page under "Skipping, OR and more". */
+/** Shown on the help page under "Taking back, skipping and OR". */
 export const CHECKER_HELP_EXTRAS: CheckerRule[] = [
+  {
+    title: 'Undo last',
+    body: 'Pressed the wrong button? Press Undo last to take back your last answer. It works for 30 minutes after you pressed, and only on your own answers. If anyone else has touched that question since, or the HOD has already dealt with it, it cannot be undone and you will be told why. Press it again to go back one more answer.',
+  },
   {
     title: 'Skip for later',
     body: 'Press Skip this question when you want to leave one for now. It stays on this paper and you move to the next question. Skipped questions wait for you: when the others are done you can go through them, or go to another paper first. You can skip the last question on a paper too.',
@@ -185,6 +194,7 @@ export const ACTION_LABELS: Record<CheckerAction, string> = {
   split: 'Split into two questions',
   help: 'Ask the HOD',
   skip: 'Skip this question',
+  undo: 'Undo last',
 };
 
 /** One row per action, in the order the shortcuts file lists them, with the
