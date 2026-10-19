@@ -104,3 +104,18 @@ export function undoErrorMessage(err: unknown): string {
   }
   return 'Could not undo that. Check your internet and try again.';
 }
+
+/**
+ * The line shown when "Edit" on a Done question is refused (verifier_reopen_question).
+ * Same shape as undoErrorMessage: a 22023 refusal is already a plain sentence
+ * ("That question is with the HOD ...", "This paper has already gone for
+ * approval ..."), so it is shown as it is.
+ */
+export function reopenErrorMessage(err: unknown): string {
+  const { code, text } = parts(err);
+  if (code === '22023' && text.trim() !== '') return text.trim();
+  if (code === '42501' || /not authorized|not on a paper you hold/i.test(text)) {
+    return 'That question is not on a paper you hold, so it cannot be edited here.';
+  }
+  return 'Could not open that question to edit. Check your internet and try again.';
+}

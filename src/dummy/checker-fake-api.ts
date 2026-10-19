@@ -465,6 +465,22 @@ export function createFakeCheckerApi(): FakeCheckerApi {
       return api.verdictAndNext({ action: 'pass', questionId, paperId, version, includeSkipped: options.includeSkipped });
     },
 
+    // Like verifier_reopen_question (20261019100000): a Done question goes back to "to verify", leased to
+    // the caller, and is served first (the real nextInPaper serves the caller's own lease first).
+    async reopenQuestion(questionId) {
+      await gateSave();
+      const kept = allQuestions.find((x) => x.id === questionId);
+      const key = kept ? paperOf.get(kept.id) : undefined;
+      if (!kept || !key || returned.has(key)) throw pgError('42501', 'That question is not on a paper you hold');
+      if (outcome.get(questionId) !== 'done') {
+        throw pgError('22023', 'That question is not marked Done, so there is nothing to reopen.');
+      }
+      outcome.delete(questionId);
+      doneByPaper[key] = Math.max(0, (doneByPaper[key] ?? 0) - 1);
+      if (!queue.some((x) => x.id === questionId)) queue.unshift({ ...kept });
+      return decorate(queue.find((x) => x.id === questionId)!);
+    },
+
     async undoLast(paperId): Promise<UndoResult> {
       // Like verifier_undo_last (20261008140000): the caller's most recent
       // answer on the paper, inside 30 minutes, while nobody else touched it.

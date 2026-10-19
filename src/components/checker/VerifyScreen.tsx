@@ -49,7 +49,7 @@ import {
   moveMarksOut,
   BIG_EDIT_WARNING,
 } from '@/lib/checker-body';
-import { checkerErrorAdvice, undoErrorMessage, UNDONE_NOTE, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE } from '@/lib/checker-errors';
+import { checkerErrorAdvice, reopenErrorMessage, undoErrorMessage, UNDONE_NOTE, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE } from '@/lib/checker-errors';
 import { normaliseOptions } from '@/lib/checker-options';
 import {
   clearDraft,
@@ -111,6 +111,7 @@ export function VerifyScreen({
   onExit,
   onList,
   toolbar,
+  reopenQuestionId,
 }: {
   api: CheckerApi;
   scope: string;
@@ -124,6 +125,9 @@ export function VerifyScreen({
   onList?: () => void;
   /** The page's own small controls (counts, Menu ...), shown in the top tile so the page needs no header row of its own. */
   toolbar?: ReactNode;
+  /** A question the verifier already marked Done and chose to Edit from the paper's list. It is reopened (verifier_reopen_question)
+   *  and shown first, instead of the next question in line. Used once, on the first load. */
+  reopenQuestionId?: string;
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -203,9 +207,31 @@ export function VerifyScreen({
   // Verdicts of THIS paper still on their way (another paper's do not hold this screen).
   const pendingHere = outboxState.entries.filter((e) => e.paperId === paperId).length;
 
+  // "Edit" on a Done question: the first load reopens it instead of asking for the next one. Taken once, so a
+  // refresh or a later fetch goes back to the normal order (the reopened question is leased to me and comes first anyway).
+  const reopenOnce = useRef<string | null>(reopenQuestionId ?? null);
+  async function fetchFirstRow(inc: boolean): Promise<CheckerQuestion | null> {
+    const id = reopenOnce.current;
+    reopenOnce.current = null;
+    if (id) {
+      try {
+        const row = await api.reopenQuestion(id);
+        primePicture(api, row);
+        // It is no longer Done: the paper's progress and its list must say so.
+        qc.invalidateQueries({ queryKey: ['verifier-papers', scope] });
+        qc.invalidateQueries({ queryKey: ['verifier-paper-questions', scope, paperId] });
+        setNotice({ text: 'Question reopened. Change what is wrong, or press Looks right to save it again.', tone: 'ok' });
+        return row;
+      } catch (err) {
+        setNotice({ text: reopenErrorMessage(err), tone: 'warn' });
+      }
+    }
+    return fetchNextRow(inc);
+  }
+
   const questionQuery = useQuery({
     queryKey: nextKey,
-    queryFn: () => fetchNextRow(includeSkipped),
+    queryFn: () => fetchFirstRow(includeSkipped),
     retry: 1,
     // Always ask the server: the question is leased for 10 minutes, so a cached
     // one may have been taken by the time it is shown.
