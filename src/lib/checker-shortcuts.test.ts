@@ -91,18 +91,18 @@ describe('matchCheckerShortcut', () => {
 
 describe('shortcutRows (the "?" popover)', () => {
   it('lists only what works on this question', () => {
-    const all = shortcutRows({ canSplit: true, canPass: true }).map((r) => r.keys);
-    expect(all).toEqual(['Enter or P', 'F', 'S', 'H', 'K']);
-    const few = shortcutRows({ canSplit: false, canPass: false }).map((r) => r.keys);
+    const all = shortcutRows({ canSplit: true, canPass: true, canUndo: true }).map((r) => r.keys);
+    expect(all).toEqual(['Enter or P', 'F', 'S', 'H', 'K']); // Undo last is a button only, no key
+    const few = shortcutRows({ canSplit: false, canPass: false, canUndo: false }).map((r) => r.keys);
     expect(few).toEqual(['F', 'H', 'K']);
   });
 
   it('while a fix or a split is open the one key that works is Escape', () => {
-    expect(shortcutRows({ canSplit: true, canPass: true, editing: true })).toEqual([{ keys: 'Esc', does: 'Cancel and go back' }]);
+    expect(shortcutRows({ canSplit: true, canPass: true, canUndo: true, editing: true })).toEqual([{ keys: 'Esc', does: 'Cancel and go back' }]);
   });
 
   it('names the same keys as the old hint line did', () => {
-    for (const r of shortcutRows({ canSplit: true, canPass: true })) {
+    for (const r of shortcutRows({ canSplit: true, canPass: true, canUndo: true })) {
       for (const k of r.keys.split(' or ')) expect(CHECKER_SHORTCUTS.some((s) => s.keys.includes(k))).toBe(true);
     }
   });

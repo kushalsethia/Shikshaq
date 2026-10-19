@@ -2,12 +2,12 @@
  * Keyboard shortcuts for the paper-checker (Kid Mode) screen. Ported from
  * the standalone auditor's `shortcuts.ts` / `lib/useShortcuts.ts`
  * (UnlimitedOCR/auditor/web/src), trimmed to the actions Kid Mode
- * actually has: Looks right / Fix it / Split / Ask the HOD / Skip. Kept as
+ * actually has: Looks right / Fix it / Split / Ask the HOD / Skip / Undo. Kept as
  * pure functions (no DOM/React here) so they can be unit tested directly --
  * `matchCheckerShortcut` is the one thing a test needs to call.
  */
 
-export type CheckerAction = 'pass' | 'fix' | 'split' | 'help' | 'skip';
+export type CheckerAction = 'pass' | 'fix' | 'split' | 'help' | 'skip' | 'undo';
 
 export interface CheckerShortcutDef {
   action: CheckerAction;
@@ -83,7 +83,7 @@ export function matchCheckerKeyboardEvent(e: KeyboardEvent): CheckerAction | nul
 }
 
 /** The hint under the buttons, naming only what works on this question. */
-export function shortcutHint(opts: { canSplit: boolean; canPass: boolean }): string {
+export function shortcutHint(opts: { canSplit: boolean; canPass: boolean; canUndo?: boolean }): string {
   const parts: string[] = [];
   if (opts.canPass) parts.push('Enter or P looks right');
   parts.push('F fix it');
@@ -103,7 +103,7 @@ export interface ShortcutRow {
  * on this question is listed; while a fix or a split is open the one key that
  * works is Escape.
  */
-export function shortcutRows(opts: { canSplit: boolean; canPass: boolean; editing?: boolean }): ShortcutRow[] {
+export function shortcutRows(opts: { canSplit: boolean; canPass: boolean; canUndo?: boolean; editing?: boolean }): ShortcutRow[] {
   if (opts.editing) return [{ keys: 'Esc', does: 'Cancel and go back' }];
   const rows: ShortcutRow[] = [];
   if (opts.canPass) rows.push({ keys: 'Enter or P', does: 'Looks right' });

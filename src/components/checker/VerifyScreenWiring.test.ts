@@ -34,7 +34,7 @@ describe('verify screen wiring (QA 2026-10-11)', () => {
   it('finding 7: a failed save shows next to the buttons, in the sticky footer', () => {
     const footer = screen.slice(screen.indexOf('Action footer'));
     expect(footer).toContain('data-testid="save-error"');
-    expect(footer.indexOf('save-error')).toBeLessThan(footer.indexOf('Looks right'));
+    expect(footer.indexOf('save-error')).toBeLessThan(footer.indexOf('{undoButton}'));
   });
 
   it('finding 8: typed work is autosaved, restored, and dropped only after a successful answer', () => {

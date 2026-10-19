@@ -7,14 +7,14 @@ import { OptionList } from '@/components/checker/OptionList';
 import { PartCard } from '@/components/checker/PartCard';
 import { FIX_RULE_LINE, RulesInfo, ShortcutsPopover } from '@/components/checker/CheckerPopovers';
 import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
-import { PanelTabs, PrintedFrame, TypedFrame, VERIFY_TABS, type PanelId } from '@/components/checker/Panels';
+import { AiSurePill, PanelTabs, PrintedFrame, TypedFrame, VERIFY_TABS, type PanelId } from '@/components/checker/Panels';
 import { tileForNextQuestion } from '@/lib/checker-bento';
 import { BentoTile, FadeScroll, ImageLightbox, TilePager, useBentoWide } from '@/components/checker/BentoParts';
 import { ChangesChip, ChangesPanel, MarksInsideHint, QuestionChips, ToolsToolbar } from '@/components/checker/TypedBits';
 import { toolBlockedByUnsavedEdit, toolById, type CheckerToolId } from '@/lib/checker-tools';
 import { CheckerSkeleton, Callout, CheckGuidance, ContextPart, Modal, SplitPreview, useSignedUrl, useSignedUrls } from '@/components/checker/CheckerBits';
 import { PartPictures } from '@/components/checker/PartPictures';
-import { ArrowLeft, Check, CircleHelp, Maximize2, Pencil, SkipForward, X } from 'lucide-react';
+import { ArrowLeft, Check, CircleHelp, Maximize2, Pencil, SkipForward, Undo2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CheckerApi, CheckerQuestion } from '@/lib/checker-api';
 import { whatToCheck } from '@/lib/checker-kid-reasons';
@@ -49,7 +49,7 @@ import {
   moveMarksOut,
   BIG_EDIT_WARNING,
 } from '@/lib/checker-body';
-import { checkerErrorAdvice, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE } from '@/lib/checker-errors';
+import { checkerErrorAdvice, reopenErrorMessage, undoErrorMessage, UNDONE_NOTE, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE } from '@/lib/checker-errors';
 import { normaliseOptions } from '@/lib/checker-options';
 import {
   clearDraft,
@@ -111,6 +111,7 @@ export function VerifyScreen({
   onExit,
   onList,
   toolbar,
+  reopenQuestionId,
 }: {
   api: CheckerApi;
   scope: string;
@@ -124,6 +125,9 @@ export function VerifyScreen({
   onList?: () => void;
   /** The page's own small controls (counts, Menu ...), shown in the top tile so the page needs no header row of its own. */
   toolbar?: ReactNode;
+  /** A question the verifier already marked Done and chose to Edit from the paper's list. It is reopened (verifier_reopen_question)
+   *  and shown first, instead of the next question in line. Used once, on the first load. */
+  reopenQuestionId?: string;
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -203,9 +207,31 @@ export function VerifyScreen({
   // Verdicts of THIS paper still on their way (another paper's do not hold this screen).
   const pendingHere = outboxState.entries.filter((e) => e.paperId === paperId).length;
 
+  // "Edit" on a Done question: the first load reopens it instead of asking for the next one. Taken once, so a
+  // refresh or a later fetch goes back to the normal order (the reopened question is leased to me and comes first anyway).
+  const reopenOnce = useRef<string | null>(reopenQuestionId ?? null);
+  async function fetchFirstRow(inc: boolean): Promise<CheckerQuestion | null> {
+    const id = reopenOnce.current;
+    reopenOnce.current = null;
+    if (id) {
+      try {
+        const row = await api.reopenQuestion(id);
+        primePicture(api, row);
+        // It is no longer Done: the paper's progress and its list must say so.
+        qc.invalidateQueries({ queryKey: ['verifier-papers', scope] });
+        qc.invalidateQueries({ queryKey: ['verifier-paper-questions', scope, paperId] });
+        setNotice({ text: 'Question reopened. Change what is wrong, or press Looks right to save it again.', tone: 'ok' });
+        return row;
+      } catch (err) {
+        setNotice({ text: reopenErrorMessage(err), tone: 'warn' });
+      }
+    }
+    return fetchNextRow(inc);
+  }
+
   const questionQuery = useQuery({
     queryKey: nextKey,
-    queryFn: () => fetchNextRow(includeSkipped),
+    queryFn: () => fetchFirstRow(includeSkipped),
     retry: 1,
     // Always ask the server: the question is leased for 10 minutes, so a cached
     // one may have been taken by the time it is shown.
@@ -241,6 +267,18 @@ export function VerifyScreen({
   const skippedCount = paperRow?.skipped ?? 0;
   if (question) labelRef.current = paperLabel(paperRow ?? question);
   const currentPaperLabel = question ? paperLabel(paperRow ?? question) : labelRef.current;
+
+  // How sure the computer was, as a whole percent, for the question on screen (null for most questions: no pill then).
+  // A hint only: it loads after the card, is cached per question, and a failure is just "no pill".
+  const sureQuery = useQuery({
+    queryKey: ['checker-ai-sure', scope, question?.id ?? null],
+    queryFn: () => api.questionAiSure(question!.id),
+    enabled: Boolean(question),
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const sureChip = question && sureQuery.data != null ? <AiSurePill percent={sureQuery.data} /> : null;
 
   // Lost text: no words, but the AI transcribed the page (checker-lost-text.ts).
   const lost = question ? lostTextSuggestion(question.body, question.flag_detail) : null;
@@ -357,6 +395,10 @@ export function VerifyScreen({
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpReason, setHelpReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // What the verifier has answered in this visit, newest last, so Undo knows
+  // whether there is anything to take back. The server decides what can
+  // really be undone (30 minutes, nobody else touched it).
+  const [answered, setAnswered] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const online = useOnline();
   // A message that survives moving to the next question (an error that made
@@ -636,6 +678,7 @@ export function VerifyScreen({
     setAdvancing(true);
     setNextFailed(false);
     setError(null);
+    setAnswered((a) => [...a, kind]);
     setNotice({ text: okText, tone: 'ok' });
     afterQueued?.();
     return true;
@@ -669,7 +712,8 @@ export function VerifyScreen({
     try {
       await action();
       if (dropDraftFor) clearDraft(scope, dropDraftFor);
-        setNotice({ text: okText, tone: 'ok' });
+      setAnswered((a) => [...a, kind]);
+      setNotice({ text: okText, tone: 'ok' });
       refresh();
       return true;
     } catch (err) {
@@ -761,6 +805,40 @@ export function VerifyScreen({
     if (!question || submitting) return;
     // Skipping while going through the skipped ones sends it back to waiting.
     submitVerdict('skip', {}, 'Skipped. It stays on this paper for later.', false, () => setIncludeSkipped(false));
+  }
+
+  // Take back the last answer (verifier_undo_last). The server decides what is
+  // allowed; its refusal is a plain sentence, shown as it is.
+  async function doUndo() {
+    if (submitting || answered.length === 0) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      // Undo works on the last answer the SERVER has, so the ones still on
+      // their way go first.
+      if (!(await box.flush())) {
+        setError('Your last answer is still being saved. Try again in a moment.');
+        return;
+      }
+      const result = await api.undoLast(paperId);
+      setAnswered((a) => a.slice(0, -1));
+      // Anything still on its way is older than this and must not replace it.
+      appliedSeq.current = ++fetchSeq.current;
+      unmask(result.question_id);
+      primePicture(api, result.question);
+      qc.setQueryData(nextKey, result.question);
+      setAdvancing(false);
+      setNextFailed(false);
+      setIncoming(null);
+      qc.invalidateQueries({ queryKey: ['checker-my-stats', scope] });
+      qc.invalidateQueries({ queryKey: ['verifier-papers', scope] });
+      qc.invalidateQueries({ queryKey: ['verifier-paper-questions', scope, paperId] });
+      setNotice({ text: UNDONE_NOTE, tone: 'ok' });
+    } catch (err) {
+      setError(undoErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function cancelEdit() {
@@ -890,6 +968,9 @@ export function VerifyScreen({
     } else if (action === 'skip') {
       e.preventDefault();
       doSkip();
+    } else if (action === 'undo' && answered.length > 0) {
+      e.preventDefault();
+      void doUndo();
     }
   }
   const keyHandlerRef = useRef(onKeyDown);
@@ -910,6 +991,26 @@ export function VerifyScreen({
         question.year,
       ].filter((x): x is string => Boolean(x))
     : [];
+
+  // Rewind: enabled once the verifier has answered something in this visit.
+  // Also shown on the "done" screens, where the last answer is the one most
+  // often clicked by mistake. On a phone it is icon-only, to leave the room to
+  // the two words that matter.
+  const undoButton = (
+    <button
+      type="button"
+      onClick={() => void doUndo()}
+      disabled={submitting || answered.length === 0}
+      data-testid="undo-last"
+      data-tour="undo"
+      aria-label="Undo last"
+      title={answered.length === 0 ? 'Nothing to undo yet' : 'Take back your last answer'}
+      className="tap-44 order-3 inline-flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-full bg-muted text-[15px] font-bold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50 md:order-none md:w-auto md:px-4"
+    >
+      <Undo2 className={ACTION_ICON_CLASS} aria-hidden="true" />
+      <span className="hidden md:inline">Undo last</span>
+    </button>
+  );
 
   /* The top tile: ONE calm row (owner, 12 Oct 2026: "too crammed"). A back
      arrow to the paper's questions, which paper, how far through it, the
@@ -984,7 +1085,7 @@ export function VerifyScreen({
   );
 
   /* The action bar: always visible, under the tiles. On a phone it is two rows
-     (the two big answers, then ask and skip) pinned to the bottom; on a
+     (the two big answers, then undo, ask and skip) pinned to the bottom; on a
      tablet and up one row. */
   const actionBarShell = (children: ReactNode, testId?: string) => (
     // Action footer: sticky so the buttons stay under the thumb, and outside the
@@ -1017,6 +1118,7 @@ export function VerifyScreen({
               </div>
             ) : null}
             <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
+              {undoButton}
               {mode === 'split' ? (
                 <>
                   <ActionButton
@@ -1097,7 +1199,7 @@ export function VerifyScreen({
                 </>
               )}
               <span className="order-6 ml-auto hidden md:order-none md:inline-flex">
-                <ShortcutsPopover canSplit={splitOffered} canPass={canPass} editing={mode !== 'check'} />
+                <ShortcutsPopover canSplit={splitOffered} canPass={canPass} canUndo={answered.length > 0} editing={mode !== 'check'} />
               </span>
             </div>
           </>,
@@ -1108,6 +1210,7 @@ export function VerifyScreen({
     showIncoming && !nextFailed
       ? actionBarShell(
           <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
+            {undoButton}
             <ActionButton tone="mint" className={answerButtonClass} onClick={() => undefined} disabled>
               <Check className={ACTION_ICON_CLASS} aria-hidden="true" />
               Looks right
@@ -1364,6 +1467,7 @@ export function VerifyScreen({
               onFocus={() => focusPart(question.id)}
               changesChip={changesChip}
               changesPanel={changesPanel}
+              sureChip={sureChip}
               onBody={setBodyDraft}
               editorKey={editorKey}
               formulaRequest={formulaReq.pending ? formulaReq.n : 0}
@@ -1804,6 +1908,7 @@ export function VerifyScreen({
               >
                 Go through skipped ones now
               </ActionButton>
+              {undoButton}
             </div>
           </div>
         ) : !question ? (
@@ -1816,6 +1921,7 @@ export function VerifyScreen({
               <ActionButton tone="mint" onClick={onList ?? onExit}>
                 Back to my papers
               </ActionButton>
+              {undoButton}
             </div>
           </div>
         ) : (

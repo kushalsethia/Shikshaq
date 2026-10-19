@@ -35,8 +35,8 @@ export function RulesInfo() {
   );
 }
 
-export function ShortcutsPopover({ canSplit, canPass, editing }: { canSplit: boolean; canPass: boolean; editing: boolean }) {
-  const rows = shortcutRows({ canSplit, canPass, editing });
+export function ShortcutsPopover({ canSplit, canPass, canUndo, editing }: { canSplit: boolean; canPass: boolean; canUndo: boolean; editing: boolean }) {
+  const rows = shortcutRows({ canSplit, canPass, canUndo, editing });
   return (
     <Popover>
       <PopoverTrigger asChild>
