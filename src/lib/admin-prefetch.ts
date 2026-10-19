@@ -18,6 +18,7 @@ const CHUNKS: Record<string, () => Promise<unknown>> = {
 /* The sections of the Admin page, by section key. A section link warms its own
    chunk, so opening it shows the section from memory instead of a spinner. */
 const SECTION_CHUNKS: Record<string, () => Promise<unknown>> = {
+  positions: () => import('@/pages/admin/positions'),
   verifiers: () => import('@/pages/admin/checkers'),
   hods: () => import('@/pages/admin/checkers'),
   reviewers: () => import('@/pages/admin/checkers'),

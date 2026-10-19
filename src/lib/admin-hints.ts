@@ -12,6 +12,7 @@ export type AdminPageKey =
   | 'submissions'
   | 'admin-queue'
   | 'checker-log'
+  | 'positions'
   | 'checkers'
   | 'hods'
   | 'reviewers'
@@ -53,9 +54,10 @@ export const ADMIN_TABS: AdminTabCopy[] = [
   {
     key: 'people',
     label: 'People',
-    hint: 'Verifiers, HODs, teacher reviewers and how far the verifiers have got.',
-    summary: 'The people who work on the site: who checks papers, who leads them, who reviews teachers, and how much each has done.',
+    hint: 'Positions, verifiers, HODs, teacher reviewers and how far the verifiers have got.',
+    summary: 'The people who work on the site: who holds each position, who checks papers, who leads them, who reviews teachers, and how much each has done.',
     sections: [
+      { key: 'positions', label: 'Positions', page: 'positions' },
       { key: 'verifiers', label: 'Verifiers', page: 'checkers' },
       { key: 'hods', label: 'HODs', page: 'hods' },
       { key: 'reviewers', label: 'Teacher reviewers', page: 'reviewers' },
@@ -191,6 +193,20 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
       { label: 'Pass', does: 'Says the question is correct as it stands. It then counts as checked.' },
       { label: 'Edit', does: 'Lets you correct the question number, marks, words or answer choices. Each save is kept as a new version.' },
       { label: 'Set aside', does: 'Keeps the question off the site. You give a reason. The paper still goes live with an empty card in its place.' },
+    ],
+  },
+  positions: {
+    key: 'positions',
+    label: 'Positions',
+    path: '/admin?tab=people&section=positions',
+    short: 'Everyone who is an admin, HOD, verifier or teacher reviewer. Add an email, change a position or remove one.',
+    purpose:
+      'One list of who holds each position. Type an email and pick a position to add someone, even if they have not signed up yet: they get it the first time they sign in with Google using that email. Change moves a person from one position to another in one step. You cannot remove or change your own admin position, and the owner account cannot be removed.',
+    flow: 'Type an email, pick a position, press Add. Use Change or Remove on a row to adjust it later.',
+    buttons: [
+      { label: 'Add', does: 'Gives that email the chosen position. With no account yet, it waits for their first Google sign-in.' },
+      { label: 'Change', does: 'Moves the person to another position in one step. If the new one cannot be given, nothing changes.' },
+      { label: 'Remove', does: 'Takes the position away after you confirm. On a waiting entry it cancels the grant.' },
     ],
   },
   checkers: {
