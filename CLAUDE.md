@@ -14,6 +14,7 @@ engine that brings them. Every decision below reads better with that in mind.
 | `docs/LAUNCH.md` | merging to `main` IS the public launch. The rehearsal, the rollback, the post-launch checks. |
 | `docs/CRAFT.md` | the craft bar: speed budgets, motion, visual system, affordances, flows, content truth, stakeholders. Audits and fixes are judged against it. |
 | `docs/SUPABASE_RUNBOOK.md` | what is left to run against the database, and what is deliberately not a migration. |
+| `src/components/games/CLAUDE.md` | the games team's `/games` site (writing, approving and playing revision questions, its own `games` schema in `supabase/games/`): read it before changing anything under `/games`, and follow it for that only. |
 
 ---
 

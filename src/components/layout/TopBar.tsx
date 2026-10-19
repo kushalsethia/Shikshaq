@@ -18,6 +18,8 @@ import { useIsAdminBadge } from "@/hooks/useIsAdminBadge";
 import { useIsCheckerBadge } from "@/hooks/useIsCheckerBadge";
 import { useIsHodBadge } from "@/hooks/useIsHodBadge";
 import { useIsTeacherReviewerBadge } from "@/hooks/useIsTeacherReviewerBadge";
+import { useGamesRoleBadge } from "@/hooks/useGamesRoleBadge";
+import { isDummyMode } from "@/lib/dummy-mode";
 import { roleGroups } from "@/lib/role-home";
 import { LINK_ICON, TEAM_STYLE } from "@/components/layout/team-style";
 import {
@@ -40,6 +42,7 @@ import {
 
 const isAboutActive = (p: string) => p === "/about";
 const isSubjectsActive = (p: string) => p === "/subjects";
+const isGamesActive = (p: string) => p === "/games" || p.startsWith("/games/");
 
 function LogoOrTourTrigger() {
   const location = useLocation();
@@ -75,7 +78,8 @@ export function TopBar({ className }: { className?: string }) {
   const isHod = useIsHodBadge();
   const isTeacherReviewer = useIsTeacherReviewerBadge();
   // One section per team the person belongs to, one link per role in it (not a list of admin pages: the admin menu itself holds those).
-  const staffGroups = roleGroups({ isAdmin, isHod, isChecker, isTeacherReviewer });
+  const gamesRole = useGamesRoleBadge();
+  const staffGroups = roleGroups({ isAdmin, isHod, isChecker, isTeacherReviewer, gamesRole });
   const [menuOpen, setMenuOpen] = useState(false);
   const menuPresence = useExitPresence(menuOpen);
   const initial = (user?.email?.charAt(0) || "?").toUpperCase();
@@ -84,12 +88,16 @@ export function TopBar({ className }: { className?: string }) {
   // "Past papers" carries the current subject/class/board filters when
   // switching over from a filtered Teachers listing (see papersHrefFor) —
   // the other links are plain routes and don't need location awareness.
+  // "Games" only for people on the games team (its pages are theirs alone), and
+  // in a test build's dummy mode, where the games pages run without a sign-in.
+  const showGames = gamesRole !== null || isDummyMode();
   const navLinks = [
     { to: BROWSE_PATH, label: "Teachers", match: isBrowseActive },
     { to: papersHrefFor(location.pathname, location.search), label: "Past papers", match: isPapersActive },
     { to: "/subjects", label: "Subjects", match: isSubjectsActive },
+    ...(showGames ? [{ to: "/games", label: "Games", match: isGamesActive }] : []),
     { to: "/about", label: "About", match: isAboutActive },
-  ] as const;
+  ];
 
   useEffect(() => {
     setMenuOpen(false);
