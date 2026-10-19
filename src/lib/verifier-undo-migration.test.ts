@@ -238,10 +238,11 @@ describe('skip for later migration', () => {
 describe('screen wiring', () => {
   const screen = readFileSync(resolve(__dirname, '../components/checker/VerifyScreen.tsx'), 'utf8');
 
-  it('has no Undo last button and no U shortcut (owner, 18 Oct 2026); the server function stays', () => {
-    expect(screen).not.toContain('Undo last');
-    expect(screen).not.toContain("action === 'undo'");
-    expect(screen).not.toContain('api.undoLast(paperId)');
+  it('has an Undo last button, enabled only after an answer, with the U shortcut', () => {
+    expect(screen).toContain('Undo last');
+    expect(screen).toContain('disabled={submitting || answered.length === 0}');
+    expect(screen).toContain("action === 'undo' && answered.length > 0");
+    expect(screen).toContain('api.undoLast(paperId)');
   });
 
   it('shows Back to my papers in the header and no longer disables Skip on the last question', () => {

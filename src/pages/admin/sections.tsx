@@ -8,6 +8,7 @@ import { lazy, type ComponentType } from 'react';
    Keyed by the section key in admin-hints.ts (ADMIN_TABS). Lazy, so opening
    the Admin page loads only the section on screen. */
 
+const Positions = lazy(() => import('@/pages/admin/positions'));
 const Checkers = lazy(() => import('@/pages/admin/checkers'));
 const Team = lazy(() => import('@/pages/admin/team'));
 const Approvals = lazy(() => import('@/pages/admin/approvals'));
@@ -24,6 +25,7 @@ const Hods = () => <Checkers view="hods" />;
 const Reviewers = () => <Checkers view="reviewers" />;
 
 export const SECTION_BODY: Record<string, ComponentType> = {
+  positions: Positions,
   verifiers: Verifiers,
   hods: Hods,
   reviewers: Reviewers,

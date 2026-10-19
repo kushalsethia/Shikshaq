@@ -366,6 +366,30 @@ export async function verifierNextInPaper(
   return rpcRow<CheckerQuestion>(data);
 }
 
+/** Open a question the caller already marked Done so it can be edited again
+ *  (verifier_reopen_question, 20261019100000). It comes back as the same row
+ *  verifier_next_in_paper returns, leased to the caller for 10 minutes. The
+ *  words are NOT changed here: saving goes through the ordinary Looks right /
+ *  Fix it path, which keeps every earlier wording in history. A refusal is a
+ *  plain sentence (errcode 22023) or "not yours" (42501). */
+export async function verifierReopenQuestion(questionId: string): Promise<CheckerQuestion> {
+  const { data, error } = await supabase.rpc('verifier_reopen_question' as never, { p_question_id: questionId } as never);
+  if (error) throw error;
+  const row = rpcRow<CheckerQuestion>(data);
+  if (!row) throw new Error('That question did not open. Try again.');
+  return row;
+}
+
+/** How sure the computer was about the question the caller has open, as a whole
+ *  percent (checker_question_ai_sure, 20261019110000), or null when it gave no
+ *  number (most questions today). Readable only while the question is leased to
+ *  the caller. It is a hint and never blocks checking, so any failure is null. */
+export async function checkerQuestionAiSure(questionId: string): Promise<number | null> {
+  const { data, error } = await supabase.rpc('checker_question_ai_sure' as never, { p_question_id: questionId } as never);
+  if (error || typeof data !== 'number' || !Number.isFinite(data)) return null;
+  return Math.min(100, Math.max(0, Math.round(data)));
+}
+
 /** One row of verifier_peek_next_in_paper: just enough to warm the next
  *  card's pictures. No question text, by design. */
 export interface PeekedQuestion {
@@ -529,6 +553,8 @@ export interface CheckerApi {
   verdictAndNext: typeof verdictAndNext;
   passAndNext: typeof passAndNext;
   undoLast: typeof verifierUndoLast;
+  reopenQuestion: typeof verifierReopenQuestion;
+  questionAiSure: typeof checkerQuestionAiSure;
   myProfile: typeof verifierMyProfile;
   setMyProfile: typeof verifierSetMyProfile;
   requestSubjects: typeof verifierRequestSubjects;
@@ -560,6 +586,8 @@ export const realCheckerApi: CheckerApi = {
   verdictAndNext,
   passAndNext,
   undoLast: verifierUndoLast,
+  reopenQuestion: verifierReopenQuestion,
+  questionAiSure: checkerQuestionAiSure,
   myProfile: verifierMyProfile,
   setMyProfile: verifierSetMyProfile,
   requestSubjects: verifierRequestSubjects,

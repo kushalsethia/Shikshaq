@@ -20,7 +20,7 @@ describe('admin hints copy', () => {
       ['system', 'System'],
     ]);
     expect(ADMIN_TABS.map((t) => t.sections.map((s) => s.key))).toEqual([
-      ['verifiers', 'hods', 'reviewers', 'progress'],
+      ['positions', 'verifiers', 'hods', 'reviewers', 'progress'],
       ['applications', 'reviews', 'listed'],
       ['question-changes', 'checker-activity', 'admin-actions'],
       ['pipeline', 'feedback'],

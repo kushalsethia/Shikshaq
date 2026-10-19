@@ -117,6 +117,10 @@ describe('verify screen: optimistic advance wiring (speed plan 2026-10-12)', () 
     expect(screen).toMatch(/const keyHandlerRef = useRef\(onKeyDown\)/);
   });
 
+  it('Undo waits for the verdicts still on their way', () => {
+    expect(screen).toContain('await box.flush()');
+  });
+
   it('the paper strip shows when the paper changed', () => {
     expect(screen).toContain('isPaperChange(seenPaper, question.paper_id)');
     expect(screen).toContain('<PaperStrip info={stripInfo} />');

@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { Camera, Keyboard, Pencil } from 'lucide-react';
+import { Camera, Gauge, Keyboard, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { stepTile } from '@/lib/checker-bento';
+import { AI_SURE_TITLE, aiSureLabel } from '@/lib/checker-kid-reasons';
 
 /* The sides of the verify screen, made impossible to mix up.
 
@@ -36,6 +37,23 @@ export function TypedBadge() {
     <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[12px] font-semibold text-warm-secondary">
       <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
       Typed by the computer
+    </span>
+  );
+}
+
+/** "Computer 92% sure", next to the Typed badge. Nothing at all when the computer gave no number. Pure presentation. */
+export function AiSurePill({ percent }: { percent: number | null | undefined }) {
+  const label = aiSureLabel(percent);
+  if (!label) return null;
+  return (
+    <span
+      title={AI_SURE_TITLE}
+      data-testid="ai-sure-pill"
+      className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[12px] font-semibold tabular-nums text-warm-secondary"
+    >
+      <Gauge className="h-3.5 w-3.5" aria-hidden="true" />
+      {label}
+      <span className="sr-only">. {AI_SURE_TITLE}</span>
     </span>
   );
 }

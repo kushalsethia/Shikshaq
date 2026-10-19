@@ -80,7 +80,8 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
   const [goingBack, setGoingBack] = useState(false);
   const nextRef = useRef<HTMLButtonElement | null>(null);
 
-  // Everything below is worked out from the list of answers.
+  // Everything below is worked out from the list of answers, so Undo last is
+  // just "drop the newest answer" and the screen follows.
   const firstPass = done.filter((d) => !d.revisit);
   const answeredFirst = new Set(firstPass.map((d) => d.id));
   const waiting = questions.filter(
@@ -122,6 +123,23 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
     setMode('check');
     setSplitAt(null);
     window.scrollTo({ top: 0 });
+  }
+
+  // Undo last: take back the newest answer. The question comes back to be
+  // answered again, exactly like the real checker.
+  function undoLast() {
+    if (!last) return;
+    api.undo(last.id);
+    setDone((d) => d.slice(0, -1));
+    setFeedback(null);
+    setMode('check');
+    setSplitAt(null);
+    if (!last.revisit) setGoingBack(false);
+    const back = questions.find((x) => x.id === last.id);
+    if (back) {
+      setBodyDraft(back.body);
+      setMarksDraft(back.marks === null ? '' : String(back.marks));
+    }
   }
 
   function startFix(tool: 'fix' | 'formula' = 'fix') {
@@ -203,6 +221,12 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
       if (mode !== 'check') return;
       const action = matchCheckerKeyboardEvent(e);
       if (!action) return;
+      if (action === 'undo') {
+        if (!last) return;
+        e.preventDefault();
+        undoLast();
+        return;
+      }
       if (!q) return;
       if (action === 'split' && !q.offersSplit) return;
       e.preventDefault();
@@ -216,6 +240,19 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, mode, feedback, last]);
+
+  const undoButton = (
+    <button
+      type="button"
+      onClick={undoLast}
+      disabled={!last}
+      data-testid="practice-undo"
+      title={last ? 'Take back your last answer' : 'Nothing to undo yet'}
+      className={cn(actionToneClass('muted'), 'disabled:cursor-not-allowed disabled:opacity-50')}
+    >
+      Undo last
+    </button>
+  );
 
   return (
     <BentoStack className="min-h-screen bg-muted">
@@ -245,7 +282,7 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
         </div>
 
         {finished ? (
-          <Summary done={done} questions={questions} onRestart={onRestart} />
+          <Summary done={done} questions={questions} onRestart={onRestart} undoButton={undoButton} />
         ) : onlySkippedLeft ? (
           <div className="flex flex-col items-center gap-3 py-12 text-center" data-testid="practice-only-skipped-left">
             <h2 className="text-balance text-lg font-bold text-foreground">Only skipped questions are left</h2>
@@ -257,6 +294,7 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
               <button type="button" onClick={() => setGoingBack(true)} className={actionToneClass('mint')}>
                 Go through skipped ones now
               </button>
+              {undoButton}
             </div>
           </div>
         ) : q ? (
@@ -378,7 +416,8 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
                   <button ref={nextRef} type="button" onClick={advance} className={actionToneClass('mint')}>
                     {nextFirst && nextFirst.id !== q.id && answeredFirst.size < questions.length ? 'Next question' : 'Continue'}
                   </button>
-                    </>
+                  {undoButton}
+                </>
               ) : mode === 'split' ? (
                 <>
                   <ActionButton
@@ -415,7 +454,8 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
                   <ActionButton tone="muted" onClick={() => answer({ action: 'skip' })}>
                     Skip this question
                   </ActionButton>
-                    </>
+                  {undoButton}
+                </>
               )}
               {!feedback ? (
                 <p className="ml-auto hidden text-[12px] text-warm-meta lg:block">
@@ -434,10 +474,12 @@ function Summary({
   done,
   questions,
   onRestart,
+  undoButton,
 }: {
   done: Done[];
   questions: ReturnType<PracticeApi['questions']>;
   onRestart: () => void;
+  undoButton: React.ReactNode;
 }) {
   // A skipped question that was gone back to counts by its last answer.
   const finalFor = (id: string): Done | undefined => [...done].reverse().find((x) => x.id === id);
@@ -481,6 +523,7 @@ function Summary({
         <Link to={CHECKER_HELP_PATH} className={actionToneClass('muted')}>
           Rules and shortcuts
         </Link>
+        {undoButton}
       </div>
     </div>
   );

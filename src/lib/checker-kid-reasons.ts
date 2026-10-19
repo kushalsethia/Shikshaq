@@ -138,6 +138,29 @@ const NEVER_SHOWN_TO_STUDENTS: RegExp[] = [
   /\b(?:haiku|sonnet|opus|claude|gemini|gpt|llm|swarm|pipeline|model|models|confidence|auditor)\b/i,
 ];
 
+/**
+ * The one deliberate exception to the list above (owner, 19 Oct 2026: "show the
+ * student on the checker view in a small pill as to how much ai was confident
+ * was abt it", and he chose the percent, accepting that it may nudge checkers).
+ *
+ * The blocklist is unchanged and still guards every piece of text the pipeline
+ * wrote: "confidence", "model" and the machines' names must never come out of
+ * `flag_detail` or a reason. The pill is different: its words are written here,
+ * once, in the student vocabulary the screen already uses ("Typed by the
+ * computer", "What the computer changed"), and the only thing that reaches it
+ * from the server is a whole number (checker_question_ai_sure). So no pipeline
+ * text is ever shown, and the pill is built from a number plus these two lines,
+ * both pinned by a test to pass `studentSafe`.
+ */
+export const AI_SURE_TITLE =
+  'How sure the computer was when it read this question. It can be wrong, so always compare the words with the page yourself.';
+
+/** "Computer 92% sure", or null when there is no number (most questions): the pill is then not shown at all. */
+export function aiSureLabel(percent: number | null | undefined): string | null {
+  if (typeof percent !== 'number' || !Number.isFinite(percent)) return null;
+  return `Computer ${Math.min(100, Math.max(0, Math.round(percent)))}% sure`;
+}
+
 /** False when the text would show a student a machine word (AI, Haiku, swarm, ...). */
 export function studentSafe(text: string | null | undefined): boolean {
   if (!text) return true;

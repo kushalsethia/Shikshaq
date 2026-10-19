@@ -46,6 +46,7 @@ import {
      /checker                       the verifier's papers, with progress
      /checker?paper=<id>            one paper: all of its questions, then Start verifying
      /checker?paper=<id>&verify=1   one question at a time, question left, picture right
+     /checker?paper=<id>&verify=1&reopen=<question>   the same, opened on a Done question being edited
 
    Reachable only by an account an admin or HOD has set up as a verifier. Papers
    are handed out automatically (a whole paper to one verifier, never above their
@@ -178,6 +179,8 @@ export function CheckerPage({
 
   const open = (id: string) => setParams({ paper: id });
   const verify = (id: string) => setParams({ paper: id, verify: '1' });
+  // "Edit" on a Done question: the verify screen opens on that question, reopened.
+  const editDone = (id: string, questionId: string) => setParams({ paper: id, verify: '1', reopen: questionId });
   const toList = () => setParams({});
 
   // The verify screen is one bento grid that fits the viewport (owner, 12 Oct
@@ -244,6 +247,7 @@ export function CheckerPage({
             scope={scope}
             dummy={dummy}
             paperId={paperId!}
+            reopenQuestionId={params.get('reopen') ?? undefined}
             userId={user?.id}
             userName={profile?.full_name}
             onExit={() => open(paperId!)}
@@ -260,7 +264,7 @@ export function CheckerPage({
           </div>
 
           {paperId ? (
-            <PaperOverview api={api} scope={scope} paperId={paperId} onBack={toList} onStart={() => verify(paperId)} />
+            <PaperOverview api={api} scope={scope} paperId={paperId} onBack={toList} onStart={() => verify(paperId)} onEdit={(qid) => editDone(paperId, qid)} />
           ) : (
             <PaperList api={api} scope={scope} onOpen={open} onStart={verify} />
           )}
@@ -689,12 +693,15 @@ function PaperOverview({
   paperId,
   onBack,
   onStart,
+  onEdit,
 }: {
   api: CheckerApi;
   scope: string;
   paperId: string;
   onBack: () => void;
   onStart: () => void;
+  /** Reopen a question that is marked Done so it can be edited again. */
+  onEdit: (questionId: string) => void;
 }) {
   // The app default is refetchOnMount: false, which showed the counts and the
   // states from before the verifier's last session. Always ask again.
@@ -754,6 +761,17 @@ function PaperOverview({
                 ) : null}
                 {q.page ? <span className="text-warm-secondary">Page {q.page}</span> : null}
                 <span className={cn('rounded-full px-2 py-0.5', STATE_STYLE[q.state])}>{QUESTION_STATE_LABEL[q.state]}</span>
+                {q.state === 'done' ? (
+                  <button
+                    type="button"
+                    onClick={() => onEdit(q.id)}
+                    data-testid="edit-done-question"
+                    aria-label={`Edit question ${questionLabel(q, i)}`}
+                    className="tap-44 ml-auto rounded-full bg-card px-3 py-1 text-[12px] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  >
+                    Edit
+                  </button>
+                ) : null}
               </div>
               {/* The words exactly as stored, never cleaned; maths drawn the
                   same way as on the verifying screen. */}
