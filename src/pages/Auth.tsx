@@ -299,7 +299,7 @@ export default function Auth() {
         if (error.message.includes('already exists') || error.message.includes('already registered')) {
           setErrors({ email: 'An account with this email already exists. Please sign in or use a different email.' });
         } else {
-          toast.error('Failed to create account. Please try again.');
+          toast.error(error.message || 'Failed to create account. Please try again.');
         }
         setLoading(false);
       } else {
