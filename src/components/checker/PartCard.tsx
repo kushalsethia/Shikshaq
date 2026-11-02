@@ -120,7 +120,7 @@ export function PartCard({
           />
         ) : (
           <>
-            <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">{badges}</div>
+            <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 [@media(max-width:399px)]:gap-x-1.5">{badges}</div>
             {changesPanel}
             {mode === 'split' ? (
               splitBody

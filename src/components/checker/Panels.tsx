@@ -34,8 +34,9 @@ const TILE_RADIUS = 'rounded-[20px] md:rounded-[18px]';
 /** The small "Typed by the computer" badge. On the verify screen it sits on the part card itself. */
 export function TypedBadge() {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[12px] font-semibold text-warm-secondary">
-      <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[12px] font-semibold text-warm-secondary [@media(max-width:399px)]:px-2">
+      {/* The icon is decoration: below 400px it goes so this badge and the "Computer 92% sure" pill share one row. */}
+      <Keyboard className="h-3.5 w-3.5 [@media(max-width:399px)]:hidden" aria-hidden="true" />
       Typed by the computer
     </span>
   );
@@ -49,9 +50,9 @@ export function AiSurePill({ percent }: { percent: number | null | undefined }) 
     <span
       title={AI_SURE_TITLE}
       data-testid="ai-sure-pill"
-      className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[12px] font-semibold tabular-nums text-warm-secondary"
+      className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[12px] font-semibold tabular-nums text-warm-secondary [@media(max-width:399px)]:px-2"
     >
-      <Gauge className="h-3.5 w-3.5" aria-hidden="true" />
+      <Gauge className="h-3.5 w-3.5 [@media(max-width:399px)]:hidden" aria-hidden="true" />
       {label}
       <span className="sr-only">. {AI_SURE_TITLE}</span>
     </span>
@@ -252,7 +253,8 @@ export function PanelTabs({
       aria-label="Which side to look at"
       data-testid="panel-tabs"
       onKeyDown={onKeyDown}
-      className={cn('relative mb-3 grid gap-1.5 rounded-[20px] bg-muted p-1.5', three ? 'grid-cols-3' : 'grid-cols-2', className ?? 'lg:hidden')}
+      // On a short phone (under 700px of height) the tab bar gives the words the room: tighter, and no second line.
+      className={cn('relative mb-3 grid gap-1.5 rounded-[20px] bg-muted p-1.5 [@media(max-height:699px)]:mb-2 [@media(max-height:699px)]:p-1', three ? 'grid-cols-3' : 'grid-cols-2', className ?? 'lg:hidden')}
     >
       {tabs.map((t) => {
         const selected = value === t.id;
@@ -267,7 +269,7 @@ export function PanelTabs({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(t.id)}
             className={cn(
-              'flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-[14px] px-3 py-1.5 transition-[transform,background-color,color] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+              'flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-[14px] px-3 py-1.5 transition-[transform,background-color,color] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand [@media(max-height:699px)]:min-h-[44px] [@media(max-height:699px)]:py-1',
               three && 'min-h-[48px] px-1.5',
               selected ? t.on : 'bg-transparent text-warm-secondary',
             )}
@@ -276,7 +278,7 @@ export function PanelTabs({
               {t.icon}
               {t.label}
             </span>
-            <span className="text-[12px] leading-none opacity-80">{t.sub}</span>
+            <span className="text-[12px] leading-none opacity-80 [@media(max-height:699px)]:sr-only">{t.sub}</span>
           </button>
         );
       })}

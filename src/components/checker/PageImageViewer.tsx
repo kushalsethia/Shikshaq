@@ -70,7 +70,8 @@ export function PageImageViewer({
   return (
     <div className={cn('flex w-full flex-col gap-2', fill && 'h-full min-h-0 flex-1')}>
       <div className={cn('flex items-center gap-2 bg-brand-subtle', fill ? 'shrink-0 rounded-[8px] px-2.5 py-1.5' : 'flex-wrap rounded-[12px] px-3 py-2')}>
-        <div className="min-w-0 flex-1">
+        {/* Under 480px the note takes its own line and the zoom buttons wrap under it, so it never squeezes into a four-line column. */}
+        <div className="min-w-0 flex-1 [@media(max-width:479px)]:basis-full">
           <p className={cn('font-semibold leading-snug text-foreground', fill ? 'line-clamp-2 text-[13px]' : 'text-[14px]')} title={fill ? note : undefined}>
             {note}
           </p>
@@ -80,7 +81,7 @@ export function PageImageViewer({
             </p>
           ) : null}
         </div>
-        <div className="flex items-center gap-1" role="group" aria-label="Zoom the page">
+        <div className="flex items-center gap-1 [@media(max-width:479px)]:ml-auto" role="group" aria-label="Zoom the page">
           <ZoomButton small={fill} label="Zoom out" disabled={atMin} onClick={() => setZoom((z) => stepZoom(z, 'out'))}>
             -
           </ZoomButton>
