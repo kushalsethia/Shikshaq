@@ -116,6 +116,20 @@ export function BodyEditor({
   const [picking, setPicking] = useState(false);
   const [wrapUndo, setWrapUndo] = useState<BodySegment[] | null>(null);
   const handledRequest = useRef(0);
+  // Editing starts with the words in view: on a short phone the chips and the note above them can push the first text box below the
+  // fold of the tile (360x640, 3 Nov 2026). Only the card variant (the verify screen), and only where the browser can scroll.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (variant !== 'card') return;
+    const first = rootRef.current?.querySelector<HTMLElement>('textarea');
+    if (first && typeof first.scrollIntoView === 'function') {
+      // The tools dock is sticky at the bottom of the tile and would sit on top of the box, so leave room for it.
+      const dock = first.closest('.checker-tile-scroll')?.querySelector<HTMLElement>('[data-testid="tools-dock"]');
+      first.style.scrollMarginBottom = `${(dock?.offsetHeight ?? 0) + 8}px`;
+      first.scrollIntoView({ block: 'nearest' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function commitSegments(next: BodySegment[]) {
     setSegments(next);
@@ -224,7 +238,7 @@ export function BodyEditor({
   }
 
   return (
-    <div>
+    <div ref={rootRef}>
       {variant === 'card' ? (
         <>
           <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
