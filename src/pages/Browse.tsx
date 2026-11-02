@@ -467,6 +467,12 @@ export default function Browse({ manageSeo = true, pageContext, seo, locality }:
       else if (filters.classes.length === 1) query = query.eq('class', filters.classes[0]);
       if (filters.boards.length > 1) query = query.in('board', filters.boards);
       else if (filters.boards.length === 1) query = query.eq('board', filters.boards[0]);
+      // The same school and exam type filters as page 1 (fetchPapers above), or page 2 onward shows excluded papers.
+      const rawSchoolFilters = filters.schools.flatMap((label) => rawSchoolsFor(label));
+      if (rawSchoolFilters.length > 1) query = query.in('school', rawSchoolFilters);
+      else if (rawSchoolFilters.length === 1) query = query.eq('school', rawSchoolFilters[0]);
+      if (filters.examTypes.length > 1) query = query.in('exam_type', filters.examTypes);
+      else if (filters.examTypes.length === 1) query = query.eq('exam_type', filters.examTypes[0]);
       const { data, error } = await query
         .order('year', { ascending: false })
         .order('school', { ascending: true })
@@ -481,7 +487,7 @@ export default function Browse({ manageSeo = true, pageContext, seo, locality }:
       setPapersLoadingMore(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [papersPage, filters.subjects.join(','), filters.classes.join(','), filters.boards.join(',')]);
+  }, [papersPage, filters.subjects.join(','), filters.classes.join(','), filters.boards.join(','), filters.schools.join(','), filters.examTypes.join(',')]);
 
   const papersInfiniteScrollRef = useInfiniteScroll({
     hasMore: papers.length < papersTotal,
