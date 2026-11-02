@@ -63,14 +63,14 @@ export function createFakeHodApi(): FakeHodApi {
 
   type Stats = Pick<
     HodTeamMember,
-    'reviewed_today' | 'reviewed_7d' | 'reviewed_all' | 'papers_reviewed' | 'passed_as_is' | 'edited' | 'escalated' | 'skipped' | 'overturned' | 'last_active'
+    'reviewed_today' | 'reviewed_7d' | 'reviewed_all' | 'papers_reviewed' | 'passed_as_is' | 'edited' | 'escalated' | 'skipped' | 'skipped_done' | 'overturned' | 'last_active'
   >;
   const stats: Record<string, Stats> = {
-    [asha.user_id]: { reviewed_today: 14, reviewed_7d: 96, reviewed_all: 812, papers_reviewed: 31, passed_as_is: 690, edited: 92, escalated: 18, skipped: 12, overturned: 3, last_active: ago(4) },
-    [nikhil.user_id]: { reviewed_today: 3, reviewed_7d: 21, reviewed_all: 47, papers_reviewed: 2, passed_as_is: 31, edited: 14, escalated: 2, skipped: 0, overturned: 1, last_active: ago(95) },
-    [tara.user_id]: { reviewed_today: 0, reviewed_7d: 0, reviewed_all: 0, papers_reviewed: 0, passed_as_is: 0, edited: 0, escalated: 0, skipped: 0, overturned: 0, last_active: null },
-    [checkers[3].user_id]: { reviewed_today: 0, reviewed_7d: 0, reviewed_all: 220, papers_reviewed: 9, passed_as_is: 170, edited: 40, escalated: 6, skipped: 4, overturned: 9, last_active: ago(60 * 24 * 12) },
-    [imran.user_id]: { reviewed_today: 0, reviewed_7d: 0, reviewed_all: 0, papers_reviewed: 0, passed_as_is: 0, edited: 0, escalated: 0, skipped: 0, overturned: 0, last_active: null },
+    [asha.user_id]: { reviewed_today: 14, reviewed_7d: 96, reviewed_all: 812, papers_reviewed: 31, passed_as_is: 690, edited: 92, escalated: 18, skipped: 12, skipped_done: 8, overturned: 3, last_active: ago(4) },
+    [nikhil.user_id]: { reviewed_today: 3, reviewed_7d: 21, reviewed_all: 47, papers_reviewed: 2, passed_as_is: 31, edited: 14, escalated: 2, skipped: 0, skipped_done: 0, overturned: 1, last_active: ago(95) },
+    [tara.user_id]: { reviewed_today: 0, reviewed_7d: 0, reviewed_all: 0, papers_reviewed: 0, passed_as_is: 0, edited: 0, escalated: 0, skipped: 0, skipped_done: 0, overturned: 0, last_active: null },
+    [checkers[3].user_id]: { reviewed_today: 0, reviewed_7d: 0, reviewed_all: 220, papers_reviewed: 9, passed_as_is: 170, edited: 40, escalated: 6, skipped: 4, skipped_done: 2, overturned: 9, last_active: ago(60 * 24 * 12) },
+    [imran.user_id]: { reviewed_today: 0, reviewed_7d: 0, reviewed_all: 0, papers_reviewed: 0, passed_as_is: 0, edited: 0, escalated: 0, skipped: 0, skipped_done: 0, overturned: 0, last_active: null },
   };
 
   // Details an HOD has filled in (grade, school, board, valid until, subjects).
