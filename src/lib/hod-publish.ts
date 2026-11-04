@@ -456,6 +456,10 @@ export interface PreviewHeader {
   allowed_time_minutes: number | null;
   general_instructions: string | null;
   incomplete_note: string | null;
+  /** The HOD says the printed paper has no general instructions, so a blank passes the details check. */
+  instructions_not_printed: boolean;
+  /** The HOD says the printed paper gives no time allowed, so a blank passes the details check. */
+  time_not_printed: boolean;
 }
 
 export interface PreviewPaper {
@@ -534,6 +538,8 @@ export function normalisePreviewHeader(raw: unknown): PreviewHeader {
     allowed_time_minutes: numOrNull(h.allowed_time_minutes),
     general_instructions: str(h.general_instructions),
     incomplete_note: str(h.incomplete_note),
+    instructions_not_printed: bool(h.instructions_not_printed),
+    time_not_printed: bool(h.time_not_printed),
   };
 }
 
@@ -601,6 +607,15 @@ export function leftOutConfirmText(count: number): string {
     : `I know ${count} questions are left out. They will not go live.`;
 }
 
+/** The banner above Ready to go live: papers whose questions are all checked but that no queue run has
+ *  put on the desk yet. Says nothing when the count is 0 or could not be read. */
+export function unqueuedBannerText(count: number): string | null {
+  if (!Number.isFinite(count) || count <= 0) return null;
+  return count === 1
+    ? '1 paper is fully checked and waiting to be queued. It will appear here after the next queue run.'
+    : `${count} papers are fully checked and waiting to be queued. They will appear here after the next queue run.`;
+}
+
 /** "3 questions left out", "1 question left out", or null when none are. */
 export function leftOutText(count: number): string | null {
   if (count <= 0) return null;
@@ -647,7 +662,9 @@ export type PublishField =
   | 'allowed_time_minutes'
   | 'general_instructions'
   | 'incomplete_note'
-  | 'is_board_paper';
+  | 'is_board_paper'
+  | 'time_not_printed'
+  | 'instructions_not_printed';
 
 export interface FieldDef {
   key: PublishField;
@@ -655,6 +672,8 @@ export interface FieldDef {
   kind: FieldKind;
   /** Can never be blank (the server refuses). */
   required?: boolean;
+  /** A yes/no field the server always answers (it has no unset state): the "Not set" choice is not offered. */
+  noUnset?: boolean;
   hint?: string;
   placeholder?: string;
 }
@@ -670,12 +689,28 @@ export const PUBLISH_FIELDS: FieldDef[] = [
   { key: 'is_board_paper', label: 'Board exam paper', kind: 'yesno', hint: 'Yes if the board set this paper, not a school.' },
   { key: 'marks', label: 'Total marks', kind: 'number', hint: 'A number from 0 to 1000.' },
   { key: 'allowed_time_minutes', label: 'Time allowed (minutes)', kind: 'number', hint: 'A whole number of minutes, 1 to 600.' },
+  {
+    key: 'time_not_printed',
+    label: 'No time is printed on the paper',
+    kind: 'yesno',
+    noUnset: true,
+    hint: 'Choose Yes only if you checked the paper and it gives no time. The details check then passes without a time.',
+  },
   { key: 'general_instructions', label: 'General instructions', kind: 'longtext', hint: 'As printed on the paper.' },
+  {
+    key: 'instructions_not_printed',
+    label: 'No general instructions are printed on the paper',
+    kind: 'yesno',
+    noUnset: true,
+    hint: 'Choose Yes only if you checked the paper and it has none. The details check then passes without them.',
+  },
   { key: 'incomplete_note', label: 'Note', kind: 'longtext', hint: 'Shown with the paper, for example if a page is missing.' },
 ];
 
 /** The details of a paper that is already live (hod_edit_live_paper). */
-export const LIVE_FIELDS: FieldDef[] = PUBLISH_FIELDS.filter((f) => f.key !== 'is_board_paper');
+export const LIVE_FIELDS: FieldDef[] = PUBLISH_FIELDS.filter(
+  (f) => f.key !== 'is_board_paper' && f.key !== 'time_not_printed' && f.key !== 'instructions_not_printed',
+);
 
 /** The header value as text for its input. */
 export function headerText(h: PreviewHeader, key: PublishField): string {

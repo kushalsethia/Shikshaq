@@ -97,7 +97,7 @@ function FieldRow({
               aria-describedby={describedBy}
               className={cn(input, 'min-h-[44px]')}
             >
-              <option value="">Not set</option>
+              {def.noUnset ? null : <option value="">Not set</option>}
               <option value="true">Yes</option>
               <option value="false">No</option>
             </select>

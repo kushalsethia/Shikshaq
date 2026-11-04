@@ -6,7 +6,7 @@ import { PublishFlow } from '@/components/hod/PublishFlow';
 import { CheckChips, RouteTrail } from '@/components/hod/RouteTrail';
 import { actionToneClass } from '@/lib/checker-button-styles';
 import type { HodApi } from '@/lib/hod-api';
-import { checksSummary, leftOutText } from '@/lib/hod-publish';
+import { checksSummary, leftOutText, unqueuedBannerText } from '@/lib/hod-publish';
 import { cn } from '@/lib/utils';
 
 /* "Ready to go live": papers whose questions are all settled and that wait for
@@ -74,9 +74,26 @@ function ReadyList({ api, scope }: { api: HodApi; scope: string }) {
   );
 }
 
+/** The line above the list: papers whose questions are all checked but that no queue run has put on this desk yet. */
+function UnqueuedBanner({ api, scope }: { api: HodApi; scope: string }) {
+  const q = useQuery({ queryKey: ['hod', scope, 'unqueued'], queryFn: () => api.unqueuedCount(), staleTime: 30_000, retry: false });
+  const text = unqueuedBannerText(q.data ?? 0);
+  if (!text) return null;
+  return (
+    <p className="mb-3 rounded-xl bg-brand-subtle px-3 py-2 text-[13px] font-semibold text-foreground" role="status" data-testid="unqueued-banner">
+      {text}
+    </p>
+  );
+}
+
 export function ReadyTab({ api, scope }: { api: HodApi; scope: string }) {
   const [params] = useSearchParams();
   const paperId = params.get('paper');
   if (paperId) return <PublishFlow key={paperId} api={api} scope={scope} paperId={paperId} />;
-  return <ReadyList api={api} scope={scope} />;
+  return (
+    <>
+      <UnqueuedBanner api={api} scope={scope} />
+      <ReadyList api={api} scope={scope} />
+    </>
+  );
 }

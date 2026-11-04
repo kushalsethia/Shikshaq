@@ -10,7 +10,7 @@ import { realHodApi } from '@/lib/hod-api';
 import { createFakeHodApi } from '@/dummy/hod-fake-api';
 import { GL } from '@/dummy/hod-golive-fake';
 import { CheckChips, RouteTrail } from '@/components/hod/RouteTrail';
-import { allChecksPass, canPublishNow } from '@/lib/hod-publish';
+import { allChecksPass, canPublishNow, unqueuedBannerText } from '@/lib/hod-publish';
 
 /* The dummy desk is what the owner clicks through, so it has to obey the same
    rules as the server: these tests are the rules in the server's words. */
@@ -92,6 +92,42 @@ describe('dummy desk: Ready to go live', () => {
     const p = await api.paperPreview(GL.econ2);
     expect(p.checks.find((c) => c.key === 'header_complete')?.ok).toBe(true);
     expect(p.paper.header.year).toBe('2023');
+  });
+
+  it('"not printed" lets a missing time and missing instructions pass, and nothing else', async () => {
+    const api = createFakeHodApi();
+    await api.updatePublishMeta(GL.econ2, 'year', '2023');
+    expect((await api.paperPreview(GL.econ2)).checks.find((c) => c.key === 'header_complete')?.detail).toMatch(/time allowed.*general instructions/);
+    await expect(api.updatePublishMeta(GL.econ2, 'time_not_printed', '')).rejects.toThrow('Choose yes or no.');
+    await api.updatePublishMeta(GL.econ2, 'time_not_printed', 'true');
+    let p = await api.paperPreview(GL.econ2);
+    expect(p.paper.header.time_not_printed).toBe(true);
+    expect(p.checks.find((c) => c.key === 'header_complete')?.detail).toBe('Missing: the general instructions.');
+    await api.updatePublishMeta(GL.econ2, 'instructions_not_printed', 'true');
+    p = await api.paperPreview(GL.econ2);
+    expect(p.checks.find((c) => c.key === 'header_complete')?.ok).toBe(true);
+    // Taking the flag off again makes the blank count as missing once more.
+    await api.updatePublishMeta(GL.econ2, 'time_not_printed', 'false');
+    expect((await api.paperPreview(GL.econ2)).checks.find((c) => c.key === 'header_complete')?.detail).toBe('Missing: the time allowed.');
+  });
+
+  it('a "not printed" flag does not excuse a missing year or total marks', async () => {
+    const api = createFakeHodApi();
+    await api.updatePublishMeta(GL.econ2, 'time_not_printed', 'true');
+    await api.updatePublishMeta(GL.econ2, 'instructions_not_printed', 'true');
+    const detail = (await api.paperPreview(GL.econ2)).checks.find((c) => c.key === 'header_complete')?.detail ?? '';
+    expect(detail).toMatch(/the year/);
+    expect(detail).not.toMatch(/time allowed|general instructions/);
+  });
+
+  it('the banner count is a plain number and its words are silent at 0', async () => {
+    const api = createFakeHodApi();
+    expect(await api.unqueuedCount()).toBeGreaterThanOrEqual(0);
+    expect(unqueuedBannerText(0)).toBeNull();
+    expect(unqueuedBannerText(Number.NaN)).toBeNull();
+    expect(unqueuedBannerText(1)).toBe('1 paper is fully checked and waiting to be queued. It will appear here after the next queue run.');
+    expect(unqueuedBannerText(7)).toMatch(/^7 papers are fully checked and waiting to be queued\./);
+    expect(unqueuedBannerText(7)).not.toMatch(/[–—]/);
   });
 
   it('a junk fix clears the junk check, and a put-back question is open again', async () => {

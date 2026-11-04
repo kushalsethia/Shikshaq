@@ -587,6 +587,8 @@ export interface HodApi {
   editQuestion(questionId: string, version: number, changes: Record<string, unknown>, note?: string): Promise<number>;
   /** hod_ready_papers(): papers waiting for a yes, with the four checks. */
   readyPapers(): Promise<HodReadyPaper[]>;
+  /** hod_unqueued_papers_count(): papers fully checked but not yet queued for the desk. A server without it answers 0. */
+  unqueuedCount(): Promise<number>;
   /** hod_paper_preview(): the paper, its questions, counts, pages and the four checks. */
   paperPreview(auditPaperId: string): Promise<HodPreview>;
   /** hod_update_publish_meta(): one header field before the paper goes live. */
@@ -712,6 +714,14 @@ export const realHodApi: HodApi = {
   },
   async readyPapers() {
     return normaliseReadyPapers(await call('hod_ready_papers'));
+  },
+  async unqueuedCount() {
+    // The banner is a courtesy: until the migration is applied (or if the call fails) show nothing, never an error.
+    try {
+      return Math.max(0, num(await call('hod_unqueued_papers_count')));
+    } catch {
+      return 0;
+    }
   },
   async paperPreview(auditPaperId) {
     return normalisePreview(await call('hod_paper_preview', { p_audit_paper_id: auditPaperId }));

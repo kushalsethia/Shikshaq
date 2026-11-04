@@ -15,6 +15,7 @@ import {
   fieldPayload,
   fieldProblem,
   filterLivePapers,
+  headerText,
   leftOutConfirmText,
   leftOutText,
   liveCounts,
@@ -24,6 +25,7 @@ import {
   normaliseNeedsQuestions,
   normaliseNeedsYouPapers,
   normalisePreview,
+  normalisePreviewHeader,
   normaliseReadyPapers,
   normaliseTrail,
   normaliseTrustOverall,
@@ -208,6 +210,24 @@ describe('the header fields', () => {
       expect.arrayContaining(['cls', 'subject', 'board', 'year', 'school', 'exam', 'marks', 'allowed_time_minutes', 'general_instructions', 'incomplete_note']),
     );
     expect(LIVE_FIELDS.some((f) => f.key === 'is_board_paper')).toBe(false);
+  });
+  it('offers the two "not printed" switches next to their fields, never in the live list, and never as unset', () => {
+    const keys = PUBLISH_FIELDS.map((f) => f.key as string);
+    expect(keys.indexOf('time_not_printed')).toBe(keys.indexOf('allowed_time_minutes') + 1);
+    expect(keys.indexOf('instructions_not_printed')).toBe(keys.indexOf('general_instructions') + 1);
+    for (const k of ['time_not_printed', 'instructions_not_printed']) {
+      expect(def(k)).toMatchObject({ kind: 'yesno', noUnset: true });
+      expect(LIVE_FIELDS.some((f) => f.key === k)).toBe(false);
+    }
+  });
+  it('reads the flags from the header as booleans and treats an old server answer as "printed"', () => {
+    expect(normalisePreviewHeader({ time_not_printed: true, instructions_not_printed: 'true' })).toMatchObject({
+      time_not_printed: true,
+      instructions_not_printed: true,
+    });
+    expect(normalisePreviewHeader({})).toMatchObject({ time_not_printed: false, instructions_not_printed: false });
+    expect(headerText(normalisePreviewHeader({ time_not_printed: true }), 'time_not_printed')).toBe('true');
+    expect(headerText(normalisePreviewHeader({}), 'instructions_not_printed')).toBe('false');
   });
   it('refuses blank required fields and bad numbers in plain words', () => {
     expect(fieldProblem(def('cls'), '  ')).toBe('This cannot be left blank.');
