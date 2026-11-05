@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
@@ -42,6 +42,7 @@ export default function RecommendTeacher() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Ensure user has selected a role
   useRequireRole();
@@ -70,6 +71,14 @@ export default function RecommendTeacher() {
     if (!user) {
       toast.error('Please sign in to submit a recommendation');
       navigate('/auth');
+      return;
+    }
+
+    /* The one required field: show its own inline error and put focus on it,
+       rather than a generic line at the bottom of the form. */
+    if (!formData.teacherName.trim()) {
+      nameValidation.onBlur();
+      nameInputRef.current?.focus();
       return;
     }
 
@@ -145,7 +154,7 @@ export default function RecommendTeacher() {
 
           <BentoPanel fill="card" className="p-[22px]">
           {submitted ? (
-            <div className="animate-fade-slide-up rounded-bento bg-brand p-6 text-center sm:p-8">
+            <div role="status" className="animate-fade-slide-up rounded-bento bg-brand p-6 text-center sm:p-8">
               <p className="text-body font-semibold text-brand-foreground">
                 Thanks. We will reach out to them this week.
               </p>
@@ -160,6 +169,7 @@ export default function RecommendTeacher() {
                 {(controlProps) => (
                   <FieldInput
                     {...controlProps}
+                    ref={nameInputRef}
                     name="teacherName"
                     placeholder="e.g. Ananya Ghosh"
                     value={formData.teacherName}

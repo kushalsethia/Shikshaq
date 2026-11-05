@@ -86,7 +86,7 @@ export function SEOContentBlock({
                     <span>{faq.question}</span>
                     <span
                       aria-hidden="true"
-                      className="flex-shrink-0 text-warm-meta transition-transform duration-200"
+                      className="flex-shrink-0 text-warm-meta transition-transform duration-200 motion-reduce:transition-none"
                       style={{ fontSize: 18, lineHeight: 1, transform: isOpen ? 'rotate(45deg)' : 'none' }}
                     >
                       +
