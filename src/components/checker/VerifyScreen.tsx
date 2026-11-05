@@ -49,12 +49,15 @@ import {
   moveMarksOut,
   BIG_EDIT_WARNING,
 } from '@/lib/checker-body';
-import { checkerErrorAdvice, nextLoadProblem, reopenErrorMessage, undoErrorMessage, UNDONE_NOTE, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE, PAPER_GONE_TITLE, PAPER_GONE_NOTE } from '@/lib/checker-errors';
+import { checkerErrorAdvice, nextLoadProblem, reopenErrorMessage, type NextLoadProblem, undoErrorMessage, UNDONE_NOTE, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE, PAPER_GONE_TITLE, PAPER_GONE_NOTE } from '@/lib/checker-errors';
 import { normaliseOptions } from '@/lib/checker-options';
 import {
   clearDraft,
   draftOwnerKey,
   draftsFromQuestion,
+  ESC_AGAIN_NOTICE,
+  ESC_CONFIRM_MS,
+  escapeStep,
   isEdited,
   loadDraft,
   planAnswer,
@@ -112,6 +115,8 @@ export function VerifyScreen({
   onList,
   toolbar,
   reopenQuestionId,
+  onReopenTaken,
+  suspended = false,
 }: {
   api: CheckerApi;
   scope: string;
@@ -128,6 +133,10 @@ export function VerifyScreen({
   /** A question the verifier already marked Done and chose to Edit from the paper's list. It is reopened (verifier_reopen_question)
    *  and shown first, instead of the next question in line. Used once, on the first load. */
   reopenQuestionId?: string;
+  /** Called once the reopen has been taken, so the page can drop it from the URL (a refresh must not reopen it again). */
+  onReopenTaken?: () => void;
+  /** True while a dialog from the page (the Menu) is open: the keys do nothing to the question behind it. */
+  suspended?: boolean;
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -192,6 +201,8 @@ export function VerifyScreen({
   // True from a verdict until the next question (or the end of the paper) is on screen.
   const [advancing, setAdvancing] = useState(false);
   const [nextFailed, setNextFailed] = useState(false);
+  // Why the last plain read of the next question failed (only read while nextFailed is set).
+  const [failedKind, setFailedKind] = useState<Exclude<NextLoadProblem, 'none'>>('failed');
   // The next question's picture, when it was warmed ahead, shown on its card while the words arrive.
   const [incoming, setIncoming] = useState<{ id: string; pictureUrl: string | null } | null>(null);
   const warmedRef = useRef<WarmQuestion[]>([]);
@@ -214,6 +225,7 @@ export function VerifyScreen({
     const id = reopenOnce.current;
     reopenOnce.current = null;
     if (id) {
+      onReopenTaken?.();
       try {
         const row = await api.reopenQuestion(id);
         primePicture(api, row);
@@ -245,7 +257,9 @@ export function VerifyScreen({
     placeholderData: (prev) => prev ?? undefined,
   });
   // A failed read of the next question, told apart: a paper that closed behind us is not a sign-in problem.
-  const nextProblem = nextLoadProblem(questionQuery.error, questionQuery.data);
+  // A refused verdict reads the next question the plain way (loadNext): its failure is told apart the same way.
+  const nextProblem =
+    nextFailed && failedKind !== 'failed' ? failedKind : nextLoadProblem(questionQuery.error, questionQuery.data);
   const nextIsError = nextProblem !== 'none';
   const rawQuestion = questionQuery.data ?? null;
   // The card that was just answered stays hidden until its replacement is here.
@@ -598,9 +612,15 @@ export function VerifyScreen({
       setAdvancing(false);
       setIncoming(null);
       return true;
-    } catch {
+    } catch (err) {
       if (seq >= appliedSeq.current) {
-        setNextFailed(true);
+        // A paper that closed behind the verifier (unassigned, returned, finished) is not a network problem:
+        // Try again could never work, so it gets the paper-gone screen. 'none' = the finished screen already says it.
+        const problem = nextLoadProblem(err, qc.getQueryData(keyFor(inc)));
+        if (problem !== 'none') {
+          setFailedKind(problem);
+          setNextFailed(true);
+        }
         setAdvancing(false);
       }
       return false;
@@ -703,6 +723,11 @@ export function VerifyScreen({
   // A row that is only the word OR is not a question either: use the OR action.
   const canPass = question ? !isBlankBody(bodyDraft) && !isOrOnlyBody(bodyDraft) : false;
   const marksInvalid = marksDraft.trim() !== '' && !(Number.isFinite(Number(marksDraft)) && Number(marksDraft) >= 0);
+  // Anything typed that Cancel would throw away (the same boxes the autosaved draft holds).
+  const unsavedEdit = question
+    ? !sameDrafts({ body: bodyDraft, number: numberDraft, marks: marksDraft, printedTypo, typoNote }, draftsFromQuestion(question, lost))
+    : false;
+  const escArmedRef = useRef<number | null>(null);
   const showBigEditWarning = mode === 'fix' && question ? bigEdit(question.body ?? '', bodyDraft) : false;
 
   // A second click in the same tick, before React has shown "Saving...", must
@@ -943,7 +968,7 @@ export function VerifyScreen({
      a question or a draft from an earlier render. */
   function onKeyDown(e: KeyboardEvent) {
     // The full-screen picture has its own Escape; nothing is answered behind it.
-    if (submitting || tourOpen || lightbox) return;
+    if (submitting || tourOpen || lightbox || suspended) return;
     // A held-down key is one press: it must not answer the card after this one.
     if (e.repeat) return;
     if (helpOpen) {
@@ -952,6 +977,16 @@ export function VerifyScreen({
     }
     if (e.key === 'Escape' && mode !== 'check') {
       e.preventDefault();
+      // Typed changes are not thrown away by one stray Esc: the first press asks, a second one soon after cancels.
+      const step = escapeStep(unsavedEdit, escArmedRef.current, Date.now());
+      if (step === 'confirm') {
+        escArmedRef.current = Date.now();
+        setNotice({ text: ESC_AGAIN_NOTICE, tone: 'warn' });
+        setTimeout(() => setNotice((n) => (n?.text === ESC_AGAIN_NOTICE ? null : n)), ESC_CONFIRM_MS);
+        return;
+      }
+      escArmedRef.current = null;
+      setNotice((n) => (n?.text === ESC_AGAIN_NOTICE ? null : n));
       cancelEdit();
       return;
     }

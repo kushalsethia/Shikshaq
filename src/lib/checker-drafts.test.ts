@@ -3,6 +3,8 @@ import {
   clearDraft,
   draftOwnerKey,
   draftsFromQuestion,
+  ESC_CONFIRM_MS,
+  escapeStep,
   isEdited,
   loadDraft,
   planAnswer,
@@ -212,5 +214,21 @@ describe('draft autosave', () => {
     expect(loadDraft('live', bag, null, s)).toBeNull();
     s.setItem('shikshaq.checker.draft.live.q-bag', '{"body": 5}');
     expect(loadDraft('live', bag, null, s)).toBeNull();
+  });
+});
+
+describe('escapeStep (Esc while editing, 5 Nov 2026)', () => {
+  it('cancels at once when there is nothing typed to lose', () => {
+    expect(escapeStep(false, null, 1000)).toBe('cancel');
+    expect(escapeStep(false, 900, 1000)).toBe('cancel');
+  });
+
+  it('the first Esc on unsaved changes only asks', () => {
+    expect(escapeStep(true, null, 1000)).toBe('confirm');
+  });
+
+  it('a second Esc inside the window cancels, one after it asks again', () => {
+    expect(escapeStep(true, 1000, 1000 + ESC_CONFIRM_MS)).toBe('cancel');
+    expect(escapeStep(true, 1000, 1000 + ESC_CONFIRM_MS + 1)).toBe('confirm');
   });
 });

@@ -104,7 +104,7 @@ export interface ShortcutRow {
  * works is Escape.
  */
 export function shortcutRows(opts: { canSplit: boolean; canPass: boolean; canUndo?: boolean; editing?: boolean }): ShortcutRow[] {
-  if (opts.editing) return [{ keys: 'Esc', does: 'Cancel and go back' }];
+  if (opts.editing) return [{ keys: 'Esc', does: 'Cancel and go back. With typed changes, press it twice.' }];
   const rows: ShortcutRow[] = [];
   if (opts.canPass) rows.push({ keys: 'Enter or P', does: 'Looks right' });
   rows.push({ keys: 'F', does: 'Fix it' });

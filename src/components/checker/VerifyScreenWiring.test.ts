@@ -80,3 +80,34 @@ describe('verify screen wiring (QA 2026-10-11)', () => {
     expect(screen).toContain('setShowPaper(false);');
   });
 });
+
+describe('verify screen faults fixed 5 Nov 2026', () => {
+  it('fault 1: a refused verdict on a closed paper shows the paper-gone screen, not "check your internet"', () => {
+    const load = screen.slice(screen.indexOf('async function loadNext('), screen.indexOf('function ackedVerdict('));
+    // the catch keeps the error and classifies it with the shared helper
+    expect(load).toMatch(/catch \(err\) \{/);
+    expect(load).toContain('nextLoadProblem(err, qc.getQueryData(keyFor(inc)))');
+    // the screen reads that kind before it falls back to the query's own error
+    expect(screen).toMatch(/const nextProblem =\s+nextFailed && failedKind !== 'failed' \? failedKind : nextLoadProblem\(questionQuery\.error, questionQuery\.data\)/);
+    // a refused verdict does not clear the typed Fix text (only an accepted one does)
+    const rejected = screen.slice(screen.indexOf('function rejectedVerdict('), screen.indexOf('function retryNext('));
+    expect(rejected).not.toContain('clearDraft');
+  });
+
+  it('fault 2: the reopen parameter leaves the URL once it has been taken', () => {
+    const first = screen.slice(screen.indexOf('async function fetchFirstRow('), screen.indexOf('const questionQuery = useQuery'));
+    expect(first).toContain('reopenOnce.current = null;');
+    expect(first).toMatch(/if \(id\) \{\s+onReopenTaken\?\.\(\);/);
+    const page = readFileSync(resolve(__dirname, '../../pages/Checker.tsx'), 'utf8');
+    expect(page).toContain('onReopenTaken={() => setParams((p) => withoutReopen(p), { replace: true })}');
+  });
+
+  it('fault 3: Escape on unsaved edits asks twice, and the keys wait while the Menu is open', () => {
+    const keys = screen.slice(screen.indexOf('function onKeyDown('), screen.indexOf('const keyHandlerRef'));
+    expect(keys).toContain('if (submitting || tourOpen || lightbox || suspended) return;');
+    expect(keys).toContain('escapeStep(unsavedEdit, escArmedRef.current, Date.now())');
+    expect(keys).toContain('ESC_AGAIN_NOTICE');
+    const page = readFileSync(resolve(__dirname, '../../pages/Checker.tsx'), 'utf8');
+    expect(page).toContain('suspended={menuOpen}');
+  });
+});

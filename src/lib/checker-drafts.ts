@@ -71,6 +71,20 @@ export function isEdited(q: DraftQuestion, d: Pick<Drafts, 'body' | 'number' | '
   return d.body !== (q.body ?? '') || d.number !== (q.display_number ?? '') || d.marks !== marksText(q.marks);
 }
 
+/** How long a first Esc on unsaved changes stays "armed" for a second one. */
+export const ESC_CONFIRM_MS = 4000;
+export const ESC_AGAIN_NOTICE = 'Press Esc again to throw away your changes.';
+
+/**
+ * What Esc does while editing. With nothing typed to lose it cancels at once;
+ * with unsaved changes the first press only asks (`armedAt` = when it asked),
+ * and a second press within ESC_CONFIRM_MS cancels.
+ */
+export function escapeStep(unsaved: boolean, armedAt: number | null, now: number): 'cancel' | 'confirm' {
+  if (!unsaved) return 'cancel';
+  return armedAt !== null && now - armedAt <= ESC_CONFIRM_MS ? 'cancel' : 'confirm';
+}
+
 export type AnswerPlan =
   | { kind: 'pass' }
   | {

@@ -240,6 +240,13 @@ export function checkerSignInPath(here: string): string {
   return here.startsWith('/checker') ? here : '/checker';
 }
 
+/** The same parameters without `reopen`, so a question that was reopened once is not reopened again by a refresh. */
+export function withoutReopen(params: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(params);
+  next.delete('reopen');
+  return next;
+}
+
 export type ProfileStatus = 'ok' | 'missing' | 'expired';
 
 export function profileStatus(p: Pick<VerifierProfile, 'grade' | 'expired'> | null): ProfileStatus {
