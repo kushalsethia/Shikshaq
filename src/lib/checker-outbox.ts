@@ -8,6 +8,10 @@
  *  - A verdict is never lost. It is written to localStorage before the screen
  *    moves on, kept through a failed send, a refresh or closing the tab, and
  *    removed only when the server accepts it (or refuses it for good).
+ *  - A request that hangs fails like a lost connection. One send may take
+ *    SEND_TIMEOUT_MS; after that `sending` is false again, the verdict shows as
+ *    "Not saved yet" and is retried (the replay check below tells whether the
+ *    first send actually landed).
  *  - A verdict is never sent twice. One send at a time, one entry per
  *    question (a second press on the same question is refused), and an entry
  *    that another tab already finished is not sent again.
@@ -25,6 +29,7 @@
 import type { CheckerApi } from '@/lib/checker-api';
 import { markNotSaved, mayHaveLanded, verdictWasSaved } from '@/lib/checker-advance';
 import { checkerErrorAdvice } from '@/lib/checker-errors';
+import { CHECKER_REQUEST_TIMEOUT_MS, withTimeout } from '@/lib/checker-timeout';
 import type { VerdictAndNext } from '@/lib/checker-verdict-next';
 
 export type VerdictKind = 'pass' | 'fix' | 'skip' | 'ask_help';
@@ -92,6 +97,8 @@ export interface OutboxOptions {
   backoff?: (attempts: number) => number;
   /** Tells this page load from another tab's. */
   ownerId?: string;
+  /** How long one send may take before it counts as failed. */
+  sendTimeoutMs?: number;
 }
 
 export interface Outbox {
@@ -117,6 +124,9 @@ export function defaultBackoff(attempts: number): number {
 
 /** A young entry written by another tab is left to that tab. */
 export const ADOPT_AFTER_MS = 20_000;
+
+/** One send is the verdict and, after a stale refusal, a few reads that confirm it, each limited to CHECKER_REQUEST_TIMEOUT_MS. */
+export const SEND_TIMEOUT_MS = CHECKER_REQUEST_TIMEOUT_MS * 3;
 
 /**
  * True when sending the same request again cannot work, so retrying would
@@ -174,6 +184,7 @@ export function createOutbox(opts: OutboxOptions): Outbox {
   const clearTimer = opts.clearTimer ?? ((h) => clearTimeout(h as ReturnType<typeof setTimeout>));
   const backoff = opts.backoff ?? defaultBackoff;
   const owner = opts.ownerId ?? newId(now());
+  const sendTimeoutMs = opts.sendTimeoutMs ?? SEND_TIMEOUT_MS;
 
   const read = (): OutboxEntry[] => {
     try {
@@ -258,7 +269,13 @@ export function createOutbox(opts: OutboxOptions): Outbox {
       let failure: { error: unknown } | null = null;
       let result: unknown;
       try {
-        result = await opts.send(due);
+        // A send that never answers must not hold the paper's queue for ever.
+        result = await withTimeout(
+          opts.send(due),
+          sendTimeoutMs,
+          undefined,
+          { set: (cb, ms) => setTimer(cb, ms), clear: (h) => clearTimer(h) },
+        );
       } catch (error) {
         failure = { error };
       }
@@ -368,14 +385,22 @@ export type VerdictSendApi = Pick<CheckerApi, 'verdictAndNext' | 'paperQuestions
  * shows exactly what this verdict leaves (verdictWasSaved) is it taken as
  * saved, and the next question is read the plain way. In every other case the
  * original refusal is thrown, so it is shown, never swallowed.
+ *
+ * A refusal "not currently assigned to you" can also mean the 10 minute lease
+ * simply ran out while the checker was still on the question (a long edit);
+ * nothing renews a lease while a question is open. When the read shows the
+ * verdict was not saved, the question is asked for again (that leases it to this
+ * checker and does nothing else) and, only if the same question came back, the
+ * verdict is sent once more. The version the checker saw still travels with it,
+ * so words someone else changed in the meantime are never overwritten (40001).
  */
 export async function sendVerdict(
   api: VerdictSendApi,
   e: Pick<OutboxEntry, 'questionId' | 'paperId' | 'kind' | 'payload'>,
 ): Promise<VerdictAndNext> {
   const p = e.payload;
-  try {
-    return await api.verdictAndNext({
+  const attempt = () =>
+    api.verdictAndNext({
       action: e.kind,
       questionId: e.questionId,
       paperId: e.paperId,
@@ -386,6 +411,8 @@ export async function sendVerdict(
       reason: e.kind === 'ask_help' ? p.reason ?? 'Not sure how to fix this' : undefined,
       includeSkipped: p.includeSkipped,
     });
+  try {
+    return await attempt();
   } catch (err) {
     if (!mayHaveLanded(err)) throw err;
     let saved: { version: number | null } | null = null;
@@ -399,7 +426,17 @@ export async function sendVerdict(
     }
     // A read that showed the question unchanged proves nothing was saved
     // (a skip cannot be read back, so it is never marked).
-    if (!saved) throw readOk && e.kind !== 'skip' ? markNotSaved(err) : err;
+    const refuse = (x: unknown) => (readOk && e.kind !== 'skip' ? markNotSaved(x) : x);
+    if (!saved) {
+      if (/not currently assigned/i.test(errorText(err)) && (await retakeLease(api, e))) {
+        try {
+          return await attempt();
+        } catch (again) {
+          throw refuse(again);
+        }
+      }
+      throw refuse(err);
+    }
     // It was saved. Read the next question the plain way (a failure here is a
     // network failure and is retried; the replay then confirms again).
     const next = await api.nextInPaper(e.paperId, { includeSkipped: p.includeSkipped });
@@ -410,6 +447,18 @@ export async function sendVerdict(
       next: next ? { ...next, context: await api.questionContext(next.id) } : null,
       next_paper_id: next ? e.paperId : null,
     };
+  }
+}
+
+/** Ask for the paper's next question again. True when the question that came
+ *  back is the one this verdict is for, which means its lease is this checker's
+ *  again. Any failure is false: the original refusal is then shown. */
+async function retakeLease(api: VerdictSendApi, e: Pick<OutboxEntry, 'questionId' | 'paperId' | 'payload'>): Promise<boolean> {
+  try {
+    const row = await api.nextInPaper(e.paperId, { includeSkipped: e.payload.includeSkipped });
+    return row?.id === e.questionId;
+  } catch {
+    return false;
   }
 }
 

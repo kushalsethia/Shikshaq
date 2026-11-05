@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   ADOPT_AFTER_MS,
+  SEND_TIMEOUT_MS,
   createOutbox,
   defaultBackoff,
   isDefiniteRefusal,
@@ -312,5 +313,73 @@ describe('outbox: order and refusals', () => {
     const failing = createOutbox({ storageKey: KEY + '2', storage: memoryStorage(), send: () => Promise.reject(new TypeError('offline')) });
     failing.enqueue(pass('q2'));
     await expect(failing.flush()).resolves.toBe(false);
+  });
+});
+
+describe('outbox: a request that hangs fails like a lost connection (finding D)', () => {
+  it('after the time limit sending is false again, the verdict shows as failing and is retried', async () => {
+    const time = fakeTime();
+    const send = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise(() => undefined))
+      .mockResolvedValueOnce(undefined);
+    const onAck = vi.fn();
+    const box = createOutbox({
+      storageKey: KEY,
+      storage: memoryStorage(),
+      send,
+      onAck,
+      now: time.now,
+      setTimer: time.setTimer,
+      clearTimer: time.clearTimer,
+      backoff: () => 1000,
+    });
+    box.enqueue(pass('q1'));
+    expect(box.state().sending).toBe(true);
+
+    await time.advance(SEND_TIMEOUT_MS - 1);
+    expect(box.state().sending).toBe(true);
+
+    await time.advance(1);
+    expect(box.state().sending).toBe(false);
+    expect(box.state().failing).toBe(true);
+    expect(box.state().lastError).toMatch(/took longer/);
+    expect(box.hasQuestion('q1')).toBe(true); // never lost
+
+    await time.advance(1000); // the ordinary retry wait
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(onAck).toHaveBeenCalledTimes(1);
+    expect(box.state().entries).toHaveLength(0);
+  });
+
+  it('Retry is not dead after a hang, and a hung paper does not block another paper for ever', async () => {
+    const time = fakeTime();
+    const send = vi.fn().mockImplementation((e: OutboxEntry) => (e.paperId === 'paperA' ? new Promise(() => undefined) : Promise.resolve()));
+    const box = createOutbox({ storageKey: KEY, storage: memoryStorage(), send, now: time.now, setTimer: time.setTimer, clearTimer: time.clearTimer });
+    box.enqueue(pass('q1', 'paperA'));
+    box.enqueue(pass('q9', 'paperB'));
+    await time.advance(SEND_TIMEOUT_MS);
+    expect(send.mock.calls.map((c) => c[0].questionId)).toEqual(['q1', 'q9']);
+    expect(box.state().sending).toBe(false);
+    box.retryNow();
+    await tick();
+    expect(send.mock.calls.filter((c) => c[0].questionId === 'q1')).toHaveLength(2);
+  });
+
+  it('a send that answers in time is untouched', async () => {
+    const time = fakeTime();
+    const box = createOutbox({
+      storageKey: KEY,
+      storage: memoryStorage(),
+      send: vi.fn().mockResolvedValue(undefined),
+      now: time.now,
+      setTimer: time.setTimer,
+      clearTimer: time.clearTimer,
+    });
+    box.enqueue(pass('q1'));
+    await tick();
+    expect(box.state().failing).toBe(false);
+    expect(box.state().entries).toHaveLength(0);
+    expect(time.pending()).toBe(0); // the time limit's timer was cleared
   });
 });

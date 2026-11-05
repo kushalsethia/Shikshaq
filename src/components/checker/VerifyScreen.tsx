@@ -66,6 +66,22 @@ import {
 } from '@/lib/checker-drafts';
 import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewChannel';
 import { isForeignChangeToOpenQuestion } from '@/lib/paper-review-realtime';
+import {
+  answeredElsewhere,
+  ANSWERED_ELSEWHERE_NOTE,
+  canUndoNow,
+  forgetAnswered,
+  KEPT_WORDS_NOTE,
+  KEPT_WORDS_TITLE,
+  mayBeMyOtherTabAnswering,
+  recordAnswered,
+  SKIPPED_SOME_NOTE,
+  skippedLeftState,
+  typedWordsOfVerdict,
+  typedWordsOnScreen,
+  undoTitle,
+  type AnsweredEntry,
+} from '@/lib/checker-aftermath';
 import { DebugId } from '@/components/DebugId';
 import { ActionButton } from '@/components/checker/CheckerButtons';
 import { ACTION_ICON_CLASS } from '@/lib/checker-button-styles';
@@ -418,7 +434,22 @@ export function VerifyScreen({
   // What the verifier has answered in this visit, newest last, so Undo knows
   // whether there is anything to take back. The server decides what can
   // really be undone (30 minutes, nobody else touched it).
-  const [answered, setAnswered] = useState<string[]>([]);
+  const [answered, setAnswered] = useState<AnsweredEntry[]>([]);
+  // True from a refused verdict until the next answer: Undo must not take back an answer the student did not just make.
+  const [undoHeld, setUndoHeld] = useState(false);
+  // A paper that already has done questions can be undone after a refresh or Back (the visit's list is empty then).
+  const canUndo = canUndoNow(answered, paperRow?.done, undoHeld);
+  // Words a refused fix, or an answer from another tab, took off the screen: shown again for copying.
+  const [lostWords, setLostWords] = useState<string | null>(null);
+  // When the last open question was skipped and the server took it, until another question is on screen.
+  const [skippedLastAt, setSkippedLastAt] = useState<number | null>(null);
+  const skippedLeft = skippedLeftState({
+    includeSkipped,
+    skippedCount,
+    remaining: paperRow?.remaining ?? null,
+    skippedLastAt,
+    listReadAt: papersQuery.dataUpdatedAt,
+  });
   const [error, setError] = useState<string | null>(null);
   const online = useOnline();
   // A message that survives moving to the next question (an error that made
@@ -489,9 +520,13 @@ export function VerifyScreen({
     return () => clearTimeout(t);
   }, [notice]);
 
+  const typedWordsRef = useRef<string | null>(null);
   useEffect(() => {
     questionRef.current = question;
+    typedWordsRef.current = question && draftFor === ownerNow ? typedWordsOnScreen(question.body, bodyDraft) : null;
   });
+  // A question on screen means the skipped-last screen no longer applies.
+  if (question && skippedLastAt !== null) setSkippedLastAt(null);
 
   /* Warm the pictures of the questions after this one, once this one is on
      screen (verifier_peek_next_in_paper leases nothing). The picture links and
@@ -566,12 +601,28 @@ export function VerifyScreen({
           tone: 'warn',
         });
         qc.invalidateQueries({ queryKey: ['verifier-next', scope, paperId] });
+      } else if (!submitting && question && mayBeMyOtherTabAnswering(event, question.id, userId) && !box.hasQuestion(question.id)) {
+        // The same person answered this question from another tab or device. The event cannot say which tab, so look first.
+        void checkAnsweredElsewhere(question.id);
       } else if (!question && !submitting && !advancing && pendingHere === 0) {
         // Nothing open: any activity may mean new questions are waiting.
         qc.invalidateQueries({ queryKey: ['verifier-next', scope, paperId] });
       }
     },
   });
+
+  /** Another tab of mine answered the question this tab still shows: say so, keep any typed words in view, move on. */
+  async function checkAnsweredElsewhere(id: string) {
+    try {
+      const row = (await api.paperQuestions(paperId)).find((q) => q.id === id);
+      if (!answeredElsewhere(row) || questionRef.current?.id !== id || isAnswered(id)) return;
+      if (typedWordsRef.current) setLostWords(typedWordsRef.current);
+      setNotice({ text: ANSWERED_ELSEWHERE_NOTE, tone: 'warn' });
+      refresh();
+    } catch {
+      /* the read failed: leave the screen as it is, a button press is checked by the server anyway */
+    }
+  }
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['verifier-next', scope, paperId] });
@@ -633,6 +684,7 @@ export function VerifyScreen({
    * screen at once, with nothing more to fetch, unless the person has moved on.
    */
   function ackedVerdict(entry: OutboxEntry, result: VerdictAndNext | null) {
+    const ackAt = Date.now();
     clearDraft(scope, entry.questionId);
     qc.invalidateQueries({ queryKey: ['checker-my-stats', scope] });
     qc.invalidateQueries({ queryKey: ['verifier-papers', scope] });
@@ -652,10 +704,14 @@ export function VerifyScreen({
       return;
     }
     if (decision.kind === 'fetch') {
-      void loadNext(entry.questionId, inc);
+      void loadNext(entry.questionId, inc).then((ok) => {
+        if (ok && entry.kind === 'skip' && qc.getQueryData(keyFor(inc)) === null) setSkippedLastAt(ackAt);
+      });
       return;
     }
     const next = decision.kind === 'show' ? decision.next : null;
+    // The skipped question is still on the paper, but the papers list says "skipped 0" until it is read again.
+    if (!next && entry.kind === 'skip') setSkippedLastAt(ackAt);
     appliedSeq.current = ++fetchSeq.current; // anything older still on its way must not replace this
     if (next) {
       primePicture(api, next);
@@ -681,7 +737,20 @@ export function VerifyScreen({
       tone: 'warn',
     });
     unmask(entry.questionId);
-    if (entry.paperId === paperId) void loadNext(entry.questionId, includeSkippedRef.current);
+    // The refused answer is no answer: Undo must not point at anything before it.
+    setAnswered((a) => forgetAnswered(a, entry.questionId));
+    setUndoHeld(true);
+    const words = typedWordsOfVerdict(entry.kind, entry.payload);
+    if (entry.paperId !== paperId) {
+      if (words) setLostWords(words);
+      return;
+    }
+    const inc = includeSkippedRef.current;
+    void loadNext(entry.questionId, inc).then(() => {
+      // The same question coming back has its words in the editor already; otherwise keep them in view.
+      const back = qc.getQueryData<CheckerQuestion | null>(keyFor(inc));
+      if (words && back?.id !== entry.questionId) setLostWords(words);
+    });
   }
 
   function retryNext() {
@@ -705,7 +774,8 @@ export function VerifyScreen({
     setAdvancing(true);
     setNextFailed(false);
     setError(null);
-    setAnswered((a) => [...a, kind]);
+    setAnswered((a) => recordAnswered(a, question.id, kind));
+    setUndoHeld(false);
     setNotice({ text: okText, tone: 'ok' });
     afterQueued?.();
     return true;
@@ -736,15 +806,16 @@ export function VerifyScreen({
 
   /** Runs one answer. True when the server took it; a typed draft for the
    *  question is only dropped then (`dropDraft`), never on a failure. */
-  async function run(action: () => Promise<unknown>, okText: string, kind: string, dropDraftFor?: string): Promise<boolean> {
+  async function run(action: () => Promise<unknown>, okText: string, kind: string, questionId: string, dropDraft = false): Promise<boolean> {
     if (busyRef.current) return false;
     busyRef.current = true;
     setSubmitting(true);
     setError(null);
     try {
       await action();
-      if (dropDraftFor) clearDraft(scope, dropDraftFor);
-      setAnswered((a) => [...a, kind]);
+      if (dropDraft) clearDraft(scope, questionId);
+      setAnswered((a) => recordAnswered(a, questionId, kind));
+      setUndoHeld(false);
       setNotice({ text: okText, tone: 'ok' });
       refresh();
       return true;
@@ -818,12 +889,12 @@ export function VerifyScreen({
 
   async function doOrSeparator() {
     if (!question || submitting || !orOnly) return;
-    await run(() => api.markOrSeparator(question.id), OR_ONLY_DONE, 'or_separator');
+    await run(() => api.markOrSeparator(question.id), OR_ONLY_DONE, 'or_separator', question.id);
   }
 
   async function doSplit() {
     if (!question || submitting || !canSplitAt(bodyDraft, splitAt)) return;
-    await run(() => api.splitQuestion(question.id, bodyDraft, splitAt!), 'Split into two. Both will be checked again.', 'split', question.id);
+    await run(() => api.splitQuestion(question.id, bodyDraft, splitAt!), 'Split into two. Both will be checked again.', 'split', question.id, true);
   }
 
   function doAskForHelp(reason: string) {
@@ -842,7 +913,7 @@ export function VerifyScreen({
   // Take back the last answer (verifier_undo_last). The server decides what is
   // allowed; its refusal is a plain sentence, shown as it is.
   async function doUndo() {
-    if (submitting || answered.length === 0) return;
+    if (submitting || !canUndo) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -1010,7 +1081,7 @@ export function VerifyScreen({
     } else if (action === 'skip') {
       e.preventDefault();
       doSkip();
-    } else if (action === 'undo' && answered.length > 0) {
+    } else if (action === 'undo' && canUndo) {
       e.preventDefault();
       void doUndo();
     }
@@ -1034,19 +1105,19 @@ export function VerifyScreen({
       ].filter((x): x is string => Boolean(x))
     : [];
 
-  // Rewind: enabled once the verifier has answered something in this visit.
-  // Also shown on the "done" screens, where the last answer is the one most
+  // Rewind: enabled once the verifier has answered something in this visit, or the paper already has done
+  // questions (after a refresh); held off after a refused answer (canUndoNow). Also shown on the "done" screens, where the last answer is the one most
   // often clicked by mistake. On a phone it is icon-only, to leave the room to
   // the two words that matter.
   const undoButton = (
     <button
       type="button"
       onClick={() => void doUndo()}
-      disabled={submitting || answered.length === 0}
+      disabled={submitting || !canUndo}
       data-testid="undo-last"
       data-tour="undo"
       aria-label="Undo last"
-      title={answered.length === 0 ? 'Nothing to undo yet' : 'Take back your last answer'}
+      title={undoTitle(canUndo, undoHeld)}
       className="tap-44 order-3 inline-flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-full bg-muted text-[15px] font-bold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50 md:order-none md:w-auto md:px-4"
     >
       <Undo2 className={ACTION_ICON_CLASS} aria-hidden="true" />
@@ -1241,7 +1312,7 @@ export function VerifyScreen({
                 </>
               )}
               <span className="order-6 ml-auto hidden md:order-none md:inline-flex">
-                <ShortcutsPopover canSplit={splitOffered} canPass={canPass} canUndo={answered.length > 0} editing={mode !== 'check'} />
+                <ShortcutsPopover canSplit={splitOffered} canPass={canPass} canUndo={canUndo} editing={mode !== 'check'} />
               </span>
             </div>
           </>,
@@ -1930,6 +2001,25 @@ export function VerifyScreen({
         ) : null}
       </div>
 
+      {lostWords !== null ? (
+        <div role="note" className="shrink-0 rounded-[14px] bg-destructive/10 p-3" data-testid="kept-words">
+          <p className="text-[14px] font-semibold text-foreground">{KEPT_WORDS_TITLE}</p>
+          <p className="mt-0.5 text-[13px] leading-snug text-warm-secondary">{KEPT_WORDS_NOTE}</p>
+          <textarea
+            readOnly
+            value={lostWords}
+            rows={4}
+            aria-label="What you typed"
+            className="mt-2 max-h-[30vh] w-full rounded-[8px] bg-card p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          />
+          <div className="mt-2">
+            <ActionButton tone="muted" onClick={() => setLostWords(null)}>
+              Done, hide this
+            </ActionButton>
+          </div>
+        </div>
+      ) : null}
+
       {/* The tiles take everything between the top tile and the action bar. */}
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-y-auto">
         {questionQuery.isLoading ? (
@@ -1970,11 +2060,11 @@ export function VerifyScreen({
           <div key={cardId(null, incoming?.id ?? null)} className={cn('min-h-0', enterClass)}>
             <IncomingCard pictureUrl={incoming?.pictureUrl ?? null} />
           </div>
-        ) : !question && !includeSkipped && !paperRow && paperGate === 'loading' ? (
+        ) : !question && !includeSkipped && !paperRow && paperGate === 'loading' && !skippedLeft.show ? (
           // The list that says how many are skipped has not arrived. Do not
           // say "Paper finished" until it has.
           <CheckerSkeleton />
-        ) : !question && !includeSkipped && !paperRow && paperGate === 'error' ? (
+        ) : !question && !includeSkipped && !paperRow && paperGate === 'error' && !skippedLeft.show ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center" role="alert">
             <p className="text-lg font-semibold text-foreground">Could not load your papers</p>
             <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
@@ -1982,12 +2072,14 @@ export function VerifyScreen({
               Try again
             </ActionButton>
           </div>
-        ) : !question && !includeSkipped && skippedCount > 0 && paperRow != null && paperRow.remaining <= skippedCount ? (
+        ) : !question && skippedLeft.show ? (
           // Only skipped questions are left. They stay on this paper for
           // later; the verifier can go to other papers or go through them now.
           <div className="flex flex-col items-center gap-3 py-16 text-center" data-testid="only-skipped-left">
             <p className="text-balance text-xl font-bold text-foreground">Done for now</p>
-            <p className="max-w-md text-pretty text-[14px] text-warm-secondary">{skippedNote(skippedCount)}</p>
+            <p className="max-w-md text-pretty text-[14px] text-warm-secondary">
+              {skippedLeft.count !== null ? skippedNote(skippedLeft.count) : SKIPPED_SOME_NOTE}
+            </p>
             <div className="flex flex-wrap justify-center gap-2.5">
               <ActionButton tone="mint" onClick={onList ?? onExit}>
                 Back to my papers

@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const rpc = vi.fn();
-vi.mock('@/integrations/supabase/client', () => ({ supabase: { rpc: (...args: unknown[]) => rpc(...args) } }));
+// The real rpc() returns a builder that has .abortSignal() (the calls that could hang are aborted after 30 seconds).
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    rpc: (...args: unknown[]) => {
+      const answer = rpc(...args);
+      return Object.assign(answer, { abortSignal: () => answer });
+    },
+  },
+}));
 
 import { realCheckerApi, verifierNextInPaper, verifierUndoLast, checkerMarkOrSeparator } from '@/lib/checker-api';
 

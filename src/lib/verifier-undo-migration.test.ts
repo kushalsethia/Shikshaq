@@ -238,10 +238,11 @@ describe('skip for later migration', () => {
 describe('screen wiring', () => {
   const screen = readFileSync(resolve(__dirname, '../components/checker/VerifyScreen.tsx'), 'utf8');
 
-  it('has an Undo last button, enabled only after an answer, with the U shortcut', () => {
+  it('has an Undo last button, enabled by canUndoNow, with the U shortcut', () => {
     expect(screen).toContain('Undo last');
-    expect(screen).toContain('disabled={submitting || answered.length === 0}');
-    expect(screen).toContain("action === 'undo' && answered.length > 0");
+    // enabled by canUndoNow (checker-aftermath.ts): an answer this visit, or done questions on the paper; held off after a refusal
+    expect(screen).toContain('disabled={submitting || !canUndo}');
+    expect(screen).toContain("action === 'undo' && canUndo");
     expect(screen).toContain('api.undoLast(paperId)');
   });
 

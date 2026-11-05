@@ -87,7 +87,7 @@ describe('verify screen: optimistic advance wiring (speed plan 2026-10-12)', () 
   it('a late answer is ignored when the person has moved on; a refusal brings the question back with the reason', () => {
     expect(screen).toContain("openQuestionId: questionRef.current?.id ?? null");
     expect(screen).toContain("decision.kind === 'ignore'");
-    expect(screen).toMatch(/function rejectedVerdict[\s\S]*setNotice\([\s\S]*loadNext\(entry\.questionId, includeSkippedRef\.current\)/);
+    expect(screen).toMatch(/function rejectedVerdict[\s\S]*setNotice\([\s\S]*const inc = includeSkippedRef\.current;[\s\S]*loadNext\(entry\.questionId, inc\)/);
     expect(screen).toContain('isConfirmedNotSaved(err)');
   });
 
