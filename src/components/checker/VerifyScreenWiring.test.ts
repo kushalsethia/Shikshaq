@@ -70,9 +70,17 @@ describe('verify screen wiring (QA 2026-10-11)', () => {
   });
 
   it('a question with a crop but no verified page still opens the whole paper on a tap (Nov 2026, tracker #3)', () => {
-    // Only a crop with no verified page of its own gets the toggle, so it never sits beside "See the whole page".
-    expect(screen).toContain('const paperToggle = Boolean(!pageToggle && hasCrop && !flipShown);');
+    // A crop with no verified page of its own gets the toggle. So does a question whose verified page
+    // could not be loaded (picture not stored): "See the whole page" must never be a dead end.
+    expect(screen).toContain('const paperToggle = Boolean(hasCrop && !flipShown && (!pageToggle || pageUnavailable));');
     expect(screen).toContain('const pageTileOn = pageViewerOn || flipShown || paperOpen;');
+    // pageUnavailable is read by paperToggle, so it must be declared first (a const is not usable before its line).
+    expect(screen.indexOf('const pageUnavailable = Boolean(')).toBeGreaterThan(-1);
+    expect(screen.indexOf('const pageUnavailable = Boolean(')).toBeLessThan(screen.indexOf('const paperToggle = Boolean('));
+    // While the paper is open the frame header offers "Hide the whole paper", not the page button.
+    expect(screen).toMatch(/headerExtra=\{\s+paperOpen\s+\? paperToggleButton\(/);
+    // The note says what to do next.
+    expect(screen).toContain('you can open the whole paper instead');
     expect(screen).toContain("{showPaper ? 'Hide the whole paper' : 'See the whole paper'}");
     // Opened by the verifier, so the flip must not say "No page matched this question".
     expect(screen).toContain('title="The whole paper"');

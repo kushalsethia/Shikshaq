@@ -1661,15 +1661,18 @@ export function VerifyScreen({
         const cropVisible = tilesOn || !picturePlanKey || (viewPath !== '' && cropShown !== null);
         const pageToggle = Boolean(pagePlan && viewPath !== '' && hasCrop);
         const pageViewerOn = Boolean(pagePlan && pageOpen && pageShown !== null);
-        // A crop with no verified page: the whole paper is one tap away instead of nowhere.
-        const paperToggle = Boolean(!pageToggle && hasCrop && !flipShown);
-        const paperOpen = paperToggle && showPaper;
-        const pageTileOn = pageViewerOn || flipShown || paperOpen;
         // The page was asked for (a tap) but its picture could not be loaded, for
         // example because it is not in storage yet. Say so, so the button never
         // looks dead.
         const pageUnavailable = Boolean(pagePlan && showPage && pageOpen && pageShown === null);
-        const PAGE_UNAVAILABLE = 'The whole page could not be loaded for this question. The photo above is still right.';
+        // A crop with no verified page: the whole paper is one tap away instead of nowhere. The same
+        // goes for a question whose page is verified but whose picture is not in storage: the page
+        // button used to lead to a one-line note and nothing else, while the paper's other pages
+        // could be read (tracker of 2 Nov, "click to view full page not working").
+        const paperToggle = Boolean(hasCrop && !flipShown && (!pageToggle || pageUnavailable));
+        const paperOpen = paperToggle && showPaper;
+        const pageTileOn = pageViewerOn || flipShown || paperOpen;
+        const PAGE_UNAVAILABLE = 'The whole page is not stored yet. The photo above is still right; you can open the whole paper instead.';
         const cropLabel = picturePlan && picturePlan.kind !== 'own' && cropShown ? 'Photo of the printed whole question' : 'Photo of the printed paper';
 
         const enlargeCrop = tilesOn
@@ -1883,11 +1886,13 @@ export function VerifyScreen({
                       title={pageViewerOn ? PAGE_HEADING : paperOpen ? 'The whole paper' : pictureHeading(null)}
                       panelClass="flex min-h-0 flex-[3_1_0%]"
                       headerExtra={
-                        pageToggle
-                          ? pageToggleButton('bg-white px-3 py-1 text-[12px]')
-                          : paperToggle
-                            ? paperToggleButton('bg-white px-3 py-1 text-[12px]')
-                            : null
+                        paperOpen
+                          ? paperToggleButton('bg-white px-3 py-1 text-[12px]')
+                          : pageToggle
+                            ? pageToggleButton('bg-white px-3 py-1 text-[12px]')
+                            : paperToggle
+                              ? paperToggleButton('bg-white px-3 py-1 text-[12px]')
+                              : null
                       }
                     >
                       {pageViewerOn ? (
