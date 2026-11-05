@@ -503,7 +503,7 @@ export default function Auth() {
   if (processingOAuth || (authLoading && window.location.hash.includes('access_token'))) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-panel">
-        <div className="text-center">
+        <div role="status" className="text-center">
           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-2 border-white/20 border-b-brand" />
           <p className="text-base text-background/70">Completing sign in...</p>
         </div>
@@ -523,7 +523,7 @@ export default function Auth() {
   // "inputs stay >=16px or iOS zooms on focus" floor the entry warns about.
   const DARK_FIELD =
     'w-full box-border min-h-[54px] h-[54px] px-4 rounded-[18px] bg-white/[0.08] text-[16px] text-background placeholder:text-background/40 outline-none shikshaq-auth-field';
-  const DARK_FIELD_ERROR = 'ring-2 ring-destructive';
+  const DARK_FIELD_ERROR = 'ring-2 ring-facet-destructive';
   /* AU-004a variant A takes the real published paper count for its third
      pill. Variant F's counts are deliberately not passed — see AuthHero. */
   const hero = resolveAuthHero(authIntent, { papers: paperCount });
@@ -683,8 +683,10 @@ export default function Auth() {
                     value={formData.newPassword}
                     onChange={handleInputChange}
                     className={`${DARK_FIELD} ${errors.newPassword ? DARK_FIELD_ERROR : ''}`}
+                    aria-invalid={errors.newPassword ? true : undefined}
+                    aria-describedby={errors.newPassword ? "newPassword-error" : undefined}
                   />
-                  {errors.newPassword && <p className="mt-2 text-sm text-destructive">{errors.newPassword}</p>}
+                  {errors.newPassword && <p id="newPassword-error" role="alert" className="mt-2 text-sm text-facet-destructive">{errors.newPassword}</p>}
                 </div>
 
                 <div>
@@ -698,8 +700,10 @@ export default function Auth() {
                     value={formData.confirmNewPassword}
                     onChange={handleInputChange}
                     className={`${DARK_FIELD} ${errors.confirmNewPassword ? DARK_FIELD_ERROR : ''}`}
+                    aria-invalid={errors.confirmNewPassword ? true : undefined}
+                    aria-describedby={errors.confirmNewPassword ? "confirmNewPassword-error" : undefined}
                   />
-                  {errors.confirmNewPassword && <p className="mt-2 text-sm text-destructive">{errors.confirmNewPassword}</p>}
+                  {errors.confirmNewPassword && <p id="confirmNewPassword-error" role="alert" className="mt-2 text-sm text-facet-destructive">{errors.confirmNewPassword}</p>}
                 </div>
 
                 <button
@@ -738,8 +742,10 @@ export default function Auth() {
                       value={formData.fullName}
                       onChange={handleInputChange}
                       className={`${DARK_FIELD} ${errors.fullName ? DARK_FIELD_ERROR : ''}`}
+                      aria-invalid={errors.fullName ? true : undefined}
+                      aria-describedby={errors.fullName ? "fullName-error" : undefined}
                     />
-                    {errors.fullName && <p className="mt-2 text-sm text-destructive">{errors.fullName}</p>}
+                    {errors.fullName && <p id="fullName-error" role="alert" className="mt-2 text-sm text-facet-destructive">{errors.fullName}</p>}
                   </div>
                 )}
 
@@ -787,8 +793,10 @@ export default function Auth() {
                       value={formData.email}
                       onChange={handleInputChange}
                       className={`${DARK_FIELD} ${errors.email ? DARK_FIELD_ERROR : ''}`}
+                      aria-invalid={errors.email ? true : undefined}
+                      aria-describedby={errors.email ? "email-error" : undefined}
                     />
-                    {errors.email && <p className="mt-2 text-sm text-destructive">{errors.email}</p>}
+                    {errors.email && <p id="email-error" role="alert" className="mt-2 text-sm text-facet-destructive">{errors.email}</p>}
 
                     {/* "Send me a link" sits immediately under the email field,
                         which is the order account-01-sign-in.png draws: Google,
@@ -798,7 +806,7 @@ export default function Auth() {
                         continues below; this is the default path, not the only
                         one, because eight existing accounts have passwords. */}
                     {isLogin && (magicSent ? (
-                      <div className="mt-3 rounded-[18px] bg-white/[0.08] px-4 py-3 text-[14px] leading-[1.5] text-background/80">
+                      <div role="status" className="mt-3 rounded-[18px] bg-white/[0.08] px-4 py-3 text-[14px] leading-[1.5] text-background/80">
                         <p>
                           Link sent to <span className="font-semibold text-background">{formData.email}</span>. Open it on
                           this device and you are in, no password needed. If you do not see it, look in Spam or Junk.
@@ -867,8 +875,10 @@ export default function Auth() {
                       value={formData.password}
                       onChange={handleInputChange}
                       className={`${DARK_FIELD} ${errors.password ? DARK_FIELD_ERROR : ''}`}
+                      aria-invalid={errors.password ? true : undefined}
+                      aria-describedby={errors.password ? "password-error" : undefined}
                     />
-                    {errors.password && <p className="mt-2 text-sm text-destructive">{errors.password}</p>}
+                    {errors.password && <p id="password-error" role="alert" className="mt-2 text-sm text-facet-destructive">{errors.password}</p>}
                   </div>
                 )}
 
@@ -888,8 +898,10 @@ export default function Auth() {
                         value={formData.email}
                         onChange={handleInputChange}
                         className={`${DARK_FIELD} ${errors.email ? DARK_FIELD_ERROR : ''}`}
+                        aria-invalid={errors.email ? true : undefined}
+                        aria-describedby={errors.email ? "email-error" : undefined}
                       />
-                      {errors.email && <p className="mt-2 text-sm text-destructive">{errors.email}</p>}
+                      {errors.email && <p id="email-error" role="alert" className="mt-2 text-sm text-facet-destructive">{errors.email}</p>}
                     </div>
                     <div className="mt-4 flex gap-2">
                       <button
@@ -929,8 +941,10 @@ export default function Auth() {
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
                       className={`${DARK_FIELD} ${errors.confirmPassword ? DARK_FIELD_ERROR : ''}`}
+                      aria-invalid={errors.confirmPassword ? true : undefined}
+                      aria-describedby={errors.confirmPassword ? "confirmPassword-error" : undefined}
                     />
-                    {errors.confirmPassword && <p className="mt-2 text-sm text-destructive">{errors.confirmPassword}</p>}
+                    {errors.confirmPassword && <p id="confirmPassword-error" role="alert" className="mt-2 text-sm text-facet-destructive">{errors.confirmPassword}</p>}
                   </div>
                 )}
 
@@ -988,7 +1002,7 @@ export default function Auth() {
             )}
 
             {!showResetPassword && !showForgotPassword && (
-              <p className="text-[12px] leading-relaxed text-background/45">
+              <p className="text-[12px] leading-relaxed text-background/60">
                 By continuing you agree to our{' '}
                 {/* target="_blank" — not a client-side <Link> — so reading the legal
                     text mid sign-up doesn't unmount this form and lose whatever the

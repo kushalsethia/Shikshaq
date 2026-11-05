@@ -166,6 +166,7 @@ export function LegalReader({
     : sections;
 
   return (
+    <main>
     <BentoStack>
       {/* LG-001 header: pill + h1 + lede + updated line. h1 drops the old
           38/60px display clamp for the 27px/800/-0.04em size every other
@@ -225,7 +226,7 @@ export function LegalReader({
               type="button"
               onClick={() => setQuery('')}
               aria-label="Clear search"
-              className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-warm-secondary transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-warm-secondary transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
@@ -240,6 +241,7 @@ export function LegalReader({
               <a
                 key={s.n}
                 href={`#legal-section-${s.n}`}
+                aria-current={isActive ? 'location' : undefined}
                 className={`flex min-h-11 items-center gap-3 py-[9px] text-[15px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   isLast ? '' : 'shadow-[inset_0_-1px_0_#F0EAE2]'
                 } ${matches ? '' : 'hidden'}`}
@@ -247,7 +249,7 @@ export function LegalReader({
                 <span className="w-[18px] flex-none text-[13px] font-bold tabular-nums text-warm-label">
                   {i + 1}
                 </span>
-                <span className={`flex-1 truncate font-semibold text-brand-blue ${isActive ? 'text-brand-blue-deep' : ''}`}>
+                <span className={`min-w-0 flex-1 break-words font-semibold text-brand-blue ${isActive ? 'text-brand-blue-deep' : ''}`}>
                   {s.title}
                 </span>
               </a>
@@ -286,14 +288,14 @@ export function LegalReader({
               <div className="mt-3.5" style={{textWrap:'pretty'}}>{s.body}</div>
 
               {s.bullets && s.bullets.length > 0 && (
-                <div className="mt-3.5 flex flex-col gap-2">
+                <ul className="mt-3.5 flex flex-col gap-2">
                   {s.bullets.map((b) => (
-                    <div key={b} className="flex items-start gap-[10px]">
-                      <span className={`mt-[9px] h-[6px] w-[6px] flex-none rounded-full ${accentDotClass}`} />
+                    <li key={b} className="flex items-start gap-[10px]">
+                      <span aria-hidden="true" className={`mt-[9px] h-[6px] w-[6px] flex-none rounded-full ${accentDotClass}`} />
                       <span className="text-[15px] leading-[1.6] text-warm-prose">{b}</span>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </div>
           ))}
@@ -391,5 +393,6 @@ export function LegalReader({
         onSubmit={handleBuilderSubmit}
       />
     </BentoStack>
+    </main>
   );
 }

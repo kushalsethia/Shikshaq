@@ -115,13 +115,13 @@ export default function Contact() {
               travels with it (as the mailto subject line), so a takedown
               request and a tutoring question no longer look identical. */}
           <BentoPanel fill="card" className="p-[22px]">
-            <span className="text-[12px] font-bold uppercase tracking-[0.04em] text-warm-label">
+            <span id="contact-reason-label" className="text-[12px] font-bold uppercase tracking-[0.04em] text-warm-label">
               What is it about
             </span>
             {/* Same "flex-col stack never got a desktop treatment" gap as
                 Index.tsx's board pills: at 1280px each button stretched to
                 the full ~680px panel width with nothing to constrain it. */}
-            <div className="mt-3 flex flex-col gap-2 lg:grid lg:grid-cols-2">
+            <div role="group" aria-labelledby="contact-reason-label" className="mt-3 flex flex-col gap-2 lg:grid lg:grid-cols-2">
               {REASONS.map((r) => {
                 const on = reason === r.id;
                 return (
@@ -160,6 +160,7 @@ export default function Contact() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       onBlur={nameField.onBlur}
+                      autoComplete="name"
                       placeholder="Priya Sharma"
                     />
                   )}

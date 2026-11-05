@@ -213,7 +213,7 @@ export default function SelectRole() {
   // through /join (qualifications, verification, etc.), not this role
   // picker, so it navigates there directly instead of calling setRole.
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <main className="flex min-h-screen flex-col bg-background">
       {/* Handoff SR-001: one full-height panel. */}
       <BentoPanel fill="card" edge="top" className="flex flex-1 flex-col px-5 pb-6 pt-1.5">
         <div className="mx-auto flex w-full max-w-[480px] flex-1 flex-col">
@@ -273,7 +273,7 @@ export default function SelectRole() {
                 className="flex min-h-[64px] items-center gap-[14px] rounded-[24px] bg-muted p-[18px] text-left text-foreground transition-[transform,background-color] duration-hover ease-settle hover:-translate-y-0.5 hover:bg-accent active:scale-[0.96]"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-background">
-                  <BookOpen className="h-[18px] w-[18px]" strokeWidth={2.1} />
+                  <BookOpen className="h-[18px] w-[18px]" strokeWidth={2.1} aria-hidden="true" />
                 </span>
                 <span className="flex-1">
                   <span className="font-display text-[17px] font-bold tracking-[-0.03em]">Teacher</span>
@@ -281,7 +281,7 @@ export default function SelectRole() {
                     Apply to teach, a separate application, not a role toggle.
                   </span>
                 </span>
-                <ChevronRight className="h-[18px] w-[18px] shrink-0 text-warm-meta" strokeWidth={2.4} />
+                <ChevronRight className="h-[18px] w-[18px] shrink-0 text-warm-meta" strokeWidth={2.4} aria-hidden="true" />
               </button>
             </div>
 
@@ -383,6 +383,6 @@ export default function SelectRole() {
         .shikshaq-role-field:focus,
         .shikshaq-role-field:focus-within { box-shadow: 0 0 0 2px hsl(var(--foreground)); outline: none; }
       `}</style>
-    </div>
+    </main>
   );
 }

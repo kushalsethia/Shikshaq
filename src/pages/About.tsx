@@ -262,7 +262,7 @@ export default function About() {
                     <IconDisc tone={c.tone} size={40} className="mb-3">
                       {c.icon}
                     </IconDisc>
-                    <p className="text-[15px] font-bold leading-[1.3] text-foreground">{c.title}</p>
+                    <h3 className="text-[15px] font-bold leading-[1.3] text-foreground">{c.title}</h3>
                     <p className="mt-2 text-[14px] leading-[1.6] text-foreground/70">{c.body}</p>
                   </div>
                 ))}
@@ -361,7 +361,7 @@ export default function About() {
                   <IconDisc tone="papers" size={40} className="mb-2.5">
                     <Search />
                   </IconDisc>
-                  <p className="text-[15px] font-bold text-brand-blue-deep">If you are looking</p>
+                  <h3 className="text-[15px] font-bold text-brand-blue-deep">If you are looking</h3>
                   <p className="mt-1.5 text-[14px] leading-[1.6] text-foreground/70">
                     Filter by subject, board and area, read real reviews, message the teacher
                     yourself. You never pay us, never in the middle.
@@ -371,7 +371,7 @@ export default function About() {
                   <IconDisc tone="brand" size={40} className="mb-2.5">
                     <GraduationCap />
                   </IconDisc>
-                  <p className="text-[15px] font-bold text-brand-deep">If you teach</p>
+                  <h3 className="text-[15px] font-bold text-brand-deep">If you teach</h3>
                   <p className="mt-1.5 text-[14px] leading-[1.6] text-foreground/70">
                     Free to list. Set your own rate, keep all of it. Enquiries are real
                     people messaging you, not sold leads.

@@ -246,6 +246,18 @@ export default function JoinApply() {
     window.scrollTo(0, 0);
   }, [step]);
 
+  // Move keyboard and screen-reader focus to the new step's heading after Save and continue or Back,
+  // so the change is announced. Skipped on first render so opening the form does not steal focus.
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const stepHeadingMounted = useRef(false);
+  useEffect(() => {
+    if (!stepHeadingMounted.current) {
+      stepHeadingMounted.current = true;
+      return;
+    }
+    stepHeadingRef.current?.focus({ preventScroll: true });
+  }, [step]);
+
   const valueExistsInString = (str: string | null, value: string): boolean => {
     if (!str) return false;
     const values = str.split(',').map((v) => v.trim().toLowerCase());
@@ -740,7 +752,7 @@ export default function JoinApply() {
           </span>
         </div>
         <div className="mt-3 text-[12px] font-bold uppercase tracking-[0.04em] text-background/50">{currentStep.label}</div>
-        <h1 className="mt-1.5 font-display text-[30px] font-black leading-[1.02] tracking-[-0.04em] text-background">{currentStep.head}</h1>
+        <h1 ref={stepHeadingRef} tabIndex={-1} className="mt-1.5 font-display text-[30px] font-black leading-[1.02] tracking-[-0.04em] text-background focus:outline-none">{currentStep.head}</h1>
         <p className="mt-2 text-[15px] leading-[1.5] text-background/65">{currentStep.lede}</p>
         <p className="mt-2 text-[13px] leading-[1.5] text-background/60" data-testid="draft-note">
           {draftRestored ? 'We put back what you had typed. ' : ''}Your answers are kept in this browser tab until you send the form. Closing the tab clears them.
@@ -756,7 +768,9 @@ export default function JoinApply() {
             // Enter in a text field should move to the next step rather than
             // submit the (incomplete) form. On the last step, let the native
             // submit happen. Textareas keep their own newline behaviour.
-            if (e.key === 'Enter' && !isLastStep && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+            // Only intercept Enter inside a text input. On a chip, switch or button Enter must keep its
+            // own meaning (toggle, activate), or a keyboard user cannot choose subjects at all.
+            if (e.key === 'Enter' && !isLastStep && (e.target as HTMLElement).tagName === 'INPUT' && (e.target as HTMLInputElement).type !== 'file') {
               e.preventDefault();
               goNext();
             }
@@ -800,8 +814,8 @@ export default function JoinApply() {
                   </Field>
 
                   <div>
-                    <Eyebrow as="p" className="mb-2">Sir or Ma'am <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
-                    <div className="flex gap-2">
+                    <Eyebrow as="p" id="ja-sir-maam" className="mb-2 whitespace-normal">Sir or Ma'am <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
+                    <div role="group" aria-labelledby="ja-sir-maam" className="flex gap-2">
                       {SIR_MAAM.map((option) => (
                         <Pill key={option} label={option} selected={formData.sir_maam === option} onClick={() => handleInputChange('sir_maam', option)} />
                       ))}
@@ -865,25 +879,26 @@ export default function JoinApply() {
                                 setImagePreview(null);
                                 handleInputChange('hero_image_url', '');
                               }}
-                              className="absolute top-2 right-2 flex items-center justify-center w-10 h-10 rounded-full bg-card/90 shadow-border"
+                              aria-label="Remove photo"
+                              className="absolute top-2 right-2 flex items-center justify-center w-11 h-11 rounded-full bg-card/90 shadow-border"
                             >
-                              <X className="w-4 h-4 text-foreground" />
+                              <X className="w-4 h-4 text-foreground" aria-hidden="true" />
                             </button>
                           </div>
                         );
                       })()}
                       <label
                         htmlFor="heroImageUpload"
-                        className="inline-flex items-center gap-2 w-fit min-h-11 px-4 rounded-lg text-sm font-semibold text-foreground ring-1 ring-inset ring-warm-hairline cursor-pointer"
+                        className="relative inline-flex items-center gap-2 w-fit min-h-11 px-4 rounded-lg text-sm font-semibold text-foreground ring-1 ring-inset ring-warm-hairline cursor-pointer focus-within:ring-2 focus-within:ring-ring"
                       >
-                        <Upload className="w-4 h-4" />
+                        <Upload className="w-4 h-4" aria-hidden="true" />
                         {selectedImageFile ? 'Change photo' : 'Select photo'}
                         <input
                           id="heroImageUpload"
                           type="file"
                           accept="image/*"
                           aria-label="Upload profile photo, optional, up to 5MB"
-                          className="hidden"
+                          className="sr-only"
                           onChange={handleImageFileChange}
                           disabled={submitting}
                         />
@@ -902,8 +917,8 @@ export default function JoinApply() {
               <div className="animate-fade-slide-up">
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Subjects <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
-                  <div className="flex flex-wrap gap-2">
+                  <Eyebrow as="p" id="ja-subjects" className="mb-3 whitespace-normal">Subjects <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
+                  <div role="group" aria-labelledby="ja-subjects" className="flex flex-wrap gap-2">
                     {SUBJECTS.map((subject) => {
                       const selected = valueExistsInString(formData.subjects, subject);
                       const sc = getSubjectColors(subject);
@@ -921,8 +936,8 @@ export default function JoinApply() {
                 </div>
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Boards catered <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
-                  <div className="flex flex-wrap gap-2">
+                  <Eyebrow as="p" id="ja-boards" className="mb-3 whitespace-normal">Boards catered <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
+                  <div role="group" aria-labelledby="ja-boards" className="flex flex-wrap gap-2">
                     {BOARDS.map((board) => {
                       const selected = valueExistsInString(formData.school_boards_catered, board);
                       return (
@@ -939,8 +954,8 @@ export default function JoinApply() {
                 </div>
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Classes <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
-                  <div className="grid grid-cols-6 gap-2">
+                  <Eyebrow as="p" id="ja-classes" className="mb-3 whitespace-normal">Classes <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
+                  <div role="group" aria-labelledby="ja-classes" className="grid grid-cols-6 gap-2">
                     {CLASSES.map((cls) => {
                       const selected = valueExistsInString(formData.classes_taught_for_backend, cls);
                       return (
@@ -951,8 +966,8 @@ export default function JoinApply() {
                 </div>
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Structure of classes <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
-                  <div className="flex flex-wrap gap-2">
+                  <Eyebrow as="p" id="ja-structure" className="mb-3 whitespace-normal">Structure of classes <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
+                  <div role="group" aria-labelledby="ja-structure" className="flex flex-wrap gap-2">
                     {CLASS_SIZE.map((size) => {
                       const selected = valueExistsInString(formData.class_size, size);
                       return (
@@ -1016,8 +1031,8 @@ export default function JoinApply() {
 
                 {showStudentAreas && (
                   <div className="mb-6">
-                    <Eyebrow as="p" className="mb-3">Areas you teach in (student's home) <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
-                    <div className="flex flex-wrap gap-2">
+                    <Eyebrow as="p" id="ja-areas-student" className="mb-3 whitespace-normal">Areas you teach in (student's home) <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
+                    <div role="group" aria-labelledby="ja-areas-student" className="flex flex-wrap gap-2">
                       {AREAS.map((area) => {
                         const selected = valueExistsInString(formData.students_home_areas, area);
                         return (
@@ -1036,8 +1051,8 @@ export default function JoinApply() {
 
                 {showTutorAreas && (
                   <div className="mb-6">
-                    <Eyebrow as="p" className="mb-3">Areas you teach in (your home) <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
-                    <div className="flex flex-wrap gap-2">
+                    <Eyebrow as="p" id="ja-areas-tutor" className="mb-3 whitespace-normal">Areas you teach in (your home) <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
+                    <div role="group" aria-labelledby="ja-areas-tutor" className="flex flex-wrap gap-2">
                       {AREAS.map((area) => {
                         const selected = valueExistsInString(formData.tutors_home_areas, area);
                         return (
@@ -1057,8 +1072,8 @@ export default function JoinApply() {
                 <p className="mb-2 text-meta text-warm-meta">We show your locality and radius, like "Doranda, travels 5 km", and nothing more precise than that.</p>
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Mode of teaching <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
-                  <div className="flex flex-wrap gap-2">
+                  <Eyebrow as="p" id="ja-mode" className="mb-3 whitespace-normal">Mode of teaching <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
+                  <div role="group" aria-labelledby="ja-mode" className="flex flex-wrap gap-2">
                     {MODE_OF_TEACHING.map((mode) => {
                       const selected = valueExistsInString(formData.mode_of_teaching, mode);
                       return (
