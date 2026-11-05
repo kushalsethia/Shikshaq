@@ -425,7 +425,7 @@ export default function SubmitPaper() {
             )}
 
             {stage === 'fallback' && (
-              <div className="mt-3 rounded-[16px] bg-brand-subtle p-4">
+              <div role="alert" className="mt-3 rounded-[16px] bg-brand-subtle p-4">
                 <p className="text-[14px] font-bold text-brand-deep">Upload could not go through</p>
                 <p className="mt-1 text-[14px] leading-[1.55] text-brand-deep/85">
                   Nothing you typed is lost. Send it over WhatsApp instead and we will take it from
