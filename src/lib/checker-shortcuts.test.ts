@@ -98,7 +98,7 @@ describe('shortcutRows (the "?" popover)', () => {
   });
 
   it('while a fix or a split is open the one key that works is Escape', () => {
-    expect(shortcutRows({ canSplit: true, canPass: true, canUndo: true, editing: true })).toEqual([{ keys: 'Esc', does: 'Cancel and go back' }]);
+    expect(shortcutRows({ canSplit: true, canPass: true, canUndo: true, editing: true })).toEqual([{ keys: 'Esc', does: 'Cancel and go back. With typed changes, press it twice.' }]);
   });
 
   it('names the same keys as the old hint line did', () => {

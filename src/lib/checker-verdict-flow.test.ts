@@ -309,3 +309,63 @@ describe('decideAck: what the screen does with the answer', () => {
     expect(nextForScreen(result(null))).toBeNull();
   });
 });
+
+describe('a lease that ran out during a long edit is taken again once (finding E)', () => {
+  const notAssigned = () => Object.assign(new Error('This question is not currently assigned to you'), { code: '42501' });
+  const fixEntry = entry('fix', { patch: { body: 'my long edit' }, version: 3 });
+  const stillOpen = { id: 'q', state: 'to_verify', version: 3, body: 'old words', display_number: '1', marks: 2 };
+
+  it('the same question comes back: the verdict is sent once more, with the version the checker saw', async () => {
+    const a = apiMock();
+    a.verdictAndNext.mockRejectedValueOnce(notAssigned()).mockResolvedValueOnce(result());
+    a.paperQuestions.mockResolvedValue([stillOpen]);
+    a.nextInPaper.mockResolvedValue({ ...nextRow, id: 'q' });
+    const res = await sendVerdict(a as never, fixEntry);
+    expect(res.verdict_ok).toBe(true);
+    expect(a.nextInPaper).toHaveBeenCalledWith('paperA', { includeSkipped: undefined });
+    expect(a.verdictAndNext).toHaveBeenCalledTimes(2);
+    expect(a.verdictAndNext.mock.calls[1][0]).toMatchObject({ questionId: 'q', version: 3, patch: { body: 'my long edit' } });
+  });
+
+  it('another question came back (someone else has this one): the refusal is shown, nothing is sent again', async () => {
+    const a = apiMock();
+    const err = notAssigned();
+    a.verdictAndNext.mockRejectedValue(err);
+    a.paperQuestions.mockResolvedValue([stillOpen]);
+    a.nextInPaper.mockResolvedValue(nextRow); // q2, not q
+    await expect(sendVerdict(a as never, fixEntry)).rejects.toBe(err);
+    expect(a.verdictAndNext).toHaveBeenCalledTimes(1);
+    expect(isConfirmedNotSaved(err)).toBe(true);
+  });
+
+  it('the question was already answered (done): it is confirmed saved, no second send', async () => {
+    const a = apiMock();
+    a.verdictAndNext.mockRejectedValue(notAssigned());
+    a.paperQuestions.mockResolvedValue([{ ...stillOpen, state: 'done', version: 4, body: 'my long edit' }]);
+    const res = await sendVerdict(a as never, fixEntry);
+    expect(res.verdict_ok).toBe(true);
+    expect(a.verdictAndNext).toHaveBeenCalledTimes(1);
+    expect(a.nextInPaper).toHaveBeenCalledTimes(1);
+  });
+
+  it('the second send is refused too (someone changed the words): that refusal is shown and marked not saved', async () => {
+    const a = apiMock();
+    const second = Object.assign(new Error('stale question: you saw version 3, it is now at version 4'), { code: '40001' });
+    a.verdictAndNext.mockRejectedValueOnce(notAssigned()).mockRejectedValueOnce(second);
+    a.paperQuestions.mockResolvedValue([stillOpen]);
+    a.nextInPaper.mockResolvedValue({ ...nextRow, id: 'q' });
+    await expect(sendVerdict(a as never, fixEntry)).rejects.toBe(second);
+    expect(a.verdictAndNext).toHaveBeenCalledTimes(2);
+    expect(isConfirmedNotSaved(second)).toBe(true);
+  });
+
+  it('asking for the question again fails: the original refusal is shown', async () => {
+    const a = apiMock();
+    const err = notAssigned();
+    a.verdictAndNext.mockRejectedValue(err);
+    a.paperQuestions.mockResolvedValue([stillOpen]);
+    a.nextInPaper.mockRejectedValue(new TypeError('offline'));
+    await expect(sendVerdict(a as never, fixEntry)).rejects.toBe(err);
+    expect(a.verdictAndNext).toHaveBeenCalledTimes(1);
+  });
+});

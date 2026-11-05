@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { withTimeout } from '@/lib/checker-timeout';
 import type { ContextRow } from '@/lib/checker-context';
 import { mergeQueueRows } from '@/lib/paper-review-filter';
 import { normaliseExtra, type LibraryExtra } from '@/lib/library-views';
@@ -117,6 +118,17 @@ function rpcRows<T>(data: unknown): T[] {
   return ((data ?? []) as unknown) as T[];
 }
 
+/** supabase.rpc with a time limit. A request that hangs is aborted and rejects
+ *  (RequestTimeoutError, checker-timeout.ts), so the caller's failure path runs
+ *  the same way it does for a lost connection. Used by the calls whose hanging
+ *  would freeze a button: the verdict, Undo, Split, OR, and the reads that bring
+ *  the next question. */
+function timedRpc(fn: string, params?: object) {
+  const abort = new AbortController();
+  const call = supabase.rpc(fn as never, params as never).abortSignal(abort.signal);
+  return withTimeout(call, undefined, () => abort.abort());
+}
+
 export async function isPaperChecker(): Promise<boolean> {
   const { data, error } = await supabase.rpc('is_paper_checker' as never);
   // A failed call is "could not check", never "not a verifier": throw so the
@@ -187,11 +199,11 @@ export async function checkerSplitQuestion(
   bodyBefore: string,
   splitAt: number,
 ): Promise<{ first_id: string; second_id: string } | null> {
-  const { data, error } = await supabase.rpc('checker_split_question' as never, {
+  const { data, error } = await timedRpc('checker_split_question', {
     p_question_id: questionId,
     p_body_before: bodyBefore,
     p_split_at: splitAt,
-  } as never);
+  });
   if (error) throw error;
   return rpcRow<{ first_id: string; second_id: string }>(data);
 }
@@ -207,7 +219,7 @@ export async function checkerAskForHelp(questionId: string, reason: string): Pro
 /** A row that is only the word OR (verifier_or_separator, 20261008150000): it is
  *  set aside and the questions either side of it are linked as alternatives. */
 export async function checkerMarkOrSeparator(questionId: string): Promise<void> {
-  const { error } = await supabase.rpc('verifier_or_separator' as never, { p_question_id: questionId } as never);
+  const { error } = await timedRpc('verifier_or_separator', { p_question_id: questionId });
   if (error) throw error;
 }
 
@@ -345,7 +357,7 @@ export async function verifierMyPapers(): Promise<MyPaper[]> {
 
 /** Every question of one paper the caller holds, with a state each (verifier_paper_questions). */
 export async function verifierPaperQuestions(paperId: string): Promise<PaperQuestion[]> {
-  const { data, error } = await supabase.rpc('verifier_paper_questions' as never, { p_paper_id: paperId } as never);
+  const { data, error } = await timedRpc('verifier_paper_questions', { p_paper_id: paperId });
   if (error) throw error;
   return normalisePaperQuestions(data);
 }
@@ -358,10 +370,10 @@ export async function verifierNextInPaper(
 ): Promise<CheckerQuestion | null> {
   // Skipped questions wait for later (20261008160000): they are served only
   // when the verifier asks to go through them.
-  const { data, error } = await supabase.rpc('verifier_next_in_paper' as never, {
+  const { data, error } = await timedRpc('verifier_next_in_paper', {
     p_paper_id: paperId,
     p_include_skipped: Boolean(options.includeSkipped),
-  } as never);
+  });
   if (error) throw error;
   return rpcRow<CheckerQuestion>(data);
 }
@@ -373,7 +385,7 @@ export async function verifierNextInPaper(
  *  Fix it path, which keeps every earlier wording in history. A refusal is a
  *  plain sentence (errcode 22023) or "not yours" (42501). */
 export async function verifierReopenQuestion(questionId: string): Promise<CheckerQuestion> {
-  const { data, error } = await supabase.rpc('verifier_reopen_question' as never, { p_question_id: questionId } as never);
+  const { data, error } = await timedRpc('verifier_reopen_question', { p_question_id: questionId });
   if (error) throw error;
   const row = rpcRow<CheckerQuestion>(data);
   if (!row) throw new Error('That question did not open. Try again.');
@@ -429,7 +441,7 @@ export async function peekNextInPaper(paperId: string, count = 2): Promise<Peeke
  *  like a failed passQuestion / fixQuestion. */
 export async function verdictAndNext(input: VerdictAndNextInput): Promise<VerdictAndNext> {
   const params = verdictAndNextArgs(input);
-  const { data, error } = await supabase.rpc('verifier_verdict_and_next' as never, params as never);
+  const { data, error } = await timedRpc('verifier_verdict_and_next', params);
   if (error) throw error;
   return normaliseVerdictAndNext(data);
 }
@@ -442,12 +454,12 @@ export async function passAndNext(
   paperId: string,
   options: { includeSkipped?: boolean } = {},
 ): Promise<VerdictAndNext> {
-  const { data, error } = await supabase.rpc('verifier_pass_and_next' as never, {
+  const { data, error } = await timedRpc('verifier_pass_and_next', {
     p_question_id: questionId,
     p_expected_version: version ?? null,
     p_paper_id: paperId,
     p_include_skipped: Boolean(options.includeSkipped),
-  } as never);
+  });
   if (error) throw error;
   return normaliseVerdictAndNext(data);
 }
@@ -467,7 +479,7 @@ export interface UndoResult {
  *  the question. A refusal comes back as an error whose message is a plain
  *  sentence for the verifier (errcode 22023). */
 export async function verifierUndoLast(paperId: string): Promise<UndoResult> {
-  const { data, error } = await supabase.rpc('verifier_undo_last' as never, { p_paper_id: paperId } as never);
+  const { data, error } = await timedRpc('verifier_undo_last', { p_paper_id: paperId });
   if (error) throw error;
   const raw = data as unknown;
   const row = (Array.isArray(raw) ? raw[0] : raw) as UndoResult | null | undefined;

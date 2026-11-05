@@ -40,7 +40,7 @@ describe('verify screen wiring (QA 2026-10-11)', () => {
   it('finding 8: typed work is autosaved, restored, and dropped only after a successful answer', () => {
     expect(screen).toContain('saveDraft(scope, question, now)');
     expect(screen).toContain('loadDraft(scope, question, lost)');
-    expect(screen).toMatch(/await action\(\);\s+if \(dropDraftFor\) clearDraft\(scope, dropDraftFor\)/);
+    expect(screen).toMatch(/await action\(\);\s+if \(dropDraft\) clearDraft\(scope, questionId\)/);
   });
 
   it('finding 20: a second click in the same tick does not send a second request', () => {
@@ -78,5 +78,78 @@ describe('verify screen wiring (QA 2026-10-11)', () => {
     expect(screen).toContain('title="The whole paper"');
     // A new question starts with it closed, like the whole page.
     expect(screen).toContain('setShowPaper(false);');
+  });
+});
+
+describe('verify screen faults fixed 5 Nov 2026', () => {
+  it('fault 1: a refused verdict on a closed paper shows the paper-gone screen, not "check your internet"', () => {
+    const load = screen.slice(screen.indexOf('async function loadNext('), screen.indexOf('function ackedVerdict('));
+    // the catch keeps the error and classifies it with the shared helper
+    expect(load).toMatch(/catch \(err\) \{/);
+    expect(load).toContain('nextLoadProblem(err, qc.getQueryData(keyFor(inc)))');
+    // the screen reads that kind before it falls back to the query's own error
+    expect(screen).toMatch(/const nextProblem =\s+nextFailed && failedKind !== 'failed' \? failedKind : nextLoadProblem\(questionQuery\.error, questionQuery\.data\)/);
+    // a refused verdict does not clear the typed Fix text (only an accepted one does)
+    const rejected = screen.slice(screen.indexOf('function rejectedVerdict('), screen.indexOf('function retryNext('));
+    expect(rejected).not.toContain('clearDraft');
+  });
+
+  it('fault 2: the reopen parameter leaves the URL once it has been taken', () => {
+    const first = screen.slice(screen.indexOf('async function fetchFirstRow('), screen.indexOf('const questionQuery = useQuery'));
+    expect(first).toContain('reopenOnce.current = null;');
+    expect(first).toMatch(/if \(id\) \{\s+onReopenTaken\?\.\(\);/);
+    const page = readFileSync(resolve(__dirname, '../../pages/Checker.tsx'), 'utf8');
+    expect(page).toContain('onReopenTaken={() => setParams((p) => withoutReopen(p), { replace: true })}');
+  });
+
+  it('fault 3: Escape on unsaved edits asks twice, and the keys wait while the Menu is open', () => {
+    const keys = screen.slice(screen.indexOf('function onKeyDown('), screen.indexOf('const keyHandlerRef'));
+    expect(keys).toContain('if (submitting || tourOpen || lightbox || suspended) return;');
+    expect(keys).toContain('escapeStep(unsavedEdit, escArmedRef.current, Date.now())');
+    expect(keys).toContain('ESC_AGAIN_NOTICE');
+    const page = readFileSync(resolve(__dirname, '../../pages/Checker.tsx'), 'utf8');
+    expect(page).toContain('suspended={menuOpen}');
+  });
+});
+
+describe('verify screen wiring (check and fix, Nov 2026)', () => {
+  it('B: a refused verdict leaves the Undo list and holds Undo off until the next answer', () => {
+    const rejected = screen.slice(screen.indexOf('function rejectedVerdict'), screen.indexOf('function retryNext'));
+    expect(rejected).toContain('forgetAnswered(a, entry.questionId)');
+    expect(rejected).toContain('setUndoHeld(true)');
+    const submit = screen.slice(screen.indexOf('function submitVerdict'), screen.indexOf('const blank = '));
+    expect(submit).toContain('recordAnswered(a, question.id, kind)');
+    expect(submit).toContain('setUndoHeld(false)');
+  });
+
+  it('B: the Undo button, its key and the shortcuts list all read canUndo, not the visit list', () => {
+    expect(screen).toContain('canUndoNow(answered, paperRow?.done, undoHeld)');
+    expect(screen).toMatch(/disabled=\{submitting \|\| !canUndo\}/);
+    expect(screen).toMatch(/action === 'undo' && canUndo/);
+    expect(screen).not.toMatch(/answered\.length/);
+  });
+
+  it('C: skipping the last question sets skippedLastAt, and the finished screen asks skippedLeft first', () => {
+    const acked = screen.slice(screen.indexOf('function ackedVerdict'), screen.indexOf('function rejectedVerdict'));
+    expect(acked).toMatch(/!next && entry\.kind === 'skip'\) setSkippedLastAt\(ackAt\)/);
+    expect(screen).toContain('!question && skippedLeft.show');
+    // the list that has not arrived yet must not turn into "Paper finished" over a skip
+    expect(screen).toMatch(/paperGate === 'loading' && !skippedLeft\.show/);
+    expect(screen).toMatch(/paperGate === 'error' && !skippedLeft\.show/);
+    expect(screen).toContain('listReadAt: papersQuery.dataUpdatedAt');
+  });
+
+  it('A and E: a refused fix and an answer from another tab keep the typed words on screen', () => {
+    const rejected = screen.slice(screen.indexOf('function rejectedVerdict'), screen.indexOf('function retryNext'));
+    expect(rejected).toContain('typedWordsOfVerdict(entry.kind, entry.payload)');
+    expect(rejected).toContain('setLostWords(words)');
+    expect(screen).toContain('data-testid="kept-words"');
+    expect(screen).toContain('readOnly');
+    expect(screen).toContain('mayBeMyOtherTabAnswering(event, question.id, userId)');
+    const elsewhere = screen.slice(screen.indexOf('async function checkAnsweredElsewhere'), screen.indexOf('const refresh = () =>'));
+    // the paper's own list is read before anyone is moved
+    expect(elsewhere).toContain('api.paperQuestions(paperId)');
+    expect(elsewhere).toContain('answeredElsewhere(row)');
+    expect(elsewhere).toContain('setLostWords(typedWordsRef.current)');
   });
 });

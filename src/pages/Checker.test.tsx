@@ -7,7 +7,7 @@ vi.mock('@/integrations/supabase/client', () => ({ supabase: { rpc: (...a: unkno
 
 import { ProfileLoadError } from '@/pages/Checker';
 import { isPaperChecker } from '@/lib/checker-api';
-import { checkerSignInPath, loadGate } from '@/lib/verifier-papers';
+import { checkerSignInPath, loadGate, withoutReopen } from '@/lib/verifier-papers';
 
 describe('the verifier home when a read fails', () => {
   it('a failed profile read shows a retry, never the blank form or the "fill in" prompt', () => {
@@ -96,3 +96,17 @@ describe('the verify screen Menu (one button in the top tile)', () => {
   });
 });
 
+describe('the reopen parameter (5 Nov 2026)', () => {
+  it('withoutReopen drops reopen and keeps every other parameter', () => {
+    const before = new URLSearchParams('paper=p1&verify=1&reopen=q9&tour=1');
+    const after = withoutReopen(before);
+    expect(after.get('reopen')).toBeNull();
+    expect(after.toString()).toBe('paper=p1&verify=1&tour=1');
+    // the original is not changed
+    expect(before.get('reopen')).toBe('q9');
+  });
+
+  it('withoutReopen leaves a URL with no reopen as it was', () => {
+    expect(withoutReopen(new URLSearchParams('paper=p1&verify=1')).toString()).toBe('paper=p1&verify=1');
+  });
+});

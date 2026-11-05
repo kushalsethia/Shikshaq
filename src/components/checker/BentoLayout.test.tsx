@@ -200,7 +200,7 @@ describe('the verify screen is wired as one viewport', () => {
   it('a picture opens full screen on tap, and nothing is answered behind it', () => {
     expect(screen).toContain('<ImageLightbox');
     expect(screen).toContain('aria-label="Enlarge the printed question"');
-    expect(screen).toContain('if (submitting || tourOpen || lightbox) return;');
+    expect(screen).toContain('if (submitting || tourOpen || lightbox || suspended) return;');
     expect(read('./BentoParts.tsx')).toContain("e.key === 'Escape'");
     expect(read('./BentoParts.tsx')).toContain('object-contain');
   });

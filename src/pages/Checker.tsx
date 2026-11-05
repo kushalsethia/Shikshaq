@@ -39,6 +39,7 @@ import {
   sortPapers,
   stateSummary,
   VERIFIER_GRADE_OPTIONS,
+  withoutReopen,
   type PaperQuestionState,
 } from '@/lib/verifier-papers';
 
@@ -261,6 +262,8 @@ export function CheckerPage({
             dummy={dummy}
             paperId={paperId!}
             reopenQuestionId={params.get('reopen') ?? undefined}
+            onReopenTaken={() => setParams((p) => withoutReopen(p), { replace: true })}
+            suspended={menuOpen}
             userId={user?.id}
             userName={profile?.full_name}
             onExit={() => open(paperId!)}
