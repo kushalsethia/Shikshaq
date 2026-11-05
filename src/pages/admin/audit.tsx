@@ -161,7 +161,7 @@ export function AuditPanel({
         onChange={(e) => onSearch(e.target.value)}
         placeholder="Search by admin, action, or entity..."
         aria-label="Search the admin actions"
-        className="h-11 w-full rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
+        className="h-11 w-full rounded-full bg-muted pl-9 pr-4 text-base sm:text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
       />
     </div>
   );

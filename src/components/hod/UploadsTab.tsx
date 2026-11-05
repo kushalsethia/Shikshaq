@@ -123,7 +123,7 @@ function UploadCard({ api, upload, onDone }: { api: HodApi; upload: HodStudentUp
                 onChange={(ev) => setNote(ev.target.value)}
                 rows={2}
                 disabled={busy}
-                className="w-full rounded-xl bg-card p-3 text-[14px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="w-full rounded-xl bg-card p-3 text-[16px] sm:text-[14px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand"
               />
             </label>
           ) : null}

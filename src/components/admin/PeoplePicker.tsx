@@ -122,7 +122,7 @@ export function PeoplePicker({
             }}
             placeholder="Search by name or email"
             aria-label={ariaLabel}
-            className="h-11 w-full max-w-full rounded-full bg-muted pl-10 pr-4 text-sm text-foreground outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+            className="h-11 w-full max-w-full rounded-full bg-muted pl-10 pr-4 text-base sm:text-sm text-foreground outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
           />
         </span>
       </label>

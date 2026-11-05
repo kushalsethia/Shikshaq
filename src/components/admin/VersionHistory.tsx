@@ -180,7 +180,7 @@ export function VersionHistory({
                           value={reason}
                           onChange={(e) => setReason(e.target.value)}
                           maxLength={300}
-                          className="min-h-[40px] rounded-xl bg-muted px-3 text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                          className="min-h-[40px] rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
                         />
                       </label>
                       <div className="mt-2 flex flex-wrap gap-2">

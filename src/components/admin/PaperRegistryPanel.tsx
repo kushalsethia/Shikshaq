@@ -53,7 +53,7 @@ import {
    legend under the pills because a hover title does not exist on a phone. */
 
 const PANEL = 'px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]';
-const CONTROL = 'h-11 rounded-xl bg-muted px-3 text-[14px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const CONTROL = 'h-11 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 const TITLE = 'Papers: processed and not processed';
 const SCOPE = 'Every source PDF the desk knows about, started or not. This counts PDFs, not the papers on the site.';
 

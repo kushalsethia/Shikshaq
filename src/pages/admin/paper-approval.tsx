@@ -527,7 +527,7 @@ export function AdminPaperApprovalPage({
                   onChange={(e) => setNote(e.target.value)}
                   rows={3}
                   maxLength={500}
-                  className="rounded-xl bg-muted px-3 py-2 text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  className="rounded-xl bg-muted px-3 py-2 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 />
               </label>
             ) : null}

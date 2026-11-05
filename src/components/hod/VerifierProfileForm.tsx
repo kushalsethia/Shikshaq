@@ -43,7 +43,7 @@ export function VerifierProfileForm({
     onSave({ full_name: fullName.trim(), grade: Number(grade), school: school.trim(), board: board.trim(), valid_until: validUntil });
   }
 
-  const field = 'min-h-[40px] w-full rounded-xl bg-card px-3 py-1 text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand';
+  const field = 'min-h-[40px] w-full rounded-xl bg-card px-3 py-1 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand';
   const label = 'flex flex-col gap-1 text-[13px] font-semibold text-foreground';
 
   return (

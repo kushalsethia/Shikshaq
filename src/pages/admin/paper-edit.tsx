@@ -516,11 +516,11 @@ function PaperHeader({
       <p className="text-[13px] italic text-muted-foreground">
         <DetailText field="school" label="School" value={v('school')} onSave={onSave} display={(s) => displaySchool(s)} />
       </p>
-      <h2 className="mt-1 font-display text-[20px] font-extrabold tracking-[-0.02em] text-foreground sm:text-[23px]">
+      <h1 className="mt-1 font-display text-[20px] font-extrabold tracking-[-0.02em] text-foreground sm:text-[23px]">
         Class <DetailText field="cls" label="Class" value={v('cls')} onSave={onSave} />{' '}
         <DetailText field="subject" label="Subject" value={v('subject')} onSave={onSave} display={(s) => bankSubjectToSite(s)} />{' '}
         · <DetailText field="exam" label="Exam" value={v('exam')} onSave={onSave} placeholder="Add exam" />
-      </h2>
+      </h1>
       <p className="mt-0.5 text-[13px] tabular-nums text-muted-foreground">
         <DetailText field="year" label="Year" value={v('year')} onSave={onSave} placeholder="Add year" />
       </p>
@@ -632,7 +632,7 @@ function DetailText({
         }
       },
       className:
-        'w-full rounded-xl bg-muted px-3 py-2 text-left text-[15px] font-normal not-italic normal-case tracking-normal text-foreground outline-none focus:ring-2 focus:ring-brand',
+        'w-full rounded-xl bg-muted px-3 py-2 text-left text-[16px] sm:text-[15px] font-normal not-italic normal-case tracking-normal text-foreground outline-none focus:ring-2 focus:ring-brand',
     };
     return (
       <span className="my-1 inline-flex w-full max-w-md flex-col items-stretch gap-1.5 align-top">
@@ -656,7 +656,6 @@ function DetailText({
     <button
       type="button"
       onClick={open}
-      aria-label={empty ? placeholder ?? `Add ${label.toLowerCase()}` : `Edit ${label.toLowerCase()}`}
       className={cn(
         'group inline-flex min-h-8 max-w-full items-center gap-1 rounded-md px-0.5 text-inherit transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
         empty && 'font-semibold not-italic text-brand-blue',
@@ -669,6 +668,8 @@ function DetailText({
       ) : (
         <span>{display ? display(value) : value}</span>
       )}
+      {/* The visible words are the button's name (so the value is read out); this only says what the button does. */}
+      {empty ? null : <span className="sr-only">{`, edit ${label.toLowerCase()}`}</span>}
       <Pencil size={12} aria-hidden="true" className="shrink-0 opacity-40 group-hover:opacity-100" />
     </button>
   );
@@ -937,7 +938,7 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
                     value={fields.number}
                     onChange={(e) => edit({ number: e.target.value })}
                     aria-label="Question number"
-                    className="h-11 w-20 rounded-xl bg-card px-2 text-center text-[15px] font-bold text-foreground outline-none focus:ring-2 focus:ring-brand"
+                    className="h-11 w-20 rounded-xl bg-card px-2 text-center text-[16px] sm:text-[15px] font-bold text-foreground outline-none focus:ring-2 focus:ring-brand"
                   />
                 </label>
                 <label className="flex items-center gap-1.5 text-[13px] font-semibold text-warm-secondary">
@@ -947,7 +948,7 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
                     onChange={(e) => edit({ marks: e.target.value })}
                     inputMode="decimal"
                     aria-label="Marks"
-                    className="h-11 w-16 rounded-xl bg-card px-2 text-center text-[15px] text-foreground outline-none focus:ring-2 focus:ring-brand"
+                    className="h-11 w-16 rounded-xl bg-card px-2 text-center text-[16px] sm:text-[15px] text-foreground outline-none focus:ring-2 focus:ring-brand"
                   />
                 </label>
               </div>
@@ -958,7 +959,7 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
                 aria-label="Question text"
                 spellCheck={false}
                 autoFocus
-                className="w-full rounded-xl bg-card p-3 text-[15px] leading-relaxed text-foreground outline-none focus:ring-2 focus:ring-brand"
+                className="w-full rounded-xl bg-card p-3 text-[16px] sm:text-[15px] leading-relaxed text-foreground outline-none focus:ring-2 focus:ring-brand"
               />
               {bigEdit ? (
                 <p role="status" className="mt-1.5 rounded-[10px] bg-brand-subtle px-3 py-2 text-[13px] font-semibold text-brand-deep">
