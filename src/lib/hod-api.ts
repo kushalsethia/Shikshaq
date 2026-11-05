@@ -137,6 +137,8 @@ export interface HodTeamMember {
   edited: number;
   escalated: number;
   skipped: number;
+  /** Questions this verifier skipped and then dealt with themselves (hod_team, 20261102100000). */
+  skipped_done: number;
   overturned: number;
   last_active: string | null;
 }
@@ -162,6 +164,7 @@ export function normaliseTeamMember(raw: unknown): HodTeamMember | null {
     edited: num(r.edited),
     escalated: num(r.escalated),
     skipped: num(r.skipped),
+    skipped_done: num(r.skipped_done),
     overturned: num(r.overturned),
     last_active: str(r.last_active),
   };
@@ -197,7 +200,8 @@ export const TEAM_COLUMNS: TeamColumn[] = [
   { key: 'edited', label: 'Fixed', hint: 'Questions where they changed the words, number or marks.' },
   { key: 'escalated', label: 'Sent to HOD', hint: 'Questions they asked the HOD about.' },
   { key: 'skipped', label: 'Skipped', hint: 'Questions they skipped. They wait on the paper until the verifier goes back to them.' },
-  { key: 'overturned', label: 'Later corrected', hint: 'Questions they passed that someone else later fixed.' },
+  { key: 'skipped_done', label: 'Later corrected', hint: 'Questions they skipped and then went back to and dealt with themselves.' },
+  { key: 'overturned', label: 'Fixed by others', hint: 'Questions they passed that someone else later fixed.' },
   { key: 'last_active', label: 'Last active', hint: 'When they last checked a question.' },
 ];
 
@@ -583,6 +587,8 @@ export interface HodApi {
   editQuestion(questionId: string, version: number, changes: Record<string, unknown>, note?: string): Promise<number>;
   /** hod_ready_papers(): papers waiting for a yes, with the four checks. */
   readyPapers(): Promise<HodReadyPaper[]>;
+  /** hod_unqueued_papers_count(): papers fully checked but not yet queued for the desk. A server without it answers 0. */
+  unqueuedCount(): Promise<number>;
   /** hod_paper_preview(): the paper, its questions, counts, pages and the four checks. */
   paperPreview(auditPaperId: string): Promise<HodPreview>;
   /** hod_update_publish_meta(): one header field before the paper goes live. */
@@ -708,6 +714,14 @@ export const realHodApi: HodApi = {
   },
   async readyPapers() {
     return normaliseReadyPapers(await call('hod_ready_papers'));
+  },
+  async unqueuedCount() {
+    // The banner is a courtesy: until the migration is applied (or if the call fails) show nothing, never an error.
+    try {
+      return Math.max(0, num(await call('hod_unqueued_papers_count')));
+    } catch {
+      return 0;
+    }
   },
   async paperPreview(auditPaperId) {
     return normalisePreview(await call('hod_paper_preview', { p_audit_paper_id: auditPaperId }));

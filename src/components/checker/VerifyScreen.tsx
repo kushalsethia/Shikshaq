@@ -49,7 +49,7 @@ import {
   moveMarksOut,
   BIG_EDIT_WARNING,
 } from '@/lib/checker-body';
-import { checkerErrorAdvice, reopenErrorMessage, undoErrorMessage, UNDONE_NOTE, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE } from '@/lib/checker-errors';
+import { checkerErrorAdvice, nextLoadProblem, reopenErrorMessage, undoErrorMessage, UNDONE_NOTE, LOAD_FAILED_TITLE, LOAD_FAILED_NOTE, PAPER_GONE_TITLE, PAPER_GONE_NOTE } from '@/lib/checker-errors';
 import { normaliseOptions } from '@/lib/checker-options';
 import {
   clearDraft,
@@ -244,6 +244,9 @@ export function VerifyScreen({
     // finished (null) has nothing to keep, so it loads as before.
     placeholderData: (prev) => prev ?? undefined,
   });
+  // A failed read of the next question, told apart: a paper that closed behind us is not a sign-in problem.
+  const nextProblem = nextLoadProblem(questionQuery.error, questionQuery.data);
+  const nextIsError = nextProblem !== 'none';
   const rawQuestion = questionQuery.data ?? null;
   // The card that was just answered stays hidden until its replacement is here.
   const maskedRaw = rawQuestion != null && (maskedIds.has(rawQuestion.id) || pendingIds.has(rawQuestion.id));
@@ -327,6 +330,9 @@ export function VerifyScreen({
   // crop the page is the only picture, so it is shown straight away. The page
   // image is not even requested until it is wanted.
   const [showPage, setShowPage] = useState(false);
+  // The whole paper as a page-flip, behind a tap, for a question that has a crop but no verified
+  // page of its own (bug tracker, 2 Nov 2026: "most papers cropped, cannot view the whole paper").
+  const [showPaper, setShowPaper] = useState(false);
   const picturePlanKey = question && !contextQuery.isLoading ? `${question.id}|${viewPath}` : '';
   // undefined = still looking, null = none (or it failed to load).
   const pictureUrl = useSignedUrl(picApi, picturePlanKey, viewPath);
@@ -441,6 +447,7 @@ export function VerifyScreen({
       setEditorKey((k) => k + 1);
       setPanel((p) => tileForNextQuestion(p));
       setShowPage(false);
+      setShowPaper(false);
       setLightbox(null);
       setSplitAt(null);
       setChangesOpen(false);
@@ -1102,7 +1109,7 @@ export function VerifyScreen({
   const smallButtonClass = 'min-w-0 grow px-2 text-[14px] md:grow-0 md:basis-auto md:px-5 md:py-2 md:text-[15px]';
 
   const actionBar =
-    question && !questionQuery.isError
+    question && !nextIsError
       ? actionBarShell(
           <>
             {/* A save that failed says so right here, beside the buttons, not
@@ -1548,7 +1555,10 @@ export function VerifyScreen({
         const cropVisible = tilesOn || !picturePlanKey || (viewPath !== '' && cropShown !== null);
         const pageToggle = Boolean(pagePlan && viewPath !== '' && hasCrop);
         const pageViewerOn = Boolean(pagePlan && pageOpen && pageShown !== null);
-        const pageTileOn = pageViewerOn || flipShown;
+        // A crop with no verified page: the whole paper is one tap away instead of nowhere.
+        const paperToggle = Boolean(!pageToggle && hasCrop && !flipShown);
+        const paperOpen = paperToggle && showPaper;
+        const pageTileOn = pageViewerOn || flipShown || paperOpen;
         // The page was asked for (a tap) but its picture could not be loaded, for
         // example because it is not in storage yet. Say so, so the button never
         // looks dead.
@@ -1634,6 +1644,22 @@ export function VerifyScreen({
           </button>
         );
 
+        const paperToggleButton = (className: string) => (
+          <button
+            type="button"
+            aria-expanded={showPaper}
+            data-enter-passes="true"
+            data-testid="paper-toggle"
+            onClick={() => setShowPaper((v) => !v)}
+            className={cn(
+              'tap-44 rounded-full bg-brand-subtle px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+              className,
+            )}
+          >
+            {showPaper ? 'Hide the whole paper' : 'See the whole paper'}
+          </button>
+        );
+
         /** The whole verified page. */
         const pageBody = (fit: boolean) =>
           pageShown === undefined ? (
@@ -1658,6 +1684,16 @@ export function VerifyScreen({
             loadPages={api.paperPages}
             pictureUrl={api.pictureUrl}
             questionPage={typeof question.source?.page === 'number' ? question.source.page : null}
+          />
+        );
+        // The same flip, opened by the verifier: it must not say "no page matched".
+        const paperBody = (
+          <PaperPageFlip
+            paperId={question.paper_id}
+            loadPages={api.paperPages}
+            pictureUrl={api.pictureUrl}
+            questionPage={typeof question.source?.page === 'number' ? question.source.page : null}
+            title="The whole paper"
           />
         );
 
@@ -1722,21 +1758,36 @@ export function VerifyScreen({
                       {pageToggleButton('ml-auto shrink-0 bg-white')}
                     </div>
                   ) : null}
+                  {paperToggle && !paperOpen ? (
+                    <div
+                      data-testid="paper-strip"
+                      className="flex shrink-0 items-center gap-2 rounded-[20px] border-2 border-brand bg-brand-subtle px-3 py-1.5 shadow-card-bone md:rounded-[18px]"
+                    >
+                      <span className="text-[12px] font-bold text-foreground">The whole paper</span>
+                      {paperToggleButton('ml-auto shrink-0 bg-white')}
+                    </div>
+                  ) : null}
                   {pageTileOn ? (
                     <PrintedFrame
                       tile
                       tabbed={false}
                       id="verify-panel-page"
                       tourId={cropVisible ? undefined : 'picture'}
-                      label={pageViewerOn ? PAGE_HEADING : 'Photo of the printed paper'}
-                      title={pageViewerOn ? PAGE_HEADING : pictureHeading(null)}
+                      label={pageViewerOn ? PAGE_HEADING : paperOpen ? 'The whole paper' : 'Photo of the printed paper'}
+                      title={pageViewerOn ? PAGE_HEADING : paperOpen ? 'The whole paper' : pictureHeading(null)}
                       panelClass="flex min-h-0 flex-[3_1_0%]"
-                      headerExtra={pageToggle ? pageToggleButton('bg-white px-3 py-1 text-[12px]') : null}
+                      headerExtra={
+                        pageToggle
+                          ? pageToggleButton('bg-white px-3 py-1 text-[12px]')
+                          : paperToggle
+                            ? paperToggleButton('bg-white px-3 py-1 text-[12px]')
+                            : null
+                      }
                     >
                       {pageViewerOn ? (
                         pageBody(true)
                       ) : (
-                        <FadeScroll white>{flipBody}</FadeScroll>
+                        <FadeScroll white>{paperOpen ? paperBody : flipBody}</FadeScroll>
                       )}
                     </PrintedFrame>
                   ) : null}
@@ -1776,6 +1827,7 @@ export function VerifyScreen({
             >
               {tilesOn ? partsBody : cropVisible ? cropBody(false) : null}
               {pageToggle ? pageToggleButton('self-start') : null}
+              {paperToggle ? paperToggleButton('self-start') : null}
               {pageUnavailable ? (
                 <p role="status" className="text-[13px] font-semibold text-warm-secondary">
                   {PAGE_UNAVAILABLE}
@@ -1793,6 +1845,7 @@ export function VerifyScreen({
                   {flipBody}
                 </div>
               ) : null}
+              {paperOpen ? <div className="flex min-w-0 flex-col">{paperBody}</div> : null}
               {!cropVisible && !pageViewerOn && !flipShown ? (
                 <div className="h-40 animate-pulse rounded-[8px] bg-muted" aria-label="Loading the picture" />
               ) : null}
@@ -1846,22 +1899,34 @@ export function VerifyScreen({
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-y-auto">
         {questionQuery.isLoading ? (
           <CheckerSkeleton />
-        ) : nextFailed || (questionQuery.isError && !showIncoming) ? (
+        ) : nextFailed || (nextIsError && !showIncoming) ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <p className="text-lg font-semibold text-foreground">{LOAD_FAILED_TITLE}</p>
-            {(questionQuery.error as { code?: unknown } | null)?.code === '42501' ? (
+            {nextProblem === 'paper_gone' ? (
               <>
-                <p className="max-w-[40ch] text-[14px] text-warm-secondary">Your sign-in no longer lets you check papers. Sign in again, or ask an admin or the HOD.</p>
-                <a href="/auth" className="tap-44 inline-flex items-center rounded-full bg-brand px-5 text-[15px] font-bold text-foreground">
-                  Sign in again
-                </a>
+                <p className="text-lg font-semibold text-foreground">{PAPER_GONE_TITLE}</p>
+                <p className="max-w-[40ch] text-[14px] text-warm-secondary">{PAPER_GONE_NOTE}</p>
+                <ActionButton tone="mint" onClick={onList ?? onExit}>
+                  Back to my papers
+                </ActionButton>
               </>
             ) : (
               <>
-                <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
-                <ActionButton tone="mint" onClick={nextFailed ? retryNext : () => void questionQuery.refetch()}>
-                  Try again
-                </ActionButton>
+                <p className="text-lg font-semibold text-foreground">{LOAD_FAILED_TITLE}</p>
+                {nextProblem === 'no_access' ? (
+                  <>
+                    <p className="max-w-[40ch] text-[14px] text-warm-secondary">Your sign-in no longer lets you check papers. Sign in again, or ask an admin or the HOD.</p>
+                    <a href="/auth" className="tap-44 inline-flex items-center rounded-full bg-brand px-5 text-[15px] font-bold text-foreground">
+                      Sign in again
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
+                    <ActionButton tone="mint" onClick={nextFailed ? retryNext : () => void questionQuery.refetch()}>
+                      Try again
+                    </ActionButton>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -1869,14 +1934,6 @@ export function VerifyScreen({
           // The next question's card, up before its words: the picture is warm.
           <div key={cardId(null, incoming?.id ?? null)} className={cn('min-h-0', enterClass)}>
             <IncomingCard pictureUrl={incoming?.pictureUrl ?? null} />
-          </div>
-        ) : questionQuery.isError ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <p className="text-lg font-semibold text-foreground">{LOAD_FAILED_TITLE}</p>
-            <p className="text-[14px] text-warm-secondary">{LOAD_FAILED_NOTE}</p>
-            <ActionButton tone="mint" onClick={() => void questionQuery.refetch()}>
-              Try again
-            </ActionButton>
           </div>
         ) : !question && !includeSkipped && !paperRow && paperGate === 'loading' ? (
           // The list that says how many are skipped has not arrived. Do not

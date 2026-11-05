@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Menu as MenuIcon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -20,6 +20,7 @@ import { BOARDS } from '@/lib/hod-api';
 import { CHIP, actionToneClass } from '@/lib/checker-button-styles';
 import { CHECKER_HELP_PATH, CHECKER_PRACTICE_PATH } from '@/lib/checker-onboarding';
 import { GIVEN_BY_HOD, paperLabel } from '@/lib/checker-progress';
+import { requestSubjectsErrorMessage } from '@/lib/checker-errors';
 import {
   formatGrade,
   gradeSelectValue,
@@ -97,12 +98,20 @@ export function CheckerPage({
   const [accessFailed, setAccessFailed] = useState(false);
   const [accessAttempt, setAccessAttempt] = useState(0);
   const here = location.pathname + location.search;
+  // Read only when sending a signed-out visitor to sign in. It is not a dependency: opening a paper or
+  // going back to the list changes the URL, and must not ask the server "is this a verifier?" again
+  // (a dropped connection there replaced the whole page with "We could not check your access").
+  const hereRef = useRef(here);
+  hereRef.current = here;
+  // The same for the user: a token refresh or a tab coming back to the front hands over a new `user`
+  // object for the same person, which must not repeat the check either.
+  const signedIn = Boolean(user);
   useEffect(() => {
     if (!dummy) {
       if (authLoading) return;
-      if (!user) {
+      if (!signedIn) {
         // Come back to the paper or question that was opened, not just the list.
-        navigate('/auth?redirect=' + encodeURIComponent(checkerSignInPath(here)));
+        navigate('/auth?redirect=' + encodeURIComponent(checkerSignInPath(hereRef.current)));
         return;
       }
     }
@@ -118,7 +127,7 @@ export function CheckerPage({
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading, navigate, api, dummy, here, accessAttempt]);
+  }, [signedIn, authLoading, navigate, api, dummy, accessAttempt]);
 
   function retryAccess() {
     setAccessFailed(false);
@@ -131,6 +140,10 @@ export function CheckerPage({
     queryFn: api.myStats,
     enabled: allowed === true,
     staleTime: 30 * 1000,
+    // The app default is refetchOnMount: false: coming back to /checker (from Practice round or the
+    // help page) showed the counts from before the answers given since, for up to ten minutes. The
+    // answers' own refresh only reaches a query that is mounted at the time.
+    refetchOnMount: 'always',
   });
 
   if (accessFailed) {
@@ -501,8 +514,8 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
       setAsking(false);
       setText('');
       void profileQuery.refetch();
-    } catch {
-      setMessage('Could not send that. Try again in a moment.');
+    } catch (err) {
+      setMessage(requestSubjectsErrorMessage(err));
     } finally {
       setBusy(false);
     }

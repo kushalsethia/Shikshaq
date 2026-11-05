@@ -88,6 +88,8 @@ const header = (over: Partial<PreviewHeader>): PreviewHeader => ({
   allowed_time_minutes: null,
   general_instructions: null,
   incomplete_note: null,
+  instructions_not_printed: false,
+  time_not_printed: false,
   ...over,
 });
 
@@ -377,6 +379,7 @@ export interface GoLiveFake {
     editQuestion(id: string, version: number, changes: Record<string, unknown>, note?: string): Promise<number>;
     sendBack(id: string, note: string): Promise<void>;
     readyPapers(): Promise<HodReadyPaper[]>;
+    unqueuedCount(): Promise<number>;
     paperPreview(id: string): Promise<HodPreview>;
     updatePublishMeta(id: string, field: string, value: string): Promise<void>;
     approvePaper(id: string, note?: string, confirmLeftOut?: boolean): Promise<{ live_bank_paper_id: string | null; question_count: number }>;
@@ -425,8 +428,8 @@ export function createGoLiveFake(record: (what: string) => void, ckNames: (id: s
       !h.year && 'the year',
       !h.exam && 'the exam',
       h.marks === null && 'the total marks',
-      h.allowed_time_minutes === null && 'the time allowed',
-      !h.general_instructions && 'the general instructions',
+      h.allowed_time_minutes === null && !h.time_not_printed && 'the time allowed',
+      !h.general_instructions && !h.instructions_not_printed && 'the general instructions',
     ].filter(Boolean) as string[];
     const junk = rs.filter((x) => x.state !== 'set_aside' && x.scanner_junk);
     return normaliseChecks([
@@ -669,6 +672,10 @@ export function createGoLiveFake(record: (what: string) => void, ckNames: (id: s
           };
         });
     },
+    async unqueuedCount() {
+      // Same rule as the server: not queued, nothing open, at least one passed question.
+      return papers.filter((p) => p.approval === 'none' && real(p).some((x) => x.state === 'passed') && !real(p).some(isOpen)).length;
+    },
     async paperPreview(id) {
       const p = find(id);
       const rs = real(p);
@@ -708,6 +715,10 @@ export function createGoLiveFake(record: (what: string) => void, ckNames: (id: s
       const v = value.trim();
       if (field === 'marks' || field === 'allowed_time_minutes') h[field] = v === '' ? null : Number(v);
       else if (field === 'is_board_paper') h[field] = v === '' ? null : v === 'true';
+      else if (field === 'time_not_printed' || field === 'instructions_not_printed') {
+        if (v !== 'true' && v !== 'false') throw pgError('Choose yes or no.');
+        h[field] = v === 'true';
+      }
       else h[field] = field === 'general_instructions' || field === 'incomplete_note' ? (value === '' ? null : value) : v === '' ? null : v;
       metaSeq++;
       record(`meta ${field}=${value}`);

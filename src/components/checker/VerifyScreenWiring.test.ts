@@ -55,4 +55,28 @@ describe('verify screen wiring (QA 2026-10-11)', () => {
   it('finding 10: Fix it says the options cannot be changed, and who can', () => {
     expect(screen).toContain('You cannot change the options here. If one is wrong or missing, press Ask the HOD.');
   });
+
+  it('a closed paper never sends a signed-in verifier to sign in again (Nov 2026)', () => {
+    // Every read of the next question goes through nextLoadProblem; a paper that closed behind the
+    // verifier answers 42501 "not assigned to you", which is not a sign-in problem.
+    expect(screen).toContain('nextLoadProblem(questionQuery.error, questionQuery.data)');
+    expect(screen).not.toMatch(/questionQuery\.error as \{ code\?: unknown \} \| null\)\?\.code === '42501'/);
+    // "Sign in again" belongs only to the real refusal of the account.
+    const signIn = screen.slice(screen.indexOf("nextProblem === 'no_access'"));
+    expect(signIn.indexOf('Sign in again')).toBeGreaterThan(-1);
+    expect(screen.slice(0, screen.indexOf("nextProblem === 'no_access'"))).not.toContain('Sign in again');
+    // The old dead-end branch is gone: only nextIsError may reach an error screen.
+    expect(screen).not.toMatch(/\) : questionQuery\.isError \? \(/);
+  });
+
+  it('a question with a crop but no verified page still opens the whole paper on a tap (Nov 2026, tracker #3)', () => {
+    // Only a crop with no verified page of its own gets the toggle, so it never sits beside "See the whole page".
+    expect(screen).toContain('const paperToggle = Boolean(!pageToggle && hasCrop && !flipShown);');
+    expect(screen).toContain('const pageTileOn = pageViewerOn || flipShown || paperOpen;');
+    expect(screen).toContain("{showPaper ? 'Hide the whole paper' : 'See the whole paper'}");
+    // Opened by the verifier, so the flip must not say "No page matched this question".
+    expect(screen).toContain('title="The whole paper"');
+    // A new question starts with it closed, like the whole page.
+    expect(screen).toContain('setShowPaper(false);');
+  });
 });

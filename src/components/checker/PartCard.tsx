@@ -71,8 +71,11 @@ export function PartCard({
   const editing = mode === 'edit';
   const badges = (
     <>
-      <TypedBadge />
-      {sureChip ?? null}
+      {/* While editing on a short phone the "Editing" chip is what matters; the provenance chips return when the edit ends. */}
+      <span className={cn('contents', editing && '[@media(max-height:699px)]:hidden')}>
+        <TypedBadge />
+        {sureChip ?? null}
+      </span>
       {editing ? (
         <span className={cn(BADGE, 'bg-brand')} data-testid="editing-badge">
           <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
@@ -120,7 +123,7 @@ export function PartCard({
           />
         ) : (
           <>
-            <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">{badges}</div>
+            <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 [@media(max-width:399px)]:gap-x-1.5">{badges}</div>
             {changesPanel}
             {mode === 'split' ? (
               splitBody

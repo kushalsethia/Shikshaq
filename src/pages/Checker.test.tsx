@@ -50,6 +50,22 @@ describe('the verifier home when a read fails', () => {
   });
 });
 
+describe('the verifier home after a paper is done (Nov 2026)', () => {
+  const src = readFileSync('src/pages/Checker.tsx', 'utf8');
+
+  it('the counts are asked again every time the page opens, not served from before the last answers', () => {
+    const stats = src.slice(src.indexOf("queryKey: ['checker-my-stats', scope]"), src.indexOf('if (accessFailed)'));
+    expect(stats).toContain("refetchOnMount: 'always'");
+  });
+
+  it('opening a paper or going back to the list does not repeat the "is this a verifier?" check', () => {
+    const effect = src.slice(src.indexOf('hereRef.current = here;'), src.indexOf('function retryAccess'));
+    expect(effect).toContain('checkerSignInPath(hereRef.current)');
+    expect(effect).toContain('[signedIn, authLoading, navigate, api, dummy, accessAttempt]');
+    expect(effect).not.toContain('dummy, here,');
+  });
+});
+
 describe('the verify screen Menu (one button in the top tile)', () => {
   const src = readFileSync('src/pages/Checker.tsx', 'utf8');
   const menu = src.slice(src.indexOf('id="checker-menu-title"'));
