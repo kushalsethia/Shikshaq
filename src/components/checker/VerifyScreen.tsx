@@ -7,6 +7,7 @@ import { OptionList } from '@/components/checker/OptionList';
 import { PartCard } from '@/components/checker/PartCard';
 import { FIX_RULE_LINE, RulesInfo, ShortcutsPopover } from '@/components/checker/CheckerPopovers';
 import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
+import { pageNumberOf } from '@/lib/paper-pages';
 import { AiSurePill, PanelTabs, PrintedFrame, TypedFrame, VERIFY_TABS, type PanelId } from '@/components/checker/Panels';
 import { tileForNextQuestion } from '@/lib/checker-bento';
 import { BentoTile, FadeScroll, ImageLightbox, TilePager, useBentoWide } from '@/components/checker/BentoParts';
@@ -1792,7 +1793,7 @@ export function VerifyScreen({
             paperId={question.paper_id}
             loadPages={api.paperPages}
             pictureUrl={api.pictureUrl}
-            questionPage={typeof question.source?.page === 'number' ? question.source.page : null}
+            questionPage={pageNumberOf(question.source?.page)}
           />
         );
         // The same flip, opened by the verifier: it must not say "no page matched".
@@ -1801,7 +1802,7 @@ export function VerifyScreen({
             paperId={question.paper_id}
             loadPages={api.paperPages}
             pictureUrl={api.pictureUrl}
-            questionPage={typeof question.source?.page === 'number' ? question.source.page : null}
+            questionPage={pageNumberOf(question.source?.page)}
             title="The whole paper"
           />
         );

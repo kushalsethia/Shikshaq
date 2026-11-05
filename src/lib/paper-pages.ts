@@ -30,6 +30,28 @@ export function normalisePaperPages(raw: unknown): PaperPage[] {
   return [...byPage.values()].sort((a, b) => a.page - b.page);
 }
 
+/**
+ * A page number read from a question's source: a whole number from 1 to 999, given as a number or
+ * as text ("4"). Anything else is null. The database accepts the page as text too, so the flip must
+ * not ignore a question just because its page came as a string.
+ */
+export function pageNumberOf(raw: unknown): number | null {
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' && /^\d{1,3}$/.test(raw.trim()) ? Number(raw.trim()) : NaN;
+  return Number.isInteger(n) && n >= 1 && n <= 999 ? n : null;
+}
+
+/**
+ * Said when the question's own page has no picture, so the flip never opens on page 1 as if nothing
+ * were wrong (tracker of 2 Nov, "it jumps to page 3" and "the questions do not match the paper").
+ * Empty when the page has a picture, when the page is not known, or when the paper has no pictures
+ * at all (that case has its own message).
+ */
+export function ownPageNote(pages: PaperPage[], questionPage: number | null | undefined): string {
+  if (typeof questionPage !== 'number' || pages.length === 0) return '';
+  if (pages.some((p) => p.page === questionPage)) return '';
+  return `This question is on page ${questionPage}, which has no picture yet. The flip starts at the first page we have. If you cannot find the question, do not pass it.`;
+}
+
 /** Keep a page index inside the list. */
 export function clampPageIndex(index: number, count: number): number {
   if (count <= 0) return 0;
