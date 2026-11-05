@@ -478,7 +478,7 @@ export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, 
                       type="button"
                       onClick={() => setPendingDeleteId(c.id)}
                       disabled={deletingCommentId === c.id}
-                      className="inline-flex items-center gap-1 rounded-sm font-semibold text-destructive transition-colors duration-150 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className="relative inline-flex items-center gap-1 rounded-sm font-semibold text-destructive transition-colors duration-150 before:absolute before:-inset-x-2 before:-inset-y-3.5 before:content-[''] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       <Trash2 className="h-3 w-3" aria-hidden="true" />
                       Delete your review

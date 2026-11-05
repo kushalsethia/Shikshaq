@@ -154,7 +154,7 @@ export function ContactGateSheet({
           type="button"
           disabled={googleBusy}
           onClick={handleGoogle}
-          className="mt-5 flex h-14 w-full items-center justify-center gap-2.5 rounded-[18px] bg-panel text-[16px] font-extrabold text-background transition-transform duration-tap active:scale-[0.98] disabled:opacity-70"
+          className="mt-5 flex h-14 w-full items-center justify-center gap-2.5 rounded-[18px] bg-panel text-[16px] font-extrabold text-background transition-transform duration-tap active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-70"
         >
           <GoogleIcon size={20} />
           {googleBusy ? 'Signing in…' : 'Continue with Google'}
@@ -162,7 +162,7 @@ export function ContactGateSheet({
         <button
           type="button"
           onClick={handleSignIn}
-          className="mt-2 flex h-11 w-full items-center justify-center text-[14px] font-semibold text-warm-prose"
+          className="mt-2 flex h-11 w-full items-center justify-center rounded-[14px] text-[14px] font-semibold text-warm-prose focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           Other ways to sign in
         </button>
