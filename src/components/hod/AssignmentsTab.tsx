@@ -87,7 +87,7 @@ function PickVerifier({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         disabled={busy || options.length === 0}
-        className="min-h-11 w-0 min-w-0 flex-1 rounded-xl bg-muted px-3 text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand sm:w-auto sm:max-w-[14rem] sm:flex-none"
+        className="min-h-11 w-0 min-w-0 flex-1 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand sm:w-auto sm:max-w-[14rem] sm:flex-none"
       >
         <option value="">{label}</option>
         {options.map((m) => {
@@ -204,7 +204,7 @@ export function BulkBar({
           value={value}
           onChange={(e) => onValue(e.target.value)}
           disabled={running}
-          className="min-h-11 w-0 min-w-0 flex-1 rounded-xl bg-muted px-3 text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand sm:w-auto sm:max-w-[18rem] sm:flex-none sm:basis-72"
+          className="min-h-11 w-0 min-w-0 flex-1 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand sm:w-auto sm:max-w-[18rem] sm:flex-none sm:basis-72"
         >
           <option value="">Choose a verifier</option>
           {options.map((o) => (

@@ -218,7 +218,7 @@ export function QuestionVersions({
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
                         maxLength={300}
-                        className="min-h-10 rounded-xl bg-card px-3 text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        className="min-h-10 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
                       />
                     </label>
                     {writeError ? (

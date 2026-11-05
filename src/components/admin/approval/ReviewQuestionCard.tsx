@@ -139,7 +139,7 @@ export function ReviewQuestionCard({
               <input
                 value={draft.number}
                 onChange={(e) => setDraft({ ...draft, number: e.target.value })}
-                className="min-h-10 rounded-xl bg-card px-3 text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="min-h-10 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
               />
             </label>
             <label className="flex flex-col gap-1 text-[12px] font-semibold text-warm-secondary">
@@ -148,7 +148,7 @@ export function ReviewQuestionCard({
                 inputMode="decimal"
                 value={draft.marks}
                 onChange={(e) => setDraft({ ...draft, marks: e.target.value })}
-                className="min-h-10 rounded-xl bg-card px-3 text-[14px] tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="min-h-10 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
               />
             </label>
           </div>
@@ -158,7 +158,7 @@ export function ReviewQuestionCard({
               value={draft.body}
               onChange={(e) => setDraft({ ...draft, body: e.target.value })}
               rows={Math.min(14, Math.max(4, draft.body.split('\n').length + 1))}
-              className="rounded-xl bg-card px-3 py-2 font-mono text-[14px] leading-[1.55] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="rounded-xl bg-card px-3 py-2 font-mono text-[16px] sm:text-[14px] leading-[1.55] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
             />
           </label>
           {draft.options.length > 0 ? (
@@ -177,7 +177,7 @@ export function ReviewQuestionCard({
                         const options = draft.options.map((x, j) => (j === i ? { ...x, text: e.target.value } : x));
                         setDraft({ ...draft, options });
                       }}
-                      className="min-h-10 min-w-0 flex-1 rounded-xl bg-card px-3 text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      className="min-h-10 min-w-0 flex-1 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     />
                   </label>
                 ))}
@@ -191,7 +191,7 @@ export function ReviewQuestionCard({
               onChange={(e) => setNote(e.target.value)}
               maxLength={300}
               placeholder="For example: the scan misread 7 as 1"
-              className="min-h-10 rounded-xl bg-card px-3 text-[14px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+              className="min-h-10 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
             />
           </label>
           {error ? (
@@ -306,7 +306,7 @@ export function ReviewQuestionCard({
               onChange={(e) => setAsideNote(e.target.value)}
               maxLength={300}
               placeholder="For example: the scan is torn here"
-              className="min-h-10 rounded-xl bg-muted px-3 text-[14px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+              className="min-h-10 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
             />
           </label>
           <p className="mt-1 text-[12px] text-warm-meta">Visitors see a short placeholder card instead of this question.</p>

@@ -35,7 +35,7 @@ export interface VerifierDetailsFormProps {
 }
 
 const FIELD =
-  'min-h-[40px] w-full rounded-xl bg-card px-3 py-1 text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60';
+  'min-h-[40px] w-full rounded-xl bg-card px-3 py-1 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60';
 const LABEL = 'flex flex-col gap-1 text-[13px] font-semibold text-foreground';
 
 export function VerifierDetailsForm(props: VerifierDetailsFormProps) {

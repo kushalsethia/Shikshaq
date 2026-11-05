@@ -67,7 +67,7 @@ export function QuestionFixForm({
             value={number}
             onChange={(ev) => setNumber(ev.target.value)}
             disabled={busy}
-            className="min-h-[40px] w-24 rounded-xl bg-card px-3 py-1 text-center text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="min-h-[40px] w-24 rounded-xl bg-card px-3 py-1 text-center text-[16px] sm:text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
           />
         </label>
         <label className="flex items-center gap-2 text-[13px] font-medium text-warm-secondary">
@@ -79,7 +79,7 @@ export function QuestionFixForm({
             disabled={busy}
             aria-invalid={marksInvalid || undefined}
             className={cn(
-              'min-h-[40px] w-20 rounded-xl bg-card px-3 py-1 text-center text-[14px] tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand',
+              'min-h-[40px] w-20 rounded-xl bg-card px-3 py-1 text-center text-[16px] sm:text-[14px] tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand',
               marksInvalid && 'ring-2 ring-destructive',
             )}
           />

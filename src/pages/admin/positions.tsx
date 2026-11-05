@@ -103,7 +103,7 @@ export function PositionGroupTable({
 }
 
 const FIELD =
-  'h-11 w-full min-w-0 rounded-full bg-muted px-4 text-sm text-foreground outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand';
+  'h-11 w-full min-w-0 rounded-full bg-muted px-4 text-base sm:text-sm text-foreground outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand';
 
 export function AdminPositionsPage({
   api = realPositionsApi,
