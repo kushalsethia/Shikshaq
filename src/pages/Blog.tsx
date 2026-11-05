@@ -138,6 +138,7 @@ export default function Blog() {
         canonical={BLOG_PATH}
       />
 
+      <main>
       <BentoStack>
         <BentoPanel fill="papers" edge="top">
           <PageContainer className="px-0">
@@ -179,6 +180,7 @@ export default function Blog() {
           </PageContainer>
         </BentoPanel>
       </BentoStack>
+      </main>
     </>
   );
 }

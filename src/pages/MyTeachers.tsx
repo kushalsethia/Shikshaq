@@ -142,7 +142,7 @@ export default function MyTeachers() {
               to="/dashboard/student"
               className="-mt-1 mb-3 inline-flex min-h-11 items-center text-[13px] font-semibold text-warm-secondary transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
             >
-              {'←'} Back to dashboard
+              <span aria-hidden="true">{'←'}</span> Back to dashboard
             </Link>
             <p className="text-[13px] font-medium text-warm-secondary">Teachers you study with</p>
             <h1 className="mt-1 font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] text-foreground">

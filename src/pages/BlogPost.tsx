@@ -52,7 +52,7 @@ function BarRow({
   const inner = (
     <>
       <span className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 truncate font-semibold text-foreground">{label}</span>
+        <span className="min-w-0 break-words font-semibold text-foreground">{label}</span>
         <span className="flex-none text-meta font-bold tabular-nums text-warm-label">
           {fmt(value)} {suffix}
         </span>
@@ -391,6 +391,7 @@ export default function BlogPost() {
         }}
       />
 
+      <main>
       <BentoStack>
         <BentoPanel fill="card" edge="top">
           <PageContainer className="px-0">
@@ -427,7 +428,7 @@ export default function BlogPost() {
               >
                 <span className="min-w-0">
                   <span className="block text-label uppercase text-warm-label">Next</span>
-                  <span className="mt-1 block truncate font-bold text-foreground">{next.title}</span>
+                  <span className="mt-1 block line-clamp-2 break-words font-bold text-foreground">{next.title}</span>
                 </span>
                 <ArrowRight className="h-5 w-5 flex-none text-warm-label transition-transform duration-hover group-hover:translate-x-0.5" aria-hidden />
               </Link>
@@ -443,6 +444,7 @@ export default function BlogPost() {
           </PageContainer>
         </BentoPanel>
       </BentoStack>
+      </main>
     </>
   );
 }
