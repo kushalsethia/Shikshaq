@@ -227,8 +227,10 @@ export function GamesPage({ api, dummy = false, banner, me }: {
                   x.key === here ? 'bg-card text-foreground' : 'text-warm-secondary hover:text-foreground')}>
                 {x.label}
                 {count > 0 && (
-                  <span className="inline-flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-brand px-[5px] text-[11px] font-bold tabular-nums text-foreground"
-                    aria-label={x.key === 'approve' ? `${count} waiting` : `${count} sent back to you`}>{count}</span>
+                  <>
+                    <span className="inline-flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-brand px-[5px] text-[11px] font-bold tabular-nums text-foreground" aria-hidden="true">{count}</span>
+                    <span className="sr-only">{x.key === 'approve' ? `${count} waiting` : `${count} sent back to you`}</span>
+                  </>
                 )}
               </Link>
             );

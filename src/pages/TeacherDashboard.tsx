@@ -122,7 +122,7 @@ type ShikshaqmineUpdateWithPause = ShikshaqmineUpdate & { is_paused: boolean };
 // (h52 rounded-2xl bg-muted, 11.5px/700/.07em uppercase label) — panel-on-panel shadow dropped
 // since these now sit inside a bg-card BentoPanel rather than directly on the page ground.
 const FIELD_CLASSNAME =
-  'h-[52px] rounded-2xl border-0 bg-muted px-4 text-base focus-visible:ring-0 focus-visible:ring-offset-0';
+  'h-[52px] rounded-2xl border-0 bg-muted px-4 text-base focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0';
 const LOCKED_FIELD_CLASSNAME = `${FIELD_CLASSNAME} cursor-not-allowed opacity-70`;
 const LABEL_CLASSNAME = 'mb-1.5 block text-[12px] font-bold uppercase tracking-[.07em] text-warm-label';
 const HELP_TEXT_CLASSNAME = 'text-xs text-muted-foreground';
@@ -1013,6 +1013,7 @@ export default function TeacherDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
+        <p role="status" className="sr-only">Loading your dashboard</p>
         <BentoStack>
           <BentoPanel fill="dark" edge="top" className="px-[22px] pt-[14px] pb-[22px]">
             <div className="flex animate-pulse items-center gap-[14px]">
@@ -1411,7 +1412,7 @@ export default function TeacherDashboard() {
                   <div className="relative mb-4 w-full max-w-md">
                     <img
                       src={safeSrc}
-                      alt="Hero preview"
+                      alt="Profile image preview"
                       loading="lazy"
                       className="h-48 w-full rounded-2xl object-cover"
                     />
@@ -1419,13 +1420,14 @@ export default function TeacherDashboard() {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      aria-label="Remove profile image"
                       className="before:absolute before:-inset-[4px] before:content-[''] absolute top-2 right-2"
                       onClick={() => {
                         handleInputChange("Hero Image", null);
                         setImagePreview(null);
                       }}
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-4 h-4" aria-hidden="true" />
                     </Button>
                   </div>
                   );
@@ -1433,7 +1435,7 @@ export default function TeacherDashboard() {
 
                 <label
                   htmlFor="heroImageUpload"
-                  className="flex w-fit cursor-pointer items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-accent"
+                  className="flex min-h-11 w-fit cursor-pointer items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-accent focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
                 >
                   <Upload className="w-4 h-4" />
                   {uploadingImage ? 'Uploading...' : 'Upload Image'}
@@ -1441,7 +1443,7 @@ export default function TeacherDashboard() {
                     id="heroImageUpload"
                     type="file"
                     accept="image/*"
-                    className="hidden"
+                    className="sr-only"
                     onChange={handleImageFileChange}
                     disabled={uploadingImage}
                   />
@@ -1471,7 +1473,7 @@ export default function TeacherDashboard() {
                 <Label className={LABEL_CLASSNAME}>
                   Subjects <span className="text-destructive">*</span>
                 </Label>
-                <div className={`mt-2 flex max-h-none flex-wrap gap-2 overflow-visible p-4 lg:max-h-48 lg:overflow-y-auto ${OPTION_GROUP_CLASSNAME}`}>
+                <div role="group" aria-label="Subjects" className={`mt-2 flex max-h-none flex-wrap gap-2 overflow-visible p-4 lg:max-h-48 lg:overflow-y-auto ${OPTION_GROUP_CLASSNAME}`}>
                   {SUBJECTS.map((subject) => {
                     const currentValue = teacherData.Subjects as string | null;
                     const selected = valueExistsInString(currentValue, subject);
@@ -1522,7 +1524,7 @@ export default function TeacherDashboard() {
                 <Label className={LABEL_CLASSNAME}>
                   School Boards Catered <span className="text-destructive">*</span>
                 </Label>
-                <div className={`mt-2 flex flex-wrap gap-2 p-4 ${OPTION_GROUP_CLASSNAME}`}>
+                <div role="group" aria-label="School boards catered" className={`mt-2 flex flex-wrap gap-2 p-4 ${OPTION_GROUP_CLASSNAME}`}>
                   {SCHOOL_BOARDS.map((board) => {
                     const currentValue = teacherData["School Boards Catered"] as string | null;
                     const selected = valueExistsInString(currentValue, board);
@@ -1552,7 +1554,7 @@ export default function TeacherDashboard() {
                 <p className={`${HELP_TEXT_CLASSNAME} mb-2`}>
                   Select the classes you teach. Display format will be automatically computed.
                 </p>
-                <div className={`mt-2 flex flex-wrap gap-2 p-4 ${OPTION_GROUP_CLASSNAME}`}>
+                <div role="group" aria-label="Classes taught" className={`mt-2 flex flex-wrap gap-2 p-4 ${OPTION_GROUP_CLASSNAME}`}>
                   {CLASS_NUMBERS.map((cls) => {
                     const currentValue = teacherData["Classes Taught for Backend"] as string | null;
                     const selected = valueExistsInString(currentValue, cls);
@@ -1670,7 +1672,7 @@ export default function TeacherDashboard() {
                   <Label className={LABEL_CLASSNAME}>
                     Student's Home in These Areas <span className="text-destructive">*</span>
                   </Label>
-                  <div className={`mt-2 flex max-h-none flex-wrap gap-2 overflow-visible p-4 lg:max-h-48 lg:overflow-y-auto ${OPTION_GROUP_CLASSNAME}`}>
+                  <div role="group" aria-label="Student's home in these areas" className={`mt-2 flex max-h-none flex-wrap gap-2 overflow-visible p-4 lg:max-h-48 lg:overflow-y-auto ${OPTION_GROUP_CLASSNAME}`}>
                     {AREAS.map((area) => {
                       const currentValue = teacherData["STUDENT'S HOME IN THESE AREAS"] as string | null;
                       const selected = valueExistsInString(currentValue, area);
@@ -1700,7 +1702,7 @@ export default function TeacherDashboard() {
                   <Label className={LABEL_CLASSNAME}>
                     Tutor's Home in These Areas <span className="text-destructive">*</span>
                   </Label>
-                  <div className={`mt-2 flex max-h-none flex-wrap gap-2 overflow-visible p-4 lg:max-h-48 lg:overflow-y-auto ${OPTION_GROUP_CLASSNAME}`}>
+                  <div role="group" aria-label="Tutor's home in these areas" className={`mt-2 flex max-h-none flex-wrap gap-2 overflow-visible p-4 lg:max-h-48 lg:overflow-y-auto ${OPTION_GROUP_CLASSNAME}`}>
                     {AREAS.map((area) => {
                       const currentValue = teacherData["TUTOR'S HOME IN THESE AREAS"] as string | null;
                       const selected = valueExistsInString(currentValue, area);
