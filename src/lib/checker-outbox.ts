@@ -439,7 +439,19 @@ export async function sendVerdict(
     }
     // It was saved. Read the next question the plain way (a failure here is a
     // network failure and is retried; the replay then confirms again).
-    const next = await api.nextInPaper(e.paperId, { includeSkipped: p.includeSkipped });
+    //
+    // One refusal is not a failure: if this was the paper's last question, saving it closed the
+    // paper behind the checker (verifier_close_finished runs inside the verdict), and the
+    // server then answers "This paper is not assigned to you" to any further read. The verdict
+    // is proven saved, so that answer means "nothing more on this paper": the paper is finished.
+    // Left to throw, it made the screen say "this paper is no longer on your list" for an
+    // answer that had in fact gone through (tracker of 2 Nov, "asked to sign in again").
+    let next: Awaited<ReturnType<VerdictSendApi['nextInPaper']>> = null;
+    try {
+      next = await api.nextInPaper(e.paperId, { includeSkipped: p.includeSkipped });
+    } catch (nextErr) {
+      if (!/paper is not assigned to you/i.test(errorText(nextErr))) throw nextErr;
+    }
     return {
       verdict_ok: true,
       verdict: e.kind,

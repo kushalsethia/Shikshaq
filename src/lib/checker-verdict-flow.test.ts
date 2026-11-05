@@ -113,6 +113,28 @@ describe('a stale replay is "already saved" only when a read confirms it', () =>
     expect(res.next_paper_id).toBeNull();
   });
 
+  it('confirmed saved, but the paper closed behind the answer: the paper is finished, not an error', async () => {
+    const a = apiMock();
+    a.verdictAndNext.mockRejectedValue(stale());
+    a.paperQuestions.mockResolvedValue([row({})]);
+    // The last question closed the paper, so any further read is refused for a finished assignment.
+    a.nextInPaper.mockRejectedValue(Object.assign(new Error('This paper is not assigned to you'), { code: '42501' }));
+    const res = await sendVerdict(a as never, fixEntry);
+    expect(res.verdict_ok).toBe(true);
+    expect(res.verdict_version).toBe(4);
+    expect(res.next).toBeNull();
+    expect(res.next_paper_id).toBeNull();
+  });
+
+  it('confirmed saved, but the next read fails for another reason: that error is still thrown', async () => {
+    const a = apiMock();
+    a.verdictAndNext.mockRejectedValue(stale());
+    a.paperQuestions.mockResolvedValue([row({})]);
+    const boom = new TypeError('Failed to fetch');
+    a.nextInPaper.mockRejectedValue(boom);
+    await expect(sendVerdict(a as never, fixEntry)).rejects.toBe(boom);
+  });
+
   it('someone else changed it (other words): the stale refusal is surfaced and marked not saved', async () => {
     const a = apiMock();
     const err = stale();
