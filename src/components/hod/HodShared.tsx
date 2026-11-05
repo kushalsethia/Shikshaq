@@ -78,9 +78,15 @@ export function QuestionPicture({
   useEffect(() => {
     if (!path) return;
     let cancelled = false;
-    api.pictureUrl(path).then((url) => {
-      if (!cancelled) setState({ path, url });
-    });
+    api
+      .pictureUrl(path)
+      .then((url) => {
+        if (!cancelled) setState({ path, url });
+      })
+      // A failed look-up counts as a missing picture: the whole paper opens, not a skeleton that never ends.
+      .catch(() => {
+        if (!cancelled) setState({ path, url: null });
+      });
     return () => {
       cancelled = true;
     };
