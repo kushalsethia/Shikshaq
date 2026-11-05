@@ -5,8 +5,10 @@
  * pipeline/english_release.py, `source_block`): the passage or extract the
  * question is about, the book / poem / play it is from, and whether the
  * question is already on the website ("shown") or was held back by the
- * owner's release gate ("rescue"). There are no pictures for English, so the
- * passage is what the checker reads the question against.
+ * owner's release gate ("rescue"). English from the english_w14 pipeline has no
+ * pictures (and is not served to verifiers); every other English question has
+ * pictures like any other subject (owner, 11 Oct 2026). Where there is no
+ * picture, the passage is what the checker reads the question against.
  *
  * Pure, so it is tested without a checker login. Text is passed through as
  * stored and rendered by MathText; nothing here edits it.
