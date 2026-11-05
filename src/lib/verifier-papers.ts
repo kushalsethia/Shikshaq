@@ -88,6 +88,31 @@ export function paperCardProgress(p: Pick<MyPaper, 'total' | 'done' | 'remaining
   return { label: `${done} of ${total} done`, percent, finished: p.remaining === 0 };
 }
 
+/** How a subject family from verifier_subjects_with_papers reads on screen. */
+const SUBJECT_FAMILY_LABELS: Record<string, string> = {
+  mathematics: 'Mathematics',
+  english: 'English',
+  historyandcivics: 'History & Civics',
+  economics: 'Economics',
+};
+
+export function subjectFamilyLabel(family: string): string {
+  const key = family.trim().toLowerCase();
+  if (SUBJECT_FAMILY_LABELS[key]) return SUBJECT_FAMILY_LABELS[key];
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+/**
+ * The line under "Which subjects would you like?": what the library has papers in. A subject with no
+ * papers is refused by the server, so naming the ones that work saves a wasted try (tracker of 2 Nov,
+ * "error when submitting preferred subjects"). Empty when the list is not known.
+ */
+export function subjectsHint(families: readonly string[] | null | undefined): string {
+  const names = (families ?? []).map((f) => subjectFamilyLabel(f)).filter((n) => n !== '');
+  if (names.length === 0) return '';
+  return `Subjects with papers right now: ${names.join(', ')}.`;
+}
+
 /** "3 skipped" on a paper card: they stay on the paper for the verifier to come back to. */
 export function skippedLabel(n: number): string {
   return `${n} skipped`;

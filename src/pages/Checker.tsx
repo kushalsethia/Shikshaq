@@ -38,6 +38,7 @@ import {
   skippedLabel,
   sortPapers,
   stateSummary,
+  subjectsHint,
   VERIFIER_GRADE_OPTIONS,
   withoutReopen,
   type PaperQuestionState,
@@ -453,6 +454,15 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Which subjects have papers, so the box can say what is worth typing. Read only when the box is open,
+  // and an empty answer (function not applied yet, or the read failed) just leaves the hint out.
+  const subjectsQuery = useQuery({
+    queryKey: ['verifier-subjects-with-papers'],
+    queryFn: api.subjectsWithPapers,
+    staleTime: 10 * 60 * 1000,
+    enabled: asking,
+  });
+  const subjectsLine = subjectsHint(subjectsQuery.data);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ full_name: '', grade: '', school: '', board: '' });
   const [formError, setFormError] = useState<string | null>(null);
@@ -634,8 +644,14 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
           <label htmlFor="req-subjects" className="mb-1 block text-[13px] font-semibold text-foreground">
             Which subjects would you like? Separate them with commas.
           </label>
+          {subjectsLine ? (
+            <p id="req-subjects-hint" className="mb-1 text-[12px] text-warm-meta" data-testid="subjects-hint">
+              {subjectsLine}
+            </p>
+          ) : null}
           <textarea
             id="req-subjects"
+            aria-describedby={subjectsLine ? 'req-subjects-hint' : undefined}
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={2}
