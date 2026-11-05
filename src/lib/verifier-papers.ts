@@ -100,14 +100,23 @@ export function skippedNote(n: number): string {
     : `You skipped ${n} questions on this paper. They stay here for later.`;
 }
 
-/** Unfinished papers first (fewest left first, so almost-done papers surface), finished ones last. */
+/**
+ * Unfinished papers first, finished ones last, and otherwise the order the papers were handed out.
+ *
+ * The order must not depend on how many questions are left. After every answer the list is
+ * re-read and `remaining` changes, so sorting by it made the cards jump about under the
+ * verifier's eyes ("the whole set of papers keeps changing", tracker of 2 Nov). A card now moves
+ * only once: down to the finished group, when its last question is done. Ties on the hand-out
+ * time fall back to the assignment id, which is how the server orders the list too.
+ */
 export function sortPapers(list: MyPaper[]): MyPaper[] {
   return [...list].sort((a, b) => {
     const fa = a.remaining === 0 ? 1 : 0;
     const fb = b.remaining === 0 ? 1 : 0;
     if (fa !== fb) return fa - fb;
-    if (a.remaining !== b.remaining) return a.remaining - b.remaining;
-    return (a.assigned_at ?? '').localeCompare(b.assigned_at ?? '');
+    const byTime = (a.assigned_at ?? '').localeCompare(b.assigned_at ?? '');
+    if (byTime !== 0) return byTime;
+    return a.assignment_id - b.assignment_id;
   });
 }
 
