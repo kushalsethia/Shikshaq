@@ -833,6 +833,7 @@ export default function Index() {
                         style={{ backgroundColor: getSubjectPalette(s.name).solid }}
                       />
                       {s.name} · {s.teacherCount}
+                      <span className="sr-only"> teachers</span>
                     </span>
                   ))}
                 </div>
@@ -849,6 +850,7 @@ export default function Index() {
                     >
                       <span aria-hidden className="h-2 w-2 rounded-[2px] bg-brand-blue" />
                       {b} · {paperBoardCounts[b]}
+                      <span className="sr-only"> papers</span>
                     </Link>
                   ))}
                 </div>
@@ -1380,7 +1382,7 @@ export default function Index() {
                 index.css:112-123 documents as failing AA. The token is
                 near-black at 6.46:1. */}
             <p className="text-[12px] font-bold uppercase tracking-[.04em] text-brand-foreground/75">
-              02 · Two minutes, start to finish
+              05 · Two minutes, start to finish
             </p>
             <h2 className="mt-2 font-display text-[28px] font-extrabold tracking-[-0.045em] text-brand-foreground">
               Then talk to them yourself

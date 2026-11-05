@@ -125,7 +125,7 @@ export default function Join() {
                     <div className={`flex h-[34px] w-[34px] items-center justify-center rounded-[12px] ${b.iconTile}`}>
                       <Icon className="h-[17px] w-[17px] text-white" strokeWidth={2} aria-hidden="true" />
                     </div>
-                    <div className={`mt-3 text-[17px] font-extrabold tracking-[-0.03em] ${b.titleInk}`}>{b.title}</div>
+                    <h3 className={`mt-3 text-[17px] font-extrabold tracking-[-0.03em] ${b.titleInk}`}>{b.title}</h3>
                     <p className={`mt-1 text-[14px] leading-[1.5] ${b.bodyInk}`}>{b.body}</p>
                   </div>
                 );

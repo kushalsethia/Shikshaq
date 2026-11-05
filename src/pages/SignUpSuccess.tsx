@@ -64,7 +64,7 @@ export default function SignUpSuccess() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background">
       {/* Handoff SS-001: one full-height mint panel, content vertically
           centred. Chromeless route (no navbar), so the brand mark that
           every other page gets from the floating global nav has to be
@@ -93,13 +93,13 @@ export default function SignUpSuccess() {
               type="button"
               onClick={handleResend}
               disabled={resending}
-              className="flex h-11 w-full items-center justify-center text-[14px] font-semibold text-[#3E6F53] disabled:opacity-60"
+              className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-semibold text-[#3E6F53] transition-colors duration-tap hover:text-[#24603D] disabled:opacity-60"
             >
               {resending ? 'Resending…' : 'Resend the email'}
             </button>
           </div>
         </div>
       </BentoPanel>
-    </div>
+    </main>
   );
 }
