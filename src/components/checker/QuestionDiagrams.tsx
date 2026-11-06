@@ -26,7 +26,7 @@ export function QuestionDiagrams({
         <p className="text-[12px] font-bold text-foreground">{diagramHeading(items.length)}</p>
         <p className="text-[12px] leading-snug text-warm-secondary">{DIAGRAM_CHECK_LINE}</p>
       </div>
-      <div className="flex max-h-[34vh] min-w-0 flex-wrap items-start gap-2 overflow-y-auto">
+      <div className="flex max-h-[46vh] min-w-0 flex-wrap items-start gap-2 overflow-y-auto">
         {items.map((it) => (
           <button
             key={it.id}

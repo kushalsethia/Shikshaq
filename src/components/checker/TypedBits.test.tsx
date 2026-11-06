@@ -401,8 +401,8 @@ describe('the verify screen lays the whole question out around the card', () => 
     expect((screen.match(/revealKey=/g) ?? []).length).toBe(4);
   });
 
-  it('a stand-alone question is unchanged: the card, the tools, then its passage and instructions', () => {
-    expect(left).toMatch(/\{questionTop\}\s+\{alerts\}\s+\{checkedPart\}\s+\{passageBlock\}\s+\{instructionsBlock\}/);
+  it('a stand-alone question: the card, the tools, its diagram, then its passage and instructions', () => {
+    expect(left).toMatch(/\{questionTop\}\s+\{alerts\}\s+\{checkedPart\}\s+\{diagramBlock\}\s+\{passageBlock\}\s+\{instructionsBlock\}/);
   });
 });
 
