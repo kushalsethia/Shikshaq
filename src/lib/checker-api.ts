@@ -513,6 +513,22 @@ export async function verifierRequestSubjects(subjects: string[]): Promise<void>
   if (error) throw error;
 }
 
+/**
+ * The subject families the library has papers in, most papers first (verifier_subjects_with_papers,
+ * 20261105100000). Never throws: until that function is applied, or when the read fails, the answer
+ * is an empty list and the "Ask your HOD for subjects" box simply has no hint.
+ */
+export async function verifierSubjectsWithPapers(): Promise<string[]> {
+  try {
+    const { data, error } = await supabase.rpc('verifier_subjects_with_papers' as never);
+    const list: unknown = data;
+    if (error || !Array.isArray(list)) return [];
+    return list.filter((s): s is string => typeof s === 'string' && s.trim() !== '');
+  } catch {
+    return [];
+  }
+}
+
 /** The caller's current paper and how far through it they are
  *  (checker_my_assignment, 20261007100000). Null when nothing is assigned;
  *  call checkerNextQuestion first, because that is what assigns. */
@@ -570,6 +586,7 @@ export interface CheckerApi {
   myProfile: typeof verifierMyProfile;
   setMyProfile: typeof verifierSetMyProfile;
   requestSubjects: typeof verifierRequestSubjects;
+  subjectsWithPapers: typeof verifierSubjectsWithPapers;
   myAssignment: typeof checkerMyAssignment;
   returnPaper: typeof checkerReturnPaper;
   paperPages: typeof paperPagePictures;
@@ -603,6 +620,7 @@ export const realCheckerApi: CheckerApi = {
   myProfile: verifierMyProfile,
   setMyProfile: verifierSetMyProfile,
   requestSubjects: verifierRequestSubjects,
+  subjectsWithPapers: verifierSubjectsWithPapers,
   myAssignment: checkerMyAssignment,
   returnPaper: checkerReturnPaper,
   paperPages: paperPagePictures,

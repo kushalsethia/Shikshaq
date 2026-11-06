@@ -6,7 +6,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 import { ADMIN_PAGES, ADMIN_TABS, adminHref } from '@/lib/admin-hints';
 import { buildAdminNav, isAdminPath } from '@/pages/admin/shell';
-import { LEGACY_ADMIN_PATHS, legacyAdminTarget } from '@/pages/admin/legacy-routes';
+import { LEGACY_ADMIN_PATHS, legacyAdminTarget, legacyPaperApprovalTarget } from '@/pages/admin/legacy-routes';
 import { SECTION_BODY } from '@/pages/admin/sections';
 
 /* The admin menu is four tabs, and every address that ever led somewhere in the
@@ -89,6 +89,22 @@ describe('every old admin address still works', () => {
     expect(legacyAdminTarget('/admin/uploads', '')).toBe('/hod?tab=uploads');
     expect(legacyAdminTarget('/admin/queue', '')).toBe('/hod?tab=needs-you');
     expect(legacyAdminTarget('/admin/needs-you', '')).toBe('/hod?tab=needs-you');
+  });
+
+  /* The old admin publish page had fewer checks than the HOD flow. It is switched off:
+     its address opens the same paper in the HOD publish flow (owner, 6 November 2026). */
+  it('switches the old publish page off: its address opens the paper in the HOD flow', () => {
+    expect(app).toMatch(/<Route\s+path="\/admin\/paper-approvals\/:auditPaperId"\s+element=\{<LegacyPaperApprovalRedirect\s*\/>/);
+    expect(app).not.toContain('<AdminPaperApproval');
+    expect(app).not.toMatch(/lazy\([^)]*paper-approval"\)/);
+    expect(legacyPaperApprovalTarget('abc-123', '')).toBe('/hod?tab=ready&paper=abc-123');
+    expect(matches(legacyPaperApprovalTarget('abc-123', ''))).toBe(true);
+  });
+
+  it('keeps ?dummy=1 on the way, never over the tab or the paper', () => {
+    expect(legacyPaperApprovalTarget('p1', '?dummy=1')).toBe('/hod?tab=ready&paper=p1&dummy=1');
+    expect(legacyPaperApprovalTarget('p1', '?paper=other&tab=live')).toBe('/hod?tab=ready&paper=p1');
+    expect(legacyPaperApprovalTarget(undefined, '')).toBe('/hod?tab=ready');
   });
 
   it('sends the people, teacher, log and system pages to their section', () => {

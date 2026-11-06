@@ -41,13 +41,35 @@ describe('verifier_my_papers mapping', () => {
     expect(paperCardProgress({ total: 0, done: 0, remaining: 0 }).percent).toBe(0);
   });
 
-  it('puts unfinished papers first, the nearest to done first, finished last', () => {
+  it('puts unfinished papers first in hand-out order, finished last', () => {
     const sorted = sortPapers([
-      { ...list[1], paper_id: 'done', remaining: 0 },
-      { ...list[0], paper_id: 'many', remaining: 20 },
-      { ...list[0], paper_id: 'few', remaining: 2 },
+      { ...list[1], paper_id: 'done', remaining: 0, assigned_at: '2026-11-01T09:00:00Z' },
+      { ...list[0], paper_id: 'second', remaining: 2, assigned_at: '2026-11-02T09:00:00Z' },
+      { ...list[0], paper_id: 'first', remaining: 20, assigned_at: '2026-11-01T10:00:00Z' },
     ]);
-    expect(sorted.map((p) => p.paper_id)).toEqual(['few', 'many', 'done']);
+    expect(sorted.map((p) => p.paper_id)).toEqual(['first', 'second', 'done']);
+  });
+
+  it('does not reshuffle the cards when answers change how many questions are left', () => {
+    const base = [
+      { ...list[0], assignment_id: 1, paper_id: 'a', remaining: 9, assigned_at: '2026-11-01T09:00:00Z' },
+      { ...list[0], assignment_id: 2, paper_id: 'b', remaining: 5, assigned_at: '2026-11-01T10:00:00Z' },
+      { ...list[0], assignment_id: 3, paper_id: 'c', remaining: 7, assigned_at: '2026-11-01T11:00:00Z' },
+    ];
+    const before = sortPapers(base).map((p) => p.paper_id);
+    // Two answers on paper a: it now has the fewest left. Its card must stay where it was.
+    const after = sortPapers(base.map((p) => (p.paper_id === 'a' ? { ...p, remaining: 3 } : p))).map((p) => p.paper_id);
+    expect(after).toEqual(before);
+    expect(before).toEqual(['a', 'b', 'c']);
+  });
+
+  it('breaks a tie on the hand-out time by the assignment id, the way the server does', () => {
+    const t = '2026-11-01T09:00:00Z';
+    const sorted = sortPapers([
+      { ...list[0], assignment_id: 8, paper_id: 'later', remaining: 4, assigned_at: t },
+      { ...list[0], assignment_id: 5, paper_id: 'earlier', remaining: 9, assigned_at: t },
+    ]);
+    expect(sorted.map((p) => p.paper_id)).toEqual(['earlier', 'later']);
   });
 });
 

@@ -19,8 +19,12 @@ This guide explains how to set up the Gemini AI chatbot for ShikshAq's FAQ funct
 **For Local Development:**
 Create a `.env.local` file in the root directory:
 ```
-VITE_GEMINI_API_KEY=your_api_key_here
+GEMINI_API_KEY=your_api_key_here
 ```
+
+Do **not** name it `VITE_GEMINI_API_KEY`. Anything starting with `VITE_` is baked into the
+website's public files, so the key would be readable by every visitor. `GEMINI_API_KEY` stays
+on the server (`api/chat.ts`).
 
 **For Vercel Deployment:**
 1. Go to your Vercel project settings
@@ -99,7 +103,7 @@ Modify the `SYSTEM_PROMPT` in `api/chat.ts` to change:
 
 ### API Key Not Found
 - Ensure `GEMINI_API_KEY` is set in Vercel environment variables
-- For local dev, ensure `.env.local` exists with `VITE_GEMINI_API_KEY`
+- For local dev, ensure `.env.local` exists with `GEMINI_API_KEY` (never the `VITE_` spelling: that one is public)
 
 ### API Route Not Working
 - Check that `/api/chat.ts` exists in the root directory

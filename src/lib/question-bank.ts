@@ -278,7 +278,7 @@ const questionCache = new Map<string, Promise<BankQuestion[]>>();
  * One paper's questions, in printed order.
  *
  * Reads through the `bank_paper_questions` RPC, not the table: anon SELECT on
- * bank_questions is revoked, and the function returns five rows to a signed-out
+ * bank_questions is revoked, and the function returns two questions to a signed-out
  * caller and the whole paper to a signed-in one. A signed-out reader therefore
  * receives only the preview questions and no trace of the rest -- there is nothing in the
  * payload to un-blur, which is the point.

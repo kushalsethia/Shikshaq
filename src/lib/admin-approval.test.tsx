@@ -253,7 +253,9 @@ describe('resolving open questions', () => {
 describe('the live page placeholder for a held question', () => {
   it('shows its number and one friendly line, no question text', () => {
     const html = renderToStaticMarkup(<HeldQuestionCard id="h1" number="6" />);
-    expect(text(html)).toContain('This question is being checked and will appear soon.');
+    // True for every held question: one being checked (it appears later) and one set aside (it may not).
+    expect(text(html)).toContain('This question is not shown right now. It may appear here later.');
+    expect(text(html)).not.toMatch(/will appear soon/i);
     expect(html).toContain('>6<');
     expect(html).not.toMatch(/[–—]/);
   });

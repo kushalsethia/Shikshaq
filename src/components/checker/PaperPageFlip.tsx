@@ -6,6 +6,7 @@ import {
   NO_PAGES_TITLE,
   PAGES_FAILED_NOTE,
   missingPagesNote,
+  ownPageNote,
   pageOfLabel,
   startPageIndex,
   WHOLE_PAPER_NOTE,
@@ -109,6 +110,7 @@ export function PaperPageFlip({
 
   const i = clampPageIndex(index, pages.length);
   const gapNote = missingPagesNote(pages);
+  const ownNote = ownPageNote(pages, questionPage);
   const ready = shown && current && shown.path === current.object_path ? shown : null;
   return (
     <div className={box} data-testid="paper-page-flip">
@@ -137,6 +139,11 @@ export function PaperPageFlip({
           Next
         </button>
       </div>
+      {ownNote ? (
+        <p className="rounded-2xl bg-muted px-3 py-2 text-[13px] leading-snug text-warm-secondary" role="note" data-testid="paper-pages-own-missing">
+          {ownNote}
+        </p>
+      ) : null}
       {gapNote ? (
         <p className="rounded-2xl bg-muted px-3 py-2 text-[13px] leading-snug text-warm-secondary" role="note" data-testid="paper-pages-gap">
           {gapNote}

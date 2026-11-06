@@ -20,7 +20,7 @@ export function HeldQuestionCard({ id, number, depth = 0 }: { id: string; number
         ) : null}
         <Clock className="h-4 w-4 flex-none text-warm-label" aria-hidden="true" />
         <p className="text-[14px] leading-[1.5] text-warm-secondary">
-          This question is being checked and will appear soon.
+          This question is not shown right now. It may appear here later.
         </p>
       </div>
     </li>

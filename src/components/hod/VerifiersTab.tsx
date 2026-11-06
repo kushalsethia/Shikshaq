@@ -307,7 +307,7 @@ export function VerifiersTab({ api, scope }: { api: HodApi; scope: string }) {
   if (teamQ.isLoading || profilesQ.isLoading) return <ListSkeleton label="Loading verifiers" />;
   if (teamQ.isError) return <LoadError what="The verifiers" onRetry={() => void teamQ.refetch()} />;
   const team = teamQ.data ?? [];
-  if (team.length === 0) return <EmptyNote>There are no verifiers yet. An admin adds them on the Verifiers page.</EmptyNote>;
+  if (team.length === 0) return <EmptyNote>There are no verifiers yet. An admin adds them under Admin, People, Verifiers.</EmptyNote>;
   const profiles = sortProfiles(profilesQ.data ?? []);
   const needing = profiles.filter((p) => profileFlag(p) !== null).length;
   const choices = subjectChoices({

@@ -564,6 +564,11 @@ export function createFakeCheckerApi(): FakeCheckerApi {
       requested = subjects;
     },
 
+    async subjectsWithPapers() {
+      await gate();
+      return ['mathematics', 'english', 'historyandcivics', 'economics'];
+    },
+
     async myAssignment(): Promise<MyAssignment | null> {
       await gate();
       if (!current) return null;

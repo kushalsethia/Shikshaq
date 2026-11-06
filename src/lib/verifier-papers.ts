@@ -88,6 +88,31 @@ export function paperCardProgress(p: Pick<MyPaper, 'total' | 'done' | 'remaining
   return { label: `${done} of ${total} done`, percent, finished: p.remaining === 0 };
 }
 
+/** How a subject family from verifier_subjects_with_papers reads on screen. */
+const SUBJECT_FAMILY_LABELS: Record<string, string> = {
+  mathematics: 'Mathematics',
+  english: 'English',
+  historyandcivics: 'History & Civics',
+  economics: 'Economics',
+};
+
+export function subjectFamilyLabel(family: string): string {
+  const key = family.trim().toLowerCase();
+  if (SUBJECT_FAMILY_LABELS[key]) return SUBJECT_FAMILY_LABELS[key];
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+/**
+ * The line under "Which subjects would you like?": what the library has papers in. A subject with no
+ * papers is refused by the server, so naming the ones that work saves a wasted try (tracker of 2 Nov,
+ * "error when submitting preferred subjects"). Empty when the list is not known.
+ */
+export function subjectsHint(families: readonly string[] | null | undefined): string {
+  const names = (families ?? []).map((f) => subjectFamilyLabel(f)).filter((n) => n !== '');
+  if (names.length === 0) return '';
+  return `Subjects with papers right now: ${names.join(', ')}.`;
+}
+
 /** "3 skipped" on a paper card: they stay on the paper for the verifier to come back to. */
 export function skippedLabel(n: number): string {
   return `${n} skipped`;
@@ -100,14 +125,23 @@ export function skippedNote(n: number): string {
     : `You skipped ${n} questions on this paper. They stay here for later.`;
 }
 
-/** Unfinished papers first (fewest left first, so almost-done papers surface), finished ones last. */
+/**
+ * Unfinished papers first, finished ones last, and otherwise the order the papers were handed out.
+ *
+ * The order must not depend on how many questions are left. After every answer the list is
+ * re-read and `remaining` changes, so sorting by it made the cards jump about under the
+ * verifier's eyes ("the whole set of papers keeps changing", tracker of 2 Nov). A card now moves
+ * only once: down to the finished group, when its last question is done. Ties on the hand-out
+ * time fall back to the assignment id, which is how the server orders the list too.
+ */
 export function sortPapers(list: MyPaper[]): MyPaper[] {
   return [...list].sort((a, b) => {
     const fa = a.remaining === 0 ? 1 : 0;
     const fb = b.remaining === 0 ? 1 : 0;
     if (fa !== fb) return fa - fb;
-    if (a.remaining !== b.remaining) return a.remaining - b.remaining;
-    return (a.assigned_at ?? '').localeCompare(b.assigned_at ?? '');
+    const byTime = (a.assigned_at ?? '').localeCompare(b.assigned_at ?? '');
+    if (byTime !== 0) return byTime;
+    return a.assignment_id - b.assignment_id;
   });
 }
 

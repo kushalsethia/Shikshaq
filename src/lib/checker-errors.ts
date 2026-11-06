@@ -38,6 +38,14 @@ export function checkerErrorAdvice(err: unknown): CheckerErrorAdvice {
       moveOn: true,
     };
   }
+  // A paper put on hold (wrong PDF flagged) takes no more answers, even for a question
+  // that was already open. Nothing is lost: earlier answers stay saved.
+  if (/put on hold/i.test(text)) {
+    return {
+      message: 'This paper was put on hold by your HOD, so that answer was not saved. Your earlier answers on it are kept. Pick another paper for now.',
+      moveOn: true,
+    };
+  }
   // Every other refusal the server raises for a question (sent to the HOD,
   // question gone, paper not open for checking): retrying cannot change it, and
   // before this it was retried every 8 s while the screen sat on a skeleton.
