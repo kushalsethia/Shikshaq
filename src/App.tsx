@@ -19,7 +19,7 @@ import { DelayedFallback } from "@/components/DelayedFallback";
 import { CanonicalTag } from "@/components/CanonicalTag";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageLoader } from "@/components/layout/PageLoader";
-import { LegacyAdminRedirect } from "@/pages/admin/legacy-routes";
+import { LegacyAdminRedirect, LegacyPaperApprovalRedirect } from "@/pages/admin/legacy-routes";
 /* Chatbot (642 lines), ProductTour (504 lines) and the one-time
    PapersLiveAnnouncement banner are none of them needed for first paint —
    all three are floating/overlay widgets mounted once at the app root
@@ -77,7 +77,6 @@ const RecommendTeacher = lazy(() => import("./pages/RecommendTeacher"));
    (or to the HOD desk, for the paper pages): see pages/admin/legacy-routes.tsx. */
 const AdminHome = lazy(() => import("./pages/admin/index"));
 const AdminPaperEdit = lazy(() => import("./pages/admin/paper-edit"));
-const AdminPaperApproval = lazy(() => import("./pages/admin/paper-approval"));
 const AdminCheckerLogPerson = lazy(() => import("./pages/admin/checker-log-person"));
 /* Paper checker (Kid Mode) -- W1. A route only paper checkers/admins can
    open (see is_paper_checker(), checked client-side inside the page
@@ -332,12 +331,13 @@ const App = () => (
               <Route path="/recommend-teacher" element={<RecommendTeacher />} />
               <Route path="/admin" element={<AdminHome />} />
               {/* Screens that still sit on their own address: a paper being
-                  edited, a paper being approved, one verifier's days. Their
-                  list pages moved (see below); these stay because a list row
-                  opens them. */}
+                  edited, one verifier's days. Their list pages moved (see
+                  below); these stay because a list row opens them. The old
+                  publish page for one paper is switched off: its address now
+                  opens the same paper in the HOD publish flow. */}
               <Route path="/admin/library/:paperId" element={<AdminPaperEdit />} />
               <Route path="/admin/paper-review/:paperId" element={<LegacyPaperReviewRedirect />} />
-              <Route path="/admin/paper-approvals/:auditPaperId" element={<AdminPaperApproval />} />
+              <Route path="/admin/paper-approvals/:auditPaperId" element={<LegacyPaperApprovalRedirect />} />
               <Route path="/admin/checker-log/:actorKey" element={<AdminCheckerLogPerson />} />
               {/* Old admin addresses. The teacher, people, log and system pages
                   are sections of the Admin page now; the paper pages are tabs of

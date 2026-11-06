@@ -200,7 +200,7 @@ export const TEAM_COLUMNS: TeamColumn[] = [
   { key: 'edited', label: 'Fixed', hint: 'Questions where they changed the words, number or marks.' },
   { key: 'escalated', label: 'Sent to HOD', hint: 'Questions they asked the HOD about.' },
   { key: 'skipped', label: 'Skipped', hint: 'Questions they skipped. They wait on the paper until the verifier goes back to them.' },
-  { key: 'skipped_done', label: 'Later corrected', hint: 'Questions they skipped and then went back to and dealt with themselves.' },
+  { key: 'skipped_done', label: 'Later corrected', hint: 'Questions they skipped that were later dealt with, by them or by someone else.' },
   { key: 'overturned', label: 'Fixed by others', hint: 'Questions they passed that someone else later fixed.' },
   { key: 'last_active', label: 'Last active', hint: 'When they last checked a question.' },
 ];

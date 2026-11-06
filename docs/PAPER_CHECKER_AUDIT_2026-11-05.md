@@ -18,8 +18,8 @@ page lists every problem in one shape so nothing is vague:
 "Live check" means I asked the real database a question that only reads and changes nothing. "Not proven" means I could
 not prove it from here, and I say what would.
 
-**Everything on this branch was checked together:** type check clean, 194 test files and 2,977 tests pass, lint has 0
-errors (219 old warnings were already there).
+**Everything on this branch was checked together:** type check clean, 195 test files and 2,991 tests pass, lint has 0
+errors (the old warnings were already there). Last checked 6 November, after your answers were applied.
 
 ---
 
@@ -27,11 +27,13 @@ errors (219 old warnings were already there).
 
 1. **Merge the branch** `checker-plumbing-2026-11-05`. It already contains the two waiting fixes from PR #95, so merging
    it makes those live too. (If you merge PR #95 first, this branch simply adds on top.)
-2. **Paste one database file** into the Supabase SQL editor: `supabase/migrations/20261105100000_checker_counts_subjects_and_lock.sql`.
-   It fixes the counters, locks one open function and gives the subjects hint its list. **The website works the same
-   whether or not you paste it**, so there is no rush and no order to worry about.
-3. **Decide four things** (listed at the end): the old admin publish page, hand-assigning past the 10-paper limit, whether
-   a skipped question fixed by someone else should count, and whether to re-run the page pictures for 7 papers.
+2. **Paste two database files** into the Supabase SQL editor, in this order. **The website works the same whether or not
+   you paste them**, so there is no rush:
+   1. `supabase/migrations/20261105100000_checker_counts_subjects_and_lock.sql`: fixes the counters, locks one open
+      function and gives the subjects hint its list.
+   2. `supabase/migrations/20261106100000_hold_stops_answers_and_later_corrected.sql` (added 6 November after your
+      answers): a paper put on hold takes no more answers; "Later corrected" counts a skip someone else settled.
+3. **Your decisions of 6 November are in** (see section D). Nothing is waiting on you except the two pastes.
 
 ---
 
@@ -146,8 +148,14 @@ errors (219 old warnings were already there).
 ### A8. "Corrected later" count on the HOD Verifiers tab
 - **Status: Already fixed and live.** Live check: the database function now returns the "skipped then done" column.
 - **What it counts:** a question this verifier skipped and later passed, fixed, split, or sent to the HOD, themselves.
-- **What it does not count:** a question they skipped that someone *else* later fixed. That shows in no column. See the
-  decisions at the end.
+- **Your ruling, 6 November: "Yes, count it".** A question they skipped that someone *else* later settled now counts too.
+  "Settled" = a later counted log line by anyone: pass, fix, typo fix, split, sent to the HOD, admin pass, admin edit,
+  set aside, or moved to students. An undone line does not count.
+- **Done:** `hod_team()` in `supabase/migrations/20261106100000_hold_stops_answers_and_later_corrected.sql`; the column
+  tooltip now says "by them or by someone else" (true before and after the paste).
+- **Live check (select only):** 20 before, 23 after, over 41 skipped questions.
+- **Proof:** Test `src/lib/checker-hold-and-later-migration.test.ts` (any actor, the action list, a second skip never
+  settles a skip, same grants). **Status: Fixed (needs your paste).** Until you paste it the old count stays.
 - **Small oddity:** "Skipped" counts each skip, "Corrected later" counts each question once, so a question skipped
   twice then fixed shows 2 skipped and 1 corrected.
 
@@ -168,10 +176,15 @@ errors (219 old warnings were already there).
 ### B3. An answer can still be sent after the paper is put on hold
 - **Notice:** a question the verifier already has open is still answerable after the hold (wrong-PDF flag) is added.
 - **Reality:** the database re-checks serving rules when a question is *handed out*, not when it is *answered*.
-- **What should happen:** hold means no more answers.
-- **Why I did not change it tonight:** it would refuse answers in the middle of a person's work, and I cannot rehearse it
-  against real traffic. **Status: Your decision / next session.** Spec when you want it: add the serving check to the
-  authorize step, and make the screen say "this paper was put on hold, nothing was lost".
+- **What should happen:** hold means no more answers. **Your ruling, 6 November: "Yes, stop it".**
+- **Done:** the authorize step now refuses a held paper with 'This paper was put on hold' (in
+  `supabase/migrations/20261106100000_hold_stops_answers_and_later_corrected.sql`). Only the hold is checked at answer
+  time, not the picture or page rules, so a person is never refused mid-answer because a picture job is running. An HOD
+  settling an escalated question is not blocked. The screen says: "This paper was put on hold by your HOD, so that
+  answer was not saved. Your earlier answers on it are kept. Pick another paper for now." and does not retry.
+- **Proof:** Test `src/lib/checker-hold-and-later-migration.test.ts` (check sits after the lease check, in the verifier
+  branch only; older refusals kept; the message; the outbox treats it as final). **Status: Fixed (needs your paste).**
+  Not proven: the real database refusing it live (the migration was never run).
 
 ### B4. "Split" and "This is just the OR" skip the safe-save queue
 - **Notice:** on a dead connection these two buttons fail at once, instead of waiting.
@@ -188,7 +201,8 @@ errors (219 old warnings were already there).
   served but show no page. **Status: Accepted** (no such rows are known; the pipeline writes true/false).
 
 ### B7. Hand-assigning a paper skips the 10-paper limit and the "own school" rule
-- **Reality:** only an HOD can do this, on purpose, one paper at a time. **Status: Your decision.**
+- **Reality:** only an HOD can do this, on purpose, one paper at a time. **Your ruling, 6 November: keep ignoring the
+  limits.** **Status: Accepted.**
 
 ### B8. Any verifier can trigger "return idle papers"
 - **Reality:** it does only what the 2-minute timer already does. **Status: Accepted.**
@@ -204,15 +218,25 @@ errors (219 old warnings were already there).
 - **Reality:** `/admin/paper-approvals/<id>` still publishes. It checks open questions, the basic header and pictures,
   but not year, exam, marks, time, general instructions, scanner junk, the "a person must have checked it" rule, or the
   "left-out questions" tick. Only an admin can use it.
-- **Status: Your decision.** Simplest safe fix, if you want it: make that address open the HOD "Ready" tab instead.
+- **Your ruling, 6 November: "Switch it off".** **Done:** `/admin/paper-approvals/<id>` no longer shows that page. It
+  opens the same paper in the HOD publish flow (`/hod?tab=ready&paper=<id>`), so old bookmarks and emailed links still
+  work. The old page's code is still in the folder but nothing reaches it (safe to delete in a later tidy-up).
+- **Proof:** Test `src/pages/admin/admin-nav.test.ts` (the route is the redirect, the old page is not loaded, the
+  target keeps `?dummy=1`). **Status: Fixed (this branch).**
 
 ### B11. "Fix" on the HOD Needs-you tab is two steps
 - **Reality:** if the edit saves and the pass fails, the question is changed but still open. An error shows and one more
   press finishes it. **Status: Accepted.**
 
 ### B12. Set-aside questions leave an empty grey card on the public paper
-- **Reality:** the HOD screen says they "will not go live". The words do not; an empty placeholder card does.
-  **Status: Your decision** (either the wording changes, or the card hides).
+- **Reality:** the HOD screen says they "will not go live". The public paper showed one grey card for every held
+  question, and it said "being checked and will appear soon", which is false for a set-aside question. The page is
+  not told why a question is held (on purpose: no question text or reason reaches the browser), so the card cannot tell
+  the two apart.
+- **Your ruling, 6 November: "Add a short sentence".** **Done:** the card now says "This question is not shown right now.
+  It may appear here later." It is true for both cases and still gives no reason or text.
+- **Proof:** Test `src/lib/admin-approval.test.tsx` (the sentence, no "will appear soon", no dashes).
+  **Status: Fixed (this branch).**
 
 ### B13. The Gemini chat key
 - **Reality:** the setup guide told you to name the key with the public `VITE_` prefix. Nothing in the website uses that
@@ -236,11 +260,19 @@ errors (219 old warnings were already there).
 
 ## D. Decisions and jobs for you
 
-1. **Old admin publish page (B10)** — close it or leave it?
-2. **Skipped, then fixed by someone else (A8)** — should that count as "corrected later"? (Now it does not.)
-3. **Pipeline job (A1, A7):** re-run the page-picture job for the **7 papers** that are missing pages. It uploads pictures,
-   and your storage rule says only on "upload the backlog", so I did not run it. I can list the paper ids (read-only).
-4. **Hand-assign past the limit (B7)**, **hold = no more answers (B3)**, **the empty grey card (B12)**.
+All of these were asked on 6 November and answered. Nothing here is waiting on you.
+
+1. **Old admin publish page (B10):** "Switch it off". **Done.**
+2. **Skipped, then fixed by someone else (A8):** "Yes, count it". **Done in the second migration (needs your paste).**
+3. **Page pictures (A1, A7):** "Upload the backlog now". **Done for the two papers that still had open work and a page
+   problem.** Paper `f8dde764` was missing page 4, and paper `d51dec17` had no page pictures at all (27 pages). 28 pages,
+   about 3 MB, uploaded and registered; checked live: both papers now have every page with no gaps. The other papers
+   that showed a page gap in my live check have no open student work: their pictures were removed on purpose by the
+   clearing rule (a finished paper keeps no pages), so nothing was uploaded for them. The **question-picture backlog**
+   (`picture_queue.py upload --yes`) was **not** run: you answered about the papers with gaps.
+4. **Hand-assign past the limit (B7):** "Keep ignoring". **No change.** **Hold = no more answers (B3):** "Yes, stop it".
+   **Done in the second migration (needs your paste).** **The held-question grey card (B12):** "Add a short sentence".
+   **Done.**
 
 ## E. Limits of this audit (so you know what is not proven)
 

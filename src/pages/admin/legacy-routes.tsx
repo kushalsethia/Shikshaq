@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { ADMIN_PAGES, type AdminPageKey } from '@/lib/admin-hints';
 
 /* Every old admin address still works. Before the rework each page had its own
@@ -71,4 +71,27 @@ export function LegacyAdminRedirect() {
   const { pathname, search, hash } = useLocation();
   const target = legacyAdminTarget(pathname, search) ?? '/admin';
   return <Navigate to={`${target}${hash}`} replace />;
+}
+
+/* The old admin publish page, /admin/paper-approvals/:auditPaperId, is switched off
+   (owner, 6 November 2026: "Switch it off"). It had fewer safety checks than the HOD
+   publish flow, so the only way to publish a paper is now the HOD flow. A bookmark or an
+   emailed link to the old page still works: it opens the same paper in the HOD flow. */
+
+/** Where the old publish page for one paper goes now. Pure. */
+export function legacyPaperApprovalTarget(auditPaperId: string | undefined, search: string): string {
+  const out = new URLSearchParams({ tab: 'ready' });
+  if (auditPaperId) out.set('paper', auditPaperId);
+  // ?dummy=1 and the like carry over, but never over the tab or the paper.
+  new URLSearchParams(search).forEach((value, key) => {
+    if (!out.has(key)) out.set(key, value);
+  });
+  return `/hod?${out.toString()}`;
+}
+
+/** Route element for the old publish page of one paper. */
+export function LegacyPaperApprovalRedirect() {
+  const { auditPaperId } = useParams<{ auditPaperId: string }>();
+  const { search, hash } = useLocation();
+  return <Navigate to={`${legacyPaperApprovalTarget(auditPaperId, search)}${hash}`} replace />;
 }
