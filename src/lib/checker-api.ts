@@ -529,6 +529,60 @@ export async function verifierSubjectsWithPapers(): Promise<string[]> {
   }
 }
 
+/** One stored diagram (or photo) that belongs to a question, or to the shared stem above it. */
+export interface QuestionDiagram {
+  id: string;
+  /** Object path inside the audit-figures bucket. */
+  path: string;
+  /** The printed page it was cut from, when known. */
+  page: number | null;
+  ord: number;
+  width: number | null;
+  height: number | null;
+  /** 'diagram' or 'photo'. */
+  kind: string;
+  caption: string | null;
+  /** True when it sits on the shared stem of a part, not on the part itself. */
+  fromStem: boolean;
+}
+
+/**
+ * The stored diagrams of a question and of the stem above it, stem first
+ * (verifier_question_diagrams, 20261106200000). Never throws: until that function is
+ * applied, or when the read fails, the answer is an empty list and the screen shows
+ * nothing extra (owner, 6 Nov 2026: "when it has an accompanying diagram, it should
+ * also show to the checker").
+ */
+export async function verifierQuestionDiagrams(questionId: string): Promise<QuestionDiagram[]> {
+  if (!questionId) return [];
+  try {
+    const { data, error } = await supabase.rpc('verifier_question_diagrams' as never, { p_question_id: questionId } as never);
+    const rows: unknown = data;
+    if (error || !Array.isArray(rows)) return [];
+    const out: QuestionDiagram[] = [];
+    for (const r of rows as Array<Record<string, unknown>>) {
+      const path = typeof r.storage_path === 'string' ? r.storage_path.trim() : '';
+      // Only a plain object path inside the bucket: never an absolute or climbing path.
+      if (!path || path.startsWith('/') || path.includes('..')) continue;
+      const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+      out.push({
+        id: typeof r.figure_id === 'string' && r.figure_id ? r.figure_id : path,
+        path,
+        page: num(r.page),
+        ord: num(r.ord) ?? 0,
+        width: num(r.width),
+        height: num(r.height),
+        kind: typeof r.kind === 'string' && r.kind ? r.kind : 'diagram',
+        caption: typeof r.caption === 'string' && r.caption.trim() ? r.caption.trim() : null,
+        fromStem: r.from_stem === true,
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 /** The caller's current paper and how far through it they are
  *  (checker_my_assignment, 20261007100000). Null when nothing is assigned;
  *  call checkerNextQuestion first, because that is what assigns. */
@@ -587,6 +641,7 @@ export interface CheckerApi {
   setMyProfile: typeof verifierSetMyProfile;
   requestSubjects: typeof verifierRequestSubjects;
   subjectsWithPapers: typeof verifierSubjectsWithPapers;
+  questionDiagrams: typeof verifierQuestionDiagrams;
   myAssignment: typeof checkerMyAssignment;
   returnPaper: typeof checkerReturnPaper;
   paperPages: typeof paperPagePictures;
@@ -621,6 +676,7 @@ export const realCheckerApi: CheckerApi = {
   setMyProfile: verifierSetMyProfile,
   requestSubjects: verifierRequestSubjects,
   subjectsWithPapers: verifierSubjectsWithPapers,
+  questionDiagrams: verifierQuestionDiagrams,
   myAssignment: checkerMyAssignment,
   returnPaper: checkerReturnPaper,
   paperPages: paperPagePictures,

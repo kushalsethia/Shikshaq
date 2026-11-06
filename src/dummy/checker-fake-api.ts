@@ -17,7 +17,7 @@ import { verdictAndNextArgs } from '@/lib/checker-verdict-next';
 import type { MyAssignment } from '@/lib/checker-progress';
 import { isVerifierGrade, type MyPaper, type PaperQuestion, type PaperQuestionState, type VerifierProfile } from '@/lib/verifier-papers';
 import type { PaperPage } from '@/lib/paper-pages';
-import { DUMMY_PAPER, dummyContext, dummyPageDataUrl, dummyPictureDataUrl, dummyQuestions } from '@/dummy/checker-fixtures';
+import { DUMMY_DIAGRAM_PATH, DUMMY_PAPER, dummyContext, dummyDiagramDataUrl, dummyPageDataUrl, dummyPictureDataUrl, dummyQuestions } from '@/dummy/checker-fixtures';
 import { isBlankBody, isOrOnlyBody, splitOrPlan } from '@/lib/checker-body';
 import { lostTextSuggestion } from '@/lib/checker-lost-text';
 import { checkerSaveRoute, TYPO_NEEDS_VERSION } from '@/lib/checker-save';
@@ -569,6 +569,14 @@ export function createFakeCheckerApi(): FakeCheckerApi {
       return ['mathematics', 'english', 'historyandcivics', 'economics'];
     },
 
+    // A demo question that is flagged "figure missing" has its diagram stored, as the real ones do.
+    async questionDiagrams(questionId) {
+      await gate();
+      const q = queue.find((x) => x.id === questionId);
+      if (!q || !q.flag_reasons?.includes('figure_missing')) return [];
+      return [{ id: `diagram-${questionId}`, path: DUMMY_DIAGRAM_PATH, page: 3, ord: 1, width: 320, height: 220, kind: 'diagram', caption: null, fromStem: false }];
+    },
+
     async myAssignment(): Promise<MyAssignment | null> {
       await gate();
       if (!current) return null;
@@ -654,7 +662,7 @@ export function createFakeCheckerApi(): FakeCheckerApi {
     },
 
     async pictureUrl(path) {
-      return dummyPageDataUrl(path) ?? dummyPictureDataUrl(path);
+      return dummyPageDataUrl(path) ?? dummyPictureDataUrl(path) ?? dummyDiagramDataUrl(path);
     },
   };
 
