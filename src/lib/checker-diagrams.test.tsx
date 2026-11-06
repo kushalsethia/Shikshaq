@@ -166,18 +166,30 @@ describe('the verify screen draws it in both layouts', () => {
     expect(screen).toContain('const diagramShown = diagramItems(diagramList, diagramUrls);');
   });
 
-  it('draws the block under the crop on a wide screen and under the crop on a phone', () => {
+  it('draws the block with the question itself (the left side), once for a part of a bigger question and once for a plain one', () => {
+    // one block is built, and the question side uses it in both of its shapes
+    expect([...screen.matchAll(/<QuestionDiagrams items=\{diagramShown\}/g)]).toHaveLength(1);
+    const uses = [...screen.matchAll(/\{diagramBlock\}/g)].map((m) => m.index as number);
+    expect(uses).toHaveLength(2);
+    const leftContent = screen.indexOf('const leftContent');
+    const printedPane = screen.indexOf('const printedPane');
+    expect(screen.indexOf('const diagramBlock')).toBeLessThan(leftContent);
+    // both uses sit inside the question side and before the printed-page side
+    for (const u of uses) {
+      expect(u).toBeGreaterThan(leftContent);
+      expect(u).toBeLessThan(printedPane);
+    }
+  });
+
+  it('keeps the diagram off the page picture side, so it is never shown twice', () => {
+    const printedPane = screen.indexOf('const printedPane');
     const wide = screen.indexOf('data-testid="bento-right"');
-    const phone = screen.indexOf('const printedPane');
-    const blocks = [...screen.matchAll(/<QuestionDiagrams items=\{diagramShown\}/g)].map((m) => m.index as number);
-    expect(blocks).toHaveLength(2);
-    expect(blocks[0]).toBeGreaterThan(wide);
-    expect(blocks[0]).toBeLessThan(screen.indexOf('data-testid="page-strip"'));
-    expect(blocks[1]).toBeGreaterThan(phone);
+    expect(screen.indexOf('<QuestionDiagrams', printedPane)).toBe(-1);
+    expect(screen.indexOf('<QuestionDiagrams', wide)).toBe(-1);
   });
 
   it('opens a tapped diagram in the same viewer as the crop', () => {
-    expect(screen.match(/<QuestionDiagrams items=\{diagramShown\} onEnlarge=\{\(src, alt\) => setLightbox\(\{ src, alt \}\)\}/g)).toHaveLength(2);
+    expect(screen).toContain('<QuestionDiagrams items={diagramShown} onEnlarge={(src, alt) => setLightbox({ src, alt })}');
   });
 });
 

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { HeaderEditor } from '@/components/hod/HeaderEditor';
 import { BackLink, ListSkeleton, LoadError, Notice, deskLink, quietButton } from '@/components/hod/HodShared';
+import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
 import { PaperSheet } from '@/components/hod/PaperSheet';
 import { CheckChips, RouteTrail } from '@/components/hod/RouteTrail';
 import { useConfirm } from '@/components/ui/use-confirm';
@@ -293,18 +294,33 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
           <>
             <p className="mb-3 text-[13px] text-warm-secondary">
               Make sure the paper sits in the right class, subject and board. Each box saves on its own. Leave an optional box empty to clear it.
+              The printed paper is on one side and the computer's version on the other, so you can compare as you type.
             </p>
-            {mismatch ? (
-              <p role="note" className="mb-3 rounded-2xl bg-brand-subtle px-4 py-3 text-[14px] text-foreground">
-                {mismatch}
-              </p>
-            ) : null}
-            <HeaderEditor
-              fields={PUBLISH_FIELDS}
-              values={values}
-              save={(field, value) => api.updatePublishMeta(paperId, field, value)}
-              onSaved={refresh}
-            />
+            <div className="grid gap-4 lg:grid-cols-2 lg:items-start" data-testid="details-side-by-side">
+              <section aria-label="The printed paper" className="min-w-0 lg:sticky lg:top-4" data-testid="details-printed">
+                <h3 className="mb-2 text-[14px] font-bold text-foreground">The printed paper</h3>
+                <PaperPageFlip paperId={paperId} loadPages={api.paperPages} pictureUrl={api.pictureUrl} title="Page by page, as printed" />
+              </section>
+              <div className="min-w-0">
+                {mismatch ? (
+                  <p role="note" className="mb-3 rounded-2xl bg-brand-subtle px-4 py-3 text-[14px] text-foreground">
+                    {mismatch}
+                  </p>
+                ) : null}
+                <HeaderEditor
+                  fields={PUBLISH_FIELDS}
+                  values={values}
+                  save={(field, value) => api.updatePublishMeta(paperId, field, value)}
+                  onSaved={refresh}
+                />
+                <section aria-label="The computer's version" className="mt-5 min-w-0" data-testid="details-computer-version">
+                  <h3 className="mb-2 text-[14px] font-bold text-foreground">The computer's version</h3>
+                  <div className="max-h-[70vh] overflow-y-auto rounded-2xl bg-muted p-2">
+                    <PaperSheet preview={data} api={api} editable={!paper.is_live && waiting} onChanged={refresh} />
+                  </div>
+                </section>
+              </div>
+            </div>
           </>
         ) : null}
 

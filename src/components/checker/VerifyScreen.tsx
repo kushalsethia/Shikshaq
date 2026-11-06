@@ -1637,6 +1637,10 @@ export function VerifyScreen({
           </>
         );
 
+        /** The question's own stored diagram, shown WITH the question's words (owner, 6 Nov 2026: "show the
+         *  diagram with the question itself"), on the phone's Question tab as well as on a wide screen. */
+        const diagramBlock = <QuestionDiagrams items={diagramShown} onEnlarge={(src, alt) => setLightbox({ src, alt })} className="mb-3" />;
+
         /** The whole left side, top to bottom. A part of a bigger question shows the whole question from its
          *  stem, every part in order, with the checked part as the one card in its natural place. */
         const leftContent =
@@ -1645,6 +1649,7 @@ export function VerifyScreen({
               {questionTop}
               {alerts}
               {instructionsBlock}
+              {diagramBlock}
               <div data-testid="whole-question" role="group" aria-label="The whole question">
                 {contextRows[0].isParent ? null : passageBlock}
                 {contextRows.map((r, i) => (
@@ -1661,6 +1666,7 @@ export function VerifyScreen({
               {questionTop}
               {alerts}
               {checkedPart}
+              {diagramBlock}
               {passageBlock}
               {instructionsBlock}
             </>
@@ -1876,9 +1882,6 @@ export function VerifyScreen({
                     </PrintedFrame>
                   ) : null}
 
-                  {/* The question's own stored diagram, right under the picture of its words. */}
-                  <QuestionDiagrams items={diagramShown} onEnlarge={(src, alt) => setLightbox({ src, alt })} />
-
                   {/* The whole verified page: behind a tap when there is a crop,
                       straight away when the page is the only picture. */}
                   {pageToggle && !pageViewerOn ? (
@@ -1962,7 +1965,6 @@ export function VerifyScreen({
               revealSelector={FOCUSED_SELECTOR}
             >
               {tilesOn ? partsBody : cropVisible ? cropBody(false) : null}
-              <QuestionDiagrams items={diagramShown} onEnlarge={(src, alt) => setLightbox({ src, alt })} />
               {pageToggle ? pageToggleButton('self-start') : null}
               {paperToggle ? paperToggleButton('self-start') : null}
               {pageUnavailable ? (

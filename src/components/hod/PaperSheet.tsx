@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { QuestionBody } from '@/components/admin/approval/QuestionBody';
 import { MathText } from '@/components/papers/math-text';
 import { QuestionFixForm } from '@/components/hod/QuestionFixForm';
@@ -8,6 +9,7 @@ import { actionToneClass } from '@/lib/checker-button-styles';
 import { displaySchool } from '@/lib/school-display';
 import type { HodApi } from '@/lib/hod-api';
 import { errorWords, leftOutText, marksMismatch, questionDepths, type HodPreview, type PreviewQuestion } from '@/lib/hod-publish';
+import { instructionsAreSaved, instructionsText, leadingInstructionRows } from '@/lib/paper-instructions';
 import { cn } from '@/lib/utils';
 
 /* The paper as a printed sheet: school and exam at the top, time and marks,
@@ -253,6 +255,23 @@ export function PaperSheet({
   const time = formatMinutes(h.allowed_time_minutes);
   const leftOut = leftOutText(counts.set_aside);
   const mismatch = marksMismatch(h, paper.marks_from_questions);
+  // Some papers keep their general instructions as the first lines of the list, with nothing in the box.
+  const topLines = useMemo(() => leadingInstructionRows(questions), [questions]);
+  const topLinesSaved = instructionsAreSaved(h.general_instructions, topLines);
+  const topLineIds = useMemo(() => new Set(topLinesSaved ? topLines.map((r) => r.id) : []), [topLines, topLinesSaved]);
+  const [savingTop, setSavingTop] = useState(false);
+  async function saveTopLines() {
+    setSavingTop(true);
+    try {
+      await api.updatePublishMeta(paper.audit_paper_id, 'general_instructions', instructionsText(topLines));
+      toast.message('Saved as the general instructions.');
+      onChanged();
+    } catch (e) {
+      toast.error(errorWords(e, 'Could not save the instructions. Nothing was changed.'));
+    } finally {
+      setSavingTop(false);
+    }
+  }
   const school = h.school ? displaySchool(h.school) : null;
   const headline = [h.exam, h.year].filter(Boolean).join(' ');
   const sub = [h.cls ? `Class ${h.cls}` : null, h.subject, h.board].filter(Boolean).join(' · ');
@@ -296,12 +315,38 @@ export function PaperSheet({
             <h4 className="mb-1 text-[13px] font-bold uppercase tracking-[0.08em] text-neutral-700">General instructions</h4>
             <MathText text={h.general_instructions} className="text-[14px] leading-[1.6] text-neutral-900" />
           </section>
+        ) : topLines.length > 0 ? (
+          <section aria-label="General instructions" data-testid="top-lines-instructions" className="border-b border-neutral-300 py-4 font-serif">
+            <h4 className="mb-1 text-[13px] font-bold uppercase tracking-[0.08em] text-neutral-700">General instructions</h4>
+            <ul className="list-disc pl-5">
+              {topLines.map((r) => (
+                <li key={r.id}>
+                  <MathText text={r.body} className="text-[14px] leading-[1.6] text-neutral-900" />
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 rounded-2xl bg-brand-subtle p-3 font-sans text-[13px] text-foreground">
+              <p>
+                These are the first lines of the paper. The paper's General instructions box is empty, so the checks count it as having none.
+                {editable ? ' Save these lines in the box to fix that.' : ''}
+              </p>
+              {editable ? (
+                <button type="button" className={cn(actionToneClass('dark'), 'mt-2')} disabled={savingTop} onClick={() => void saveTopLines()}>
+                  {savingTop ? 'Saving...' : 'Use these as the general instructions'}
+                </button>
+              ) : null}
+            </div>
+          </section>
         ) : (
-          <p className="border-b border-neutral-300 py-4 text-[13px] italic text-neutral-500">No general instructions on this paper yet.</p>
+          <p className="border-b border-neutral-300 py-4 text-[13px] italic text-neutral-500">
+            No general instructions on this paper yet. If the printed paper has some, type them in on the Details step.
+          </p>
         )}
 
         <ol className="mt-4 flex flex-col gap-3 font-serif" aria-label="Questions">
           {questions.map((q) => {
+            // Already shown, word for word, as the saved general instructions above.
+            if (topLineIds.has(q.id)) return null;
             if (q.kind === 'section_break' || q.state === 'section') {
               return (
                 <li key={q.id} className="pt-3 text-center text-[14px] font-bold uppercase tracking-[0.1em] text-neutral-800">
