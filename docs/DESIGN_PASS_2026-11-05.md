@@ -61,11 +61,12 @@ indigo 3.5, mint 2.6; raising the text strength to 80 to 90 percent gets most of
 
 ## Things I did NOT change (your calls)
 
-1. **The grey text colours fail the usual readability bar on purpose.** `src/index.css` records your decision not to
-   darken them. They carry small text on almost every page (about 160 uses on the internal screens alone). It is the
-   biggest single gap, and it is yours to rule on.
-2. **A personal-looking email address is shown as a contact link on the Privacy Policy** (next to the NGO one). Please
-   confirm it is meant to be public.
+1. **DONE on 6 Nov, at your word ("Darken it a little everywhere").** The three greys are now `#6F675F` (5.12 to 1 on
+   the page), `#776F67` (4.55) and `#8A8279` (3.49). The smallest, lightest grey (uppercase labels) is only a small step
+   darker, so it still sits a little under the usual bar. This reverses the old "do not darken" note in `src/index.css`,
+   which was rewritten. Please look at a few pages on your phone; the whole site gets a touch darker.
+2. **DONE on 6 Nov ("No, remove it").** The personal email was in the Grievance Officer block, which has to keep a
+   contact. It now shows the NGO address instead. The name, phone and postal address there are unchanged.
 3. **Teacher dashboard checkboxes are about 20 px tall** (fine for a mouse, small for thumbs). Making them 44 px would
    make the 33-subject list very long on phones.
 4. **Tab bars on Account, Teacher review, Admin and HOD** do not respond to arrow keys. A small shared fix, not a page fix.

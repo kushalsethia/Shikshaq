@@ -82,9 +82,9 @@ Rotations alternate `+5° / -5° / +4° / +6°`. One element, enormous personali
 | Hairline, strong | `#D8CFC4` |
 | Text primary | `#1F1F1F` |
 | Text long-prose | `#4A443E` |
-| Text secondary | `#7B736B` |
-| Text tertiary / meta | `#8B837A` |
-| Text quaternary (labels) | `#A39A90` |
+| Text secondary | `#6F675F` (was `#7B736B`; darkened 2026-11-06) |
+| Text tertiary / meta | `#776F67` (was `#8B837A`) |
+| Text quaternary (labels) | `#8A8279` (was `#A39A90`) |
 | Dark panel (footer) | `#1B1A18` |
 
 ### 2.2 Mode colors
