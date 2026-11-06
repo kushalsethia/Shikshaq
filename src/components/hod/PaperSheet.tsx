@@ -206,7 +206,7 @@ function SheetQuestion({
                   value={note}
                   onChange={(ev) => setNote(ev.target.value)}
                   disabled={busy}
-                  className="min-h-10 rounded-xl bg-muted px-3 text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  className="min-h-10 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 />
               </label>
               <div className="mt-2 flex gap-2">

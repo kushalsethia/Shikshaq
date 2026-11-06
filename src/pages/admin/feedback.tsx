@@ -233,7 +233,7 @@ export function AdminFeedbackPage({
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by comment or email..."
               aria-label="Search feedback"
-              className="h-11 w-full max-w-full rounded-full bg-muted pl-9 pr-4 text-sm text-foreground outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+              className="h-11 w-full max-w-full rounded-full bg-muted pl-9 pr-4 text-base sm:text-sm text-foreground outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
             />
           </div>
           {searchQuery.trim() && older ? (

@@ -894,12 +894,12 @@ export default function PastPapers() {
               </h2>
               {/* Segmented toggle mapped to the two real groupings this page
                   already fetches — subjectCounts and boardCounts. */}
-              <div role="tablist" aria-label="Group papers by" className="inline-flex h-11 items-center rounded-full bg-muted p-1">
+              <div role="group" aria-label="Group papers by" className="inline-flex h-11 items-center rounded-full bg-muted p-1">
                 {(['subject', 'board'] as GroupMode[]).map((mode) => (
                   <button
                     key={mode}
-                    role="tab"
-                    aria-selected={groupMode === mode}
+                    type="button"
+                    aria-pressed={groupMode === mode}
                     onClick={() => {
                       setGroupMode(mode);
                       setFacetQuery('');
@@ -925,7 +925,7 @@ export default function PastPapers() {
                     value={facetQuery}
                     onChange={(e) => setFacetQuery(e.target.value)}
                     placeholder={`Search ${facets.total} ${groupMode === 'subject' ? 'subjects' : 'boards'}`}
-                    className={`h-11 w-full rounded-full bg-muted pl-10 pr-4 text-[15px] text-foreground outline-none placeholder:text-muted-foreground ${FOCUS_BLUE}`}
+                    className={`h-11 w-full rounded-full bg-muted pl-10 pr-4 text-[16px] text-foreground outline-none placeholder:text-muted-foreground ${FOCUS_BLUE}`}
                   />
                 </span>
               </label>

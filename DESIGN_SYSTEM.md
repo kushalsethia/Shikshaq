@@ -32,7 +32,9 @@ afterthought. See §11.
 **Two owner-approved exceptions to rule 5.** Both were raised, measured, and deliberately
 accepted in favour of handoff fidelity. Do not "fix" them, and do not raise them again:
 - Primary action: white on brand orange `#FF8000` (~2.1:1).
-- Warm text scale: secondary `#7B736B` (4.34:1), tertiary `#8B837A`, quaternary `#A39A90`.
+- (Changed 2026-11-06: the warm text scale is no longer an exception. The owner asked to darken it. It is now
+  secondary `#6F675F` (5.12:1), tertiary `#776F67` (4.55:1), quaternary `#8A8279` (3.49:1; still a small step under the floor).
+  The old handoff values were `#7B736B`, `#8B837A`, `#A39A90`.)
 
 Everything not listed above still must meet 4.5:1.
 

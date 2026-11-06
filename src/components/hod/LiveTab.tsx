@@ -209,7 +209,7 @@ export function LiveTab({ api, scope }: { api: HodApi; scope: string }) {
   if (q.isError) return <LoadError what="The live papers" onRetry={() => void q.refetch()} />;
   if (rows.length === 0) return <EmptyNote>There are no papers in the library yet.</EmptyNote>;
 
-  const select = 'min-h-[44px] rounded-xl bg-muted px-3 text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand';
+  const select = 'min-h-[44px] rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand';
   return (
     <div>
       <div className="mb-4 grid grid-cols-2 gap-3 sm:max-w-sm" data-testid="live-counts">

@@ -2027,7 +2027,7 @@ export default function Browse({ manageSeo = true, pageContext, seo, locality }:
         {/* Handoff B-003: its own 44px row, lucide ArrowLeft (not the literal
             glyph), warm-secondary ink. */}
         <Link
-          to="/"
+          to={isSubjectPage ? '/subjects' : '/'}
           className="shikshaq-tap mb-[14px] flex h-11 w-fit items-center gap-1.5 text-[13px] font-semibold text-warm-secondary transition-colors duration-tap hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={2.25} aria-hidden />

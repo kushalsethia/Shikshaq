@@ -127,6 +127,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
     q.question.toLowerCase().includes(normalizedQuery) || q.answer.toLowerCase().includes(normalizedQuery);
 
   return (
+    <main>
     <BentoStack>
       {/* Handoff HP-002: header + category chips. */}
       <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[22px]">
@@ -147,7 +148,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
               type="button"
               onClick={() => setQuery('')}
               aria-label="Clear search"
-              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-warm-secondary transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="absolute right-0.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-warm-secondary transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
@@ -164,6 +165,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
                   type="button"
                   onClick={() => setActiveCategory(c.key)}
                   aria-pressed={on}
+                  disabled={searching}
                   className={`flex h-11 flex-none items-center whitespace-nowrap rounded-full px-[18px] text-[15px] transition-colors duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     on ? 'bg-panel font-bold text-background' : 'bg-muted font-semibold text-foreground'
                   }`}
@@ -216,7 +218,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
         </div>
         {searching && !questions.some(matchesQuery) && (
           <p className="mt-3.5 text-[14px] text-warm-secondary">
-            No questions match "{query}" — try Contact us below instead.
+            No questions match "{query}". Try Contact us below instead.
           </p>
         )}
       </BentoPanel>
@@ -319,5 +321,6 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
         onSubmit={handleBuilderSubmit}
       />
     </BentoStack>
+    </main>
   );
 }

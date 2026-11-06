@@ -539,8 +539,8 @@ const SECTIONS: LegalSection[] = [
           </li>
           <li>
             <strong>Email:</strong>{' '}
-            <a href="mailto:krishgoenka96749@gmail.com" className={linkClass}>
-              krishgoenka96749@gmail.com
+            <a href="mailto:ngo.aquaterra@gmail.com" className={linkClass}>
+              ngo.aquaterra@gmail.com
             </a>
           </li>
           <li>

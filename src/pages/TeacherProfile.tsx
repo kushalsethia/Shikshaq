@@ -557,7 +557,8 @@ export default function TeacherProfile() {
        to sweep across (see BankPaper.tsx's skeleton for the same pairing). */
     return (
       <div className="min-h-screen bg-background">
-        <main className="pb-10 sm:pb-8 lg:pb-16">
+        <main className="pb-10 sm:pb-8 lg:pb-16" aria-busy="true">
+          <p role="status" className="sr-only">Loading teacher profile…</p>
           <div className="lg:grid lg:grid-cols-[1fr_384px] lg:gap-[40px]">
             <BentoStack className="min-w-0">
               <BentoPanel
@@ -968,7 +969,7 @@ export default function TeacherProfile() {
                     aria-pressed={liked}
                     className="relative flex h-[40px] w-[40px] items-center justify-center rounded-full bg-background/10 transition-transform duration-150 before:absolute before:-inset-[2px] before:content-[''] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
-                    <Heart size={18} className={liked ? 'fill-destructive text-destructive' : 'text-background/70'} />
+                    <Heart size={18} className={liked ? 'fill-destructive text-destructive' : 'text-background/70'} aria-hidden="true" />
                   </button>
                   <button
                     type="button"
@@ -1026,6 +1027,7 @@ export default function TeacherProfile() {
                     )}
                     {teacher.is_verified && (
                       <span title="Verified by Shikshaq" className="flex-none">
+                        <span className="sr-only">Verified by Shikshaq</span>
                         <ShieldCheck
                           className="h-[19px] w-[19px] fill-brand text-background lg:h-[26px] lg:w-[26px] lg:text-card"
                           strokeWidth={2}
@@ -1320,6 +1322,7 @@ export default function TeacherProfile() {
                     variant="ghost"
                     size={44}
                     onClick={handleHeartClick}
+                    aria-pressed={liked}
                     className="h-[46px] flex-1 rounded-[14px] text-background hover:bg-background/10"
                   >
                     <Heart size={16} className={liked ? 'fill-destructive text-destructive' : ''} aria-hidden="true" />

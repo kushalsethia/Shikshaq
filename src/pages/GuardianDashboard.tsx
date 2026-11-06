@@ -85,7 +85,7 @@ interface Profile {
 // Profile form field/label styling, on the token system so the editable form matches the rest
 // of the page instead of falling back to shadcn's bare default input styling.
 const FIELD_CLASSNAME =
-  'h-auto min-h-12 rounded-lg border-0 bg-background text-base shadow-border focus-visible:ring-0 focus-visible:ring-offset-0';
+  'h-auto min-h-12 rounded-lg border-0 bg-background text-base shadow-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0';
 const LOCKED_FIELD_CLASSNAME = `${FIELD_CLASSNAME} cursor-not-allowed opacity-70`;
 const LABEL_CLASSNAME = 'mb-1.5 block text-sm font-semibold text-foreground';
 const OPTION_GROUP_CLASSNAME = 'rounded-2xl bg-background shadow-border';

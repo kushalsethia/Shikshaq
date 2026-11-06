@@ -644,7 +644,7 @@ export default function SchoolPage() {
                             <span className="block line-clamp-2 break-words text-[15px] font-bold tracking-[-0.02em]" style={{ color: palette.text }}>
                               {paper.title}
                             </span>
-                            <span className="mt-px block truncate text-[12px]" style={{ color: palette.meta }}>
+                            <span className="mt-px block line-clamp-2 break-words text-[12px]" style={{ color: palette.meta }}>
                               {paper.meta}
                             </span>
                           </span>

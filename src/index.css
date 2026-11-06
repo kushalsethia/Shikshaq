@@ -28,15 +28,14 @@
     --secondary-foreground: 30 10% 20%;
 
     --muted: 34.3 31.8% 91.4%;
-    /* #7B736B — VISUAL_LANGUAGE.md §2.1 "text secondary".
-       ⚠ DELIBERATE, OWNER-APPROVED ACCESSIBILITY EXCEPTION. This measures
-       4.34:1 on the #F9F5F1 page ground and therefore fails the 4.5:1 floor in
-       DESIGN_SYSTEM.md §1.5. The owner ruled in favour of handoff fidelity
-       over the contrast bar with full knowledge of the trade-off. The same
-       ruling covers --text-tertiary and --text-quaternary below.
-       DO NOT "fix" this by darkening it. If you think it is a bug, it is not —
-       it is a recorded decision. Raise it with the owner, don't change it. */
-    --muted-foreground: 30 7% 45.1%;
+    /* #6F675F — "text secondary". Darkened on 2026-11-06 at the owner's
+       explicit request ("Darken it a little everywhere"). It was #7B736B
+       (HSL 30 7% 45.1%), which measured 4.30:1 on the #F9F5F1 page ground
+       and 3.90:1 on the --muted panel, so it failed the 4.5:1 floor in
+       DESIGN_SYSTEM.md §1.5. Now 5.12:1 on the page, 5.33:1 on cards and
+       4.65:1 on --muted. This replaces the earlier "do not darken" ruling;
+       the owner reversed it. Same HSL as #6F675F. */
+    --muted-foreground: 30 7.8% 40.4%;
 
     --accent: 35 40% 88%;
     --accent-foreground: 0 0% 12.2%;
@@ -70,29 +69,25 @@
     --panel-dark: #1B1A18;         /* footer / near-black slab */
 
     /* ---- Warm text scale (VISUAL_LANGUAGE.md §2.1) ------------------------
-       The full secondary → quaternary ramp, shipped at the handoff's exact
-       values.
-
-       ⚠ DELIBERATE, OWNER-APPROVED ACCESSIBILITY EXCEPTION. Measured against
-       the #F9F5F1 page ground:
-           --text-prose       #4A443E   8.9:1   passes AA
-           --text-secondary   #7B736B   4.34:1  FAILS the 4.5:1 floor
-           --text-tertiary    #8B837A   3.5:1   FAILS
-           --text-quaternary  #A39A90   2.6:1   FAILS
-       DESIGN_SYSTEM.md §1.5 sets that floor. The owner reviewed the exact
-       numbers above and ruled for handoff fidelity over the contrast bar.
-       This is a recorded decision, not an oversight.
-
-       DO NOT darken these values. Do not "correct" them in a lint pass, a
-       cleanup commit, or an accessibility sweep. If you believe this is wrong,
-       take it to the owner — do not change the tokens.
+       The secondary → quaternary ramp. The handoff values were #7B736B,
+       #8B837A and #A39A90 (4.30 / 3.44 / 2.55 : 1 on the #F9F5F1 page).
+       On 2026-11-06 the owner asked to "Darken it a little everywhere", which
+       reverses the old "do not darken" ruling. Measured on the page ground:
+           --text-prose       #4A443E   8.9:1    passes AA
+           --text-secondary   #6F675F   5.12:1   passes AA (4.65:1 on --muted)
+           --text-tertiary    #776F67   4.55:1   passes AA on the page ground
+                                                 (4.13:1 on --muted: under the
+                                                 bar there, kept a small step)
+           --text-quaternary  #8A8279   3.49:1   still under 4.5:1; a small step
+                                                 only, so the ramp keeps its look
+       DESIGN_SYSTEM.md §1.5 sets the 4.5:1 floor.
 
        --text-secondary is also wired into --muted-foreground above, so
        `text-muted-foreground` and `text-warm-secondary` are the same colour. */
     --text-prose: #4A443E;         /* long-form body copy */
-    --text-secondary: #7B736B;     /* secondary text */
-    --text-tertiary: #8B837A;      /* card meta */
-    --text-quaternary: #A39A90;    /* uppercase labels */
+    --text-secondary: #6F675F;     /* secondary text */
+    --text-tertiary: #776F67;      /* card meta */
+    --text-quaternary: #8A8279;    /* uppercase labels */
     --mint: #E3F7EC;               /* subject-Science tint, reused by §8 */
     --mint-solid: #34B268;         /* AU-004a variant E's hero fill — the
                                       saturated partner to --mint, which is a

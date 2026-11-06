@@ -356,7 +356,7 @@ function LookupBox({ value, onChange, onLookup }: { value: string; onChange: (v:
             }}
             placeholder="Paste a question id"
             aria-label="Question id"
-            className="h-11 w-full min-w-0 max-w-[320px] flex-1 rounded-full bg-muted px-4 font-mono text-[13px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+            className="h-11 w-full min-w-0 max-w-[320px] flex-1 rounded-full bg-muted px-4 font-mono text-[16px] sm:text-[13px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
           />
           <AdminPillButton variant="primary" onClick={() => onLookup(value)} disabled={!value.trim()} className="shrink-0 bg-brand text-foreground">
             Show history

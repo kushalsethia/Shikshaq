@@ -108,7 +108,7 @@ export function TeacherReviewersSection({ api }: { api: TeacherReviewerAdminApi 
               setError(null);
             }}
             placeholder="name@example.com"
-            className="h-10 w-full rounded-full bg-muted px-4 text-[13px] text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="h-10 w-full rounded-full bg-muted px-4 text-[16px] sm:text-[13px] text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-brand"
           />
         </label>
         <button

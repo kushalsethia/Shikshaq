@@ -14,7 +14,7 @@ import { PaperCard, type PaperCardPaper } from '@/components/PaperCard';
 import { GoalRing } from '@/components/papers/goal-ring';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
-import { Field, FieldInput, FieldTextarea, useBlurValidation } from '@/components/ui/field';
+import { Field, FieldInput, FieldSelect, FieldTextarea, useBlurValidation } from '@/components/ui/field';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import { formatDateForDisplay, formatDateForDatabase, isValidDateFormat, formatDateInput } from '@/lib/date-helpers';
 import { ListLoading, ListError, ListEnd } from '@/components/ui/list-states';
@@ -751,14 +751,13 @@ export default function Account() {
                 <ChevronRight className="h-4 w-4 text-warm-label" strokeWidth={2} aria-hidden="true" />
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => navigate('/privacy-policy')}
+            <Link
+              to="/privacy-policy"
               className="flex min-h-[52px] w-full items-center gap-3 rounded-xl px-2 text-left transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <ShieldCheck className="h-4 w-4 text-warm-label" strokeWidth={2} aria-hidden="true" />
               <span className="flex-1 text-body-secondary font-semibold text-foreground">Privacy &amp; terms</span>
-            </button>
+            </Link>
             <button
               type="button"
               onClick={handleSignOut}
@@ -839,7 +838,7 @@ export default function Account() {
 
                 <Field label="Grade" error={gradeField.error} required>
                   {(cp) => (
-                    <select
+                    <FieldSelect
                       {...cp}
                       value={profileForm.grade}
                       onChange={(e) => setProfileForm((f) => ({ ...f, grade: e.target.value }))}
@@ -851,7 +850,7 @@ export default function Account() {
                           {/^\d+$/.test(g) ? `Class ${g}` : g}
                         </option>
                       ))}
-                    </select>
+                    </FieldSelect>
                   )}
                 </Field>
 

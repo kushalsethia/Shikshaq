@@ -93,14 +93,12 @@ export default {
           "hairline-strong": "var(--warm-hairline-strong)", // #D8CFC4
 
           /* Warm text ramp — VISUAL_LANGUAGE.md §2.1.
-             ⚠ `secondary` / `meta` / `label` knowingly fail the 4.5:1 floor in
-             DESIGN_SYSTEM.md §1.5. That is an owner-approved exception, not a
-             bug — see the long note at the token definitions in index.css.
-             Do not darken them.
+             Darkened 2026-11-06 at the owner's request; the measured numbers
+             are in the note at the token definitions in index.css.
                text-warm-prose      #4A443E  long-form body copy
-               text-warm-secondary  #7B736B  secondary text (== muted-foreground)
-               text-warm-meta       #8B837A  card meta
-               text-warm-label      #A39A90  uppercase labels           */
+               text-warm-secondary  #6F675F  secondary text (== muted-foreground)
+               text-warm-meta       #776F67  card meta
+               text-warm-label      #8A8279  uppercase labels           */
           prose: "var(--text-prose)",
           secondary: "var(--text-secondary)",
           meta: "var(--text-tertiary)",

@@ -863,6 +863,7 @@ export default function BankPaper() {
         <div className="mt-4 rounded-xl bg-card p-4 shadow-[0_18px_40px_rgba(0,0,0,.45)] sm:p-6">
           {loading && (
             <div className="grid gap-3" aria-busy="true">
+              <p role="status" className="sr-only">Loading the paper</p>
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="h-[104px] animate-shimmer rounded-[18px] bg-muted bg-[length:200%_100%]" />
               ))}

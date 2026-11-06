@@ -177,7 +177,7 @@ export default function WhatsAppRedirect() {
 
   if (status === 'failed') {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center">
+      <main className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center">
         <h1 className="text-lg font-semibold text-foreground">We could not get the number</h1>
         <p className="mt-2 max-w-[34ch] text-sm text-muted-foreground">
           {name ? `We could not get ${name}'s WhatsApp number.` : "We could not get this teacher's WhatsApp number."} Check your connection and try again. Nothing was sent.
@@ -188,13 +188,13 @@ export default function WhatsAppRedirect() {
         <Link to={profilePath} className="tap-44 mt-2 text-[14px] font-semibold text-foreground">
           Back to profile
         </Link>
-      </div>
+      </main>
     );
   }
 
   if (status === 'notfound') {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center">
+      <main className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center">
         <h1 className="text-lg font-semibold text-foreground">Teacher not found</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           We couldn't find this teacher. They may no longer be listed.
@@ -202,7 +202,7 @@ export default function WhatsAppRedirect() {
         <Button asChild variant="primary" size={44} className="mt-6">
           <Link to="/all-tuition-teachers-in-kolkata">Browse all teachers</Link>
         </Button>
-      </div>
+      </main>
     );
   }
 
@@ -215,7 +215,7 @@ export default function WhatsAppRedirect() {
      fallback, a back row. Click recording and resolveTeacherWhatsAppUrl
      above are untouched. */
   return (
-    <div className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background">
       <BentoPanel fill="mint" edge="top" className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
         {/* --whatsapp disc, not bg-mint's own green — mint is the unrelated
             Science-subject tint and design.md's hard rule is that WhatsApp
@@ -260,6 +260,6 @@ export default function WhatsAppRedirect() {
           {name ? `Back to ${name}'s profile` : 'Back to profile'}
         </Link>
       </BentoPanel>
-    </div>
+    </main>
   );
 }

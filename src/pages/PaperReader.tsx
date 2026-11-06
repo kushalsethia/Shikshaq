@@ -353,6 +353,7 @@ export default function PaperReader() {
          S5 reader paints. */
       <div className="flex min-h-screen flex-col bg-panel">
         <main className={`flex-1 ${CONTAINER} pb-16 pt-6`}>
+          <p role="status" className="sr-only">Loading the paper</p>
           <div className={`mb-4 h-4 w-32 rounded-lg ${SKELETON}`} />
           <div className={`mb-3 h-6 w-72 max-w-full rounded-full ${SKELETON}`} />
           <div className={`h-12 w-3/4 max-w-xl rounded-lg ${SKELETON}`} />

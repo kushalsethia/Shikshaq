@@ -381,7 +381,7 @@ export function AdminTeachersPage({
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search teachers..."
                 aria-label="Search teachers"
-                className="h-10 w-full max-w-full rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
+                className="h-10 w-full max-w-full rounded-full bg-muted pl-9 pr-4 text-base sm:text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
               />
             </div>
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as TeacherSort)}>
