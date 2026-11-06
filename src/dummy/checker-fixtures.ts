@@ -418,6 +418,21 @@ export function dummyPictureDataUrl(path: string): string | null {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
+/** The made-up diagram shown beside a demo question that has one (a labelled triangle), as a data URL. */
+export const DUMMY_DIAGRAM_PATH = 'dummy/diagram-triangle.png';
+export function dummyDiagramDataUrl(path: string): string | null {
+  if (path !== DUMMY_DIAGRAM_PATH) return null;
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="220" viewBox="0 0 320 220"><rect width="100%" height="100%" fill="#fbfaf6"/>' +
+    '<polygon points="40,190 280,190 120,30" fill="none" stroke="#222" stroke-width="2"/>' +
+    '<text x="22" y="204" font-family="Times New Roman, serif" font-size="18" fill="#222">A</text>' +
+    '<text x="286" y="204" font-family="Times New Roman, serif" font-size="18" fill="#222">B</text>' +
+    '<text x="112" y="22" font-family="Times New Roman, serif" font-size="18" fill="#222">C</text>' +
+    '<text x="140" y="210" font-family="Times New Roman, serif" font-size="14" fill="#222">12 cm</text>' +
+    '</svg>';
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 /** A made-up page N of any made-up paper, for the whole-paper page-flip preview. */
 function dummyGenericPage(n: number): string {
   const lines = [

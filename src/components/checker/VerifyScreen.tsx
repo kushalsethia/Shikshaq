@@ -7,6 +7,8 @@ import { OptionList } from '@/components/checker/OptionList';
 import { PartCard } from '@/components/checker/PartCard';
 import { FIX_RULE_LINE, RulesInfo, ShortcutsPopover } from '@/components/checker/CheckerPopovers';
 import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
+import { QuestionDiagrams } from '@/components/checker/QuestionDiagrams';
+import { diagramItems, diagramPaths, diagramsKey, withoutShownFigureFlag } from '@/lib/checker-diagrams';
 import { pageNumberOf } from '@/lib/paper-pages';
 import { AiSurePill, PanelTabs, PrintedFrame, TypedFrame, VERIFY_TABS, type PanelId } from '@/components/checker/Panels';
 import { tileForNextQuestion } from '@/lib/checker-bento';
@@ -314,6 +316,22 @@ export function VerifyScreen({
   });
   const sureChip = question && sureQuery.data != null ? <AiSurePill percent={sureQuery.data} /> : null;
 
+  // The stored diagram(s) of this question, and of the shared stem above it, shown beside the picture with
+  // no tap (owner, 6 Nov 2026: "when it has an accompanying diagram, it should also show to the checker").
+  // Fail-soft: until verifier_question_diagrams is applied (20261106200000) the list is empty and nothing
+  // extra is drawn. A diagram whose link is still loading is simply not drawn yet; it never holds the question.
+  const diagramsQuery = useQuery({
+    queryKey: ['checker-question-diagrams', scope, question?.id ?? null],
+    queryFn: () => api.questionDiagrams(question!.id),
+    enabled: Boolean(question),
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const diagramList = question ? diagramsQuery.data ?? [] : [];
+  const diagramUrls = useSignedUrls(picApi, diagramsKey(question?.id, diagramList), diagramPaths(diagramList));
+  const diagramShown = diagramItems(diagramList, diagramUrls);
+
   // Lost text: no words, but the AI transcribed the page (checker-lost-text.ts).
   const lost = question ? lostTextSuggestion(question.body, question.flag_detail) : null;
 
@@ -392,12 +410,15 @@ export function VerifyScreen({
   // The checker can compare against the paper when any of the three is on
   // screen. The guidance says "you cannot see the paper" only when none is.
   const canCompare = hasPicture || flipShown;
+  // "Figure missing" tells the checker the diagram is not attached. Once the stored diagram is on screen
+  // that sentence is wrong, so the tips are written without it (the diagram block says what to do instead).
+  const guidanceFlags = question ? withoutShownFigureFlag(question.flag_reasons, diagramShown.length > 0) : [];
   const whatToCheckLine = question
-    ? whatToCheck(question.flag_reasons, question.flag_detail, { hasPicture: canCompare })
+    ? whatToCheck(guidanceFlags, question.flag_detail, { hasPicture: canCompare })
     : { line: null, detail: null };
   // Every flag has a lane in plain English (checker-lanes.ts). Without a
   // picture the older picture-aware sentences are used instead.
-  const laneSummary = question ? describeLanes(question.flag_reasons, question.flag_detail) : null;
+  const laneSummary = question ? describeLanes(guidanceFlags, question.flag_detail) : null;
   useEffect(() => {
     const missing = unmappedCodes(question?.flag_reasons);
     if (missing.length) console.warn('[checker] flag codes with no lane:', missing.join(', '));
@@ -1855,6 +1876,9 @@ export function VerifyScreen({
                     </PrintedFrame>
                   ) : null}
 
+                  {/* The question's own stored diagram, right under the picture of its words. */}
+                  <QuestionDiagrams items={diagramShown} onEnlarge={(src, alt) => setLightbox({ src, alt })} />
+
                   {/* The whole verified page: behind a tap when there is a crop,
                       straight away when the page is the only picture. */}
                   {pageToggle && !pageViewerOn ? (
@@ -1938,6 +1962,7 @@ export function VerifyScreen({
               revealSelector={FOCUSED_SELECTOR}
             >
               {tilesOn ? partsBody : cropVisible ? cropBody(false) : null}
+              <QuestionDiagrams items={diagramShown} onEnlarge={(src, alt) => setLightbox({ src, alt })} />
               {pageToggle ? pageToggleButton('self-start') : null}
               {paperToggle ? paperToggleButton('self-start') : null}
               {pageUnavailable ? (
