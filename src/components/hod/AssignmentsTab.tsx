@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { formatGrade } from '@/lib/verifier-papers';
 import {
   groupByVerifier,
+  heldBackWhy,
   memberName,
   pickBlock,
   type HodApi,
@@ -53,6 +54,7 @@ import {
 
 export const ASSIGNMENTS_KEY = (scope: string) => ['hod', scope, 'assignments'] as const;
 export const UNASSIGNED_KEY = (scope: string) => ['hod', scope, 'unassigned'] as const;
+export const HELD_BACK_KEY = (scope: string) => ['hod', scope, 'held-back'] as const;
 
 /** A person picker and its button: "Move to another verifier", "Assign to". */
 function PickVerifier({
@@ -283,6 +285,8 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   }, [outcome]);
   const assignmentsQ = useQuery({ queryKey: ASSIGNMENTS_KEY(scope), queryFn: () => api.assignments(), staleTime: 10_000, refetchOnMount: true });
   const unassignedQ = useQuery({ queryKey: UNASSIGNED_KEY(scope), queryFn: () => api.unassignedPapers(UNASSIGNED_SHOWN + 1), staleTime: 10_000, refetchOnMount: true });
+  // Papers missing pictures or printed pages: listed on their own, never offered for assigning.
+  const heldQ = useQuery({ queryKey: HELD_BACK_KEY(scope), queryFn: () => api.heldBackPapers(UNASSIGNED_SHOWN), staleTime: 10_000, refetchOnMount: true });
   const teamQ = useQuery({ queryKey: TEAM_KEY(scope), queryFn: () => api.team(), staleTime: 15_000, refetchOnMount: true });
   const profilesQ = useQuery({ queryKey: PROFILES_KEY(scope), queryFn: () => api.profiles(), staleTime: 15_000, refetchOnMount: true });
   const profileOf = (id: string) => (profilesQ.data ?? []).find((p) => p.user_id === id);
@@ -630,6 +634,35 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
             </p>
           ) : null}
           </>
+        )}
+      </section>
+
+      <section aria-labelledby="papers-not-ready" data-testid="not-ready-section" className="mt-6">
+        <h2 id="papers-not-ready" className="mb-1 text-[16px] font-bold text-foreground">
+          Not ready to give out
+        </h2>
+        <p className="mb-2 text-[13px] text-warm-secondary">
+          These papers have questions waiting, but some pictures or printed pages are not stored yet. They cannot be given to a verifier, by hand or
+          automatically, until every picture and every page is in. They move up to the list above by themselves.
+        </p>
+        {heldQ.isError ? (
+          <LoadError what="The list of papers that are not ready" onRetry={() => void heldQ.refetch()} />
+        ) : heldQ.isLoading ? (
+          <ListSkeleton label="Loading papers that are not ready" />
+        ) : (heldQ.data ?? []).length === 0 ? (
+          <EmptyNote>Every paper with questions waiting has all its pictures and pages.</EmptyNote>
+        ) : (
+          <ul className="space-y-2">
+            {(heldQ.data ?? []).map((p) => (
+              <li key={p.paper_id} className="rounded-2xl bg-muted p-3" data-testid="not-ready-paper">
+                <span className="block text-[14px] font-semibold text-foreground">{paperLabel(p)}</span>
+                <span className="block text-[12px] text-warm-meta">
+                  {p.open_count} {p.open_count === 1 ? 'question' : 'questions'} waiting
+                </span>
+                <span className="mt-0.5 block text-[13px] text-foreground">{heldBackWhy(p)}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
       {confirmDialog}

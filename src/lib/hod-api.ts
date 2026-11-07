@@ -469,6 +469,53 @@ export function normaliseUnassigned(raw: unknown): UnassignedPaper[] {
   return out;
 }
 
+/** A paper with questions waiting for verifiers that cannot be given out yet: some pictures or printed pages are not stored
+ *  (hod_held_back_papers, 20261106400000). Shown in its own list, never offered for assigning. */
+export interface HeldBackPaper {
+  paper_id: string;
+  subject: string | null;
+  school: string | null;
+  cls: string | null;
+  exam: string | null;
+  year: string | null;
+  open_count: number;
+  missing_snips: number;
+  pages_total: number;
+  pages_missing: number;
+}
+
+export function normaliseHeldBack(raw: unknown): HeldBackPaper[] {
+  const out: HeldBackPaper[] = [];
+  for (const x of rows(raw)) {
+    const r = obj(x);
+    const id = str(r.paper_id);
+    if (!id) continue;
+    out.push({
+      paper_id: id,
+      subject: str(r.subject),
+      school: str(r.school),
+      cls: str(r.cls),
+      exam: str(r.exam),
+      year: str(r.year),
+      open_count: num(r.open_count),
+      missing_snips: num(r.missing_snips),
+      pages_total: num(r.pages_total),
+      pages_missing: num(r.pages_missing),
+    });
+  }
+  return out;
+}
+
+/** What is missing from a held-back paper, in plain words, for example "3 questions have no picture. 2 of 7 printed pages are missing." */
+export function heldBackWhy(p: Pick<HeldBackPaper, 'missing_snips' | 'pages_total' | 'pages_missing'>): string {
+  const parts: string[] = [];
+  if (p.missing_snips > 0) parts.push(`${p.missing_snips} ${p.missing_snips === 1 ? 'question has' : 'questions have'} no picture.`);
+  if (p.pages_missing > 0) {
+    parts.push(p.pages_total > 0 ? `${p.pages_missing} of ${p.pages_total} printed ${p.pages_total === 1 ? 'page is' : 'pages are'} missing.` : 'Its printed pages are missing.');
+  }
+  return parts.join(' ') || 'Some pictures are missing.';
+}
+
 /** What one verifier holds, grouped from the flat assignment list. A paper goes whole to one verifier, so there is no queue. */
 export interface VerifierLoad {
   user_id: string;
@@ -549,6 +596,8 @@ export interface HodApi {
   team(): Promise<HodTeamMember[]>;
   assignments(): Promise<HodAssignment[]>;
   unassignedPapers(limit?: number): Promise<UnassignedPaper[]>;
+  /** hod_held_back_papers(): papers waiting for verifiers that lack pictures or printed pages, so cannot be given out yet. */
+  heldBackPapers(limit?: number): Promise<HeldBackPaper[]>;
   assignPaper(paperId: string, userId: string): Promise<void>;
   unassign(assignmentId: number): Promise<void>;
   /** distribute_unassigned_papers(): hands out what it can by the rules; returns how many papers were given. */
@@ -642,6 +691,9 @@ export const realHodApi: HodApi = {
   },
   async unassignedPapers(limit = 200) {
     return normaliseUnassigned(await call('hod_unassigned_papers', { p_limit: limit }));
+  },
+  async heldBackPapers(limit = 200) {
+    return normaliseHeldBack(await call('hod_held_back_papers', { p_limit: limit }));
   },
   async assignPaper(paperId, userId) {
     await call('hod_assign_paper', { p_paper_id: paperId, p_user_id: userId });
