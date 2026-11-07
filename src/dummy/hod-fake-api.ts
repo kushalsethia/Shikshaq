@@ -19,6 +19,7 @@ import type {
   HodTeamMember,
   HodVerifierProfile,
   UnassignedPaper,
+  HeldBackPaper,
 } from '@/lib/hod-api';
 import type { PaperPage } from '@/lib/paper-pages';
 import type { TrustRow } from '@/lib/ai-trust';
@@ -106,6 +107,7 @@ export function createFakeHodApi(): FakeHodApi {
 
   let assignments: HodAssignment[] = [];
   let unassigned: UnassignedPaper[] = [];
+  let heldBack: HeldBackPaper[] = [];
   let trust: TrustRow[] = [];
   let nextId = 100;
   const log: string[] = [];
@@ -171,7 +173,9 @@ export function createFakeHodApi(): FakeHodApi {
       a(3, 'assigned', nikhil, P.physics, 11, 'Kanishk', 240),
     ];
     const free = (paper: string, open: number): UnassignedPaper => ({ paper_id: paper, ...paperBits[paper as keyof typeof paperBits], open_count: open });
-    unassigned = [free(P.history, 14), free(P.chem, 9), free(P.eco, 31), { ...free(P.nopic, 5), cls: null }];
+    unassigned = [free(P.history, 14), free(P.chem, 9), free(P.eco, 31)];
+    // A paper missing some pictures and printed pages cannot be given out: it sits in its own list instead.
+    heldBack = [{ ...free(P.nopic, 5), cls: null, missing_snips: 3, pages_total: 7, pages_missing: 2 }];
 
     profiles = {
       [asha.user_id]: prof(asha, { grade: 12, school: 'Sample Hill School', board: 'ISC', valid_until: '2027-03-31', missing: false, preferred_subjects: ['Mathematics', 'Physics'] }),
@@ -277,6 +281,9 @@ export function createFakeHodApi(): FakeHodApi {
     },
     async unassignedPapers() {
       return unassigned.map((x) => ({ ...x }));
+    },
+    async heldBackPapers() {
+      return heldBack.map((x) => ({ ...x }));
     },
     async assignPaper(paperId, userId) {
       // The real server lets an HOD name themselves without being a listed verifier.
