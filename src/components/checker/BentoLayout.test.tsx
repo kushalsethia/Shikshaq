@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { BentoTile, FadeScroll, TilePager } from '@/components/checker/BentoParts';
+import { BentoTile, FadeScroll, TilePager, dockReserve, fadeMask } from '@/components/checker/BentoParts';
 import { FixFrame, PanelTabs, PrintedFrame, TypedFrame, VERIFY_TABS } from '@/components/checker/Panels';
 import { IncomingCard, PaperStrip } from '@/components/checker/AdvanceBits';
 import { paperStripInfo } from '@/lib/checker-card-motion';
@@ -53,14 +53,40 @@ describe('the tiles on a tablet and up', () => {
     expect(html).not.toContain('id="verify-panel-printed"');
   });
 
-  it('a scrolling tile scrolls inside itself and shows a cue while there is more below', () => {
+  it('a scrolling tile scrolls inside itself and fades its foot while there is more below', () => {
     const html = renderToStaticMarkup(<FadeScroll>long text</FadeScroll>);
     expect(html).toContain('overflow-y-auto');
     expect(html).toContain('h-full');
-    expect(html).toContain('data-testid="scroll-cue"');
     expect(html).toContain('data-more="false"');
-    expect(html).toContain('opacity-0');
-    expect(renderToStaticMarkup(<FadeScroll white>x</FadeScroll>)).toContain('checker-fade-white');
+    // Nothing is below yet in a static render, so no mask; and no coloured strip is ever laid over the content.
+    expect(html).not.toContain('mask-image');
+    expect(html).not.toContain('scroll-cue');
+    expect(read('./BentoParts.tsx')).not.toContain('checker-fade');
+  });
+
+  it('the soft edge is a mask (the content fades), so it cannot wash a white diagram sheet pale', () => {
+    const plain = fadeMask();
+    expect(plain).toContain('#000 calc(100% - 32px)');
+    expect(plain).toContain('transparent calc(100% - 0px)');
+    // A docked tools row at the foot: the fade ends above it and the dock itself stays solid.
+    const docked = fadeMask(60);
+    expect(docked).toContain('#000 calc(100% - 92px)');
+    expect(docked).toContain('transparent calc(100% - 60px)');
+    expect(docked).toContain(', #000 calc(100% - 60px))');
+    expect(fadeMask(-5)).toBe(fadeMask(0));
+  });
+
+  it('keeps room for the tools row only while it is pinned at the foot, so no hard seam is left', () => {
+    // No tools row in this tile.
+    expect(dockReserve(500, null)).toBe(0);
+    // Pinned: the row's own height plus the 12px gap under it.
+    expect(dockReserve(500, { top: 428, bottom: 488 })).toBe(72);
+    expect(dockReserve(500, { top: 440, bottom: 500 })).toBe(60);
+    // The words have scrolled past it, so it travels up with them: nothing to reserve (the bug in the screenshot).
+    expect(dockReserve(500, { top: 100, bottom: 160 })).toBe(0);
+    // Edge of the allowed gap under the row.
+    expect(dockReserve(500, { top: 416, bottom: 476 })).toBe(84);
+    expect(dockReserve(500, { top: 415, bottom: 475 })).toBe(0);
   });
 
   it('the paper strip is one thin line in the grid and still says which paper', () => {

@@ -1,17 +1,9 @@
 /* The verify screen as a bento grid (12 Oct 2026): the whole screen fits one
    viewport, so nothing here may add height to the page. Only a tile scrolls.
 
-   Fade cue: a soft edge at the foot of a tile that has more below. Drawn in the
-   tile's own fill (a raw var cannot take /opacity, so the two colours are named
-   here and the alpha comes from `transparent`). */
-
-.checker-fade {
-  background: linear-gradient(to top, var(--checker-fade-from, var(--warm-card)) 0%, transparent 100%);
-}
-
-.checker-fade-white {
-  --checker-fade-from: #ffffff;
-}
+   The soft edge at the foot of a tile that has more below is NOT drawn here any more: it is a mask on
+   the scroller (fadeMask in BentoParts.tsx). A coloured strip laid over the tile showed as a pale band
+   across a white diagram sheet (8 Nov 2026). */
 
 /* The phone's tile pager: one tile per swipe, snapping, no visible scrollbar. */
 .checker-pager {
