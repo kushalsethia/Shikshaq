@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { BentoTile, FadeScroll, TilePager, fadeMask } from '@/components/checker/BentoParts';
+import { BentoTile, FadeScroll, TilePager, dockReserve, fadeMask } from '@/components/checker/BentoParts';
 import { FixFrame, PanelTabs, PrintedFrame, TypedFrame, VERIFY_TABS } from '@/components/checker/Panels';
 import { IncomingCard, PaperStrip } from '@/components/checker/AdvanceBits';
 import { paperStripInfo } from '@/lib/checker-card-motion';
@@ -74,6 +74,19 @@ describe('the tiles on a tablet and up', () => {
     expect(docked).toContain('transparent calc(100% - 60px)');
     expect(docked).toContain(', #000 calc(100% - 60px))');
     expect(fadeMask(-5)).toBe(fadeMask(0));
+  });
+
+  it('keeps room for the tools row only while it is pinned at the foot, so no hard seam is left', () => {
+    // No tools row in this tile.
+    expect(dockReserve(500, null)).toBe(0);
+    // Pinned: the row's own height plus the 12px gap under it.
+    expect(dockReserve(500, { top: 428, bottom: 488 })).toBe(72);
+    expect(dockReserve(500, { top: 440, bottom: 500 })).toBe(60);
+    // The words have scrolled past it, so it travels up with them: nothing to reserve (the bug in the screenshot).
+    expect(dockReserve(500, { top: 100, bottom: 160 })).toBe(0);
+    // Edge of the allowed gap under the row.
+    expect(dockReserve(500, { top: 416, bottom: 476 })).toBe(84);
+    expect(dockReserve(500, { top: 415, bottom: 475 })).toBe(0);
   });
 
   it('the paper strip is one thin line in the grid and still says which paper', () => {
