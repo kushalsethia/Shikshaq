@@ -49,6 +49,22 @@ export function revealOffset(a: { scrollTop: number; viewHeight: number; top: nu
   return a.scrollTop;
 }
 
+/** How tall the soft edge at the foot of a scroll area is, in px. */
+export const FADE_EDGE_PX = 32;
+
+/**
+ * The mask that makes the foot of a scroll area dissolve while there is more below.
+ *
+ * It is a MASK on the scroller, not a coloured strip laid over it. A strip has to be painted in one colour,
+ * and what sits under it is not always that colour: a white diagram sheet on the cream tile showed a pale
+ * band washed across the picture (owner, 8 Nov 2026). A mask makes the content itself fade, so it melts into
+ * whatever is behind it. The docked tools row at the very foot stays fully solid.
+ */
+export function fadeMask(dockHeight = 0, edge = FADE_EDGE_PX): string {
+  const dock = Math.max(0, Math.round(dockHeight));
+  return `linear-gradient(to bottom, #000 0, #000 calc(100% - ${dock + edge}px), transparent calc(100% - ${dock}px), #000 calc(100% - ${dock}px))`;
+}
+
 /**
  * A scroll area inside a tile, with a soft edge at the foot while there is more
  * below (and a hairline at the top once it has scrolled). It fills the room its
@@ -59,7 +75,6 @@ export function FadeScroll({
   children,
   className,
   innerClassName,
-  white,
   testId = 'tile-scroll',
   revealKey,
   revealSelector,
@@ -67,8 +82,6 @@ export function FadeScroll({
   children: React.ReactNode;
   className?: string;
   innerClassName?: string;
-  /** The tile behind is white paper, not the card fill. */
-  white?: boolean;
   testId?: string;
   /** When this changes to a non-empty value, `revealSelector` is scrolled into view (see {@link revealOffset}). */
   revealKey?: string;
@@ -126,21 +139,17 @@ export function FadeScroll({
 
   return (
     <div className={cn('relative min-h-0 flex-1', className)} data-testid={testId} data-more={more ? 'true' : 'false'} data-scrolled={scrolled ? 'true' : 'false'}>
-      <div ref={scroller} onScroll={measure} className="checker-tile-scroll relative h-full overflow-y-auto">
+      <div
+        ref={scroller}
+        onScroll={measure}
+        // The soft edge is the content itself fading (see fadeMask), only while there is more below.
+        style={more ? { maskImage: fadeMask(dockHeight), WebkitMaskImage: fadeMask(dockHeight) } : undefined}
+        className="checker-tile-scroll relative h-full overflow-y-auto"
+      >
         <div ref={inner} className={innerClassName}>
           {children}
         </div>
       </div>
-      <div
-        aria-hidden="true"
-        style={dockHeight ? { bottom: dockHeight } : undefined}
-        data-testid="scroll-cue"
-        className={cn(
-          'checker-fade pointer-events-none absolute inset-x-0 bottom-0 h-8 transition-opacity duration-150',
-          white && 'checker-fade-white',
-          more ? 'opacity-100' : 'opacity-0',
-        )}
-      />
       <div
         aria-hidden="true"
         className={cn('pointer-events-none absolute inset-x-0 top-0 h-px bg-warm-hairline transition-opacity duration-150', scrolled ? 'opacity-100' : 'opacity-0')}

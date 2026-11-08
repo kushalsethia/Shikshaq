@@ -1873,7 +1873,7 @@ export function VerifyScreen({
                       }
                     >
                       {tilesOn ? (
-                        <FadeScroll white revealKey={rightRevealKey} revealSelector={FOCUSED_SELECTOR}>
+                        <FadeScroll revealKey={rightRevealKey} revealSelector={FOCUSED_SELECTOR}>
                           {partsBody}
                         </FadeScroll>
                       ) : (
@@ -1926,7 +1926,7 @@ export function VerifyScreen({
                       {pageViewerOn ? (
                         pageBody(true)
                       ) : (
-                        <FadeScroll white>{paperOpen ? paperBody : flipBody}</FadeScroll>
+                        <FadeScroll>{paperOpen ? paperBody : flipBody}</FadeScroll>
                       )}
                     </PrintedFrame>
                   ) : null}
@@ -1959,7 +1959,6 @@ export function VerifyScreen({
             panelClass="flex min-h-0 flex-1"
           >
             <FadeScroll
-              white
               innerClassName="flex flex-col gap-2.5"
               revealKey={panel === 'printed' ? rightRevealKey : ''}
               revealSelector={FOCUSED_SELECTOR}
