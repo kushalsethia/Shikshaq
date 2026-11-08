@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { getCache, setCache, CACHE_TTL, getUserProfileCacheKey } from '@/utils/cache';
 import { logger } from '@/utils/logger';
+import { fetchProfileWithRetry } from '@/lib/profile-fetch';
 
 export interface UserProfile {
   role: string | null;
@@ -59,24 +60,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setProfileLoading(true);
-    Promise.resolve(
-      supabase
-        .from('profiles')
-        .select('role, full_name, terms_agreement')
-        .eq('id', user.id)
-        .maybeSingle()
-    )
-      .then(({ data }) => {
-        if (data) {
-          const p: UserProfile = { role: data.role, full_name: data.full_name, terms_agreement: data.terms_agreement };
-          setProfile(p);
-          setCache(cacheKey, p, CACHE_TTL.USER_PROFILE);
-        } else {
-          setProfile(null);
-        }
-      })
-      .catch(() => setProfile(null))
-      .finally(() => setProfileLoading(false));
+    const userId = user.id;
+    // A failed read is tried again (see profile-fetch.ts). Without that, one
+    // wobble left the person with no role until they reloaded the page.
+    fetchProfileWithRetry(
+      () =>
+        supabase
+          .from('profiles')
+          .select('role, full_name, terms_agreement')
+          .eq('id', userId)
+          .maybeSingle(),
+      { isCancelled: () => profileFetchedForRef.current !== userId },
+    ).then(({ profile: p, failed }) => {
+      // The person signed out or changed while we waited: this answer is stale.
+      if (profileFetchedForRef.current !== userId) return;
+      setProfile(p);
+      if (p) setCache(cacheKey, p, CACHE_TTL.USER_PROFILE);
+      // Every try failed: forget that we "already fetched", so the next change
+      // to the signed-in user (for example a refreshed sign-in) tries once more.
+      if (failed) profileFetchedForRef.current = null;
+      setProfileLoading(false);
+    });
   }, [user, loading]);
 
   useEffect(() => {
