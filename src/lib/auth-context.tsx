@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { getCache, setCache, CACHE_TTL, getUserProfileCacheKey } from '@/utils/cache';
+import { useQueryClient } from '@tanstack/react-query';
+import { getCache, setCache, clearAllCache, CACHE_TTL, getUserProfileCacheKey } from '@/utils/cache';
 import { logger } from '@/utils/logger';
 import { fetchProfileWithRetry } from '@/lib/profile-fetch';
 
@@ -38,6 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const profileFetchedForRef = useRef<string | null>(null);
+  // AuthProvider sits inside QueryClientProvider (App.tsx). Used on sign-out only.
+  const queryClient = useQueryClient();
 
   // Fetch user profile once when user changes (single source of truth for role, name, terms)
   useEffect(() => {
@@ -121,6 +124,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession(null);
           setUser(null);
           setLoading(false);
+          // The next person on this tab must not inherit the last one's cached
+          // reads (the HOD / checker / admin query keys are not per-user), nor the
+          // cached profile and saved-teacher sets kept in localStorage.
+          queryClient.clear();
+          clearAllCache();
           // Clear localStorage completely
           if (typeof window !== 'undefined') {
             const keys = Object.keys(localStorage);
@@ -157,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [queryClient]);
 
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
