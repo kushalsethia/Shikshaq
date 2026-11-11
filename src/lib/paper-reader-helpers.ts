@@ -40,5 +40,9 @@ export type FileState = 'loading' | 'ready' | 'missing' | 'error';
 export function fileStateFrom(result: { data: string | null; error: unknown } | null): FileState {
   if (!result) return 'loading';
   if (result.error) return 'error';
-  return result.data ? 'ready' : 'missing';
+  if (!result.data) return 'missing';
+  /* The address goes straight into an <iframe src> and an <a href>, so a stored
+     value that is not a web address (`javascript:`, `data:`) would run as script
+     on our own origin. The database is the real gate; this is the second lock. */
+  return /^https?:\/\//i.test(result.data) ? 'ready' : 'error';
 }
