@@ -44,6 +44,10 @@ export interface MyPaper {
   with_hod: number;
   /** Of `remaining`, how many the verifier skipped. They stay on the paper for later. */
   skipped: number;
+  /** Every question of the paper (set-aside ones left out). 0 when the server does not send it yet. */
+  paper_total: number;
+  /** Of `paper_total`, how many are passed, by anyone (the computer, other verifiers, this one). */
+  paper_passed: number;
 }
 
 export function normaliseMyPapers(raw: unknown): MyPaper[] {
@@ -67,6 +71,8 @@ export function normaliseMyPapers(raw: unknown): MyPaper[] {
       remaining: count(r.remaining),
       with_hod: count(r.with_hod),
       skipped: count(r.skipped),
+      paper_total: count(r.paper_total),
+      paper_passed: count(r.paper_passed),
     });
   }
   return out;
@@ -81,9 +87,21 @@ export interface PaperCardProgress {
   finished: boolean;
 }
 
-export function paperCardProgress(p: Pick<MyPaper, 'total' | 'done' | 'remaining'>): PaperCardProgress {
-  const total = Math.max(p.total, p.done + p.remaining, 0);
-  const done = Math.min(p.done, total);
+/**
+ * "29 of 30 done" counts the WHOLE paper, whoever passed each question (owner, 8 Nov 2026: "if others
+ * were passed it should show full"). Before, the card counted only this verifier's own share, so a
+ * paper with 29 questions already passed by the computer read "0 of 1 done". `done` itself is left as
+ * it was: the undo button and the Start / Keep verifying button read it. When the server does not send
+ * the whole-paper counts (paper_total 0), the card falls back to the verifier's own share.
+ */
+export function paperCardProgress(
+  p: Pick<MyPaper, 'total' | 'done' | 'remaining'> & Partial<Pick<MyPaper, 'paper_total' | 'paper_passed'>>,
+): PaperCardProgress {
+  const whole = (p.paper_total ?? 0) > 0;
+  const total = whole
+    ? Math.max(p.paper_total ?? 0, (p.paper_passed ?? 0) + p.remaining, 0)
+    : Math.max(p.total, p.done + p.remaining, 0);
+  const done = Math.min(whole ? (p.paper_passed ?? 0) : p.done, total);
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
   return { label: `${done} of ${total} done`, percent, finished: p.remaining === 0 };
 }

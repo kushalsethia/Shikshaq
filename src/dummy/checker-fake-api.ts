@@ -391,6 +391,9 @@ export function createFakeCheckerApi(): FakeCheckerApi {
           with_hod: withHod,
           // Skipped questions are part of `remaining`; they wait for later.
           skipped: queue.filter((q) => paperOf.get(q.id) === k && servable(q) && skipped.has(q.id)).length,
+          // The whole paper, as the real list now sends it (the card reads "N of M done" from these).
+          paper_total: mine.length,
+          paper_passed: doneCount,
         };
       });
     },

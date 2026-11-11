@@ -41,6 +41,26 @@ describe('verifier_my_papers mapping', () => {
     expect(paperCardProgress({ total: 0, done: 0, remaining: 0 }).percent).toBe(0);
   });
 
+  it('counts the whole paper on the card when the server sends it (owner, 8 Nov 2026: "if others were passed it should show full")', () => {
+    // 30 questions, the computer passed 29, one is left for this verifier: it must read 29 of 30, not 0 of 1.
+    const [row] = normaliseMyPapers([
+      { paper_id: 'econ', total: 1, done: 0, remaining: 1, with_hod: 0, paper_total: 30, paper_passed: 29 },
+    ]);
+    expect(row.paper_total).toBe(30);
+    expect(row.paper_passed).toBe(29);
+    expect(paperCardProgress(row)).toEqual({ label: '29 of 30 done', percent: 97, finished: false });
+    // `done` is untouched: the undo button and the Start / Keep verifying button read it.
+    expect(row.done).toBe(0);
+    expect(row.total).toBe(1);
+  });
+
+  it('shows a finished paper as whole, and keeps the old own-share reading when the server sends no whole-paper counts', () => {
+    expect(paperCardProgress({ total: 52, done: 51, remaining: 0, paper_total: 52, paper_passed: 52 })).toEqual({ label: '52 of 52 done', percent: 100, finished: true });
+    expect(paperCardProgress({ total: 12, done: 4, remaining: 8, paper_total: 0, paper_passed: 0 }).label).toBe('4 of 12 done');
+    // A whole-paper count that is smaller than passed + left can never show more done than total.
+    expect(paperCardProgress({ total: 3, done: 0, remaining: 3, paper_total: 2, paper_passed: 1 }).label).toBe('1 of 4 done');
+  });
+
   it('puts unfinished papers first in hand-out order, finished last', () => {
     const sorted = sortPapers([
       { ...list[1], paper_id: 'done', remaining: 0, assigned_at: '2026-11-01T09:00:00Z' },
