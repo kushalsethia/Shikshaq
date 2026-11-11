@@ -83,8 +83,15 @@ export default function WhatsAppRedirect() {
     navigate('/auth', { replace: true });
   }, [authLoading, user, slug, navigate]);
 
+  /* A boolean, not `user`: the user object gets a new identity on every token
+     refresh, and this effect must not re-resolve (and re-arm the redirect) for
+     the same person. It has to depend on the signed-in state at all because on
+     a refresh or a shared link the session is still loading on first render;
+     without this the effect returned early once and never ran again, leaving the
+     page on "Opening WhatsApp..." for good. */
+  const signedIn = Boolean(user);
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading || !signedIn) return;
     let cancelled = false;
     let cleanupTimer: (() => void) | undefined;
 
@@ -171,7 +178,7 @@ export default function WhatsAppRedirect() {
       cancelled = true;
       cleanupTimer?.();
     };
-  }, [slug, stateUrl, stateName, stateSupport, attempt]);
+  }, [slug, stateUrl, stateName, stateSupport, attempt, authLoading, signedIn]);
 
   const profilePath = slug ? `/tuition-teachers/${slug}` : '/all-tuition-teachers-in-kolkata';
 
