@@ -36,6 +36,7 @@ import { describe, expect, it } from 'vitest';
 
 /** Colour tokens declared as a bare `var(--x)` in tailwind.config.ts. */
 const LITERAL_VAR_TOKENS = [
+  'focus',
   'warm-page',
   'warm-card',
   'warm-muted',

@@ -65,6 +65,8 @@ export default {
         display: ['Archivo', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
+        /* One keyboard-focus colour for every control (index.css --focus-ring). */
+        focus: "var(--focus-ring)",
         /* Brand accents — DESIGN_SYSTEM.md §2. Accents, not surfaces. */
         brand: {
           DEFAULT: "hsl(var(--brand))",           // #FF8000
@@ -190,6 +192,22 @@ export default {
       boxShadow: {
         border: "var(--shadow-border)",
         "border-hover": "var(--shadow-border-hover)",
+        /* Tactile layer (index.css, "Tactile layer"): a hairline ring plus a
+           crisp 1px drop, one family from a button up to a modal. Stages for
+           tables, menus and sheets reuse these names; do not invent new ones. */
+        button: "var(--shadow-button)",
+        "button-hover": "var(--shadow-button-hover)",
+        card: "var(--shadow-card)",
+        "card-lift": "var(--shadow-card-lift)",
+        table: "var(--shadow-table)",
+        menu: "var(--shadow-menu)",
+        popover: "var(--shadow-popover)",
+        modal: "var(--shadow-modal)",
+        /* The edge of a solid fill. Written out here, not read from a :root
+           variable, so a control's own `[--tactile-edge:var(--brand-deep)]`
+           reaches it (a :root variable would resolve before the override). */
+        solid:
+          "0 1px 2px 0 hsl(var(--tactile-edge) / 0.38), 0 0 0 1px hsl(var(--tactile-edge) / 0.26)",
         /* VISUAL_LANGUAGE.md §2.2 / §8 — coloured glows and the two
            special stat-card shadows. Saturated surfaces only. */
         "glow-brand": "var(--shadow-glow-brand)",
@@ -361,7 +379,23 @@ export default {
            slower than a press. */
         exit: "130ms",
       },
+      /* The press recipe's three squeezes (index.css --press-*). Named so a
+         control says `active:scale-press` and the number lives in one place;
+         reduced motion sets all three to 1 there. */
+      scale: {
+        press: "var(--press-scale)",
+        "press-small": "var(--press-scale-small)",
+        "press-card": "var(--press-scale-card)",
+      },
+      opacity: {
+        disabled: "var(--disabled-opacity)",
+      },
       transitionTimingFunction: {
+        /* Tailwind's own `ease-out` and the bare `transition` default are weak
+           curves (0, 0, .2, 1). Anything the user caused uses the strong
+           ease-out instead, so both now resolve to it. */
+        DEFAULT: "cubic-bezier(0.23, 1, 0.32, 1)",
+        out: "cubic-bezier(0.23, 1, 0.32, 1)",
         /* Handoff M-001: the same curve as `settle` above, under the name
            the motion-and-animation spec uses ("ease-snap"). Added rather
            than renaming `settle` — that name is already load-bearing on
@@ -370,7 +404,7 @@ export default {
            other curve and needs no addition. */
         snap: "cubic-bezier(0.16, 1, 0.3, 1)",
         settle: "cubic-bezier(0.16, 1, 0.3, 1)",
-        tap: "ease-out",
+        tap: "cubic-bezier(0.23, 1, 0.32, 1)",
         pop: "cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
       /* DESIGN_SYSTEM.md §6 — permitted motion ONLY. The other 27
