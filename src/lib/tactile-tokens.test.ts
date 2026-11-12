@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 import tailwindConfig from '../../tailwind.config';
 import { buttonVariants } from '@/components/ui/button';
 import { actionToneClass, CHIP, type ActionTone } from '@/lib/checker-button-styles';
+import { TABLE_COLUMN_RULE, TABLE_FRAME, TABLE_HEAD_LABEL, TABLE_ROW_PRESS, TABLE_ROW_RULE } from '@/lib/table-styles';
+import { BAR_WELL, FIGURE_LABEL, FIGURE_NUMBER, FIGURE_TILE } from '@/lib/chart-styles';
 
 /* The tactile layer (12 Nov 2026) is a set of tokens in src/index.css and a few
    Tailwind names that map to them. These tests pin the parts other stages and
@@ -134,5 +136,53 @@ describe('a rule is global: no one-off press numbers or orange focus rings come 
   it('uses the one focus-ring colour, not the brand orange, on focus-visible rings', () => {
     const bad = files.filter((f) => /focus-visible:ring-brand(?![-a-zA-Z/])/.test(readFileSync(f, 'utf8')));
     expect(bad.map((f) => f.replace(ROOT, ''))).toEqual([]);
+  });
+});
+
+describe('stage 2: tables share one recipe', () => {
+  it('frames a table with a 0.5px edge and the table drop, and rules rows and columns at 0.5px', () => {
+    expect(TABLE_FRAME).toContain('shadow-table');
+    expect(TABLE_FRAME).toContain('border-[0.5px]');
+    expect(TABLE_ROW_RULE).toContain('border-t-[0.5px]');
+    expect(TABLE_COLUMN_RULE).toContain('border-l-[0.5px]');
+  });
+
+  it('keeps header labels in an ink that reaches 4.5:1 (secondary, not the quaternary 3.5:1 one)', () => {
+    expect(TABLE_HEAD_LABEL).toContain('text-warm-secondary');
+    expect(TABLE_HEAD_LABEL).not.toContain('text-warm-label');
+  });
+
+  it('gives a pressable row the card-level press, and not while a button inside it is pressed', () => {
+    expect(TABLE_ROW_PRESS).toContain('scale-press-card');
+    expect(TABLE_ROW_PRESS).toContain(':not(:has(button:active))');
+    expect(TABLE_ROW_PRESS).not.toMatch(/transition-all/);
+  });
+
+  it('puts every table frame through the shared recipe, not a hand-typed shadow or rule', () => {
+    const hod = readFileSync(join(ROOT, 'src/components/hod/VerifiersTab.tsx'), 'utf8');
+    const admin = readFileSync(join(ROOT, 'src/pages/admin/AdminTable.tsx'), 'utf8');
+    expect(hod).toContain('TABLE_FRAME');
+    expect(admin).toContain('TABLE_ROW_PRESS');
+    expect(admin).not.toMatch(/shadow-\[inset_0_-1px_0_#/);
+  });
+});
+
+describe('stage 2: charts share one recipe', () => {
+  it('sinks a bar track into its card with a hairline ring and a short shade, nothing blurrier than 1px', () => {
+    expect(BAR_WELL).toContain('inset_0_1px_1px_0');
+    expect(BAR_WELL).toContain('inset_0_0_0_0.5px');
+  });
+
+  it('draws a stat tile as a 24/32 number over a 13/20 label on a raised card', () => {
+    expect(FIGURE_NUMBER).toContain('text-[24px]');
+    expect(FIGURE_NUMBER).toContain('leading-8');
+    expect(FIGURE_NUMBER).toContain('tabular-nums');
+    expect(FIGURE_LABEL).toContain('text-[13px]');
+    expect(FIGURE_LABEL).toContain('leading-5');
+    expect(FIGURE_TILE).toContain('shadow-card');
+  });
+
+  it('does not animate a data figure: the tile and the well carry no transition', () => {
+    for (const c of [BAR_WELL, FIGURE_TILE, FIGURE_NUMBER]) expect(c).not.toMatch(/transition|animate-/);
   });
 });
