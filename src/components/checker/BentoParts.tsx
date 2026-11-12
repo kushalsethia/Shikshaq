@@ -5,6 +5,8 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { PanelId } from '@/components/checker/Panels';
 import { BENTO_MIN_WIDTH, nearestPaneIndex } from '@/lib/checker-bento';
+import { UprightImage } from '@/components/checker/UprightImage';
+import type { PageRotation } from '@/lib/page-rotation';
 import '@/components/checker/checker-bento.css';
 
 /* Pieces of the verify screen's bento layout (12 Oct 2026).
@@ -191,7 +193,7 @@ export function BentoTile({ children, className, ...rest }: React.HTMLAttributes
  * screen and the full width of the picture (then it scrolls), Escape or the
  * close button closes. Rendered into the body so no tile clips it.
  */
-export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+export function ImageLightbox({ src, alt, onClose, rotation = 0 }: { src: string; alt: string; onClose: () => void; rotation?: PageRotation }) {
   const [full, setFull] = useState(false);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -242,12 +244,14 @@ export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string;
         </button>
       </div>
       <div className={cn('min-h-0 flex-1 rounded-[18px] bg-white p-2', full ? 'overflow-auto' : 'flex items-center justify-center overflow-hidden')} onClick={(e) => e.stopPropagation()}>
-        <img
+        {/* A page saved sideways (rotation 90 or 270) is turned upright here too; turn 0 is the plain picture. */}
+        <UprightImage
           src={src}
           alt={alt}
-          draggable={false}
+          rotation={rotation}
           onClick={() => setFull((v) => !v)}
           className={cn(full ? 'h-auto w-full max-w-none cursor-zoom-out' : 'max-h-full max-w-full cursor-zoom-in object-contain')}
+          stageClassName={cn(full ? 'w-full cursor-zoom-out' : 'h-full max-w-full cursor-zoom-in')}
         />
       </div>
     </div>,

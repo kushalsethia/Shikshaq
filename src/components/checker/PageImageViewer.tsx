@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { stepZoom, PAGE_ZOOM_STEPS } from '@/lib/checker-page';
 import { HIGHLIGHT_NOTE, questionHighlight, type ImageSize } from '@/lib/checker-highlight';
+import { rotateBox, type PageRotation } from '@/lib/page-rotation';
+import { UprightImage } from '@/components/checker/UprightImage';
 
 /**
  * The whole scanned page, zoomable. At zoom 1 the page fits the width of its
@@ -13,6 +15,10 @@ import { HIGHLIGHT_NOTE, questionHighlight, type ImageSize } from '@/lib/checker
  * When the question's position on the page is known and trustworthy
  * (checker-highlight.ts) a box is drawn around it and the panel scrolls to it.
  * When it is not, nothing is drawn and nothing is claimed.
+ *
+ * A page saved sideways has a turn (page-rotation.ts, audit_paper_pages.rotation):
+ * the picture is turned upright and the box is turned with it, so they still
+ * line up. Turn 0 is the page exactly as it was.
  */
 export function PageImageViewer({
   src,
@@ -22,6 +28,7 @@ export function PageImageViewer({
   source,
   fill = false,
   onEnlarge,
+  rotation = 0,
 }: {
   src: string;
   alt: string;
@@ -33,14 +40,17 @@ export function PageImageViewer({
   fill?: boolean;
   /** Shows an Enlarge button that opens the page full screen. */
   onEnlarge?: () => void;
+  /** Clockwise degrees that make the stored picture read upright (0 = leave it). */
+  rotation?: PageRotation;
 }) {
   const [zoom, setZoom] = useState<number>(PAGE_ZOOM_STEPS[0]);
   const [size, setSize] = useState<ImageSize | null>(null);
   const atMin = zoom <= PAGE_ZOOM_STEPS[0];
   const atMax = zoom >= PAGE_ZOOM_STEPS[PAGE_ZOOM_STEPS.length - 1];
-  const box = useMemo(() => questionHighlight(source, size), [source, size]);
+  // The box is measured in the stored picture, then turned with it.
+  const box = useMemo(() => rotateBox(questionHighlight(source, size), rotation), [source, size, rotation]);
   const scroller = useRef<HTMLDivElement | null>(null);
-  const image = useRef<HTMLImageElement | null>(null);
+  const stage = useRef<HTMLDivElement | null>(null);
 
   // A new picture: forget the old picture's size until this one has loaded.
   useEffect(() => {
@@ -51,7 +61,7 @@ export function PageImageViewer({
   // when it appears and each time the zoom changes it.
   useEffect(() => {
     const el = scroller.current;
-    const img = image.current;
+    const img = stage.current;
     if (!box || !el || !img) return;
     const raf = requestAnimationFrame(() => {
       const top = box.top * img.clientHeight;
@@ -113,16 +123,15 @@ export function PageImageViewer({
         role="region"
         aria-label="The scanned page. Scroll to move around."
       >
-        <div className="relative" style={{ width: `${zoom * 100}%` }}>
-          <img
-            ref={image}
-            key={src}
+        <div ref={stage} className="relative" style={{ width: `${zoom * 100}%` }}>
+          <UprightImage
             src={src}
             alt={alt}
+            rotation={rotation}
             onError={onError}
             onLoad={(e) => setSize({ width: e.currentTarget.naturalWidth, height: e.currentTarget.naturalHeight })}
-            draggable={false}
             className="block h-auto w-full"
+            stageClassName="w-full"
           />
           {box ? (
             <div
