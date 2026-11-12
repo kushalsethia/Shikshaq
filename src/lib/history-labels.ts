@@ -401,6 +401,8 @@ export const ACTION_LABELS: Record<string, (c: Ctx) => string> = {
   hod_set_aside: (c) => `set ${c.q} aside`,
   hod_assign_paper: () => 'gave a paper to a verifier',
   hod_unassign: () => 'took a paper back from a verifier',
+  hod_request_approve: () => 'approved a request to fix or change something, so it goes on to Claude',
+  hod_request_reject: () => 'decided a request to fix or change something would not go ahead',
   auto_return_idle: () => 'took a paper back automatically after 7 days with nothing done on it',
   auto_return_inactive: () => 'took a paper back automatically because its verifier is no longer active',
   hod_set_verifier_profile: () => 'saved the grade, school and board of a verifier',
