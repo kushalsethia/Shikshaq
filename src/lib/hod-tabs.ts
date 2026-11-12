@@ -5,11 +5,13 @@
  */
 
 import type { HodDeskCounts } from '@/lib/hod-publish';
+import { requestsBadgeLabel } from '@/lib/fix-requests';
 
 export const TAB_KEYS = [
   'needs-you',
   'ready',
   'uploads',
+  'requests',
   'live',
   'assignments',
   'verifiers',
@@ -38,8 +40,12 @@ export function resolveTabKey(requested: string | null | undefined): TabKey {
   return TAB_ALIASES[requested] ?? DEFAULT_TAB;
 }
 
-/** The number on a tab's badge, or 0 for none. */
-export function tabBadge(key: string, counts: HodDeskCounts | null | undefined): number {
+/**
+ * The number on a tab's badge, or 0 for none. The requests waiting for the HOD come from their own call
+ * (hod_request_counts), so they are passed in on their own.
+ */
+export function tabBadge(key: string, counts: HodDeskCounts | null | undefined, requestsWaiting = 0): number {
+  if (key === 'requests') return requestsWaiting;
   if (!counts) return 0;
   switch (key) {
     case 'needs-you':
@@ -54,7 +60,8 @@ export function tabBadge(key: string, counts: HodDeskCounts | null | undefined):
 }
 
 /** What a badge means, in words, for the tab's tooltip and screen readers. */
-export function tabBadgeLabel(key: string, counts: HodDeskCounts | null | undefined): string {
+export function tabBadgeLabel(key: string, counts: HodDeskCounts | null | undefined, requestsWaiting = 0): string {
+  if (key === 'requests') return requestsBadgeLabel(requestsWaiting);
   if (!counts) return '';
   switch (key) {
     case 'needs-you': {

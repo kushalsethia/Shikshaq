@@ -10,12 +10,13 @@ import { TABS } from '@/pages/Hod';
 
 describe('HOD desk tabs', () => {
   it('are in the owner order, and the page lists exactly these tabs', () => {
-    expect(TAB_KEYS).toEqual(['needs-you', 'ready', 'uploads', 'live', 'assignments', 'verifiers', 'history', 'ai-trust', 'teacher-reviewers']);
+    expect(TAB_KEYS).toEqual(['needs-you', 'ready', 'uploads', 'requests', 'live', 'assignments', 'verifiers', 'history', 'ai-trust', 'teacher-reviewers']);
     expect(TABS.map((t) => t.key)).toEqual([...TAB_KEYS]);
     expect(TABS.map((t) => t.label)).toEqual([
       'Needs you',
       'Ready to go live',
       'Uploads',
+      'Requests',
       'Live papers',
       'Assignments',
       'Verifiers',
@@ -49,6 +50,15 @@ describe('HOD desk tabs', () => {
     expect(tabBadge('ready', null)).toBe(0);
     expect(tabBadgeLabel('needs-you', c)).toBe('204 questions waiting for you');
     expect(tabBadgeLabel('ready', c)).toBe('2 papers ready, 0 can go live now');
+  });
+
+  it('puts the requests waiting for the HOD on the Requests tab, from their own count', () => {
+    expect(tabBadge('requests', null, 4)).toBe(4);
+    expect(tabBadge('requests', null)).toBe(0);
+    expect(tabBadge('live', null, 4)).toBe(0);
+    expect(tabBadgeLabel('requests', null, 1)).toBe('1 request waiting for you');
+    expect(tabBadgeLabel('requests', null, 3)).toBe('3 requests waiting for you');
+    expect(resolveTabKey('requests')).toBe('requests');
   });
 
   it('uses no em or en dashes in any tab label or hint', () => {

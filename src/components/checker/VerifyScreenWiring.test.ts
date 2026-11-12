@@ -116,7 +116,8 @@ describe('verify screen faults fixed 5 Nov 2026', () => {
     expect(keys).toContain('escapeStep(unsavedEdit, escArmedRef.current, Date.now())');
     expect(keys).toContain('ESC_AGAIN_NOTICE');
     const page = readFileSync(resolve(__dirname, '../../pages/Checker.tsx'), 'utf8');
-    expect(page).toContain('suspended={menuOpen}');
+    // The Menu and the Report a problem box (which opens from it) both stop the keys.
+    expect(page).toContain('suspended={menuOpen || reportView !== null}');
   });
 });
 
