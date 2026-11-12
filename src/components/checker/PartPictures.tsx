@@ -81,10 +81,29 @@ function PartPictureTile({
       data-has-picture={hasPicture ? 'true' : 'false'}
       style={part.isParent ? undefined : { marginLeft: Math.min(Math.max(part.depth - 1, 0), 3) * 12 }}
       className={cn(
-        'rounded-[6px] border-2 p-2 transition-shadow duration-150',
+        'relative rounded-[6px] border-2 p-2 transition-shadow duration-150',
         focused ? 'border-brand ring-2 ring-brand/30' : 'border-warm-hairline',
       )}
     >
+      {/* An Enlarge button on every picture, always visible. It used to appear only after a first tap
+          that moved the highlight, so on a phone there seemed to be no way to enlarge (owner, 12 Nov).
+          It sits in the label row, never over the picture, and does both things at once: moves the
+          highlight here and opens the picture. */}
+      {src ? (
+        <button
+          type="button"
+          onClick={() => {
+            if (!focused) onFocus();
+            onEnlarge(src, alt);
+          }}
+          aria-label={`Enlarge the printed picture of ${part.label}`}
+          data-testid="part-picture-enlarge"
+          className="tap-44 absolute right-1.5 top-1.5 z-10 flex h-8 items-center gap-1 rounded-full bg-muted px-2.5 text-[12px] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
+          Enlarge
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={onClick}
@@ -98,13 +117,8 @@ function PartPictureTile({
       >
         {/* The enlarge icon lives in this row, never on the picture: a one-line question ends at the
             top-right corner of its picture, and an icon there hid its last word. */}
-        <span className="flex items-center justify-between gap-2">
+        <span className={cn('flex min-h-8 items-center gap-2', src ? 'pr-24' : '')}>
           <span className={cn('text-[12px] font-semibold', focused ? 'text-foreground' : 'text-warm-meta')}>{part.label}</span>
-          {focused && src ? (
-            <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
-              <Maximize2 className="h-3.5 w-3.5" />
-            </span>
-          ) : null}
         </span>
         {url === undefined && part.path ? (
           <span className="block h-20 animate-pulse rounded-[4px] bg-muted" aria-label="Loading the picture" />

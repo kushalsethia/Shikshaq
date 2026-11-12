@@ -131,6 +131,21 @@ describe('PartPictures markup', () => {
     expect(moved.indexOf('data-checked="true"')).toBeGreaterThan(moved.indexOf('data-focused="true"'));
   });
 
+  it('every picture has its own Enlarge button, visible without tapping first; a part with no picture has none', () => {
+    // Owner, 12 Nov: on a phone there seemed to be no way to enlarge. The button used to show only on the focused tile.
+    const html = render(QUESTION_5B);
+    const withPicture = parts.filter((p) => p.path && urls[p.id]).length;
+    expect(withPicture).toBeGreaterThan(1);
+    expect((html.match(/data-testid="part-picture-enlarge"/g) || []).length).toBe(withPicture);
+    expect(html).toContain('Enlarge</button>');
+    // Moving the focus elsewhere does not remove the button from the other tiles.
+    const moved = render('d0000003-0000-4000-8000-0000000000aa');
+    expect((moved.match(/data-testid="part-picture-enlarge"/g) || []).length).toBe(withPicture);
+    // A tile still loading, or with no picture, has nothing to enlarge.
+    const loading = render(QUESTION_5B, { ...urls, 'd0000003-0000-4000-8000-0000000000aa': undefined });
+    expect((loading.match(/data-testid="part-picture-enlarge"/g) || []).length).toBe(withPicture - 1);
+  });
+
   it('a part without a picture keeps its slot as a small "No separate picture" tile', () => {
     const html = render(QUESTION_5B);
     expect(html).toContain('data-testid="no-part-picture"');
