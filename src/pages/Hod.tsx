@@ -14,6 +14,7 @@ import { LoadError } from '@/components/hod/HodShared';
 import { LiveTab } from '@/components/hod/LiveTab';
 import { NeedsYouTab } from '@/components/hod/NeedsYouTab';
 import { ReadyTab } from '@/components/hod/ReadyTab';
+import { RequestsTab } from '@/components/hod/RequestsTab';
 import { UploadsTab } from '@/components/hod/UploadsTab';
 import { VerifiersTab } from '@/components/hod/VerifiersTab';
 import { TeacherReviewersTab } from '@/components/hod/TeacherReviewersTab';
@@ -21,6 +22,8 @@ import { CHIP } from '@/lib/checker-button-styles';
 import { realHodApi, type HodApi } from '@/lib/hod-api';
 import { resolveTabKey, tabBadge, tabBadgeLabel } from '@/lib/hod-tabs';
 import type { TeacherReviewerAdminApi } from '@/lib/teacher-review-api';
+import { realFixRequestsApi, type FixRequestsApi } from '@/lib/fix-requests-api';
+import { requestsCountsKey, waitingCount } from '@/lib/fix-requests';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 import { cn } from '@/lib/utils';
@@ -63,6 +66,8 @@ export interface HodTabProps {
   canSwitchTrust: boolean;
   /** The teacher reviewers tab; the real one when left out (dummy mode passes a fake). */
   reviewerApi?: TeacherReviewerAdminApi;
+  /** The requests tab; the real one when left out (dummy mode passes a fake). */
+  requestsApi?: FixRequestsApi;
 }
 
 export interface HodTabDef {
@@ -77,6 +82,7 @@ export const TABS: HodTabDef[] = [
   { key: 'needs-you', label: 'Needs you', hint: 'Questions only you can settle: pass, fix, send back to students or set aside.', Component: NeedsYouTab },
   { key: 'ready', label: 'Ready to go live', hint: 'Papers with every question settled. Read one, run the four checks and publish it.', Component: ReadyTab },
   { key: 'uploads', label: 'Uploads', hint: 'Papers students sent in. Approve or reject them.', Component: UploadsTab },
+  { key: 'requests', label: 'Requests', hint: 'Problems and changes people have asked for. Say yes or no to what checkers send in, or send your own.', Component: RequestsTab },
   { key: 'live', label: 'Live papers', hint: 'Every paper in the library. Hide, restore or change its details.', Component: LiveTab },
   { key: 'assignments', label: 'Assignments', hint: 'Who holds which paper, and papers nobody holds.', Component: AssignmentsTab },
   { key: 'verifiers', label: 'Verifiers', hint: 'How each verifier is doing, their details and preferred subjects.', Component: VerifiersTab },
@@ -91,6 +97,7 @@ export function HodPage({
   banner,
   dummyRoles,
   reviewerApi,
+  requestsApi,
 }: {
   api: HodApi;
   dummy?: boolean;
@@ -98,6 +105,7 @@ export function HodPage({
   /** Dummy mode has no sign-in, so the roles the page would read are given here. */
   dummyRoles?: { isAdmin: boolean; isChecker: boolean };
   reviewerApi?: TeacherReviewerAdminApi;
+  requestsApi?: FixRequestsApi;
 }) {
   usePageMeta('HOD desk | Shikshaq', 'Settle questions, check papers and put them live, and see how each verifier is doing.');
   const { user, loading: authLoading } = useAuth();
@@ -162,6 +170,15 @@ export function HodPage({
     staleTime: 15_000,
     refetchOnMount: true,
   });
+  // The requests waiting for the HOD are their own call. If it fails the tab just shows no number.
+  const requestsCountQ = useQuery({
+    queryKey: requestsCountsKey(scope),
+    queryFn: () => (requestsApi ?? realFixRequestsApi).counts(),
+    enabled: allowed === true,
+    staleTime: 15_000,
+    refetchOnMount: true,
+  });
+  const requestsWaiting = waitingCount(requestsCountQ.data);
 
   // On a narrow screen the tabs scroll as one row. If the selected tab is cut off, bring it
   // into view (horizontally only, so the page does not jump). It re-runs when the badge
@@ -177,7 +194,7 @@ export function HodPage({
     if (left >= row.scrollLeft && right <= row.scrollLeft + view) return;
     const target = left - (view - el.offsetWidth) / 2;
     row.scrollTo({ left: Math.max(0, Math.min(target, row.scrollWidth - view)), behavior: 'auto' });
-  }, [active.key, allowed, countsQ.data]);
+  }, [active.key, allowed, countsQ.data, requestsWaiting]);
 
   if (checkFailed && allowed === null) {
     return (
@@ -275,10 +292,10 @@ export function HodPage({
               )}
             >
               {t.label}
-              {tabBadge(t.key, countsQ.data) > 0 ? (
+              {tabBadge(t.key, countsQ.data, requestsWaiting) > 0 ? (
                 <span className="inline-flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-brand px-[5px] text-[11px] font-bold tabular-nums text-foreground">
-                  <span aria-hidden>{tabBadge(t.key, countsQ.data)}</span>
-                  <span className="sr-only">{`: ${tabBadgeLabel(t.key, countsQ.data)}`}</span>
+                  <span aria-hidden>{tabBadge(t.key, countsQ.data, requestsWaiting)}</span>
+                  <span className="sr-only">{`: ${tabBadgeLabel(t.key, countsQ.data, requestsWaiting)}`}</span>
                 </span>
               ) : null}
             </button>
@@ -291,7 +308,7 @@ export function HodPage({
         ) : null}
 
         <div role="tabpanel" id="hod-panel" aria-labelledby={`hod-tab-${active.key}`}>
-          <active.Component api={api} scope={scope} canSwitchTrust={isAdmin} reviewerApi={reviewerApi} />
+          <active.Component api={api} scope={scope} canSwitchTrust={isAdmin} reviewerApi={reviewerApi} requestsApi={requestsApi} />
         </div>
       </BentoPanel>
     </BentoStack>

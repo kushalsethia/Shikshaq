@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { HodPage } from '@/pages/Hod';
 import { createFakeHodApi } from '@/dummy/hod-fake-api';
+import { createFakeFixRequestsApi } from '@/dummy/fix-requests-fake-api';
 import { createFakeTeacherReviewerAdminApi } from '@/dummy/teacher-review-fake-api';
 import { setDummyMode } from '@/lib/dummy-mode';
 
@@ -12,6 +13,7 @@ import { setDummyMode } from '@/lib/dummy-mode';
 export default function HodDummy() {
   const [api] = useState(createFakeHodApi);
   const [reviewerApi] = useState(createFakeTeacherReviewerAdminApi);
+  const [requestsApi] = useState(() => createFakeFixRequestsApi('hod'));
   const [admin, setAdmin] = useState(true);
   const qc = useQueryClient();
 
@@ -33,6 +35,7 @@ export default function HodDummy() {
         type="button"
         onClick={() => {
           api.reset();
+          requestsApi.reset();
           void qc.invalidateQueries({ queryKey: ['hod', 'dummy'] });
         }}
         className="min-h-9 rounded-full bg-fuchsia-800 px-3 font-bold text-fuchsia-50 hover:bg-fuchsia-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
@@ -52,5 +55,5 @@ export default function HodDummy() {
     </div>
   );
 
-  return <HodPage api={api} dummy banner={banner} dummyRoles={{ isAdmin: admin, isChecker: true }} reviewerApi={reviewerApi} />;
+  return <HodPage api={api} dummy banner={banner} dummyRoles={{ isAdmin: admin, isChecker: true }} reviewerApi={reviewerApi} requestsApi={requestsApi} />;
 }
