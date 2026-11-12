@@ -239,15 +239,15 @@ export function AdminPill({ tone, children }: { tone: AdminPillTone; children: R
    palette as AD-004's status pills so a "destructive" button always reads
    as the tinted rose, never solid red. */
 const ADMIN_BTN_FOCUS =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-disabled';
 
-export const adminPrimaryBtnStyle = `inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-0 bg-panel px-5 text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.97] ${ADMIN_BTN_FOCUS}`;
+export const adminPrimaryBtnStyle = `inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-0 bg-panel px-5 text-[13px] font-bold text-background shadow-solid transition-[transform,box-shadow] duration-150 active:scale-press ${ADMIN_BTN_FOCUS}`;
 
-export const adminSecondaryBtnStyle = `inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-muted px-5 text-[13px] font-bold text-warm-secondary transition-transform duration-150 active:scale-[0.97] ${ADMIN_BTN_FOCUS}`;
+export const adminSecondaryBtnStyle = `inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-muted px-5 text-[13px] font-bold text-warm-secondary shadow-button transition-[transform,box-shadow] duration-150 active:scale-press ${ADMIN_BTN_FOCUS}`;
 
 /* Tokens, not raw hex: destructive/10 with text-destructive is 5.9:1 on the
    card fill. */
-export const adminDestructiveBtnStyle = `inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-destructive/10 px-5 text-[13px] font-bold text-destructive transition-transform duration-150 active:scale-[0.97] ${ADMIN_BTN_FOCUS}`;
+export const adminDestructiveBtnStyle = `inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-destructive/10 px-5 text-[13px] font-bold text-destructive shadow-solid [--tactile-edge:var(--destructive)] transition-[transform,box-shadow] duration-150 active:scale-press ${ADMIN_BTN_FOCUS}`;
 
 /**
  * Single toast system for the admin console (see _rules.md #19 and

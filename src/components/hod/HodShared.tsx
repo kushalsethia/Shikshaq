@@ -150,7 +150,7 @@ export function deskLink(tab: string, paper?: string | null): string {
 /** One paper-row card used by Needs you and Ready: title line, meta line, trail, actions. */
 export function PaperRow({ children, ...rest }: { children: ReactNode } & React.HTMLAttributes<HTMLLIElement>) {
   return (
-    <li className="rounded-[18px] bg-muted p-4" {...rest}>
+    <li className="rounded-[18px] bg-muted shadow-card p-4" {...rest}>
       {children}
     </li>
   );
@@ -172,4 +172,4 @@ export function Notice({ children, tone = 'info' }: { children: ReactNode; tone?
 }
 
 /** A quiet button that reads on a grey card, a white panel and a printed sheet alike. */
-export const quietButton = cn(actionToneClass('muted'), 'bg-card text-foreground shadow-border');
+export const quietButton = cn(actionToneClass('muted'), 'bg-card text-foreground');

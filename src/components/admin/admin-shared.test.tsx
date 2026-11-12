@@ -156,8 +156,9 @@ describe('AdminPillButton', () => {
   it('builds four variants and two sizes, with 44px and 40px floors', () => {
     expect(adminPillClass('primary', 'md')).toContain('bg-panel');
     expect(adminPillClass('primary', 'md')).toContain('min-h-11');
-    expect(adminPillClass('secondary', 'sm')).toContain('min-h-10');
-    expect(adminPillClass('secondary', 'sm')).not.toContain('min-h-11');
+    // sm is 40px with a mouse, but still 44px on a phone (tactile pass, 12 Nov 2026).
+    expect(adminPillClass('secondary', 'sm')).toContain('md:min-h-10');
+    expect(adminPillClass('secondary', 'sm')).toContain('min-h-11 md:min-h-10');
     expect(adminPillClass('destructive')).toContain('text-destructive');
     expect(adminPillClass('quiet')).toContain('bg-transparent');
   });

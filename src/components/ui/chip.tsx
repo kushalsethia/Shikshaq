@@ -12,7 +12,7 @@ import { getSubjectPalette } from "@/lib/subject-palette";
    Sizing: 44px wherever the chip is the primary control (design.md §7 floor);
    34px is allowed only for read-only badges that are not tap targets. */
 const chipVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-[color,background-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-disabled",
   {
     variants: {
       tone: {
@@ -21,10 +21,10 @@ const chipVariants = cva(
            match the spec's table). `on-dark`/`on-brand`/`on-papers` are the
            "a chip sitting on a saturated panel" family — `on-dark` replaces
            the old `dark` (bg-white/10), which meant exactly that. */
-        facet: "bg-muted text-foreground hover:bg-accent",
+        facet: "bg-muted text-foreground shadow-button hover:bg-accent",
         "facet-on": "bg-brand-subtle text-brand-deep",
         "facet-on-papers": "bg-brand-blue-subtle text-brand-blue-deep",
-        dark: "bg-panel text-background",
+        dark: "bg-panel text-background shadow-solid",
         subject: "",
         "on-brand": "bg-card text-foreground",
         "on-papers": "bg-white/15 text-white",
