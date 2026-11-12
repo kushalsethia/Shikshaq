@@ -599,6 +599,8 @@ export function Chatbot() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask anything about tuition"
+                aria-label="Ask a question about tuition"
+                maxLength={500}
                 className="flex-1 h-14 min-w-0 px-4 bg-muted rounded-full outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card text-base"
                 style={{ fontSize: '16px' }}
                 disabled={loading}

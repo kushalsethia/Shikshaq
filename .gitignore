@@ -38,6 +38,18 @@ docs/GOOGLE_AUTH_CUSTOM_DOMAIN.md
 /maths_question_bank_deploy-*
 /.handoff-ref/
 
+# Build-verification output and the 20261111 clean-up folder: local only.
+/dist-verify/
+/_archive_*/
+
+# Any other env file (.env.production and the like) must not be committed;
+# the example file is the one exception.
+.env.*
+!.env.example
+
+# The /impeccable tool's local server state (port and a session token).
+.impeccable/live/
+
 # Local audit + working notes
 /.audit-reports/
 /AUDIT_*.md

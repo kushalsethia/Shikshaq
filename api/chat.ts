@@ -589,6 +589,9 @@ Q: Can tuition continue across academic years?
 A: Yes, if both parties agree.
 `;
 
+/** Longest chat message (and longest remembered history line) the endpoint will take. */
+const MAX_CHAT_CHARS = 1000;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any) {
   // Only allow POST requests
@@ -601,6 +604,12 @@ export default async function handler(req: any, res: any) {
 
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Message is required' });
+    }
+
+    // This endpoint is open to anyone and every call spends Gemini quota, so an
+    // oversized message is refused outright rather than sent on.
+    if (message.length > MAX_CHAT_CHARS) {
+      return res.status(400).json({ error: 'Message is too long' });
     }
 
     // Get API key from environment variable
@@ -635,7 +644,7 @@ ${SHIKSHAQ_FAQ}`;
       conversationContext = '\n\nRecent conversation:\n';
       recentHistory.forEach((msg: { role?: string; parts?: { text?: string }[]; content?: string }) => {
         const role = msg.role === 'model' ? 'assistant' : msg.role || 'user';
-        const content = msg.parts?.[0]?.text || msg.content || '';
+        const content = String(msg.parts?.[0]?.text || msg.content || '').slice(0, MAX_CHAT_CHARS);
         if (role === 'user') {
           conversationContext += `User: ${content}\n`;
         } else if (role === 'assistant' || role === 'model') {

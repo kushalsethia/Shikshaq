@@ -50,6 +50,13 @@ describe('fileStateFrom', () => {
     expect(fileStateFrom({ data: 'https://x/y.pdf', error: null })).toBe('ready');
   });
 
+  it('an address that is not a web address is never handed to the iframe or the link', () => {
+    expect(fileStateFrom({ data: 'javascript:alert(1)', error: null })).toBe('error');
+    expect(fileStateFrom({ data: 'data:text/html,<script>1</script>', error: null })).toBe('error');
+    expect(fileStateFrom({ data: '//evil.example/x.pdf', error: null })).toBe('error');
+    expect(fileStateFrom({ data: 'HTTP://x/y.pdf', error: null })).toBe('ready');
+  });
+
   it('a failed request is an error, never "not uploaded"', () => {
     expect(fileStateFrom({ data: null, error: new Error('network') })).toBe('error');
   });
