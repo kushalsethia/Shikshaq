@@ -87,7 +87,7 @@ const IconDisc = React.forwardRef<HTMLElement, IconDiscProps>(
         className={cn(
           iconDiscVariants({ tone, size, shape }),
           as === "button" &&
-            "tap-44 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            "tap-44 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           className,
         )}
         style={

@@ -34,7 +34,7 @@ export function QuestionDiagrams({
             onClick={() => onEnlarge(it.url, it.alt)}
             aria-label={`Enlarge: ${it.alt}`}
             data-testid="diagram-item"
-            className="group relative flex min-w-0 max-w-full cursor-zoom-in justify-center rounded-[6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="group relative flex min-w-0 max-w-full cursor-zoom-in justify-center rounded-[6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             <img src={it.url} alt={it.alt} className="block h-auto max-h-[30vh] w-auto max-w-full object-contain" />
             <span aria-hidden="true" className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-white text-foreground shadow-sm">

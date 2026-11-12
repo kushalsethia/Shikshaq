@@ -177,7 +177,7 @@ export function TopBar({ className }: { className?: string }) {
                   onClick={() => setMenuOpen((v) => !v)}
                   aria-label="Account menu"
                   aria-expanded={menuOpen}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-sm font-semibold text-background transition-colors duration-150 hover:bg-white/25 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-sm font-semibold text-background transition-colors duration-150 hover:bg-white/25 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
                 >
                   {initial}
                 </button>

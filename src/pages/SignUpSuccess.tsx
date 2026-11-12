@@ -93,7 +93,7 @@ export default function SignUpSuccess() {
               type="button"
               onClick={handleResend}
               disabled={resending}
-              className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-semibold text-[#3E6F53] transition-colors duration-tap hover:text-[#24603D] disabled:opacity-60"
+              className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-semibold text-[#3E6F53] transition-colors duration-tap hover:text-[#24603D] disabled:opacity-disabled"
             >
               {resending ? 'Resending…' : 'Resend the email'}
             </button>

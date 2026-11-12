@@ -96,7 +96,7 @@ export function AdminRowActions({ actions, stack = false, subject }: { actions: 
           onClick={action.onClick}
           disabled={action.disabled}
           className={cn(
-            'relative inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full px-[14px] text-[13px] font-bold before:absolute before:-inset-[2px] before:content-[""] transition-colors duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'relative inline-flex h-11 md:h-10 items-center justify-center whitespace-nowrap rounded-full px-[14px] text-[13px] font-bold before:absolute before:-inset-[2px] before:content-[""] transition-colors duration-150 active:scale-press disabled:cursor-not-allowed disabled:opacity-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             ACTION_TONE_CLASS[action.tone],
           )}
         >

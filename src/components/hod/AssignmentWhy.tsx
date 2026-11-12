@@ -23,7 +23,7 @@ export function AssignmentWhy({ api, scope, checkerId, paperId }: { api: HodApi;
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="tap-44 rounded-full bg-card px-3.5 py-1.5 text-[13px] font-semibold text-brand-blue transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className="tap-44 rounded-full bg-card px-3.5 py-1.5 text-[13px] font-semibold text-brand-blue transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       >
         {open ? 'Hide the reasons' : 'Why this paper?'}
       </button>

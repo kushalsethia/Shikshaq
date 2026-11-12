@@ -334,7 +334,7 @@ export function FilterGroupsBody({
                    the *toggled* colour, never a distinct "registering the
                    tap" state. motion-reduce drops the scale, keeping the
                    colour change. */
-                className={`flex h-11 items-center justify-center rounded-[14px] text-[14px] font-extrabold tabular-nums transition-[background-color,color,transform] duration-tap active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                className={`flex h-11 items-center justify-center rounded-[14px] text-[14px] font-extrabold tabular-nums transition-[background-color,color,transform] duration-tap active:scale-press motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   selected ? 'bg-brand-subtle text-brand-deep' : 'bg-muted text-foreground'
                 }`}
               >

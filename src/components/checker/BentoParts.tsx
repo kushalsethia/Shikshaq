@@ -238,7 +238,7 @@ export function ImageLightbox({ src, alt, onClose, rotation = 0 }: { src: string
           type="button"
           onClick={onClose}
           aria-label="Close the picture"
-          className="tap-44 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          className="tap-44 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-foreground transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           <X className="h-5 w-5" aria-hidden="true" />
         </button>

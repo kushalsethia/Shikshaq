@@ -530,7 +530,7 @@ export default function Account() {
             type="button"
             onClick={() => setSettingsOpen(true)}
             aria-label="Open settings"
-            className="tap-44 flex h-10 w-10 flex-none items-center justify-center rounded-full bg-muted transition-colors duration-150 hover:bg-accent active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="tap-44 flex h-10 w-10 flex-none items-center justify-center rounded-full bg-muted transition-colors duration-150 hover:bg-accent active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Settings className="h-[17px] w-[17px] text-foreground" strokeWidth={2.1} aria-hidden="true" />
           </button>
@@ -608,7 +608,7 @@ export default function Account() {
                         type="button"
                         onClick={() => handleRemoveSaved(teacher.id)}
                         aria-label={`Remove ${teacher.name} from saved`}
-                        className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-card transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-card transition-transform duration-tap active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       >
                         <Heart className="h-4 w-4 fill-destructive text-destructive" aria-hidden />
                       </button>

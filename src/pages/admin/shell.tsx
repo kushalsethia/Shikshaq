@@ -132,7 +132,7 @@ export function CountsRetry({ onRetry }: { onRetry: () => void }) {
     <button
       type="button"
       onClick={onRetry}
-      className="mt-1 inline-flex min-h-10 items-center whitespace-nowrap rounded-full px-3 text-[13px] font-bold text-brand-blue hover:bg-brand-blue-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="mt-1 inline-flex min-h-11 md:min-h-10 items-center whitespace-nowrap rounded-full px-3 text-[13px] font-bold text-brand-blue hover:bg-brand-blue-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       Counts unavailable. Retry
     </button>
@@ -145,7 +145,7 @@ export const TAB_ROW =
   'relative flex w-max max-w-full items-center gap-1 overflow-x-auto rounded-full bg-muted p-1 scrollbar-hide';
 
 export const TAB_PILL =
-  'flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand';
+  'flex h-11 md:h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus';
 
 export const tabPillTone = (on: boolean) => (on ? 'bg-card text-foreground' : 'text-warm-secondary hover:text-foreground');
 
@@ -183,11 +183,11 @@ function AccountMenu({ email }: { email: string }) {
       <DropdownMenuContent align="end" className="w-64 rounded-2xl bg-card p-1.5">
         <DropdownMenuLabel className="break-all px-3 py-2 text-[13px] font-semibold text-warm-secondary">{email}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild className="min-h-10 cursor-pointer rounded-xl px-3 text-[14px] font-semibold">
+        <DropdownMenuItem asChild className="min-h-11 md:min-h-10 cursor-pointer rounded-xl px-3 text-[14px] font-semibold">
           <Link to="/">Back to the site</Link>
         </DropdownMenuItem>
         {canSignOut ? (
-          <DropdownMenuItem onSelect={() => void signOut()} className="min-h-10 cursor-pointer rounded-xl px-3 text-[14px] font-semibold">
+          <DropdownMenuItem onSelect={() => void signOut()} className="min-h-11 md:min-h-10 cursor-pointer rounded-xl px-3 text-[14px] font-semibold">
             Sign out
           </DropdownMenuItem>
         ) : null}

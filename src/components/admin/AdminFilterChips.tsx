@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
    where per-view counts live (the nav badge is the headline, tiles are only for
    figures the chips do not show).
 
-   - The chips are `aria-pressed` buttons, `min-h-10` (40px).
+   - The chips are `aria-pressed` buttons, `min-h-11 md:min-h-10` (40px).
    - A chip whose `count` is undefined shows "?": the count is unknown, which is
      not the same as 0. Pass `noCount` on a chip that has no number by design.
    - When the applied chip is not the default, a "Clear filter" button appears
@@ -62,7 +62,7 @@ export function AdminFilterChips({
               title={c.hint}
               onClick={() => onChange(c.key)}
               className={cn(
-                'relative inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] transition-colors duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                'relative inline-flex min-h-11 md:min-h-10 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] transition-colors duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 on ? 'bg-panel font-bold text-background' : 'bg-muted font-semibold text-warm-secondary hover:bg-warm-hairline',
               )}
             >
@@ -86,7 +86,7 @@ export function AdminFilterChips({
         <button
           type="button"
           onClick={onClear}
-          className="inline-flex min-h-10 items-center rounded-full px-3 text-[13px] font-bold text-brand-blue hover:bg-brand-blue-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex min-h-11 md:min-h-10 items-center rounded-full px-3 text-[13px] font-bold text-brand-blue hover:bg-brand-blue-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Clear filter
         </button>

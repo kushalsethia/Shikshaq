@@ -122,7 +122,7 @@ export function PeoplePicker({
             }}
             placeholder="Search by name or email"
             aria-label={ariaLabel}
-            className="h-11 w-full max-w-full rounded-full bg-muted pl-10 pr-4 text-base sm:text-sm text-foreground outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+            className="h-11 w-full max-w-full rounded-full bg-muted pl-10 pr-4 text-base sm:text-sm text-foreground outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-focus"
           />
         </span>
       </label>
@@ -138,7 +138,7 @@ export function PeoplePicker({
                   type="button"
                   onClick={() => void add(q, 'typed')}
                   disabled={adding !== null}
-                  className="inline-flex min-h-10 items-center font-bold text-brand-blue disabled:opacity-60"
+                  className="inline-flex min-h-11 md:min-h-10 items-center font-bold text-brand-blue disabled:opacity-disabled"
                 >
                   {adding === 'typed' ? 'Adding...' : `Try adding ${q} anyway`}
                 </button>
@@ -160,7 +160,7 @@ export function PeoplePicker({
                     type="button"
                     onClick={() => void add(u.email ?? '', u.user_id)}
                     disabled={adding !== null}
-                    className={cn(adminPillClass('primary', 'sm'), 'shrink-0 bg-brand text-foreground disabled:opacity-50')}
+                    className={cn(adminPillClass('primary', 'sm'), 'shrink-0 bg-brand text-foreground disabled:opacity-disabled')}
                   >
                     <UserPlus className="h-4 w-4" aria-hidden />
                     {adding === u.user_id ? 'Adding...' : actionLabel(u)}

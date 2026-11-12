@@ -536,7 +536,7 @@ export default function StudentDashboard() {
             type="button"
             onClick={() => setSettingsOpen(settingsOpen === 'profile' ? null : 'profile')}
             aria-label="Open profile settings"
-            className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-white/10 transition-colors duration-150 hover:bg-white/20 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-white/10 transition-colors duration-150 hover:bg-white/20 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Settings className="h-[17px] w-[17px] text-background" strokeWidth={2.1} aria-hidden="true" />
           </button>
@@ -664,7 +664,7 @@ export default function StudentDashboard() {
                 aria-expanded={
                   (row.key === 'profile' || row.key === 'subjects') ? settingsOpen === row.key : undefined
                 }
-                className={`flex min-h-[52px] w-full items-center gap-3 p-4 text-left transition-colors duration-150 hover:bg-accent active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
+                className={`flex min-h-[52px] w-full items-center gap-3 p-4 text-left transition-colors duration-150 hover:bg-accent active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
                   i > 0 ? 'border-t border-border' : ''
                 }`}
               >

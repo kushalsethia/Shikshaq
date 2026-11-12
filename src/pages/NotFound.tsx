@@ -69,13 +69,13 @@ const NotFound = () => {
             <div className="mt-5 flex flex-col gap-2">
               <Link
                 to={BROWSE_PATH}
-                className="flex h-[52px] items-center justify-center rounded-full bg-brand text-[15px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                className="flex h-[52px] items-center justify-center rounded-full bg-brand text-[15px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-press motion-reduce:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
               >
                 Browse teachers
               </Link>
               <Link
                 to={PAST_PAPERS_PATH}
-                className="flex h-[52px] items-center justify-center rounded-full bg-brand-blue-subtle text-[15px] font-extrabold text-brand-blue-deep transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+                className="flex h-[52px] items-center justify-center rounded-full bg-brand-blue-subtle text-[15px] font-extrabold text-brand-blue-deep transition-transform duration-tap hover:-translate-y-0.5 active:scale-press motion-reduce:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
               >
                 Past papers
               </Link>

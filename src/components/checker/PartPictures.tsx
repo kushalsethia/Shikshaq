@@ -98,7 +98,7 @@ function PartPictureTile({
           }}
           aria-label={`Enlarge the printed picture of ${part.label}`}
           data-testid="part-picture-enlarge"
-          className="tap-44 absolute right-1.5 top-1.5 z-10 flex h-8 items-center gap-1 rounded-full bg-muted px-2.5 text-[12px] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          className="tap-44 absolute right-1.5 top-1.5 z-10 flex h-8 items-center gap-1 rounded-full bg-muted px-2.5 text-[12px] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
           Enlarge
@@ -111,7 +111,7 @@ function PartPictureTile({
         aria-pressed={focused}
         aria-label={focused && src ? `Enlarge the printed picture of ${part.label}` : `Show ${part.label}`}
         className={cn(
-          'flex w-full min-w-0 flex-col gap-1.5 rounded-[4px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+          'flex w-full min-w-0 flex-col gap-1.5 rounded-[4px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
           focused && src ? 'cursor-zoom-in' : 'cursor-pointer',
         )}
       >

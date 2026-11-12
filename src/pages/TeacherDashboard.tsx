@@ -1276,7 +1276,7 @@ export default function TeacherDashboard() {
                 type="button"
                 onClick={handlePauseToggle}
                 disabled={pausing}
-                className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-muted p-4 text-left transition-transform duration-hover hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 disabled:opacity-60"
+                className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-muted p-4 text-left transition-transform duration-hover hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 disabled:opacity-disabled"
               >
                 <IconDisc tone="brand-subtle" size={40}>
                   {isPaused ? <PlayCircle className="h-5 w-5" aria-hidden="true" /> : <PauseCircle className="h-5 w-5" aria-hidden="true" />}

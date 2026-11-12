@@ -248,7 +248,7 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
       disabled={!last}
       data-testid="practice-undo"
       title={last ? 'Take back your last answer' : 'Nothing to undo yet'}
-      className={cn(actionToneClass('muted'), 'disabled:cursor-not-allowed disabled:opacity-50')}
+      className={cn(actionToneClass('muted'), 'disabled:cursor-not-allowed disabled:opacity-disabled')}
     >
       Undo last
     </button>
@@ -319,7 +319,7 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
                     <button
                       type="button"
                       onClick={() => answer({ action: 'or_only' })}
-                      className="tap-44 mt-2 rounded-full bg-card px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      className="tap-44 mt-2 rounded-full bg-card px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                     >
                       {OR_ONLY_BUTTON}
                     </button>
@@ -357,7 +357,7 @@ export function PracticeRound({ api, onRestart }: { api: PracticeApi; onRestart:
                       onSelect={(e) => setSplitAt(codePointOffset(e.currentTarget.value, e.currentTarget.selectionStart))}
                       rows={5}
                       aria-label="Tap where the second question starts"
-                      className="w-full rounded-[12px] bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      className="w-full rounded-[12px] bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
                     />
                     <p className="mt-2 text-[13px] text-warm-meta">
                       {splitAt === null

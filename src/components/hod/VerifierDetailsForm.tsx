@@ -35,7 +35,7 @@ export interface VerifierDetailsFormProps {
 }
 
 const FIELD =
-  'min-h-[40px] w-full rounded-xl bg-card px-3 py-1 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60';
+  'min-h-11 md:min-h-[40px] w-full rounded-xl bg-card px-3 py-1 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-disabled';
 const LABEL = 'flex flex-col gap-1 text-[13px] font-semibold text-foreground';
 
 export function VerifierDetailsForm(props: VerifierDetailsFormProps) {
@@ -152,7 +152,7 @@ export function VerifierDetailsForm(props: VerifierDetailsFormProps) {
                     type="checkbox"
                     checked={picked.has(s.toLowerCase())}
                     onChange={(e) => toggle(s, e.target.checked)}
-                    className="size-4 accent-foreground focus-visible:ring-2 focus-visible:ring-brand"
+                    className="size-4 accent-foreground focus-visible:ring-2 focus-visible:ring-focus"
                   />
                   {s}
                 </label>

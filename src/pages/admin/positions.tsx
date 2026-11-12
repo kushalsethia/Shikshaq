@@ -103,7 +103,7 @@ export function PositionGroupTable({
 }
 
 const FIELD =
-  'h-11 w-full min-w-0 rounded-full bg-muted px-4 text-base sm:text-sm text-foreground outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand';
+  'h-11 w-full min-w-0 rounded-full bg-muted px-4 text-base sm:text-sm text-foreground outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-focus';
 
 export function AdminPositionsPage({
   api = realPositionsApi,
@@ -297,7 +297,7 @@ export function AdminPositionsPage({
             <button
               type="submit"
               disabled={adding || !email.trim()}
-              className={cn(adminPillClass('primary', 'md'), 'shrink-0 bg-brand text-foreground disabled:opacity-50')}
+              className={cn(adminPillClass('primary', 'md'), 'shrink-0 bg-brand text-foreground disabled:opacity-disabled')}
             >
               <UserPlus className="h-4 w-4" aria-hidden />
               {adding ? 'Adding...' : 'Add'}

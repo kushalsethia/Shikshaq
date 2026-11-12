@@ -195,7 +195,7 @@ export function CheckerWalkthrough({
           <button
             type="button"
             onClick={onClose}
-            className="tap-44 rounded-full px-3 py-1 text-[13px] font-semibold text-warm-secondary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="tap-44 rounded-full px-3 py-1 text-[13px] font-semibold text-warm-secondary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             Skip the tour
           </button>

@@ -269,7 +269,7 @@ export function PanelTabs({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(t.id)}
             className={cn(
-              'flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-[14px] px-3 py-1.5 transition-[transform,background-color,color] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand [@media(max-height:699px)]:min-h-[44px] [@media(max-height:699px)]:py-1',
+              'flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-[14px] px-3 py-1.5 transition-[transform,background-color,color] duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus [@media(max-height:699px)]:min-h-[44px] [@media(max-height:699px)]:py-1',
               three && 'min-h-[48px] px-1.5',
               selected ? t.on : 'bg-transparent text-warm-secondary',
             )}

@@ -31,7 +31,7 @@ export default function AdminCheckersDummy({ view }: { view?: CheckersView }) {
           setDummyMode(false);
           window.location.assign('/admin/checkers?dummy=0');
         }}
-        className="ml-auto min-h-10 rounded-full bg-fuchsia-800 px-3 font-bold text-fuchsia-50 hover:bg-fuchsia-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        className="ml-auto min-h-11 md:min-h-10 rounded-full bg-fuchsia-800 px-3 font-bold text-fuchsia-50 hover:bg-fuchsia-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
       >
         Leave dummy mode
       </button>

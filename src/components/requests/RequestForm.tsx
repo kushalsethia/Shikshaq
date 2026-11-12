@@ -104,7 +104,7 @@ export function RequestForm({
             <span
               className={cn(
                 'tap-44 block rounded-2xl bg-muted px-4 py-3 transition-colors duration-150',
-                'peer-checked:bg-brand-subtle peer-checked:ring-2 peer-checked:ring-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand',
+                'peer-checked:bg-brand-subtle peer-checked:ring-2 peer-checked:ring-brand peer-focus-visible:ring-2 peer-focus-visible:ring-focus',
               )}
             >
               <span className="block text-[14px] font-bold text-foreground">{c.label}</span>
@@ -127,7 +127,7 @@ export function RequestForm({
           onChange={(e) => change({ ...draft, title: e.target.value })}
           placeholder="For example: the Skip button does nothing"
           autoComplete="off"
-          className="h-11 w-full rounded-full bg-muted px-4 text-[16px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand sm:text-[14px]"
+          className="h-11 w-full rounded-full bg-muted px-4 text-[16px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-focus sm:text-[14px]"
         />
       </div>
 
@@ -143,7 +143,7 @@ export function RequestForm({
           disabled={busy}
           onChange={(e) => change({ ...draft, details: e.target.value })}
           placeholder="Say it in your own words. What did you press, and what did you expect?"
-          className="w-full rounded-2xl bg-muted p-3 text-[16px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand sm:text-[14px]"
+          className="w-full rounded-2xl bg-muted p-3 text-[16px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-focus sm:text-[14px]"
         />
       </div>
 

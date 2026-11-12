@@ -20,7 +20,7 @@ export function RulesInfo() {
           aria-label="The rules for fixing"
           title="The rules for fixing"
           data-testid="rules-info"
-          className="tap-44 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-warm-secondary transition-transform duration-150 hover:bg-muted active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          className="tap-44 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-warm-secondary transition-transform duration-150 hover:bg-muted active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           <Info className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -45,7 +45,7 @@ export function ShortcutsPopover({ canSplit, canPass, canUndo, editing }: { canS
           aria-label="Keyboard shortcuts"
           title="Keyboard shortcuts"
           data-testid="shortcuts-button"
-          className="tap-44 hidden h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand md:inline-flex"
+          className="tap-44 hidden h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted text-warm-secondary transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus md:inline-flex"
         >
           <HelpCircle className="h-[18px] w-[18px]" aria-hidden="true" />
         </button>

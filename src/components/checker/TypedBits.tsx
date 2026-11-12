@@ -24,7 +24,7 @@ import { CHECKER_HELP_PATH } from '@/lib/checker-onboarding';
    Pure presentation with no data access: the practice round uses them too. */
 
 const INPUT =
-  'min-h-[44px] rounded-[12px] bg-muted px-3 py-1 text-center text-[16px] font-semibold tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand';
+  'min-h-[44px] rounded-[12px] bg-muted px-3 py-1 text-center text-[16px] font-semibold tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus';
 
 /** Question number and marks, as chips. In Fix mode they turn into boxes. */
 export function QuestionChips({
@@ -128,7 +128,7 @@ export function MarksInsideHint({
         onClick={onMove}
         disabled={disabled}
         data-testid="move-marks-out"
-        className="tap-44 mt-2 rounded-full bg-brand px-4 py-2 text-[14px] font-bold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:opacity-50"
+        className="tap-44 mt-2 rounded-full bg-brand px-4 py-2 text-[14px] font-bold text-foreground transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:opacity-disabled"
       >
         {MARKS_MOVE_BUTTON}
       </button>
@@ -186,7 +186,7 @@ export function ToolsRow({
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
-                'text-[12px] font-medium text-warm-secondary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                'text-[12px] font-medium text-warm-secondary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                 compact && 'ml-auto self-center',
               )}
             >
@@ -216,7 +216,7 @@ export function ToolsRow({
               onFocus={() => setHint(t.id)}
               onBlur={() => setHint((h) => (h === t.id ? null : h))}
               className={cn(
-                'tap-44 inline-flex items-center justify-start gap-2 rounded-full border text-left font-semibold leading-tight transition-[transform,background-color,color] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
+                'tap-44 inline-flex items-center justify-start gap-2 rounded-full border text-left font-semibold leading-tight transition-[transform,background-color,color] duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
                 compact ? 'min-h-[36px] px-3 py-1 text-[13px]' : 'min-h-[44px] px-4 py-2 text-[14px]',
                 on ? 'border-transparent bg-panel text-background' : 'border-warm-hairline-strong bg-white text-foreground hover:bg-muted',
                 !ok && 'opacity-55',
@@ -234,7 +234,7 @@ export function ToolsRow({
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-              'text-[12px] font-medium text-warm-secondary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+              'text-[12px] font-medium text-warm-secondary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
               compact && 'ml-auto self-center [@media(max-width:1535px)]:sr-only',
             )}
           >
@@ -300,7 +300,7 @@ export function ToolsToolbar({
               disabled={busy}
               onClick={() => onPick(t.id, ok)}
               className={cn(
-                'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-[12px] border px-1 py-1.5 text-[12px] font-semibold leading-tight transition-[transform,background-color,color] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
+                'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-[12px] border px-1 py-1.5 text-[12px] font-semibold leading-tight transition-[transform,background-color,color] duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
                 on ? 'border-transparent bg-panel text-background' : 'border-warm-hairline-strong bg-white text-foreground hover:bg-muted',
                 !ok && 'opacity-55',
                 busy && 'cursor-not-allowed opacity-50',
@@ -360,7 +360,7 @@ function ChangesBody({ source, rawOcr, className }: { source: unknown; rawOcr: u
             onClick={() => setShowRaw((v) => !v)}
             aria-expanded={showRaw}
             data-testid="toggle-raw"
-            className="tap-44 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="tap-44 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             {showRaw ? RAW_HIDE : RAW_SHOW}
           </button>
@@ -394,7 +394,7 @@ export function ChangesSection({ source, rawOcr }: { source: unknown; rawOcr: un
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls="what-changed-body"
-        className="tap-44 flex min-h-[44px] w-full items-center justify-between gap-2 rounded-[12px] px-3.5 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className="tap-44 flex min-h-[44px] w-full items-center justify-between gap-2 rounded-[12px] px-3.5 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       >
         <span className="text-[14px] font-bold text-foreground">
           {CHANGES_HEADING}
@@ -421,7 +421,7 @@ export function ChangesChip({ source, rawOcr, open, onToggle }: { source: unknow
       data-tour="changes"
       data-testid="changes-chip"
       title={`${CHANGES_HEADING}. Tap to see what the computer fixed on its own.`}
-      className="tap-44 inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[12px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      className="tap-44 inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[12px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
     >
       {CHANGES_HEADING}
       {total > 0 ? <span className="rounded-full bg-white px-1.5 text-[12px] font-semibold tabular-nums text-foreground">{total}</span> : null}

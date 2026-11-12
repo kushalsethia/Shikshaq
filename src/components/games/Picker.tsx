@@ -105,8 +105,8 @@ export function Picker({ label, value, options, onPick, searchable = options.len
       <PopoverPrimitive.Trigger asChild>
         <button type="button" id={triggerId} disabled={disabled} aria-haspopup="listbox" aria-label={`${label}: ${current?.label ?? placeholder ?? 'none'}`} aria-invalid={invalid || undefined}
           className={cn('group inline-flex items-center gap-2 text-foreground ring-1 ring-border', LOOK[look],
-            `transition-[transform,box-shadow] duration-100 ${EASE} hover:ring-warm-hairline active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand`,
-            'data-[state=open]:ring-2 data-[state=open]:ring-brand disabled:opacity-50 disabled:active:scale-100', invalid && 'ring-2 ring-destructive', className)}>
+            `transition-[transform,box-shadow] duration-100 ${EASE} hover:ring-warm-hairline active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus`,
+            'data-[state=open]:ring-2 data-[state=open]:ring-brand disabled:opacity-disabled disabled:active:scale-100', invalid && 'ring-2 ring-destructive', className)}>
           <span className={cn('min-w-0 truncate', !current && look === 'field' && 'text-warm-label')}>{current?.label ?? placeholder ?? label}</span>
           <ChevronDown aria-hidden className={`size-4 shrink-0 text-warm-meta transition-transform duration-150 ${EASE} group-data-[state=open]:rotate-180`} />
         </button>
@@ -125,7 +125,7 @@ export function Picker({ label, value, options, onPick, searchable = options.len
               <input ref={searchRef} value={query} onChange={(e) => { setQuery(e.target.value); setActive(0); }} onKeyDown={onKey}
                 role="combobox" aria-expanded aria-controls={`${id}-list`} aria-activedescendant={shown[active] ? optionId(active) : undefined}
                 aria-label={`Search: ${label.toLowerCase()}`} placeholder={`Search ${label.toLowerCase()}s`} autoComplete="off" spellCheck={false}
-                className="h-10 w-full rounded-[18px] bg-muted pl-9 pr-3 text-base text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-brand sm:text-[14px]" />
+                className="h-10 w-full rounded-[18px] bg-muted pl-9 pr-3 text-base text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-focus sm:text-[14px]" />
             </div>
           )}
           <div ref={listRef} id={`${id}-list`} role="listbox" aria-label={label} tabIndex={searchable ? -1 : 0} onKeyDown={searchable ? undefined : onKey}
@@ -139,7 +139,7 @@ export function Picker({ label, value, options, onPick, searchable = options.len
                   const picked = o.value === value;
                   return (
                     <div key={o.value} id={optionId(i)} data-i={i} role="option" aria-selected={picked} onPointerMove={() => active !== i && setActive(i)} onClick={() => choose(o)}
-                      className={cn('flex min-h-10 cursor-pointer select-none items-center gap-2 rounded-[18px] px-3 text-[14px] transition-colors duration-75',
+                      className={cn('flex min-h-11 md:min-h-10 cursor-pointer select-none items-center gap-2 rounded-[18px] px-3 text-[14px] transition-colors duration-75',
                         i === active ? 'bg-muted' : 'bg-transparent', picked ? 'font-semibold text-foreground' : 'text-warm-prose')}>
                       <span className="min-w-0 flex-1 truncate">{o.label}</span>
                       {o.meta && <span className="shrink-0 text-[12px] font-normal tabular-nums text-warm-meta">{o.meta}</span>}

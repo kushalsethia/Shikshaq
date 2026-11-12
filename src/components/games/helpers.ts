@@ -17,7 +17,7 @@ export const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, 
 
 /** Pill buttons, as on the HOD desk and the checker. One `brand` button per screen: the main action. */
 const BTN =
-  'tap-44 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 text-[14px] font-semibold transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50 disabled:active:scale-100 [&_svg]:size-4 [&_svg]:shrink-0';
+  'tap-44 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 text-[14px] font-semibold transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-disabled disabled:active:scale-100 [&_svg]:size-4 [&_svg]:shrink-0';
 const TONES = {
   brand: 'bg-brand text-foreground',
   dark: 'bg-panel text-background',
@@ -32,9 +32,9 @@ export const btn = (tone: keyof typeof TONES, extra?: string) => cn(BTN, TONES[t
 /** Smaller chips for actions under each row. */
 export const chip = (tone: keyof typeof TONES, extra?: string) => cn(BTN, 'min-h-9 px-3 text-[13px]', TONES[tone], extra);
 /** A text link that is a button. */
-export const LINKISH = 'tap-44 font-semibold text-brand-blue underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded';
+export const LINKISH = 'tap-44 font-semibold text-brand-blue underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus rounded';
 /** Text boxes on a muted surface. */
-export const FIELD = 'w-full rounded-xl bg-card px-3 text-base text-foreground placeholder:text-warm-label outline-none ring-1 ring-border focus-visible:ring-2 focus-visible:ring-brand sm:text-[15px]';
+export const FIELD = 'w-full rounded-xl bg-card px-3 text-base text-foreground placeholder:text-warm-label outline-none ring-1 ring-border focus-visible:ring-2 focus-visible:ring-focus sm:text-[15px]';
 
 /** Saves text as a file on the person's device. */
 export function download(name: string, text: string, mime: string) {

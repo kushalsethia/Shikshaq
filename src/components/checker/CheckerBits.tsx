@@ -140,7 +140,7 @@ export function CheckGuidance({
           type="button"
           onClick={toggle}
           aria-expanded={!hidden}
-          className="tap-44 shrink-0 rounded-full px-2 py-1 text-[13px] font-medium text-warm-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          className="tap-44 shrink-0 rounded-full px-2 py-1 text-[13px] font-medium text-warm-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           {hidden ? 'Show tips' : 'Hide tips'}
         </button>
@@ -349,7 +349,7 @@ export function ContextPart({
           : undefined
       }
       className={cn(
-        'mb-3 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+        'mb-3 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         row.isParent ? 'rounded-[6px]' : 'rounded-r-[6px] border-l-2 pl-3',
         row.isParent ? '' : focused ? 'border-brand' : 'border-warm-hairline',
         focused && 'bg-brand-subtle py-1 pr-2',

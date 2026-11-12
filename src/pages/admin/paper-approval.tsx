@@ -355,7 +355,7 @@ export function AdminPaperApprovalPage({
       <BentoPanel fill="card" className="px-[18px] py-[18px] lg:px-[18px] lg:py-[18px]">
         <Link
           to="/admin/paper-approvals"
-          className="inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-brand-blue hover:text-brand-blue-deep"
+          className="inline-flex min-h-11 md:min-h-10 items-center gap-1.5 text-[13px] font-semibold text-brand-blue hover:text-brand-blue-deep"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
           Back to Ready to go live
@@ -390,7 +390,7 @@ export function AdminPaperApprovalPage({
               {openQuestionsAdvice(mode)}
             </span>
             {firstOpen ? (
-              <a href={`#q-${firstOpen.id}`} className="inline-flex min-h-10 items-center font-bold underline underline-offset-2">
+              <a href={`#q-${firstOpen.id}`} className="inline-flex min-h-11 md:min-h-10 items-center font-bold underline underline-offset-2">
                 Go to the first one
               </a>
             ) : null}
@@ -402,7 +402,7 @@ export function AdminPaperApprovalPage({
             variant="primary"
             disabled={open > 0 || approved || rejected}
             onClick={() => ask('approve')}
-            className="disabled:cursor-not-allowed disabled:opacity-50"
+            className="disabled:cursor-not-allowed disabled:opacity-disabled"
             title={approveClosedReason({ open, approved, rejected })}
           >
             {approved ? 'Approved' : isRecordOnly(paper) ? 'Approve (already live)' : 'Approve for launch'}
@@ -527,7 +527,7 @@ export function AdminPaperApprovalPage({
                   onChange={(e) => setNote(e.target.value)}
                   rows={3}
                   maxLength={500}
-                  className="rounded-xl bg-muted px-3 py-2 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  className="rounded-xl bg-muted px-3 py-2 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 />
               </label>
             ) : null}
