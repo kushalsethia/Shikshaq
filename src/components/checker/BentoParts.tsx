@@ -228,7 +228,7 @@ export function ImageLightbox({ src, alt, onClose, rotation = 0 }: { src: string
       aria-modal="true"
       aria-label={alt}
       data-testid="image-lightbox"
-      className="fixed inset-0 z-[60] flex flex-col bg-black/80 p-3 animate-in fade-in-0 duration-150"
+      className="overlay-enter-scrim fixed inset-0 z-[60] flex flex-col bg-black/80 p-3"
       onClick={onClose}
     >
       <div className="flex shrink-0 items-center justify-between gap-3 pb-2">
@@ -243,7 +243,7 @@ export function ImageLightbox({ src, alt, onClose, rotation = 0 }: { src: string
           <X className="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
-      <div className={cn('min-h-0 flex-1 rounded-[18px] bg-white p-2', full ? 'overflow-auto' : 'flex items-center justify-center overflow-hidden')} onClick={(e) => e.stopPropagation()}>
+      <div className={cn('min-h-0 flex-1 rounded-[18px] bg-white p-2 shadow-modal', full ? 'overflow-auto' : 'flex items-center justify-center overflow-hidden')} onClick={(e) => e.stopPropagation()}>
         {/* A page saved sideways (rotation 90 or 270) is turned upright here too; turn 0 is the plain picture. */}
         <UprightImage
           src={src}

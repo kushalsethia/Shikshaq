@@ -131,7 +131,7 @@ export default function MathFieldEditor({ initialLatex, display, onDone, onCance
       role="dialog"
       aria-modal="true"
       aria-label="Edit this maths"
-      className="rounded-2xl border border-warm-hairline bg-card p-3 shadow-lg"
+      className="rounded-2xl bg-card p-3 shadow-card"
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation();

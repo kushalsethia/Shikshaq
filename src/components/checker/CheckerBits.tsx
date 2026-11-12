@@ -8,6 +8,7 @@ import { describeLanes, NOT_FOR_STUDENT_LINE } from '@/lib/checker-lanes';
 import type { WholeQuestionRow } from '@/lib/checker-context';
 import { canSplitAt, splitOrPlan, SPLIT_OR_NOTE } from '@/lib/checker-body';
 import { CHIP } from '@/lib/checker-button-styles';
+import { MODAL_ENTER, SCRIM_ENTER } from '@/lib/overlay-styles';
 
 /* Small pieces the verify screen and the page around it share: a signed
    picture link, the "how to check" guidance, the dialog shell, the whole-question
@@ -291,14 +292,14 @@ export function Modal({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={onClose}>
+    <div className={cn('fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center', SCRIM_ENTER)} onClick={onClose}>
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
         tabIndex={-1}
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-card p-5 outline-none"
+        className={cn('max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl p-5 outline-none', MODAL_ENTER)}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

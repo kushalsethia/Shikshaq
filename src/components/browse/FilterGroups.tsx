@@ -644,26 +644,13 @@ export function FilterSheet({
             restoreFocusRef.current.focus();
           }
         }}
-        /* Round-1 deferral: this full-screen sheet had no entrance animation
-           of its own -- SheetContent's shared slide-in-from-bottom still
-           applies (untouched), but this is the one sheet in the product
-           that wants the site's *lift* timing rather than the generic
-           500ms/ease-snap every other sheet/dialog shares (that spec is
-           intentionally shared in ui/sheet.tsx, which this stream doesn't
-           own -- overridden here per-instance instead). The `!` modifier is
-           load-bearing: this project's `cn()` only teaches tailwind-merge
-           about its custom font-size scale, not custom duration/easing
-           theme keys, so `duration-500` and `duration-lift` are two
-           unrelated Tailwind classes to it -- both would ship in the
-           className, and without `!important` which one wins depends on
-           unrelated Tailwind generation order, not source order here.
-           duration-lift (300ms) in, duration-exit (130ms) out -- CRAFT.md
-           "exits are softer and shorter than
-           enters" -- both on ease-settle. Adds a fade so the motion reads
-           as opacity+transform (CRAFT.md §2), not transform alone.
-           motion-reduce collapses the slide distance to 0 and keeps only
-           the fade, per CRAFT.md's "keep the fades, drop the movement". */
-        className="flex h-[100dvh] max-h-[100dvh] flex-col rounded-none p-0 !ease-settle data-[state=open]:!duration-lift data-[state=closed]:!duration-exit data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 motion-reduce:data-[state=open]:!slide-in-from-bottom-0 motion-reduce:data-[state=closed]:!slide-out-to-bottom-0"
+        /* Round-1 deferral, retired by the tactile pass (stage 3): this full-screen sheet
+           used to override the shared sheet motion with its own lift timing (300ms in,
+           130ms out, a fade added, the slide taken out for reduced motion). The shared
+           sheet motion now does all of that: up 320ms, down 200ms, solid the whole way,
+           a crossfade for a reader who asked for less movement (src/index.css, "Overlay
+           motion"). Only its shape stays here. */
+        className="flex h-[100dvh] max-h-[100dvh] flex-col rounded-none p-0"
       >
         {/* Sticky header. The default Radix close X that SheetContent renders
             (top-right, 40px, 70% opacity) is hidden via

@@ -413,9 +413,8 @@ export function Chatbot() {
           so it used to pop in and vanish instantly despite the transition class. */}
       {panelPresence.mounted && (
         <div
-          className={`fixed ${hasFloatingCta ? 'bottom-[240px] lg:bottom-[176px]' : 'bottom-40 lg:bottom-24'} left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 overflow-hidden bg-card rounded-bento shadow-pill flex flex-col origin-bottom-right ${
-            panelPresence.closing ? 'animate-accordion-up' : 'animate-fade-slide-up'
-          }`}
+          className={`fixed ${hasFloatingCta ? 'bottom-[240px] lg:bottom-[176px]' : 'bottom-40 lg:bottom-24'} left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 overflow-hidden bg-card rounded-bento shadow-modal flex flex-col origin-bottom-right overlay-enter-menu`}
+          data-state={panelPresence.closing ? 'closed' : 'open'}
         >
           {/* Header - Mobile: Larger, Desktop: Compact */}
           {/* Header per secondary-03-assistant.png: a dark slab with an orange
