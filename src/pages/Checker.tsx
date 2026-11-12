@@ -14,6 +14,9 @@ import { useIsHodBadge } from '@/hooks/useIsHodBadge';
 import { ActionButton } from '@/components/checker/CheckerButtons';
 import { CheckerSkeleton, Chip, Modal } from '@/components/checker/CheckerBits';
 import { VerifyScreen } from '@/components/checker/VerifyScreen';
+import { ReportProblemDialog, type ReportView } from '@/components/requests/ReportProblemDialog';
+import { realFixRequestsApi, type FixRequestsApi } from '@/lib/fix-requests-api';
+import { screenPath } from '@/lib/fix-requests';
 import { MathText } from '@/components/papers/math-text';
 import { isBlankBody } from '@/lib/checker-body';
 import { BOARDS } from '@/lib/hod-api';
@@ -69,15 +72,18 @@ export default function Checker() {
       </Suspense>
     );
   }
-  return <CheckerPage api={realCheckerApi} />;
+  return <CheckerPage api={realCheckerApi} requestsApi={realFixRequestsApi} />;
 }
 
 export function CheckerPage({
   api,
+  requestsApi = realFixRequestsApi,
   dummy = false,
   banner,
 }: {
   api: CheckerApi;
+  /** Report a problem and My requests; the fake in dummy mode. */
+  requestsApi?: FixRequestsApi;
   /** Dummy mode: no sign-in, no realtime, fake API. */
   dummy?: boolean;
   banner?: React.ReactNode;
@@ -93,6 +99,8 @@ export function CheckerPage({
   const isAdmin = useIsAdminBadge();
   const isHod = useIsHodBadge();
   const [menuOpen, setMenuOpen] = useState(false);
+  // "Report a problem": which view of its dialog is open, or null when it is closed.
+  const [reportView, setReportView] = useState<ReportView | null>(null);
 
   const [allowed, setAllowed] = useState<boolean | null>(null);
   // True when the access check itself could not be answered (offline, a server
@@ -241,6 +249,9 @@ export function CheckerPage({
         </Link>
       ) : null}
       {counts}
+      <Chip onClick={() => setReportView('form')} tone="muted">
+        Report a problem
+      </Chip>
       <Chip onClick={() => setMenuOpen(true)} tone="brand">
         Menu
       </Chip>
@@ -264,7 +275,7 @@ export function CheckerPage({
             paperId={paperId!}
             reopenQuestionId={params.get('reopen') ?? undefined}
             onReopenTaken={() => setParams((p) => withoutReopen(p), { replace: true })}
-            suspended={menuOpen}
+            suspended={menuOpen || reportView !== null}
             userId={user?.id}
             userName={profile?.full_name}
             onExit={() => open(paperId!)}
@@ -321,6 +332,24 @@ export function CheckerPage({
                 HOD desk
               </Link>
             ) : null}
+            <ActionButton
+              tone="muted"
+              onClick={() => {
+                setMenuOpen(false);
+                setReportView('form');
+              }}
+            >
+              Report a problem
+            </ActionButton>
+            <ActionButton
+              tone="muted"
+              onClick={() => {
+                setMenuOpen(false);
+                setReportView('mine');
+              }}
+            >
+              My requests
+            </ActionButton>
             <Link to={CHECKER_PRACTICE_PATH} className={actionToneClass('brand') + ' text-center'}>
               Practice round
             </Link>
@@ -332,6 +361,17 @@ export function CheckerPage({
             </ActionButton>
           </div>
         </Modal>
+      ) : null}
+
+      {reportView ? (
+        <ReportProblemDialog
+          api={requestsApi}
+          scope={scope}
+          page={screenPath(location)}
+          asHod={isHod || isAdmin}
+          initialView={reportView}
+          onClose={() => setReportView(null)}
+        />
       ) : null}
     </BentoStack>
   );
