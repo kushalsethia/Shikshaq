@@ -81,6 +81,31 @@ describe('Assignments: the tab wiring', () => {
     expect(src).toMatch(/aria-label=\{`Select \$\{paperLabel\(p\)\}`\}/);
   });
 
+  it('every give and move reads the assignments back and checks the paper is with the chosen person', () => {
+    expect(src).toMatch(/const readAssignments = \(\) => qc\.fetchQuery\(\{ queryKey: ASSIGNMENTS_KEY\(scope\), queryFn: \(\) => api\.assignments\(\), staleTime: 0 \}\)/);
+    expect(src).toMatch(/if \(list && !didLand\(list, verify\.give\)\)/);
+    expect(src).toContain('notLandedMessage(verify.name)');
+    // Assign to me, Assign (the picker) and Move / Take it myself: three callers, each with its own check.
+    expect((src.match(/\{ give: \{ paperId: /g) ?? []).length).toBe(3);
+  });
+
+  it('a give that did not land shows the red alert and not the success message', () => {
+    const act = src.slice(src.indexOf('async function act('), src.indexOf('const nameOf'));
+    const redAt = act.indexOf('toast.error(message');
+    const okAt = act.indexOf('toast.success(list ?');
+    expect(redAt).toBeGreaterThan(-1);
+    expect(okAt).toBeGreaterThan(redAt);
+    expect(act).toContain('return false;');
+    // The red banner the message goes into is an alert.
+    expect(src).toMatch(/\{refusal \? \(\s*<div role="alert"/);
+  });
+
+  it('a bulk give counts what really landed and keeps the rest ticked', () => {
+    expect(src).toContain('checkBulk(results, list, toId, targetName)');
+    expect(src).toMatch(/setSelected\(new Set\(checked\.results\.filter\(\(r\) => !r\.ok\)/);
+    expect(src).toContain('setRefusal(checked.alert)');
+  });
+
   it('the picker keeps its dropdown and button on one line at phone width', () => {
     expect(src).toMatch(/className="flex w-full items-center gap-1\.5 sm:inline-flex sm:w-auto"/);
     expect(src).toContain('min-w-0 flex-1');

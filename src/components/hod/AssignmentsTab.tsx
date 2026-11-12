@@ -8,6 +8,7 @@ import { useConfirm } from '@/components/ui/use-confirm';
 import { useAuth } from '@/lib/auth-context';
 import { actionToneClass } from '@/lib/checker-button-styles';
 import { capUnassigned, UNASSIGNED_SHOWN } from '@/lib/hod-desk';
+import { checkBulk, didLand, notLandedMessage, UNCHECKED_NOTE, type IntendedGive } from '@/lib/hod-give-check';
 import { paperLabel } from '@/lib/checker-progress';
 import {
   MAX_BULK,
@@ -19,7 +20,6 @@ import {
   selectAllState,
   selectFirst,
   summariseAutoAssign,
-  summariseBulk,
   toggleSelected,
   type HeldPaper,
   type Outcome,
@@ -50,7 +50,10 @@ import {
    paper's success or refusal shown. There is no server call that auto assigns
    only a chosen few, so no auto button is offered for the ticked papers.
    Papers whose class is unknown are handed out as Class 12; papers left
-   untouched for 7 days come back to the list below (20261007140000). */
+   untouched for 7 days come back to the list below (20261007140000).
+   After every give or move the screen reads the assignments back and looks for the paper under
+   the chosen person (hod-give-check.ts). If it is not there it says so in red instead of the
+   success message, and the paper stays where the database says it is. */
 
 export const ASSIGNMENTS_KEY = (scope: string) => ['hod', scope, 'assignments'] as const;
 export const UNASSIGNED_KEY = (scope: string) => ['hod', scope, 'unassigned'] as const;
@@ -299,15 +302,33 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   };
 
   const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
+  /** A fresh read of who holds what: the database's own answer, not the screen's memory. */
+  const readAssignments = () => qc.fetchQuery({ queryKey: ASSIGNMENTS_KEY(scope), queryFn: () => api.assignments(), staleTime: 0 });
   const verifiers = (teamQ.data ?? []).filter((m) => m.active);
 
-  /** Runs one change. True when it went through, false when the server refused it. */
-  async function act(fn: () => Promise<unknown>, done: (r: unknown) => string): Promise<boolean> {
+  /**
+   * Runs one change. True when it went through, false when the server refused it.
+   * With `verify` (a give or a move) the assignments are read back first: when the paper is not under that
+   * person the answer is false and a red message replaces the success message.
+   */
+  async function act(fn: () => Promise<unknown>, done: (r: unknown) => string, verify?: { give: IntendedGive; name: string }): Promise<boolean> {
     setBusy(true);
     setRefusal(null);
     try {
       const r = await fn();
-      toast.success(done(r));
+      if (verify) {
+        const list = await readAssignments().catch(() => null);
+        if (list && !didLand(list, verify.give)) {
+          const message = notLandedMessage(verify.name);
+          setRefusal(message);
+          toast.error(message, { duration: 10_000 });
+          refresh();
+          return false;
+        }
+        toast.success(list ? done(r) : `${done(r)} ${UNCHECKED_NOTE}`);
+      } else {
+        toast.success(done(r));
+      }
       refresh();
       return true;
     } catch (err) {
@@ -343,7 +364,6 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
     setGiving(true);
     setRefusal(null);
     setOutcome(null);
-    const readAssignments = () => qc.fetchQuery({ queryKey: ASSIGNMENTS_KEY(scope), queryFn: () => api.assignments(), staleTime: 0 });
     const readFree = () => qc.fetchQuery({ queryKey: UNASSIGNED_KEY(scope), queryFn: () => api.unassignedPapers(UNASSIGNED_SHOWN + 1), staleTime: 0 });
     try {
       const before = heldNow(await readAssignments().catch(() => assignmentsQ.data ?? []));
@@ -384,9 +404,16 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
       const results = await runBulkAssign(items, (paperId) => api.assignPaper(paperId, toId), {
         onProgress: (done, total) => setProgress({ done, total }),
       });
-      setOutcome(summariseBulk(results, targetName));
-      // Refused papers stay ticked, so the same choice can be retried or changed.
-      setSelected(new Set(results.filter((r) => !r.ok).map((r) => r.paperId)));
+      // The server said yes or no per paper; the database is asked as well, and a "yes" that did not land is not counted.
+      const list = await readAssignments().catch(() => null);
+      const checked = checkBulk(results, list, toId, targetName);
+      setOutcome(checked.outcome);
+      if (checked.alert) {
+        setRefusal(checked.alert);
+        toast.error(checked.alert, { duration: 10_000 });
+      }
+      // Papers that were refused or did not land stay ticked, so the same choice can be retried or changed.
+      setSelected(new Set(checked.results.filter((r) => !r.ok).map((r) => r.paperId)));
     } finally {
       setProgress(null);
       setBusy(false);
@@ -412,7 +439,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
       confirmLabel: 'Move it',
     });
     if (!ok) return false;
-    return act(() => api.assignPaper(a.paper_id, toId), () => done);
+    return act(() => api.assignPaper(a.paper_id, toId), () => done, { give: { paperId: a.paper_id, userId: toId }, name: toName });
   }
 
   if (assignmentsQ.isLoading || unassignedQ.isLoading || teamQ.isLoading) return <ListSkeleton label="Loading assignments" />;
@@ -596,7 +623,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
                       type="button"
                       disabled={busy}
                       className={actionToneClass('brand')}
-                      onClick={() => void act(() => api.assignPaper(p.paper_id, myId), () => 'Given to you. Open it from My papers.')}
+                      onClick={() => void act(() => api.assignPaper(p.paper_id, myId), () => 'Given to you. Open it from My papers.', { give: { paperId: p.paper_id, userId: myId }, name: 'you' })}
                     >
                       Assign to me
                     </button>
@@ -608,7 +635,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
                     options={verifiers}
                     paperClass={p.cls}
                     profileOf={profileOf}
-                    onPick={(uid) => act(() => api.assignPaper(p.paper_id, uid), () => `Given to ${nameOf(uid)}.`)}
+                    onPick={(uid) => act(() => api.assignPaper(p.paper_id, uid), () => `Given to ${nameOf(uid)}.`, { give: { paperId: p.paper_id, userId: uid }, name: nameOf(uid) })}
                     extra={(uid) => <AssignmentWhy api={api} scope={scope} checkerId={uid} paperId={p.paper_id} />}
                   />
                 </div>

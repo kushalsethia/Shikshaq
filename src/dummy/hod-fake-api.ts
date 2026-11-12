@@ -47,6 +47,8 @@ export interface FakeHodApi extends HodApi {
   reset(): void;
   /** Every decision the fake accepted, newest last, so a test can see what was sent. */
   log: string[];
+  /** When true, giving a paper answers "done" but changes nothing: the fault the HOD screen's read-back check exists to catch. */
+  silentGive: boolean;
 }
 
 export function createFakeHodApi(): FakeHodApi {
@@ -253,8 +255,10 @@ export function createFakeHodApi(): FakeHodApi {
 
   const api: FakeHodApi = {
     log,
+    silentGive: false,
     reset() {
       seed();
+      api.silentGive = false;
       goLive.reset();
     },
     async isHod() {
@@ -286,6 +290,7 @@ export function createFakeHodApi(): FakeHodApi {
       return heldBack.map((x) => ({ ...x }));
     },
     async assignPaper(paperId, userId) {
+      if (api.silentGive) return; // says yes, does nothing
       // The real server lets an HOD name themselves without being a listed verifier.
       const who = userId === 'dummy-me' ? { name: 'You' } : checkers.find((c) => c.user_id === userId && c.active);
       if (!who) throw pgError('That person is not an active verifier');
