@@ -966,6 +966,94 @@ input[type="date"].date-input-left,
   }
 }
 
+/* Overlay motion (tactile design pass, stage 3, 12 Nov 2026). One place for how
+   every menu, popover, dialog and sheet arrives and leaves. Exits are faster
+   than entrances, everything is on the strong ease-out, and only opacity and the
+   transform properties `scale` and `translate` move (the separate `translate`
+   and `scale` properties stack on top of a centring `transform`, so a dialog
+   that centres itself with translate(-50%, -50%) keeps its place).
+
+     menu, popover, tooltip   in 150ms from scale .97 + fade, out 120ms; the
+                              origin is the trigger (Radix publishes it)
+     dialog                   in 240ms (16px rise + fade), out 200ms
+     phone / bottom sheet     up 320ms, down 200ms, solid the whole way
+     side panel               in 240ms, out 200ms
+     the dim behind           fades 200ms
+
+   Radix keeps a surface mounted until its exit animation ends, and the classes
+   below are keyed on its data-state, so the exit is seen. Surfaces that are not
+   Radix (hand-built dialogs) take the .overlay-enter-* twin, which plays on
+   mount only. Reduced motion: every one of them becomes a plain crossfade. */
+@keyframes overlay-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes overlay-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes overlay-menu-in { from { opacity: 0; scale: .97; } to { opacity: 1; scale: 1; } }
+@keyframes overlay-menu-out { from { opacity: 1; scale: 1; } to { opacity: 0; scale: .97; } }
+@keyframes overlay-modal-in { from { opacity: 0; translate: 0 16px; } to { opacity: 1; translate: 0 0; } }
+@keyframes overlay-modal-out { from { opacity: 1; translate: 0 0; } to { opacity: 0; translate: 0 16px; } }
+@keyframes overlay-sheet-bottom-in { from { translate: 0 100%; } to { translate: 0 0; } }
+@keyframes overlay-sheet-bottom-out { from { translate: 0 0; } to { translate: 0 100%; } }
+@keyframes overlay-sheet-top-in { from { translate: 0 -100%; } to { translate: 0 0; } }
+@keyframes overlay-sheet-top-out { from { translate: 0 0; } to { translate: 0 -100%; } }
+@keyframes overlay-sheet-left-in { from { translate: -100% 0; } to { translate: 0 0; } }
+@keyframes overlay-sheet-left-out { from { translate: 0 0; } to { translate: -100% 0; } }
+@keyframes overlay-sheet-right-in { from { translate: 100% 0; } to { translate: 0 0; } }
+@keyframes overlay-sheet-right-out { from { translate: 0 0; } to { translate: 100% 0; } }
+
+.overlay-scrim[data-state="open"] { animation: overlay-fade-in 200ms var(--ease-out-strong) both; }
+.overlay-scrim[data-state="closed"] { animation: overlay-fade-out 200ms var(--ease-out-strong) both; }
+.overlay-menu[data-state="open"],
+.overlay-menu[data-state="delayed-open"],
+.overlay-menu[data-state="instant-open"] { animation: overlay-menu-in 150ms var(--ease-out-strong) both; }
+.overlay-menu[data-state="closed"] { animation: overlay-menu-out 120ms var(--ease-out-strong) both; }
+.overlay-modal[data-state="open"] { animation: overlay-modal-in 240ms var(--ease-out-strong) both; }
+.overlay-modal[data-state="closed"] { animation: overlay-modal-out 200ms var(--ease-out-strong) both; }
+.overlay-sheet-bottom[data-state="open"] { animation: overlay-sheet-bottom-in 320ms var(--ease-out-strong) both; }
+.overlay-sheet-bottom[data-state="closed"] { animation: overlay-sheet-bottom-out 200ms var(--ease-out-strong) both; }
+.overlay-sheet-top[data-state="open"] { animation: overlay-sheet-top-in 240ms var(--ease-out-strong) both; }
+.overlay-sheet-top[data-state="closed"] { animation: overlay-sheet-top-out 200ms var(--ease-out-strong) both; }
+.overlay-sheet-left[data-state="open"] { animation: overlay-sheet-left-in 240ms var(--ease-out-strong) both; }
+.overlay-sheet-left[data-state="closed"] { animation: overlay-sheet-left-out 200ms var(--ease-out-strong) both; }
+.overlay-sheet-right[data-state="open"] { animation: overlay-sheet-right-in 240ms var(--ease-out-strong) both; }
+.overlay-sheet-right[data-state="closed"] { animation: overlay-sheet-right-out 200ms var(--ease-out-strong) both; }
+/* Mount-only twins for hand-built overlays that are not Radix. */
+.overlay-enter-scrim { animation: overlay-fade-in 200ms var(--ease-out-strong) both; }
+.overlay-enter-menu { animation: overlay-menu-in 150ms var(--ease-out-strong) both; }
+.overlay-enter-menu[data-state="closed"] { animation: overlay-menu-out 120ms var(--ease-out-strong) both; }
+.overlay-enter-modal { animation: overlay-modal-in 240ms var(--ease-out-strong) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-menu[data-state="open"],
+  .overlay-menu[data-state="delayed-open"],
+  .overlay-menu[data-state="instant-open"],
+  .overlay-modal[data-state="open"],
+  .overlay-sheet-bottom[data-state="open"],
+  .overlay-sheet-top[data-state="open"],
+  .overlay-sheet-left[data-state="open"],
+  .overlay-sheet-right[data-state="open"],
+  .overlay-enter-scrim,
+  .overlay-enter-menu,
+  .overlay-enter-modal {
+    animation-name: overlay-fade-in !important;
+    animation-duration: 180ms !important;
+    animation-timing-function: ease-out !important;
+  }
+  .overlay-menu[data-state="closed"],
+  .overlay-modal[data-state="closed"],
+  .overlay-sheet-bottom[data-state="closed"],
+  .overlay-sheet-top[data-state="closed"],
+  .overlay-sheet-left[data-state="closed"],
+  .overlay-sheet-right[data-state="closed"],
+  .overlay-enter-menu[data-state="closed"] {
+    animation-name: overlay-fade-out !important;
+    animation-duration: 150ms !important;
+    animation-timing-function: ease-out !important;
+  }
+  .overlay-scrim[data-state="open"] { animation-duration: 180ms !important; }
+  .overlay-scrim[data-state="closed"] { animation-duration: 150ms !important; }
+  /* The chevron of a menu trigger flips at once instead of turning. */
+  .overlay-chevron { transition: none !important; }
+}
+
 /* CRAFT.md §2: "prefers-reduced-motion: keep the fades, drop the movement."
    Fixer round 2. The kill-switch above stops every animation from looping or
    visibly travelling by collapsing animation-duration to 0.01ms -- but for
