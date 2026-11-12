@@ -397,7 +397,8 @@ function PaperList({
     refetchOnMount: 'always',
   });
 
-  if (papersQuery.isLoading) return <CheckerSkeleton />;
+  // loadGate, not isLoading: a phone with no signal pauses the read (isLoading stays false), and "No papers yet" must not show.
+  if (loadGate(papersQuery) === 'loading') return <CheckerSkeleton />;
   if (papersQuery.isError) {
     return (
       <div role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
@@ -809,7 +810,7 @@ function PaperOverview({
         ) : null}
       </div>
 
-      {questionsQuery.isLoading ? (
+      {loadGate(questionsQuery) === 'loading' ? (
         <CheckerSkeleton />
       ) : questionsQuery.isError ? (
         <div role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">

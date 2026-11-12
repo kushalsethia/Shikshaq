@@ -147,6 +147,13 @@ describe('the HOD Requests tab', () => {
     expect(out).toContain('>Reject</button>');
   });
 
+  it('an HOD who sent a waiting request themselves is told another HOD decides it, with no Approve or Reject (the database refuses it)', () => {
+    const out = renderToStaticMarkup(<RequestCard api={createFakeFixRequestsApi('hod')} request={make()} onDecided={() => {}} own />);
+    expect(out).toContain('another HOD has to say yes or no');
+    expect(out).not.toContain('>Approve<');
+    expect(out).not.toContain('>Reject<');
+  });
+
   it('a decided card has no buttons and shows the decision and what Claude did', () => {
     const rejected = renderToStaticMarkup(
       <RequestCard api={createFakeFixRequestsApi('hod')} request={make({ status: 'rejected', decided_by_name: 'Priya', decided_at: '2026-11-12T11:00:00Z', decision_note: 'Not now.' })} onDecided={() => {}} />,

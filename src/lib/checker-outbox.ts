@@ -538,7 +538,9 @@ export function getOutbox(scope: string, userId: string | undefined, hooks: Outb
   return box;
 }
 
-/** Test helper: forget every outbox. */
+/** Stop and forget every outbox in this tab. Done at sign-out, so the waiting answers of the person who left are
+ *  never sent under the next person's login. They stay saved under that person's own key and carry on when they
+ *  sign back in. Also a test helper. */
 export function resetOutboxRegistry(): void {
   registry.forEach((b) => b.dispose());
   registry.clear();

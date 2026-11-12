@@ -37,6 +37,8 @@ function isActivatableTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
   if (el.closest('[data-enter-passes]')) return false;
   const tag = el.tagName;
+  // A focusable scroll box (the scanned page) is for reading: Enter there must never approve the question.
+  if (el.getAttribute('role') === 'region' && el.hasAttribute('tabindex')) return true;
   return tag === 'BUTTON' || tag === 'A' || tag === 'SUMMARY' || el.getAttribute('role') === 'button';
 }
 

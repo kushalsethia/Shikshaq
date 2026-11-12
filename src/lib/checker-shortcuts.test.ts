@@ -31,6 +31,22 @@ describe('Enter after tapping a view-only button (owner, 18 Oct 2026)', () => {
   });
 });
 
+describe('Enter on the scanned page box (whole-flow audit, 12 Nov 2026)', () => {
+  const read = (rel: string) => readFileSync(resolve(__dirname, rel), 'utf8');
+
+  it('a keyboard-focusable scroll box counts as "Enter belongs to this", so it cannot approve the question', () => {
+    expect(read('./checker-shortcuts.ts')).toContain("el.getAttribute('role') === 'region' && el.hasAttribute('tabindex')");
+  });
+
+  it('both page boxes really are focusable regions (the rule above is what stops Enter on them)', () => {
+    for (const file of ['../components/checker/PageImageViewer.tsx', '../components/checker/PaperPageFlip.tsx']) {
+      const src = read(file);
+      expect(src).toContain('tabIndex={0}');
+      expect(src).toContain('role="region"');
+    }
+  });
+});
+
 describe('shortcutHint', () => {
   it('only mentions split when split is available', () => {
     expect(shortcutHint({ canSplit: false, canPass: true })).not.toMatch(/split/i);

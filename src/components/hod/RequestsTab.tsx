@@ -24,6 +24,7 @@ import {
 } from '@/lib/fix-requests';
 import type { HodTabProps } from '@/pages/Hod';
 import { cn } from '@/lib/utils';
+import { useOptionalAuth } from '@/lib/auth-context';
 
 /* "Requests": the bugs and changes people have asked for. A checker's request waits here for a yes or a
    no (a no needs a reason). Once it is approved it is for Claude to fix; Claude reads the list from the
@@ -41,12 +42,13 @@ const STATUS_TONE: Record<RequestStatus, string> = {
   done: 'bg-mint text-foreground',
 };
 
-export function RequestsTab({ scope, requestsApi }: HodTabProps) {
-  return <RequestsSection api={requestsApi ?? realFixRequestsApi} scope={scope} />;
+export function RequestsTab({ scope, requestsApi, canSwitchTrust }: HodTabProps) {
+  return <RequestsSection api={requestsApi ?? realFixRequestsApi} scope={scope} isAdmin={canSwitchTrust} />;
 }
 
-export function RequestsSection({ api, scope }: { api: FixRequestsApi; scope: string }) {
+export function RequestsSection({ api, scope, isAdmin = false }: { api: FixRequestsApi; scope: string; isAdmin?: boolean }) {
   const qc = useQueryClient();
+  const myId = useOptionalAuth()?.user?.id ?? null;
   const [group, setGroup] = useState<RequestGroup>(DEFAULT_GROUP);
   const [writing, setWriting] = useState(false);
   const countsQ = useQuery({ queryKey: requestsCountsKey(scope), queryFn: () => api.counts(), staleTime: 15_000 });
@@ -83,7 +85,7 @@ export function RequestsSection({ api, scope }: { api: FixRequestsApi; scope: st
             className={cn(CHIP, group === g.key ? 'bg-panel text-background' : 'bg-muted text-warm-secondary hover:text-foreground')}
           >
             {g.label}
-            {countsQ.data ? <span className="ml-1.5 tabular-nums">{numbers[g.key]}</span> : null}
+            {countsQ.data ? <span className="ml-1.5 tabular-nums">{numbers[g.key]}</span> : countsQ.isError ? <span className="ml-1.5">?</span> : null}
           </button>
         ))}
       </div>
@@ -97,7 +99,7 @@ export function RequestsSection({ api, scope }: { api: FixRequestsApi; scope: st
       ) : (
         <ul className="space-y-3" aria-label={current.label}>
           {(listQ.data ?? []).map((r) => (
-            <RequestCard key={r.id} api={api} request={r} onDecided={refresh} />
+            <RequestCard key={r.id} api={api} request={r} onDecided={refresh} own={!isAdmin && myId !== null && r.raised_by === myId} />
           ))}
         </ul>
       )}
@@ -107,7 +109,18 @@ export function RequestsSection({ api, scope }: { api: FixRequestsApi; scope: st
   );
 }
 
-export function RequestCard({ api, request: r, onDecided }: { api: FixRequestsApi; request: FixRequest; onDecided: () => void }) {
+export function RequestCard({
+  api,
+  request: r,
+  onDecided,
+  own = false,
+}: {
+  api: FixRequestsApi;
+  request: FixRequest;
+  onDecided: () => void;
+  /** True when the signed-in HOD sent this one themselves (and is not an admin): the database refuses that decision. */
+  own?: boolean;
+}) {
   const [mode, setMode] = useState<null | 'approve' | 'reject'>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -125,6 +138,8 @@ export function RequestCard({ api, request: r, onDecided }: { api: FixRequestsAp
     try {
       await api.decide(r.id, approve, note);
       toast.success(approve ? 'Approved. It goes on to be fixed.' : 'Rejected. The person can see your reason.');
+      setMode(null);
+      setNote('');
       onDecided();
     } catch (err) {
       setError(requestErrorWords(err));
@@ -168,7 +183,9 @@ export function RequestCard({ api, request: r, onDecided }: { api: FixRequestsAp
         </p>
       ) : null}
 
-      {waiting ? (
+      {waiting && own ? (
+        <p className="mt-3 text-[13px] text-warm-secondary">You sent this one, so another HOD has to say yes or no to it.</p>
+      ) : waiting ? (
         <div className="mt-3">
           {mode ? (
             <label className="mb-2 flex flex-col gap-1 text-[13px] font-semibold text-foreground">
