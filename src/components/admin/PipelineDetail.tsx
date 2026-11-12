@@ -80,7 +80,7 @@ function Tile({
   const box = cn('block min-h-[78px] w-full min-w-0 rounded-2xl px-4 py-3 text-left', t.box);
   const interactive = cn(
     box,
-    'transition-[filter,transform] duration-150 hover:brightness-95 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    'transition-[filter,transform] duration-150 hover:brightness-95 active:scale-press-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
   );
   if (to) {
     return (

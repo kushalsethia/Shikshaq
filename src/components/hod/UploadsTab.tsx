@@ -86,7 +86,7 @@ function UploadCard({ api, upload, onDone }: { api: HodApi; upload: HodStudentUp
   }
 
   return (
-    <li className="rounded-[18px] bg-muted p-4" data-testid="upload-card" data-status={upload.status}>
+    <li className="rounded-[18px] bg-muted shadow-card p-4" data-testid="upload-card" data-status={upload.status}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[15px] font-bold text-foreground">{uploadTitle(upload)}</p>
@@ -123,7 +123,7 @@ function UploadCard({ api, upload, onDone }: { api: HodApi; upload: HodStudentUp
                 onChange={(ev) => setNote(ev.target.value)}
                 rows={2}
                 disabled={busy}
-                className="w-full rounded-xl bg-card p-3 text-[16px] sm:text-[14px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="w-full rounded-xl bg-card p-3 text-[16px] sm:text-[14px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-focus"
               />
             </label>
           ) : null}

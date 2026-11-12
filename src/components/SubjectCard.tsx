@@ -166,7 +166,7 @@ function SubjectCardComponent({
          12.5px 2px under it. Was radius 16 / padding 16 / a 40px tile at radius
          8, which read as a chunkier, blunter card than the mosaic the spec
          draws. */
-      className="relative block min-h-11 rounded-[18px] p-[14px] text-left transition-transform duration-hover hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      className="relative block min-h-11 rounded-[18px] p-[14px] text-left transition-transform duration-hover hover:-translate-y-0.5 active:scale-press-card shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0"
       style={{ backgroundColor: palette.tint }}
     >
       {/* No cut-paper mark. The spec's subject tile is the tint, the icon, the

@@ -93,7 +93,7 @@ function QuestionCard({
   ].filter((x): x is string => Boolean(x));
 
   return (
-    <li className="rounded-[18px] bg-muted p-4" data-testid="needs-question" id={`q-${q.id}`}>
+    <li className="rounded-[18px] bg-muted shadow-card p-4" data-testid="needs-question" id={`q-${q.id}`}>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p className="text-[15px] font-bold text-foreground">Question {label}</p>
         {q.escalated_at ? <p className="text-[12px] text-warm-meta">Sent {ago(q.escalated_at)}</p> : null}
@@ -177,7 +177,7 @@ function QuestionCard({
               onChange={(ev) => setNote(ev.target.value)}
               rows={2}
               disabled={busy}
-              className="w-full rounded-xl bg-card p-3 text-[16px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="w-full rounded-xl bg-card p-3 text-[16px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-focus"
             />
           </label>
         </div>
@@ -260,7 +260,7 @@ function SettledLine({ s, busy, onUndo }: { s: Settled; busy: boolean; onUndo: (
       <p className="text-[14px] font-semibold text-foreground">{s.what}</p>
       <button
         type="button"
-        className="tap-44 rounded-full bg-card px-4 py-2 text-[14px] font-bold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
+        className="tap-44 rounded-full bg-card px-4 py-2 text-[14px] font-bold text-foreground transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-disabled"
         disabled={busy}
         onClick={onUndo}
       >
@@ -318,7 +318,7 @@ function PaperQuestions({ api, scope, paperId, paper }: { api: HodApi; scope: st
   return (
     <div>
       <BackLink to={deskLink('needs-you')}>All papers waiting for you</BackLink>
-      <div className="mb-3 rounded-[18px] bg-muted p-4">
+      <div className="mb-3 rounded-[18px] bg-muted shadow-card p-4">
         <h2 className="text-balance text-[18px] font-bold text-foreground">{title}</h2>
         {paper ? (
           <p className="mt-0.5 text-[13px] text-warm-secondary">
@@ -405,7 +405,7 @@ function PaperList({ api, scope }: { api: HodApi; scope: string }) {
       </p>
       <ul className="space-y-3">
         {list.map((p) => (
-          <li key={p.audit_paper_id} className="rounded-[18px] bg-muted p-4" data-testid="needs-paper">
+          <li key={p.audit_paper_id} className="rounded-[18px] bg-muted shadow-card p-4" data-testid="needs-paper">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[15px] font-bold text-foreground">{p.title}</p>

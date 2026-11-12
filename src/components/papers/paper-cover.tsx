@@ -175,7 +175,7 @@ const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
           to={href}
           onClick={handleActivate}
           className={cn(
-            "inline-flex rounded-[6px_16px_16px_6px] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none",
+            "inline-flex rounded-[6px_16px_16px_6px] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-press-card shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none",
             leaving && "-translate-y-2 scale-[0.96] -rotate-1",
           )}
           aria-label={`${paper.subject}: ${paper.title}${comingSoon ? " (coming soon)" : locked ? " (sign in to read)" : ""}`}
@@ -185,7 +185,7 @@ const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
       );
     }
     return (
-      <div className="inline-flex rounded-[6px_16px_16px_6px] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97]">
+      <div className="inline-flex rounded-[6px_16px_16px_6px] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-press-card shadow-card">
         {content}
       </div>
     );

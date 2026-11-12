@@ -138,7 +138,7 @@ export function RequestCard({ api, request: r, onDecided }: { api: FixRequestsAp
   const who = r.raised_by_name ?? 'Someone';
 
   return (
-    <li className="rounded-[18px] bg-muted p-4" data-testid="request-card" data-status={r.status}>
+    <li className="rounded-[18px] bg-muted shadow-card p-4" data-testid="request-card" data-status={r.status}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="break-words text-[15px] font-bold text-foreground">{r.title}</p>
@@ -182,7 +182,7 @@ export function RequestCard({ api, request: r, onDecided }: { api: FixRequestsAp
                 rows={2}
                 maxLength={500}
                 disabled={busy}
-                className="w-full rounded-xl bg-card p-3 text-[16px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand sm:text-[14px]"
+                className="w-full rounded-xl bg-card p-3 text-[16px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-focus sm:text-[14px]"
               />
             </label>
           ) : null}

@@ -135,7 +135,7 @@ export function TeacherReviewPage({ api, dummy = false, banner }: { api: Teacher
           ) : null}
         </div>
 
-        <div role="tablist" aria-label="Review teachers" className="mb-5 flex max-w-full flex-wrap items-center gap-1 rounded-[20px] bg-muted p-1 sm:inline-flex sm:rounded-full">
+        <div role="tablist" aria-label="Review teachers" className="mb-5 flex max-w-full flex-wrap items-center gap-1 rounded-[20px] bg-muted shadow-card p-1 sm:inline-flex sm:rounded-full">
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -150,7 +150,7 @@ export function TeacherReviewPage({ api, dummy = false, banner }: { api: Teacher
                 setParams(next, { replace: true });
               }}
               className={cn(
-                'flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                'flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                 active.key === t.key ? 'bg-card text-foreground' : 'text-warm-secondary hover:text-foreground',
               )}
             >

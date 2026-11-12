@@ -598,7 +598,7 @@ export default function SchoolPage() {
                             <Link
                               key={subject}
                               to={`${PAST_PAPERS_PATH}/results?filter_subjects=${encodeURIComponent(subject)}`}
-                              className="tap-44 flex h-10 flex-none items-center whitespace-nowrap rounded-full px-4 text-[14px] font-bold transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                              className="tap-44 flex h-10 flex-none items-center whitespace-nowrap rounded-full px-4 text-[14px] font-bold transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                               style={{ backgroundColor: palette.tint, color: palette.text }}
                             >
                               {subject}
@@ -631,7 +631,7 @@ export default function SchoolPage() {
                         <Link
                           key={paper.id}
                           to={`${PAST_PAPERS_PATH}/${paper.id}`}
-                          className="flex min-h-11 items-center gap-3 rounded-[18px] p-[14px] transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
+                          className="flex min-h-11 items-center gap-3 rounded-[18px] p-[14px] transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-press-card shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
                           style={{ backgroundColor: palette.tint }}
                         >
                           <span

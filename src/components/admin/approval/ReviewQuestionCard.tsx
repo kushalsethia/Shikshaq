@@ -120,7 +120,7 @@ export function ReviewQuestionCard({
       id={`q-${row.id}`}
       style={depth > 0 ? { marginLeft: `${Math.min(depth, 3) * 16}px` } : undefined}
       className={cn(
-        'min-w-0 rounded-[18px] bg-muted p-[16px]',
+        'min-w-0 rounded-[18px] bg-muted shadow-card p-[16px]',
         depth > 0 && 'border-l-2 border-border pl-3',
         row.state === 'open' && 'ring-2 ring-inset ring-brand',
       )}
@@ -139,7 +139,7 @@ export function ReviewQuestionCard({
               <input
                 value={draft.number}
                 onChange={(e) => setDraft({ ...draft, number: e.target.value })}
-                className="min-h-10 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="min-h-11 md:min-h-10 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
               />
             </label>
             <label className="flex flex-col gap-1 text-[12px] font-semibold text-warm-secondary">
@@ -148,7 +148,7 @@ export function ReviewQuestionCard({
                 inputMode="decimal"
                 value={draft.marks}
                 onChange={(e) => setDraft({ ...draft, marks: e.target.value })}
-                className="min-h-10 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="min-h-11 md:min-h-10 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
               />
             </label>
           </div>
@@ -158,7 +158,7 @@ export function ReviewQuestionCard({
               value={draft.body}
               onChange={(e) => setDraft({ ...draft, body: e.target.value })}
               rows={Math.min(14, Math.max(4, draft.body.split('\n').length + 1))}
-              className="rounded-xl bg-card px-3 py-2 font-mono text-[16px] sm:text-[14px] leading-[1.55] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="rounded-xl bg-card px-3 py-2 font-mono text-[16px] sm:text-[14px] leading-[1.55] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
             />
           </label>
           {draft.options.length > 0 ? (
@@ -177,7 +177,7 @@ export function ReviewQuestionCard({
                         const options = draft.options.map((x, j) => (j === i ? { ...x, text: e.target.value } : x));
                         setDraft({ ...draft, options });
                       }}
-                      className="min-h-10 min-w-0 flex-1 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      className="min-h-11 md:min-h-10 min-w-0 flex-1 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
                     />
                   </label>
                 ))}
@@ -191,7 +191,7 @@ export function ReviewQuestionCard({
               onChange={(e) => setNote(e.target.value)}
               maxLength={300}
               placeholder="For example: the scan misread 7 as 1"
-              className="min-h-10 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+              className="min-h-11 md:min-h-10 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-focus"
             />
           </label>
           {error ? (
@@ -204,7 +204,7 @@ export function ReviewQuestionCard({
               type="button"
               disabled={saving}
               onClick={() => void save()}
-              className="inline-flex min-h-11 items-center rounded-full bg-panel px-5 text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.96] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="inline-flex min-h-11 items-center rounded-full bg-panel px-5 text-[13px] font-bold text-background transition-transform duration-150 active:scale-press disabled:opacity-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {saving ? 'Saving...' : isOnSite ? 'Save and update the site' : 'Save as a new version'}
             </button>
@@ -260,7 +260,7 @@ export function ReviewQuestionCard({
                 disabled={resolving}
                 onClick={() => void resolve('pass')}
                 aria-label={`Pass ${qName}`}
-                className="inline-flex min-h-10 items-center rounded-full bg-mint px-3.5 text-[13px] font-bold text-success-subtle-text transition-transform duration-150 hover:brightness-95 active:scale-[0.96] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-mint px-3.5 text-[13px] font-bold text-success-subtle-text transition-transform duration-150 hover:brightness-95 active:scale-press disabled:opacity-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Pass
               </button>
@@ -274,7 +274,7 @@ export function ReviewQuestionCard({
                     setResolveError(null);
                   }}
                   aria-label={`Set ${qName} aside`}
-                  className="inline-flex min-h-10 items-center rounded-full bg-destructive/10 px-3.5 text-[13px] font-bold text-destructive transition-transform duration-150 hover:bg-destructive/15 active:scale-[0.96] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-destructive/10 px-3.5 text-[13px] font-bold text-destructive transition-transform duration-150 hover:bg-destructive/15 active:scale-press disabled:opacity-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   Set aside
                 </button>
@@ -286,7 +286,7 @@ export function ReviewQuestionCard({
               disabled={resolving}
               onClick={() => void resolve('reopen')}
               aria-label={`Reopen ${qName}`}
-              className="inline-flex min-h-10 items-center rounded-full bg-card px-3.5 text-[13px] font-bold text-warm-secondary transition-transform duration-150 hover:bg-warm-hairline active:scale-[0.96] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-card px-3.5 text-[13px] font-bold text-warm-secondary transition-transform duration-150 hover:bg-warm-hairline active:scale-press disabled:opacity-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Reopen
             </button>
@@ -306,7 +306,7 @@ export function ReviewQuestionCard({
               onChange={(e) => setAsideNote(e.target.value)}
               maxLength={300}
               placeholder="For example: the scan is torn here"
-              className="min-h-10 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+              className="min-h-11 md:min-h-10 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-focus"
             />
           </label>
           <p className="mt-1 text-[12px] text-warm-meta">Visitors see a short placeholder card instead of this question.</p>
@@ -315,7 +315,7 @@ export function ReviewQuestionCard({
               type="button"
               disabled={resolving}
               onClick={() => void resolve('set_aside')}
-              className="inline-flex min-h-10 items-center rounded-full bg-panel px-4 text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.96] disabled:opacity-60"
+              className="inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-panel px-4 text-[13px] font-bold text-background transition-transform duration-150 active:scale-press disabled:opacity-disabled"
             >
               {resolving ? 'Setting aside...' : 'Set aside'}
             </button>
@@ -323,7 +323,7 @@ export function ReviewQuestionCard({
               type="button"
               disabled={resolving}
               onClick={() => setAsideOpen(false)}
-              className="inline-flex min-h-10 items-center rounded-full bg-muted px-4 text-[13px] font-semibold text-warm-secondary"
+              className="inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-muted px-4 text-[13px] font-semibold text-warm-secondary"
             >
               Cancel
             </button>
@@ -342,7 +342,7 @@ export function ReviewQuestionCard({
             type="button"
             onClick={startEdit}
             aria-label={`Edit ${qName}`}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-card px-3.5 text-[13px] font-bold text-foreground transition-transform duration-150 hover:bg-warm-hairline active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-11 md:min-h-10 items-center gap-1.5 rounded-full bg-card px-3.5 text-[13px] font-bold text-foreground transition-transform duration-150 hover:bg-warm-hairline active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Pencil className="h-3.5 w-3.5" aria-hidden />
             Edit
@@ -353,7 +353,7 @@ export function ReviewQuestionCard({
             aria-label={`${showVersions ? 'Hide versions of' : 'Versions of'} ${qName}`}
             onClick={() => setShowVersions((v) => !v)}
             className={cn(
-              'inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'inline-flex min-h-11 md:min-h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               showVersions ? 'bg-panel text-background' : 'bg-card text-foreground hover:bg-warm-hairline',
             )}
           >

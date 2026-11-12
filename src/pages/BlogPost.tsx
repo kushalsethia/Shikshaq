@@ -334,7 +334,7 @@ function TopicArticle({ article }: { article: BlogArticle }) {
         </p>
         <Link
           to={PAST_PAPERS_PATH}
-          className="mt-4 inline-flex h-11 items-center gap-2 rounded-full bg-brand-blue px-5 text-[15px] font-extrabold text-white transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+          className="mt-4 inline-flex h-11 items-center gap-2 rounded-full bg-brand-blue px-5 text-[15px] font-extrabold text-white transition-transform duration-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
         >
           Browse the papers
           <ArrowRight className="h-4 w-4" aria-hidden />
@@ -424,7 +424,7 @@ export default function BlogPost() {
             {next && (
               <Link
                 to={`${BLOG_PATH}/${next.slug}`}
-                className="group mt-10 flex items-center justify-between gap-4 rounded-2xl bg-muted p-5 transition-transform duration-hover hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.99]"
+                className="group mt-10 flex items-center justify-between gap-4 rounded-2xl bg-muted p-5 transition-transform duration-hover hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-press-card shadow-card"
               >
                 <span className="min-w-0">
                   <span className="block text-label uppercase text-warm-label">Next</span>

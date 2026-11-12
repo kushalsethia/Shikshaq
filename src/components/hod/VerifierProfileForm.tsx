@@ -43,11 +43,11 @@ export function VerifierProfileForm({
     onSave({ full_name: fullName.trim(), grade: Number(grade), school: school.trim(), board: board.trim(), valid_until: validUntil });
   }
 
-  const field = 'min-h-[40px] w-full rounded-xl bg-card px-3 py-1 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand';
+  const field = 'min-h-11 md:min-h-[40px] w-full rounded-xl bg-card px-3 py-1 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus';
   const label = 'flex flex-col gap-1 text-[13px] font-semibold text-foreground';
 
   return (
-    <form onSubmit={submit} className="rounded-2xl bg-muted p-4" data-testid="profile-form" aria-label="Verifier details">
+    <form onSubmit={submit} className="rounded-2xl bg-muted shadow-card p-4" data-testid="profile-form" aria-label="Verifier details">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className={label}>
           Name

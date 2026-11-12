@@ -208,7 +208,7 @@ export function ProfileRow({ p, api, scope, choices }: { p: HodVerifierProfile; 
   }
 
   return (
-    <li className="rounded-2xl bg-muted p-4" data-testid="profile-row">
+    <li className="rounded-2xl bg-muted shadow-card p-4" data-testid="profile-row">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[15px] font-bold text-foreground">{name}</p>

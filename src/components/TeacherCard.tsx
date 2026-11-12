@@ -459,15 +459,13 @@ function TeacherCardComponent({
       onClick={handleHeartClick}
       aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
       aria-pressed={liked}
-      /* Was active:scale-90 — every other tap target in this file (and the
-         Button primitive) uses 0.97 as the floor, with a comment explaining
-         anything smaller "feels exaggerated". This was the one outlier,
-         nearly 3x past that floor, so the heart visibly overshot compared to
-         its neighbours (the card link, the WhatsApp button) on the same tap.
-         M23: standardised to 0.96 (CRAFT.md §2 "Press: scale(0.96)"), scoped
-         to this file only — the rest of the site still reads 0.97 elsewhere,
-         which is a separate, wider cleanup this stream doesn't own. */
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform duration-tap ease-tap active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:active:scale-100"
+      /* Press: the shared recipe's "small target" squeeze (`scale-press-small`,
+         .94, index.css --press-scale-small). Earlier this file argued .97 was the
+         floor and anything smaller "feels exaggerated" (it was active:scale-90,
+         then .96). The tactile pass (12 Nov 2026) fixes one number per size of
+         target for the whole site: a button .97, a small round target like this
+         one .94, a card .99. */
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform duration-tap ease-tap active:scale-press-small focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:active:scale-100"
     >
       <span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted transition-colors duration-hover hover:bg-accent">
         {/* Owner's ask: a little delight at the save moment. No new keyframe —
@@ -514,7 +512,7 @@ function TeacherCardComponent({
           /* Handoff S-001: `row` is the only variant that always sits inside
              a bg-card panel, so it separates by fill (bg-muted) instead of
              a shadow — no shadow-border, no shadow-border-hover on hover. */
-          className="group flex items-start gap-3 rounded-[24px] bg-muted p-2.5 outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.96] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
+          className="group flex items-start gap-3 rounded-[24px] bg-muted p-2.5 outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-press-card shadow-card active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
         >
           <div className="relative h-[104px] w-20 shrink-0 overflow-hidden rounded-[14px] bg-muted outline outline-1 -outline-offset-1 outline-black/10">
             {photo}
@@ -565,7 +563,7 @@ function TeacherCardComponent({
            self-clips via its own overflow-hidden wrapper below, and every
            overlay (badge, heart, upvote pill) is a child of that wrapper,
            not of this Link. */
-        className="group flex h-full flex-col rounded-[32px] bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.96] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:p-2.5"
+        className="group flex h-full flex-col rounded-[32px] bg-card p-2 shadow-card outline-none transition-[transform,box-shadow] duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-card-lift active:scale-press-card active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:p-2.5"
       >
         {/* §2.5 compact grid card (mockup "01 Start with the teachers parents pick"):
             shorter photo than the old 4/5 portrait, tighter body, so four cards read

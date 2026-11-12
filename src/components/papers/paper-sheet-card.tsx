@@ -105,7 +105,7 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
            download a paper from this card, which crosses from restyling
            into removing working functionality. Flagged, not guessed. */
         className={cn(
-          "relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[24px] p-4 text-left transition-transform duration-150 ease-out hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none sm:p-6",
+          "relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[24px] p-4 text-left transition-transform duration-150 ease-out hover:-translate-y-0.5 active:scale-press-card shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none sm:p-6",
           leaving && "-translate-y-2 scale-[0.96] -rotate-1",
         )}
         style={{ backgroundColor: palette.tint }}
@@ -200,8 +200,8 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
               aria-label="Download"
               /* Same C-013 treatment: 36px painted disc, 36 + 2×4 = 44 hit box.
                  Press feedback via scale transform, matching the card's
-                 active:scale-[0.97]. */
-              className="relative shrink-0 transition-transform duration-tap ease-tap active:scale-[0.97] rounded-full before:absolute before:-inset-[4px] before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
+                 active:scale-press. */
+              className="relative shrink-0 transition-transform duration-tap ease-tap active:scale-press rounded-full before:absolute before:-inset-[4px] before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
             >
               <IconDisc as="span" tone="muted" size={36} shape="circle">
                 <div className="transition-opacity duration-tap ease-tap motion-reduce:transition-none">

@@ -580,7 +580,7 @@ export default function PastPapers() {
             {user && (
               <button
                 onClick={() => navigate('/past-papers/results')}
-                className={`mt-5 flex h-[54px] min-h-11 w-fit items-center gap-2.5 rounded-full bg-warm-card pl-[26px] pr-6 text-[16px] font-extrabold text-brand-blue-deep transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 ${FOCUS_BLUE}`}
+                className={`mt-5 flex h-[54px] min-h-11 w-fit items-center gap-2.5 rounded-full bg-warm-card pl-[26px] pr-6 text-[16px] font-extrabold text-brand-blue-deep transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-press motion-reduce:hover:translate-y-0 ${FOCUS_BLUE}`}
               >
                 Browse every paper
                 <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
@@ -698,7 +698,7 @@ export default function PastPapers() {
                 {recentPapers.length > SHELF_LIMIT && (
                   <Link
                     to="/past-papers/results"
-                    className="group flex h-[228px] w-[128px] flex-none flex-col items-center justify-center gap-2 rounded-[6px_16px_16px_6px] border-2 border-dashed border-warm-band bg-muted/40 px-3 text-center transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
+                    className="group flex h-[228px] w-[128px] flex-none flex-col items-center justify-center gap-2 rounded-[6px_16px_16px_6px] border-2 border-dashed border-warm-band bg-muted/40 px-3 text-center transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
                   >
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-blue text-brand-blue-foreground transition-transform duration-hover ease-settle group-hover:translate-x-0.5">
                       <ArrowRight className="h-[17px] w-[17px]" aria-hidden="true" />
@@ -849,7 +849,7 @@ export default function PastPapers() {
                 <Link
                   key={school}
                   to={`/school/${slug}`}
-                  className={`flex min-h-11 animate-card-reveal items-center gap-3 rounded-2xl bg-muted px-[14px] py-3 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 lg:px-[15px] lg:py-[13px] ${FOCUS_BLUE}`}
+                  className={`flex min-h-11 animate-card-reveal items-center gap-3 rounded-2xl bg-muted px-[14px] py-3 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-press-card shadow-button motion-reduce:animate-none motion-reduce:hover:translate-y-0 lg:px-[15px] lg:py-[13px] ${FOCUS_BLUE}`}
                 >
                   {/* pages.md §4 row 7: "school initial tile 40px solid" — this
                       was tone="papers-subtle", the same pale indigo-on-pale
@@ -958,7 +958,7 @@ export default function PastPapers() {
                     <button
                       key={s}
                       onClick={() => navigate(`/past-papers/results?filter_subjects=${encodeURIComponent(s)}`)}
-                      className={`flex min-h-11 animate-card-reveal items-center gap-4 rounded-[18px] p-[14px] text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 sm:block sm:rounded-2xl sm:p-6 ${FOCUS_BLUE}`}
+                      className={`flex min-h-11 animate-card-reveal items-center gap-4 rounded-[18px] p-[14px] text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-press-card shadow-card motion-reduce:animate-none motion-reduce:hover:translate-y-0 sm:block sm:rounded-2xl sm:p-6 ${FOCUS_BLUE}`}
                       style={{ backgroundColor: palette.tint }}
                     >
                       <span
@@ -1027,7 +1027,7 @@ export default function PastPapers() {
                     <button
                       key={b}
                       onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
-                      className={`flex min-h-11 animate-card-reveal items-center gap-4 rounded-[18px] bg-brand-blue-subtle p-[14px] text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 sm:block sm:rounded-2xl sm:p-6 ${FOCUS_BLUE}`}
+                      className={`flex min-h-11 animate-card-reveal items-center gap-4 rounded-[18px] bg-brand-blue-subtle p-[14px] text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-press-card shadow-card motion-reduce:animate-none motion-reduce:hover:translate-y-0 sm:block sm:rounded-2xl sm:p-6 ${FOCUS_BLUE}`}
                     >
                       <span className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] bg-brand-blue sm:h-10 sm:w-10 sm:rounded-lg sm:mb-6">
                         <LandmarkIcon size={21} className="text-white" strokeWidth={1.9} aria-hidden="true" />
@@ -1179,7 +1179,7 @@ export default function PastPapers() {
             </p>
             <Link
               to={BROWSE_PATH}
-              className="inline-flex h-12 items-center rounded-full bg-brand px-5 text-[15px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+              className="inline-flex h-12 items-center rounded-full bg-brand px-5 text-[15px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
             >
               Find a teacher
             </Link>

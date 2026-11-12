@@ -69,7 +69,7 @@ export function HistoryItem({ event, now, paper }: { event: HistoryEvent; now?: 
               type="button"
               aria-expanded={open}
               onClick={() => setOpen((v) => !v)}
-              className="mt-1 inline-flex min-h-10 items-center gap-1 rounded-full px-1 text-[13px] font-semibold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="mt-1 inline-flex min-h-11 md:min-h-10 items-center gap-1 rounded-full px-1 text-[13px] font-semibold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {open ? 'Hide what changed' : 'See what changed'}
               <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-150', open && 'rotate-180')} aria-hidden />
@@ -94,7 +94,7 @@ export function HistoryList<E extends HistoryEvent>({
   paperFor?: (e: E) => PaperRef | null;
 }) {
   if (!events.length) {
-    return <p className="rounded-2xl bg-muted p-4 text-[13px] text-warm-secondary">{empty ?? 'Nothing has happened here yet.'}</p>;
+    return <p className="rounded-2xl bg-muted shadow-card p-4 text-[13px] text-warm-secondary">{empty ?? 'Nothing has happened here yet.'}</p>;
   }
   return (
     <ol className="divide-y divide-warm-hairline" aria-label="History, newest first">
@@ -139,7 +139,7 @@ export function PaperHistoryPanel({
 
   if (error) {
     return (
-      <div role="alert" className="rounded-2xl bg-muted p-4 text-[13px] text-foreground">
+      <div role="alert" className="rounded-2xl bg-muted shadow-card p-4 text-[13px] text-foreground">
         The history did not load. Check your internet and try again.
         <button type="button" onClick={() => void load()} className="tap-44 ml-2 font-semibold text-brand-blue">
           Try again
@@ -166,7 +166,7 @@ export function PaperHistoryPanel({
         <button
           type="button"
           onClick={() => setShown((n) => n + PAGE)}
-          className="mt-2 inline-flex min-h-10 items-center rounded-full bg-muted px-4 text-[13px] font-bold text-warm-secondary transition-transform duration-150 hover:bg-warm-hairline active:scale-[0.96]"
+          className="mt-2 inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-muted px-4 text-[13px] font-bold text-warm-secondary transition-transform duration-150 hover:bg-warm-hairline active:scale-press"
         >
           Show {Math.min(PAGE, events.length - shown)} older
         </button>

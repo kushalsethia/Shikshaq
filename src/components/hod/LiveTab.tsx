@@ -77,7 +77,7 @@ function LiveRow({ p, api, onChanged }: { p: HodLivePaper; api: HodApi; onChange
   const waiting = liveWaitingText(p);
 
   return (
-    <li className="rounded-[18px] bg-muted p-4" data-testid="live-paper" data-live={p.is_published}>
+    <li className="rounded-[18px] bg-muted shadow-card p-4" data-testid="live-paper" data-live={p.is_published}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-[15px] font-bold text-foreground">{p.title}</p>
@@ -140,7 +140,7 @@ function LiveRow({ p, api, onChanged }: { p: HodLivePaper; api: HodApi; onChange
               value={reason}
               onChange={(ev) => setReason(ev.target.value)}
               disabled={busy}
-              className="min-h-[44px] rounded-xl bg-muted px-3 text-[16px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="min-h-[44px] rounded-xl bg-muted px-3 text-[16px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-focus"
             />
           </label>
           <p className="mt-1 text-[12px] text-warm-meta">Visitors stop seeing it at once. Nothing is deleted, and it can be restored.</p>
@@ -209,7 +209,7 @@ export function LiveTab({ api, scope }: { api: HodApi; scope: string }) {
   if (q.isError) return <LoadError what="The live papers" onRetry={() => void q.refetch()} />;
   if (rows.length === 0) return <EmptyNote>There are no papers in the library yet.</EmptyNote>;
 
-  const select = 'min-h-[44px] rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand';
+  const select = 'min-h-[44px] rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus';
   return (
     <div>
       <div className="mb-4 grid grid-cols-2 gap-3 sm:max-w-sm" data-testid="live-counts">

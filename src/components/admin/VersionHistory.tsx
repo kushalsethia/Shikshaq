@@ -115,7 +115,7 @@ export function VersionHistory({
           ))}
         </div>
       ) : rows && rows.length === 0 ? (
-        <p className="rounded-2xl bg-muted p-4 text-[13px] text-warm-secondary">
+        <p className="rounded-2xl bg-muted shadow-card p-4 text-[13px] text-warm-secondary">
           No versions recorded yet. A question gets its first entry the first time its text changes after the version
           lock went live (1 October 2026).
         </p>
@@ -180,7 +180,7 @@ export function VersionHistory({
                           value={reason}
                           onChange={(e) => setReason(e.target.value)}
                           maxLength={300}
-                          className="min-h-[40px] rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                          className="min-h-11 md:min-h-[40px] rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
                         />
                       </label>
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -188,7 +188,7 @@ export function VersionHistory({
                           type="button"
                           disabled={busy}
                           onClick={() => void revert(row.version)}
-                          className="tap-44 rounded-full py-2 bg-panel px-4 text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.96] disabled:opacity-50"
+                          className="tap-44 rounded-full py-2 bg-panel px-4 text-[13px] font-bold text-background transition-transform duration-150 active:scale-press disabled:opacity-disabled"
                         >
                           {busy ? 'Putting it back...' : `Put back version ${row.version}`}
                         </button>
@@ -209,7 +209,7 @@ export function VersionHistory({
                         setConfirming(row.version);
                         setReason('');
                       }}
-                      className="tap-44 mt-2 rounded-full py-2 bg-card px-3.5 text-[13px] font-bold text-foreground transition-transform duration-150 hover:bg-warm-hairline active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      className="tap-44 mt-2 rounded-full py-2 bg-card px-3.5 text-[13px] font-bold text-foreground transition-transform duration-150 hover:bg-warm-hairline active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                     >
                       Revert to this version
                     </button>

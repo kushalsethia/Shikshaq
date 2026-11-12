@@ -233,7 +233,7 @@ export function TrustBox({ trust }: { trust: TrustView }) {
       ) : null}
       <Link
         to={trust.href}
-        className="relative z-10 mt-2 inline-flex min-h-10 items-center gap-1 text-[13px] font-semibold text-foreground underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="relative z-10 mt-2 inline-flex min-h-11 md:min-h-10 items-center gap-1 text-[13px] font-semibold text-foreground underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {trust.hrefLabel}
         <ArrowRight className="h-4 w-4" aria-hidden />
@@ -276,9 +276,9 @@ export function StopCard({
   return (
     <div
       className={cn(
-        'relative flex h-full min-w-0 flex-col rounded-2xl bg-muted p-4',
+        'relative flex h-full min-w-0 flex-col rounded-2xl bg-muted shadow-card p-4',
         action &&
-          'transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:shadow-md active:scale-[0.99] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring motion-reduce:transition-none motion-reduce:hover:translate-y-0',
+          'transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:shadow-md active:scale-press-card has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring motion-reduce:transition-none motion-reduce:hover:translate-y-0',
       )}
     >
       <div className="flex items-start justify-between gap-3 lg:flex-col lg:justify-start lg:gap-2">

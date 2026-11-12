@@ -41,7 +41,7 @@ export function QuestionTimeline({
       ) : error ? (
         <AdminError what="this question's history" onRetry={onRetry ?? (() => undefined)} />
       ) : timeline.length === 0 ? (
-        <p className="rounded-2xl bg-muted p-4 text-[13px] text-warm-secondary">
+        <p className="rounded-2xl bg-muted shadow-card p-4 text-[13px] text-warm-secondary">
           Nothing logged yet for this question. Anything from before this dashboard shipped has no history here.
         </p>
       ) : (

@@ -44,7 +44,7 @@ function OverallCard({ api, scope }: { api: HodApi; scope: string }) {
   const o = q.data;
   const pct = Math.min(100, Math.round((o.checks_done / Math.max(1, o.threshold)) * 100));
   return (
-    <section aria-labelledby="trust-overall-title" className="mb-5 rounded-[18px] bg-muted p-4" data-testid="trust-overall" data-reached={o.reached}>
+    <section aria-labelledby="trust-overall-title" className="mb-5 rounded-[18px] bg-muted shadow-card p-4" data-testid="trust-overall" data-reached={o.reached}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 id="trust-overall-title" className="text-[15px] font-bold text-foreground">
@@ -135,7 +135,7 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
   const title = `${LEVEL_LABEL[cell.level]}, ${DECISION_LABEL[cell.decision]}`;
   if (!row) {
     return (
-      <div className="rounded-[18px] bg-muted p-4">
+      <div className="rounded-[18px] bg-muted shadow-card p-4">
         <p className="text-[15px] font-bold text-foreground">{title}</p>
         <p className="mt-0.5 text-[13px] text-warm-secondary">{DECISION_HINT[cell.decision]}</p>
         <p className="mt-2 text-[13px] text-warm-secondary">No data yet.</p>
@@ -166,7 +166,7 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-[18px] bg-muted p-4" data-testid="trust-cell" data-level={cell.level} data-decision={cell.decision}>
+    <div className="flex flex-col gap-3 rounded-[18px] bg-muted shadow-card p-4" data-testid="trust-cell" data-level={cell.level} data-decision={cell.decision}>
       <div>
         <p className="text-[15px] font-bold text-foreground">{title}</p>
         <p className="mt-0.5 text-[13px] leading-snug text-warm-secondary" data-testid="trust-hint">

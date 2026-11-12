@@ -245,7 +245,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
                still animating over duration-tap, two motion paths finishing
                at different times on the same gesture. Both now transition
                together. */
-            const cardClassName = `block w-full rounded-[18px] p-[16px_18px] text-left transition-[transform,box-shadow] duration-tap hover:-translate-y-0.5 active:scale-[0.96] motion-reduce:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${tint}`;
+            const cardClassName = `block w-full rounded-[18px] p-[16px_18px] text-left transition-[transform,box-shadow] duration-tap hover:-translate-y-0.5 active:scale-press-card shadow-card motion-reduce:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${tint}`;
             const content = (
               <>
                 <div className={`text-balance text-[16px] font-bold tracking-[-0.02em] ${ink}`}>{g.title}</div>
@@ -272,7 +272,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
         <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
           <Link
             to="/contact"
-            className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-5 text-[15px] font-extrabold text-brand-foreground transition-[transform,box-shadow] duration-tap hover:-translate-y-0.5 active:scale-[0.96] motion-reduce:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+            className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-5 text-[15px] font-extrabold text-brand-foreground transition-[transform,box-shadow] duration-tap hover:-translate-y-0.5 active:scale-press motion-reduce:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
           >
             Contact us
             <ArrowRight className="h-[15px] w-[15px]" aria-hidden="true" />
@@ -282,7 +282,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Shikshaq on WhatsApp"
-            className={cn(iconDiscVariants({ tone: 'whatsapp', size: 44 }), 'active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
+            className={cn(iconDiscVariants({ tone: 'whatsapp', size: 44 }), 'active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
           >
             <WhatsAppIcon />
           </a>
@@ -291,14 +291,14 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Shikshaq on Instagram"
-            className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
+            className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
           >
             <InstagramIcon />
           </a>
           <a
             href="mailto:ngo.aquaterra@gmail.com"
             aria-label="Email Shikshaq"
-            className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
+            className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
           >
             <Mail strokeWidth={1.8} aria-hidden />
           </a>

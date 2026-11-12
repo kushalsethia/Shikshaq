@@ -446,7 +446,7 @@ export default function AdminPaperEditPage() {
             <button
               onClick={() => setVerifyOpen(true)}
               disabled={verifyBlocked}
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-mint px-5 text-[14px] font-bold text-foreground transition-transform duration-150 active:scale-[0.97] disabled:opacity-50"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-mint px-5 text-[14px] font-bold text-foreground transition-transform duration-150 active:scale-press disabled:opacity-disabled"
             >
               Verify
             </button>
@@ -657,7 +657,7 @@ function DetailText({
       type="button"
       onClick={open}
       className={cn(
-        'group inline-flex min-h-8 max-w-full items-center gap-1 rounded-md px-0.5 text-inherit transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+        'group inline-flex min-h-8 max-w-full items-center gap-1 rounded-md px-0.5 text-inherit transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         empty && 'font-semibold not-italic text-brand-blue',
       )}
     >
@@ -825,7 +825,7 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
     <li
       id={`q-${id}`}
       className={cn(
-        'min-w-0 scroll-mt-24 rounded-[18px] bg-muted p-[16px]',
+        'min-w-0 scroll-mt-24 rounded-[18px] bg-muted shadow-card p-[16px]',
         !passed && 'ring-2 ring-inset ring-brand',
       )}
       style={depth > 0 ? { marginLeft: `${Math.min(depth, 3) * 12}px` } : undefined}
@@ -868,7 +868,7 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
           onClick={() => setEditing((v) => !v)}
           aria-expanded={editing}
           aria-controls={textId}
-          className="inline-flex min-h-11 items-center gap-1 rounded-full px-3 text-[13px] font-semibold text-warm-secondary transition-colors duration-150 hover:bg-card hover:text-foreground active:scale-[0.96]"
+          className="inline-flex min-h-11 items-center gap-1 rounded-full px-3 text-[13px] font-semibold text-warm-secondary transition-colors duration-150 hover:bg-card hover:text-foreground active:scale-press"
         >
           {editing ? 'Done' : (
             <>
@@ -880,7 +880,7 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
         <button
           type="button"
           onClick={() => setVersionsOpen(true)}
-          className="inline-flex min-h-11 items-center rounded-full px-3 text-[13px] font-semibold text-warm-secondary transition-colors duration-150 hover:bg-card hover:text-foreground active:scale-[0.96]"
+          className="inline-flex min-h-11 items-center rounded-full px-3 text-[13px] font-semibold text-warm-secondary transition-colors duration-150 hover:bg-card hover:text-foreground active:scale-press"
         >
           Versions
         </button>

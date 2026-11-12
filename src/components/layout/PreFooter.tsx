@@ -294,7 +294,7 @@ function B4() {
     <PageContainer>
     <Link
       to="/about"
-      className="flex items-center gap-4 rounded-2xl bg-card p-4 shadow-border transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:p-6"
+      className="flex items-center gap-4 rounded-2xl bg-card p-4 shadow-card transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-card-lift active:scale-press-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:p-6"
     >
       {/* Logo renders its own <Link>, so it must NOT be used inside this one —
           that produced nested anchors (invalid HTML, real console warning).

@@ -356,7 +356,7 @@ function LookupBox({ value, onChange, onLookup }: { value: string; onChange: (v:
             }}
             placeholder="Paste a question id"
             aria-label="Question id"
-            className="h-11 w-full min-w-0 max-w-[320px] flex-1 rounded-full bg-muted px-4 font-mono text-[16px] sm:text-[13px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+            className="h-11 w-full min-w-0 max-w-[320px] flex-1 rounded-full bg-muted px-4 font-mono text-[16px] sm:text-[13px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-focus"
           />
           <AdminPillButton variant="primary" onClick={() => onLookup(value)} disabled={!value.trim()} className="shrink-0 bg-brand text-foreground">
             Show history
@@ -410,7 +410,7 @@ export function VerifierStatsList({ stats, maxChecked }: { stats: TeamStatsRow[]
                     aria-expanded={open}
                     aria-controls={detailId}
                     onClick={() => setOpenId(open ? null : r.user_id)}
-                    className="relative inline-flex min-h-10 items-center rounded-full bg-muted px-3.5 text-[13px] font-bold text-warm-secondary transition-colors duration-150 before:absolute before:-inset-[2px] before:content-[''] hover:bg-warm-hairline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="relative inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-muted px-3.5 text-[13px] font-bold text-warm-secondary transition-colors duration-150 before:absolute before:-inset-[2px] before:content-[''] hover:bg-warm-hairline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {open ? 'Less' : 'More'}
                     <span className="sr-only"> about {r.name}</span>
@@ -468,7 +468,7 @@ function MiniBar({ value, max }: { value: number; max: number }) {
 
 function PaperProgressCard({ row }: { row: PaperProgressRow }) {
   return (
-    <div className="rounded-2xl bg-muted p-3">
+    <div className="rounded-2xl bg-muted shadow-card p-3">
       <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
           <p className="truncate text-[13px] font-semibold text-foreground">
