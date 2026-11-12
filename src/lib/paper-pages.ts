@@ -8,14 +8,18 @@
  * client role. This file is pure: shaping and wording only, no network.
  */
 
+import { normaliseRotation, type PageRotation } from '@/lib/page-rotation';
+
 export interface PaperPage {
   /** 1-based page number of the printed paper. */
   page: number;
   /** Object path in the private audit-figures bucket. */
   object_path: string;
+  /** Clockwise quarter turns, in degrees, that make the stored picture read upright. Missing = 0 (page-rotation.ts). */
+  rotation?: PageRotation;
 }
 
-/** Rows from the RPC, cleaned: numbers only, a path only, in page order, one per page. */
+/** Rows from the RPC, cleaned: numbers only, a path only, a turn only when it is a quarter turn, in page order, one per page. */
 export function normalisePaperPages(raw: unknown): PaperPage[] {
   const rows = Array.isArray(raw) ? raw : [];
   const byPage = new Map<number, PaperPage>();
@@ -25,7 +29,10 @@ export function normalisePaperPages(raw: unknown): PaperPage[] {
     const page = typeof o.page === 'number' ? o.page : typeof o.page === 'string' ? Number(o.page) : NaN;
     const path = typeof o.object_path === 'string' ? o.object_path.trim() : '';
     if (!Number.isInteger(page) || page < 1 || !path || path.startsWith('/') || path.includes('..')) continue;
-    if (!byPage.has(page)) byPage.set(page, { page, object_path: path });
+    if (byPage.has(page)) continue;
+    const rotation = normaliseRotation(o.rotation);
+    // Only a real turn is carried; a page with none keeps the exact shape it always had.
+    byPage.set(page, rotation === 0 ? { page, object_path: path } : { page, object_path: path, rotation });
   }
   return [...byPage.values()].sort((a, b) => a.page - b.page);
 }

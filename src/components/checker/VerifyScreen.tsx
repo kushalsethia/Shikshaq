@@ -10,6 +10,7 @@ import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
 import { QuestionDiagrams } from '@/components/checker/QuestionDiagrams';
 import { diagramItems, diagramPaths, diagramsKey, withoutShownFigureFlag } from '@/lib/checker-diagrams';
 import { pageNumberOf } from '@/lib/paper-pages';
+import { rotationOfPage, type PageRotation } from '@/lib/page-rotation';
 import { AiSurePill, PanelTabs, PrintedFrame, TypedFrame, VERIFY_TABS, type PanelId } from '@/components/checker/Panels';
 import { tileForNextQuestion } from '@/lib/checker-bento';
 import { BentoTile, FadeScroll, ImageLightbox, TilePager, useBentoWide } from '@/components/checker/BentoParts';
@@ -199,7 +200,7 @@ export function VerifyScreen({
   // Tablet and up: every tile on one screen. Below 768: swipeable tiles (Question | Page | Fix).
   const wide = useBentoWide();
   // A picture opened full screen.
-  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string; rotation?: PageRotation } | null>(null);
 
   /** Questions the checker has answered whose card must not come back: the
    *  fetch that follows an answer may still hold the old row for a moment. */
@@ -400,6 +401,19 @@ export function VerifyScreen({
     question && partPictures ? `${question.id}|${Object.entries(otherPartPaths).map(([id, path]) => `${id}:${path}`).join(',')}` : '';
   const otherPartUrls = useSignedUrls(picApi, otherPartsKey, otherPartPaths);
   const pageUrl = useSignedUrl(picApi, pagePlanKey, pagePath);
+  // Some pages are saved sideways: the paper's page list says how far to turn this one (page-rotation.ts).
+  // Asked only once the page is wanted. A failed ask is "no turn", the page as it was; it is not retried so
+  // the page never waits on it.
+  const pagesQuery = useQuery({
+    queryKey: ['checker-paper-pages', scope, question?.paper_id],
+    queryFn: () => api.paperPages(question!.paper_id),
+    enabled: Boolean(question?.paper_id) && pagePlanKey !== '',
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const pageRotation: PageRotation = rotationOfPage(pagesQuery.data, pagePlan?.page);
+  // The picture and its box must turn together, so the page waits for the turn rather than showing sideways first.
+  const pageTurnPending = pagePlanKey !== '' && pagesQuery.isLoading;
   const [pageFailed, setPageFailed] = useState<string>('');
   const pageShown = pageUrl && pageFailed !== pagePlanKey ? pageUrl : pageUrl === undefined ? undefined : null;
   const hasPage = pageShown === undefined ? pagePath !== '' : Boolean(pageShown);
@@ -1799,7 +1813,7 @@ export function VerifyScreen({
 
         /** The whole verified page. */
         const pageBody = (fit: boolean) =>
-          pageShown === undefined ? (
+          pageShown === undefined || (pageShown && pageTurnPending) ? (
             <div className={cn('animate-pulse rounded-[10px] bg-muted', fit ? 'min-h-0 flex-1' : 'h-72')} aria-label="Loading the printed page" />
           ) : pageShown && pagePlan ? (
             <PageImageViewer
@@ -1808,7 +1822,8 @@ export function VerifyScreen({
               note={pagePlan.note}
               source={question.source}
               fill={fit}
-              onEnlarge={() => setLightbox({ src: pageShown, alt: pageAlt })}
+              rotation={pageRotation}
+              onEnlarge={() => setLightbox({ src: pageShown, alt: pageAlt, rotation: pageRotation })}
               onError={() => setPageFailed(pagePlanKey)}
             />
           ) : null;
@@ -2169,7 +2184,7 @@ export function VerifyScreen({
         />
       ) : null}
 
-      {lightbox ? <ImageLightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} /> : null}
+      {lightbox ? <ImageLightbox src={lightbox.src} alt={lightbox.alt} rotation={lightbox.rotation} onClose={() => setLightbox(null)} /> : null}
 
       {helpOpen && question ? (
         <Modal onClose={() => setHelpOpen(false)} labelledBy="checker-help-title">

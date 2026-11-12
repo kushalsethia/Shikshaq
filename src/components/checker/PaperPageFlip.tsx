@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { UprightImage } from '@/components/checker/UprightImage';
 import {
   clampPageIndex,
   NO_PAGES_NOTE,
@@ -158,7 +159,13 @@ export function PaperPageFlip({
         {!ready ? (
           <div className="h-72 animate-pulse bg-muted" aria-label="Loading the page" role="status" />
         ) : ready.url ? (
-          <img key={ready.url} src={ready.url} alt={`Page ${current?.page} of the printed paper`} draggable={false} className="block h-auto w-full" />
+          <UprightImage
+            src={ready.url}
+            alt={`Page ${current?.page} of the printed paper`}
+            rotation={current?.rotation ?? 0}
+            className="block h-auto w-full"
+            stageClassName="w-full"
+          />
         ) : (
           <p className="p-6 text-center text-[13px] text-warm-secondary" role="status">
             This page could not be loaded. Try the next one.
