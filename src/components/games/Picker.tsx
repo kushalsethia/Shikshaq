@@ -1,6 +1,6 @@
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
-import { Check, ChevronDown, Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /* The games pages' dropdown, in place of the browser's own: a pill (or, in a form, a field) that opens an anchored panel,
@@ -116,9 +116,8 @@ export function Picker({ label, value, options, onPick, searchable = options.len
           onOpenAutoFocus={(e) => { e.preventDefault(); (searchRef.current ?? listRef.current)?.focus({ preventScroll: true }); }}
           className={cn('z-50 flex max-w-[calc(100vw-32px)] flex-col rounded-[24px] bg-card p-1.5 text-foreground outline-none',
             look === 'field' ? 'w-[var(--radix-popover-trigger-width)] min-w-[14rem]' : 'w-[20rem]',
-            'shadow-[0_0_0_1px_hsl(var(--border)),0_18px_44px_rgba(0,0,0,.18)] origin-[--radix-popover-content-transform-origin]',
-            `data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.97] data-[state=open]:duration-150 data-[side=bottom]:slide-in-from-top-1 data-[side=top]:slide-in-from-bottom-1 ${EASE}`,
-            'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-[0.98] data-[state=closed]:duration-100')}>
+            /* Tactile pass: the shared popover edge and arrival (150ms from scale .97 + fade, out 120ms, origin at the trigger). */
+            'overlay-menu shadow-popover origin-[var(--radix-popper-transform-origin)]')}>
           {searchable && (
             <div className="relative mb-1.5">
               <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-warm-meta" />
@@ -139,11 +138,11 @@ export function Picker({ label, value, options, onPick, searchable = options.len
                   const picked = o.value === value;
                   return (
                     <div key={o.value} id={optionId(i)} data-i={i} role="option" aria-selected={picked} onPointerMove={() => active !== i && setActive(i)} onClick={() => choose(o)}
-                      className={cn('flex min-h-11 md:min-h-10 cursor-pointer select-none items-center gap-2 rounded-[18px] px-3 text-[14px] transition-colors duration-75',
-                        i === active ? 'bg-muted' : 'bg-transparent', picked ? 'font-semibold text-foreground' : 'text-warm-prose')}>
+                      className={cn('flex min-h-11 md:min-h-10 cursor-pointer select-none items-center gap-2 rounded-[18px] px-3 text-[14px] transition-colors duration-150',
+                        /* Tactile pass: the highlighted option is one step above the list, the chosen one two steps, no tick. */
+                        picked ? 'bg-accent font-semibold text-foreground' : cn(i === active ? 'bg-muted' : 'bg-transparent', 'text-warm-prose'))}>
                       <span className="min-w-0 flex-1 truncate">{o.label}</span>
                       {o.meta && <span className="shrink-0 text-[12px] font-normal tabular-nums text-warm-meta">{o.meta}</span>}
-                      <Check aria-hidden className={cn('size-4 shrink-0 text-brand', picked ? 'opacity-100' : 'opacity-0')} />
                     </div>
                   );
                 })}

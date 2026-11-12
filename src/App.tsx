@@ -188,7 +188,7 @@ const App = () => (
      alive means the reader still has navigation instead of a blank screen. */
   <ErrorBoundary context="root">
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+    <TooltipProvider delayDuration={0}>
       <AuthProvider>
         <AdminDebugProvider>
         <LikesProvider>

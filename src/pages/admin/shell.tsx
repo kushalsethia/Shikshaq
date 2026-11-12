@@ -180,14 +180,14 @@ function AccountMenu({ email }: { email: string }) {
           {initial}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64 rounded-2xl bg-card p-1.5">
-        <DropdownMenuLabel className="break-all px-3 py-2 text-[13px] font-semibold text-warm-secondary">{email}</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel className="break-all py-2">{email}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild className="min-h-11 md:min-h-10 cursor-pointer rounded-xl px-3 text-[14px] font-semibold">
+        <DropdownMenuItem asChild className="cursor-pointer text-[14px] font-semibold">
           <Link to="/">Back to the site</Link>
         </DropdownMenuItem>
         {canSignOut ? (
-          <DropdownMenuItem onSelect={() => void signOut()} className="min-h-11 md:min-h-10 cursor-pointer rounded-xl px-3 text-[14px] font-semibold">
+          <DropdownMenuItem onSelect={() => void signOut()} className="cursor-pointer text-[14px] font-semibold">
             Sign out
           </DropdownMenuItem>
         ) : null}
