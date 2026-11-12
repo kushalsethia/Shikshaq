@@ -2032,7 +2032,7 @@ export function VerifyScreen({
             // Floats over the page instead of pushing the question down
             // (no layout shift on every save).
             className={cn(
-              'fixed left-1/2 top-24 z-40 w-[min(92vw,28rem)] -translate-x-1/2 rounded-2xl px-4 py-3 text-center text-[14px] font-semibold text-foreground shadow-lg animate-in fade-in-0 duration-200',
+              'fixed left-1/2 top-24 z-40 w-[min(92vw,28rem)] -translate-x-1/2 rounded-2xl px-4 py-3 text-center text-[14px] font-semibold text-foreground shadow-popover overlay-enter-menu',
               notice.tone === 'ok' ? 'bg-mint' : 'bg-brand-subtle',
             )}
           >

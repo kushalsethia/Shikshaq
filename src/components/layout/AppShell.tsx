@@ -127,7 +127,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div
           role="status"
           data-testid="offline-banner"
-          className="fixed inset-x-3 top-3 z-[60] mx-auto max-w-md rounded-full bg-panel px-4 py-2 text-center text-[13px] font-semibold text-background shadow-lg"
+          className="fixed inset-x-3 top-3 z-[60] mx-auto max-w-md rounded-full bg-panel px-4 py-2 text-center text-[13px] font-semibold text-background shadow-popover"
         >
           You are offline. Saves and sends will not work until the connection is back.
         </div>
