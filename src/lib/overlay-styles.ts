@@ -42,7 +42,7 @@ export const MENU_ITEM_CHOSEN =
 export const MENU_LABEL = 'px-2.5 py-1.5 text-[13px] font-semibold text-warm-secondary';
 
 /** A separator inside a menu: it runs edge to edge. */
-export const MENU_SEPARATOR = '-mx-1 my-1 h-px bg-warm-hairline-strong';
+export const MENU_SEPARATOR = '-mx-1 my-1 h-px bg-warm-hairline';
 
 /** The chevron of a menu trigger: turns over while the menu is open. Put it on the icon; the trigger carries data-state. */
 export const MENU_CHEVRON = 'overlay-chevron transition-transform duration-150 ease-out group-data-[state=open]:rotate-180';
