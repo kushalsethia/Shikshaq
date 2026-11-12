@@ -21,6 +21,7 @@ import type { PaperRegistryApi, ProcessedState } from '@/lib/paper-registry';
 import { feedActionWords, feedActorWords } from '@/lib/activity-format';
 import { relativeWords, timeWords } from '@/lib/history-labels';
 import { cn } from '@/lib/utils';
+import { BAR_WELL } from '@/lib/chart-styles';
 
 /* The folded detail under the papers route, shared by /admin (System tab) and
    /hod/pipeline (owner, 12 October 2026: "HODs may see the whole Admin pipeline
@@ -77,7 +78,7 @@ function Tile({
       {sub ? <span className={cn('mt-0.5 block text-[13px]', t.sub)}>{state === 'unknown' ? 'Did not load' : sub}</span> : null}
     </>
   );
-  const box = cn('block min-h-[78px] w-full min-w-0 rounded-2xl px-4 py-3 text-left', t.box);
+  const box = cn('block min-h-[78px] w-full min-w-0 rounded-2xl px-4 py-3 text-left shadow-card', t.box);
   const interactive = cn(
     box,
     'transition-[filter,transform] duration-150 hover:brightness-95 active:scale-press-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -109,7 +110,7 @@ const BAR_PARTS = [
 function StackBar({ parts }: { parts: { value: number; className: string; label: string }[] }) {
   const total = parts.reduce((s, p) => s + p.value, 0) || 1;
   return (
-    <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted" role="img"
+    <div className={cn('flex h-2.5 w-full overflow-hidden rounded-full bg-muted', BAR_WELL)} role="img"
       aria-label={parts.map((p) => `${p.label} ${p.value}`).join(', ')}>
       {parts.map((p) => (
         <div key={p.label} className={p.className} style={{ width: `${(p.value / total) * 100}%` }} />

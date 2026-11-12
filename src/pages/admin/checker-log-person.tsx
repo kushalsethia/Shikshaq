@@ -35,6 +35,7 @@ import {
 import { HistoryList } from '@/components/admin/approval/HistoryPanel';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
+import { BAR_WELL } from '@/lib/chart-styles';
 
 const DummyCheckerLogPerson = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminCheckerLogPersonDummy')) : null;
 
@@ -72,7 +73,7 @@ function CountBars({ counts, events }: { counts: LogDay['counts']; events: LogDa
           {shown.map((k) => (
             <div key={k} className="grid grid-cols-[84px_minmax(0,1fr)_36px] items-center gap-2">
               <dt className="text-[12px] font-semibold text-warm-secondary">{COUNT_LABELS[k]}</dt>
-              <div className="h-2.5 overflow-hidden rounded-full bg-card" aria-hidden>
+              <div className={cn('h-2.5 overflow-hidden rounded-full bg-card', BAR_WELL)} aria-hidden>
                 <div className={cn('h-full rounded-full', BAR_CLASS[k])} style={{ width: `${(counts[k] / max) * 100}%` }} />
               </div>
               <dd className="text-right text-[12px] font-bold tabular-nums text-foreground">{counts[k]}</dd>

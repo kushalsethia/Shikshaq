@@ -34,6 +34,7 @@ import {
   type RegistryRow,
   type RegistrySummary,
 } from '@/lib/paper-registry';
+import { BAR_WELL } from '@/lib/chart-styles';
 
 /* "Papers: processed and not processed" on /admin/pipeline.
 
@@ -76,7 +77,7 @@ function Headline({ label, value, sub, tone, wide }: { label: string; value: num
   const toneClass =
     tone === 'alert' ? 'bg-rose-100 text-rose-950' : tone === 'good' ? 'bg-mint text-[#24603D]' : 'bg-muted text-foreground';
   return (
-    <div className={cn('min-w-0 rounded-2xl px-4 py-3', wide && 'col-span-2 sm:col-span-1', toneClass)}>
+    <div className={cn('min-w-0 rounded-2xl px-4 py-3 shadow-card', wide && 'col-span-2 sm:col-span-1', toneClass)}>
       <p className="text-[12px] font-semibold uppercase tracking-wide opacity-80">{label}</p>
       <p className="mt-1 text-2xl font-extrabold tabular-nums">{value.toLocaleString()}</p>
       <p className="mt-0.5 text-[13px] opacity-80">{sub}</p>
@@ -321,7 +322,7 @@ export function PaperRegistryPanel({
 
         <div className="mt-4 px-[18px]">
           <div
-            className="flex h-3 w-full overflow-hidden rounded-full bg-muted"
+            className={cn('flex h-3 w-full overflow-hidden rounded-full bg-muted', BAR_WELL)}
             role="img"
             aria-label={segments.map((s) => `${stateLabel(s.state)} ${s.count}`).join(', ')}
           >

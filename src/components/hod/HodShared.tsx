@@ -6,6 +6,7 @@ import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
 import type { HodApi } from '@/lib/hod-api';
 import { actionToneClass } from '@/lib/checker-button-styles';
 import { cn } from '@/lib/utils';
+import { FIGURE_LABEL, FIGURE_NUMBER, FIGURE_TILE } from '@/lib/chart-styles';
 
 /* Small pieces the HOD tabs share. */
 
@@ -18,9 +19,9 @@ export function ago(iso: string | null): string {
 
 export function Tile({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
-    <div className="rounded-2xl bg-muted px-4 py-3" title={hint}>
-      <p className="text-[12px] font-semibold text-warm-secondary">{label}</p>
-      <p className="mt-0.5 text-[22px] font-bold tabular-nums text-foreground">{value}</p>
+    <div className={FIGURE_TILE} title={hint}>
+      <p className={FIGURE_LABEL}>{label}</p>
+      <p className={FIGURE_NUMBER}>{value}</p>
     </div>
   );
 }

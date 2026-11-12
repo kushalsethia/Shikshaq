@@ -35,6 +35,7 @@ import { ReviewQuestionCard } from '@/components/admin/approval/ReviewQuestionCa
 import { PaperHistoryPanel } from '@/components/admin/approval/HistoryPanel';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
+import { FIGURE_LABEL, FIGURE_NUMBER, FIGURE_TILE_BASE } from '@/lib/chart-styles';
 
 const DummyPaperApproval = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminPaperApprovalDummy')) : null;
 
@@ -126,9 +127,9 @@ function depthMap(rows: ReviewRow[]): Map<string, number> {
 
 function Stat({ label, value, tone }: { label: string; value: number; tone?: 'warn' }) {
   return (
-    <div className={cn('rounded-2xl px-4 py-3', tone === 'warn' && value > 0 ? 'bg-brand-subtle' : 'bg-muted')}>
-      <p className="text-[12px] font-semibold uppercase tracking-wide text-warm-label">{label}</p>
-      <p className={cn('mt-1 text-2xl font-bold tabular-nums', tone === 'warn' && value > 0 ? 'text-brand-deep' : 'text-foreground')}>
+    <div className={cn(FIGURE_TILE_BASE, tone === 'warn' && value > 0 ? 'bg-brand-subtle' : 'bg-muted')}>
+      <p className={FIGURE_LABEL}>{label}</p>
+      <p className={cn(FIGURE_NUMBER, tone === 'warn' && value > 0 && 'text-brand-deep')}>
         {value}
       </p>
     </div>

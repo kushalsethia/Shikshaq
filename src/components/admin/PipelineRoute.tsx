@@ -23,6 +23,7 @@ import {
   type StopId,
 } from '@/lib/pipeline-route';
 import { cn } from '@/lib/utils';
+import { BAR_WELL } from '@/lib/chart-styles';
 
 /* The papers route: the hero of the pipeline overview, for admins (the System
    tab of /admin) and HODs (/hod/pipeline).
@@ -103,7 +104,7 @@ function ProgressStrip({ route, animate }: { route: Route; animate: boolean }) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={p.percent}
-        className="mt-2 h-2.5 overflow-hidden rounded-full bg-card"
+        className={cn('mt-2 h-2.5 overflow-hidden rounded-full bg-card', BAR_WELL)}
       >
         <div
           className="h-full origin-left rounded-full bg-emerald-500 transition-transform duration-500 motion-reduce:transition-none"

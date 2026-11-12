@@ -17,6 +17,7 @@ import { ROLE_LABELS, sinceWords, type CheckerLogApi, type CheckerRow } from '@/
 import { timeWords, type ActorKind } from '@/lib/history-labels';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
+import { FIGURE_LABEL, FIGURE_NUMBER, FIGURE_TILE } from '@/lib/chart-styles';
 
 const DummyCheckerLog = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminCheckerLogDummy')) : null;
 
@@ -197,10 +198,10 @@ export function AdminCheckerLogPage({
 
 function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
   return (
-    <div className="rounded-2xl bg-muted px-4 py-3">
-      <p className="text-[12px] font-semibold uppercase tracking-wide text-warm-label">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{value}</p>
-      {sub ? <p className="mt-0.5 text-[13px] text-warm-meta">{sub}</p> : null}
+    <div className={FIGURE_TILE}>
+      {sub ? <p className="text-[13px] leading-5 text-warm-secondary">{sub}</p> : null}
+      <p className={FIGURE_LABEL}>{label}</p>
+      <p className={FIGURE_NUMBER}>{value}</p>
     </div>
   );
 }

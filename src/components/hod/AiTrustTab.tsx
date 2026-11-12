@@ -25,6 +25,7 @@ import { actionToneClass } from '@/lib/checker-button-styles';
 import { errorWords, overallProgress, overallRateText, overallStatus, overallUnlocks } from '@/lib/hod-publish';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { cn } from '@/lib/utils';
+import { BAR_WELL } from '@/lib/chart-styles';
 
 /* "AI trust": for each confidence level and each kind of AI decision, how
    often verifiers agreed with no change, against the bar (97% over the
@@ -62,7 +63,7 @@ function OverallCard({ api, scope }: { api: HodApi; scope: string }) {
         </span>
       </div>
       <div
-        className="mt-3 h-2.5 w-full rounded-full bg-card"
+        className={cn('mt-3 h-2.5 w-full rounded-full bg-card', BAR_WELL)}
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={o.threshold}
@@ -110,7 +111,7 @@ function Meter({ row }: { row: TrustRow }) {
         </span>
       </div>
       <div
-        className="relative h-2.5 w-full rounded-full bg-card"
+        className={cn('relative h-2.5 w-full rounded-full bg-card', BAR_WELL)}
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}

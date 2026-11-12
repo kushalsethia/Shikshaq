@@ -46,6 +46,7 @@ import {
   withoutReopen,
   type PaperQuestionState,
 } from '@/lib/verifier-papers';
+import { BAR_WELL } from '@/lib/chart-styles';
 
 /* My papers: the verifier's home (Kid Mode). Three views, chosen by the URL:
 
@@ -446,7 +447,7 @@ function PaperList({
                     </span>
                   </div>
                   <div
-                    className="h-2.5 w-full overflow-hidden rounded-full bg-card"
+                    className={cn('h-2.5 w-full overflow-hidden rounded-full bg-card', BAR_WELL)}
                     role="progressbar"
                     aria-valuemin={0}
                     aria-valuemax={100}

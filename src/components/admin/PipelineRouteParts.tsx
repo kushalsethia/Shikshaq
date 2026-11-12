@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useTweenedNumber } from '@/hooks/useTweenedNumber';
 import { fmt, laneMotion, unitWord, updatedWords, type RouteStop, type StopLook, type TrustView } from '@/lib/pipeline-route';
 import type { ProcessedState } from '@/lib/paper-registry';
+import { BAR_WELL } from '@/lib/chart-styles';
 
 /* The small pieces of the papers route (PipelineRoute.tsx lays them out).
 
@@ -140,7 +141,7 @@ export function BandBars({ bands, tone }: { bands: NonNullable<RouteStop['bands'
   const total = bands.reduce((n, b) => n + b.count, 0);
   return (
     <div className="mt-3">
-      <p className="text-[12px] font-semibold uppercase tracking-wide text-warm-label">Questions left on each paper</p>
+      <p className="text-[12px] font-semibold uppercase tracking-wide text-warm-secondary">Questions left on each paper</p>
       <ul className="mt-1.5 space-y-1.5" aria-label="Papers by how many questions are left on them">
         {bands.map((b) => (
           <li key={b.key} data-band={b.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-2 gap-y-1">
@@ -148,7 +149,7 @@ export function BandBars({ bands, tone }: { bands: NonNullable<RouteStop['bands'
             <span className="text-[13px] font-bold tabular-nums text-foreground">
               {fmt(b.count)} <span className="font-normal text-warm-secondary">{b.count === 1 ? 'paper' : 'papers'}</span>
             </span>
-            <span className="col-span-2 block h-1.5 overflow-hidden rounded-full bg-card" aria-hidden>
+            <span className={cn('col-span-2 block h-1.5 overflow-hidden rounded-full bg-card', BAR_WELL)} aria-hidden>
               <span
                 className={cn('block h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none', tone)}
                 style={{ transform: `scaleX(${total > 0 ? b.count / total : 0})` }}
@@ -213,7 +214,7 @@ export function TrustBox({ trust }: { trust: TrustView }) {
         aria-valuemin={0}
         aria-valuemax={trust.threshold}
         aria-valuenow={trust.done}
-        className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"
+        className={cn('mt-1.5 h-2 overflow-hidden rounded-full bg-muted', BAR_WELL)}
       >
         <div
           className="h-full origin-left rounded-full bg-orange-400 transition-transform duration-500 motion-reduce:transition-none"
