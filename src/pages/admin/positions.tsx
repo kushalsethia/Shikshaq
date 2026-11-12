@@ -60,7 +60,7 @@ function personCell(h: PositionHolder, reason: string | null): ReactNode {
   return (
     <div key="person" className="min-w-0">
       <p className="truncate font-semibold text-foreground">{h.full_name || h.email}</p>
-      {h.full_name ? <p className="truncate text-[12px] text-warm-label">{h.email}</p> : null}
+      {h.full_name ? <p className="truncate text-[12px] text-warm-secondary">{h.email}</p> : null}
       {reason ? <p className="mt-0.5 text-pretty text-[12px] leading-[1.4] text-warm-meta">{reason}</p> : null}
     </div>
   );

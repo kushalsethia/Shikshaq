@@ -27,6 +27,7 @@ import {
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 import { cn } from '@/lib/utils';
+import { BAR_WELL } from '@/lib/chart-styles';
 
 const DummyAdminTeam = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminTeamDummy')) : null;
 
@@ -377,9 +378,9 @@ export function VerifierStatsList({ stats, maxChecked }: { stats: TeamStatsRow[]
     <div className="px-[18px]" role="table" aria-label="Verifier progress">
       <div
         role="row"
-        className={cn('hidden gap-3.5 px-[14px] py-[10px] shadow-[inset_0_-1px_0_#E7DFD5] lg:grid', COLS)}
+        className={cn('hidden gap-3.5 px-[14px] py-[10px] border-b-[0.5px] border-warm-hairline lg:grid', COLS)}
       >
-        <span role="columnheader" className="text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">Verifier</span>
+        <span role="columnheader" className="text-[11px] font-bold uppercase tracking-[.06em] text-warm-secondary">Verifier</span>
         <HeaderCell label="Checked" hint="Questions this verifier looked at in this range." />
         <HeaderCell label="Passed" hint="Marked right as printed, with no change." />
         <HeaderCell label="Fixed" hint="Changed to match the printed page." />
@@ -391,7 +392,7 @@ export function VerifierStatsList({ stats, maxChecked }: { stats: TeamStatsRow[]
           const open = openId === r.user_id;
           const detailId = `team-more-${r.user_id}`;
           return (
-            <li key={r.user_id} role="row" className="py-3 lg:px-[14px] lg:shadow-[inset_0_-1px_0_#F0EAE2]">
+            <li key={r.user_id} role="row" className="py-3 lg:border-b-[0.5px] lg:border-warm-muted lg:px-[14px] lg:last:border-b-0">
               <div className={cn('grid grid-cols-4 items-center gap-x-3 gap-y-2 lg:gap-3.5', COLS)}>
                 <div role="cell" className="col-span-4 min-w-0 lg:col-span-1">
                   <div className="flex min-w-0 items-center gap-1.5">
@@ -433,7 +434,7 @@ export function VerifierStatsList({ stats, maxChecked }: { stats: TeamStatsRow[]
 
 function HeaderCell({ label, hint }: { label: string; hint: string }) {
   return (
-    <span role="columnheader" className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">
+    <span role="columnheader" className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[.06em] text-warm-secondary">
       {label}
       <InfoTip text={hint} label={label} />
     </span>
@@ -443,7 +444,7 @@ function HeaderCell({ label, hint }: { label: string; hint: string }) {
 function Num({ label, value, strong, warn }: { label: string; value: number; strong?: boolean; warn?: boolean }) {
   return (
     <div role="cell" className="min-w-0">
-      <span className="block text-[11px] font-bold uppercase leading-[1.3] tracking-[.04em] text-warm-label lg:hidden">{label}</span>
+      <span className="block text-[11px] font-bold uppercase leading-[1.3] tracking-[.04em] text-warm-secondary lg:hidden">{label}</span>
       <span
         className={cn(
           'text-[15px] tabular-nums lg:text-[14px]',
@@ -460,7 +461,7 @@ function Num({ label, value, strong, warn }: { label: string; value: number; str
 function MiniBar({ value, max }: { value: number; max: number }) {
   const pct = Math.max(2, Math.round((value / max) * 100));
   return (
-    <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted" role="img" aria-label={`${value} of ${max} checked`}>
+    <div className={cn('mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted', BAR_WELL)} role="img" aria-label={`${value} of ${max} checked`}>
       <div className="h-full rounded-full bg-brand" style={{ width: `${pct}%` }} />
     </div>
   );
@@ -479,8 +480,8 @@ function PaperProgressCard({ row }: { row: PaperProgressRow }) {
         </div>
         <span className="text-[12px] tabular-nums text-warm-secondary">{progressWords(row)}</span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-warm-hairline">
-        <div className="h-full rounded-full bg-mint" style={{ width: `${Math.min(100, row.pct_done)}%` }} />
+      <div className={cn('h-2 w-full overflow-hidden rounded-full bg-warm-hairline', BAR_WELL)} aria-hidden>
+        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, row.pct_done)}%` }} />
       </div>
       {row.workers.length > 0 ? (
         <p className="mt-1.5 text-[12px] text-warm-secondary">Worked on by: {row.workers.join(', ')}</p>
