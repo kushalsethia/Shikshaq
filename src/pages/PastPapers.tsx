@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, BookOpen, ChevronDown, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck, Sparkles } from 'lucide-react';
 import { SearchControl } from '@/components/SearchControl';
-import { loadPaperIndex, hasYear } from '@/lib/question-bank';
+import { loadPaperIndex, fetchLatestPublishedPapers, hasYear, type BankPaper } from '@/lib/question-bank';
+import { SHELF_LIMIT, orderLatest } from '@/lib/latest-papers';
 import { countPapers, isComingSoon, type ComingSoonShape } from '@/lib/readable-papers';
 import { coverPaper, coverMeta } from '@/lib/paper-cover-mapping';
 import { EmptyResults } from '@/components/EmptyResults';
@@ -61,6 +62,35 @@ interface Paper {
   year: number;
   file_url: string | null;
   created_at: string;
+}
+
+/* A question-bank paper in the same shape the papers table uses, so everything
+   on this page treats them identically. board is the board, year is a year --
+   subject is mapped to the SITE vocabulary ("Maths"), not the raw bank
+   spelling ("Mathematics"): it feeds coverMeta()'s displayed meta line
+   directly, and every other subject-facing surface already reads "Maths" (see
+   subject-vocabulary.ts for the history of this exact bug). The cover's own
+   display mapping is built at the call site (coverPaper), so presentation never
+   corrupts the data it is drawn from. created_at carries the PUBLISH time
+   (bank_papers.created_at) so the Latest papers shelf can order by it. */
+function toListPaper(b: BankPaper) {
+  const subject = bankSubjectToSite(b.subject);
+  return {
+    id: b.id,
+    title: `Class ${b.cls} ${subject}`,
+    school: b.school,
+    subject,
+    class: b.cls,
+    board: b.board,
+    exam_type: b.exam,
+    year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
+    file_url: null,
+    created_at: b.addedAt ?? '',
+    _bankYear: b.year,
+    _questions: b.questionCount,
+    _isBoard: b.isBoardPaper,
+    _needsReview: b.needsReview,
+  };
 }
 
 interface MostReadPaper {
@@ -276,34 +306,21 @@ export default function PastPapers() {
     queryKey: ['past-papers', 'bank'],
     staleTime: Infinity,
     gcTime: Infinity,
-    queryFn: async (): Promise<Paper[]> =>
-      /* board is the board, year is a year -- subject is mapped to the SITE
-         vocabulary ("Maths"), not the raw bank spelling ("Mathematics"): it
-         feeds coverMeta()'s displayed meta line directly (not just the
-         title), and every other subject-facing surface on the site already
-         reads "Maths" -- see subject-vocabulary.ts for the full history of
-         this exact bug. The cover's own display mapping is built at the call
-         site (coverPaper below), so presentation never corrupts the data
-         it is drawn from. */
-      (await loadPaperIndex()).map((b) => {
-        const subject = bankSubjectToSite(b.subject);
-        return {
-          id: b.id,
-          title: `Class ${b.cls} ${subject}`,
-          school: b.school,
-          subject,
-          class: b.cls,
-          board: b.board,
-          exam_type: b.exam,
-          year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
-          file_url: null,
-          created_at: '',
-          _bankYear: b.year,
-          _questions: b.questionCount,
-          _isBoard: b.isBoardPaper,
-          _needsReview: b.needsReview,
-        };
-      }),
+    queryFn: async (): Promise<Paper[]> => (await loadPaperIndex()).map(toListPaper),
+  });
+  /* The newest published papers, read fresh. bankQuery above is fetched once
+     and kept for the whole session, so by itself it can never show a paper that
+     went live after the tab opened, and it is ordered by exam year. This small
+     read (12 rows) is what makes the "Latest papers" shelf follow the HOD desk:
+     a paper published a minute ago is on the shelf on the next visit, or when
+     the tab regains focus, with no redeploy. One minute of cache keeps a
+     reader from hammering the database; if the read fails the shelf quietly
+     falls back to the cached list below. */
+  const latestQuery = useQuery({
+    queryKey: ['past-papers', 'latest'],
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: true,
+    queryFn: async (): Promise<Paper[]> => (await fetchLatestPublishedPapers(SHELF_LIMIT)).map(toListPaper),
   });
   /* Memoised on the query data, not written as `?? []` inline: a fresh []
      every render is a new identity, which invalidated all three useMemos
@@ -367,22 +384,23 @@ export default function PastPapers() {
   const mostRead = landing.data?.mostRead ?? [];
   /* Bank papers lead: they read as questions rather than as a scan, which is
      the better thing to land on. */
-  /* Sorted, and memoised for the same reason bankPapers is: a fresh array
-     each render is a new identity downstream. It is ordered by EXAM year with
-     undated papers last, not by when a paper was added (bank rows carry no
-     added-date), so it is labelled "Latest papers" and not "Recently added":
-     a 2019 paper must never read as "just added". */
-  const recentPapers = useMemo(() => {
-    const merged = [...bankPapers, ...(landing.data?.recentPapers ?? [])];
-    return merged.sort((a, b) => (b.year || 0) - (a.year || 0));
-  }, [bankPapers, landing.data]);
+  /* Ordered by when a paper was PUBLISHED, newest first (lib/latest-papers.ts),
+     and memoised for the same reason bankPapers is: a fresh array each render
+     is a new identity downstream. It used to be ordered by EXAM year, so a 2024
+     paper an HOD published today sat a hundred places down and never reached
+     the shelf. The fresh read (latestQuery) is passed first so it wins over the
+     session-long cached copy of the same paper. Papers published together
+     share a timestamp, and the exam year then breaks the tie. */
+  const recentPapers = useMemo(
+    () => orderLatest<Paper>(latestQuery.data ?? [], bankPapers, landing.data?.recentPapers ?? []),
+    [latestQuery.data, bankPapers, landing.data],
+  );
 
   /* A shelf is a shelf, not the whole library. This rail was rendering every
      paper: 199 covers across 33,000px of horizontal scroll, which is not a
      browsing gesture anyone completes, and 199 cover images on first paint.
-     Twelve is a shelf you can actually reach the end of, and the end of it is
-     a door to the rest. */
-  const SHELF_LIMIT = 12;
+     Twelve (SHELF_LIMIT) is a shelf you can actually reach the end of, and the
+     end of it is a door to the rest. */
   const shelfPapers = useMemo(() => recentPapers.slice(0, SHELF_LIMIT), [recentPapers]);
   const subjectCounts = useMemo(() => {
     const out: Record<string, number> = { ...(landing.data?.subjectCounts ?? {}) };
