@@ -10,6 +10,9 @@ import { AdminStatusPill } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { AdminDialog } from '@/components/admin/AdminDialog';
 import { AdminError } from '@/components/admin/AdminState';
+import { PaperStatusPill, PaperTimelineDisclosure } from '@/components/PaperStatus';
+import { realHodApi } from '@/lib/hod-api';
+import { EMPTY_MOMENTS, stageOfApprovalRow } from '@/lib/paper-status';
 import { MathText } from '@/components/papers/math-text';
 import { useRefreshAdminCounts } from '@/pages/admin/useAdminSectionCounts';
 import { cn } from '@/lib/utils';
@@ -366,16 +369,26 @@ export function AdminPaperApprovalPage({
             <h1 className="text-balance text-[22px] font-extrabold leading-tight tracking-[-0.03em] text-foreground">{paper.title}</h1>
             {meta ? <p className="mt-0.5 text-[14px] text-warm-secondary">{meta}</p> : null}
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {/* The shared stage label, so this screen reads like the HOD desk and the checker cards. A paper sent back has no stage. */}
+            {!rejected ? <PaperStatusPill stage={approved ? 'live' : stageOfApprovalRow({ open, kind: paper.kind })} /> : null}
             {paper.kind === 'retro' ? (
               open > 0 ? <AdminStatusPill status="pending" label={`Live, ${open} open`} /> : <AdminStatusPill status="live" label="Already live" />
             ) : null}
             {approved ? <AdminStatusPill status="live" label="Approved" /> : null}
             {rejected ? <AdminStatusPill status="hidden" label="Sent back" /> : null}
             {wasLive ? <AdminStatusPill status="paused" label="Off the site" /> : null}
-            {!approved && !rejected ? <AdminStatusPill status="pending" label="Waiting for approval" /> : null}
           </div>
         </div>
+
+        {/* The key moments of this paper (loaded, pictures complete, given out, finished, approved, live), dates fetched when opened. */}
+        <PaperTimelineDisclosure
+          className="mt-3"
+          queryKey={['admin', 'timeline', paper.audit_paper_id]}
+          load={() => realHodApi.paperTimeline(paper.audit_paper_id)}
+          fallback={EMPTY_MOMENTS}
+          stage={approved ? 'live' : stageOfApprovalRow({ open, kind: paper.kind })}
+        />
 
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
           <Stat label="Questions" value={counts.total} />

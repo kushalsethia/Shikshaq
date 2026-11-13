@@ -1,7 +1,20 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { AttentionGroup, PaperStatusPill, PaperTimelineDisclosure } from '@/components/PaperStatus';
 import { EmptyNote, ListSkeleton, LoadError, ago } from '@/components/hod/HodShared';
+import {
+  EMPTY_MOMENTS,
+  STAGE_PARAM,
+  activityLookup,
+  parseStageParam,
+  stageOfAssignment,
+  stageOfFree,
+  stageOfHeldBack,
+  stuckReason,
+  type AttentionItem,
+} from '@/lib/paper-status';
 import { AssignmentWhy } from '@/components/hod/AssignmentWhy';
 import { PROFILES_KEY, TEAM_KEY } from '@/components/hod/VerifiersTab';
 import { useConfirm } from '@/components/ui/use-confirm';
@@ -292,6 +305,22 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   const heldQ = useQuery({ queryKey: HELD_BACK_KEY(scope), queryFn: () => api.heldBackPapers(UNASSIGNED_SHOWN), staleTime: 10_000, refetchOnMount: true });
   const teamQ = useQuery({ queryKey: TEAM_KEY(scope), queryFn: () => api.team(), staleTime: 15_000, refetchOnMount: true });
   const profilesQ = useQuery({ queryKey: PROFILES_KEY(scope), queryFn: () => api.profiles(), staleTime: 15_000, refetchOnMount: true });
+  // When each holder last did anything on a paper, to tell a stuck paper from a slow one. Optional: if the server
+  // cannot say, only papers nobody has started are called stuck (see stuckReason). Never blocks the screen.
+  const activityQ = useQuery({ queryKey: ['hod', scope, 'activity'], queryFn: () => api.paperActivity(), staleTime: 60_000, retry: false });
+  const lookup = activityQ.data ? activityLookup(activityQ.data) : null;
+  const now = new Date();
+  // The strip of counts above the tabs filters this tab with ?stage= (not ready, ready, being checked).
+  const [params, setParams] = useSearchParams();
+  const asked = parseStageParam(params.get(STAGE_PARAM));
+  // "Waiting approval" and "Live" have their own tabs; a stray ?stage=live here filters nothing.
+  const stageFilter = asked === 'checking' || asked === 'ready' || asked === 'not_ready' ? asked : null;
+  const showSection = (s: 'checking' | 'ready' | 'not_ready') => stageFilter === null || stageFilter === s;
+  const clearStageFilter = () => {
+    const next = new URLSearchParams(params);
+    next.delete(STAGE_PARAM);
+    setParams(next, { replace: true });
+  };
   const profileOf = (id: string) => (profilesQ.data ?? []).find((p) => p.user_id === id);
   /** Why someone holds nothing, when it is not just "nothing to give out". */
   const whyIdle = (id: string): string | null => {
@@ -464,15 +493,34 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
       }),
   ];
 
-  const row = (a: HodAssignment) => (
+  /** Everything that is stuck, with the reason in plain words: papers nobody can be given yet, and papers a checker has left untouched. */
+  const attention: AttentionItem[] = [
+    ...(assignmentsQ.data ?? []).flatMap((a) => {
+      const reason = stuckReason(a, lookup, now);
+      return reason ? [{ key: `stuck-${a.assignment_id}`, stage: stageOfAssignment(), label: paperLabel(a), reason }] : [];
+    }),
+    ...(heldQ.data ?? []).map((p) => ({ key: `held-${p.paper_id}`, stage: stageOfHeldBack(), label: paperLabel(p), reason: heldBackWhy(p) })),
+  ];
+
+  const row = (a: HodAssignment) => {
+    const stuck = stuckReason(a, lookup, now);
+    return (
     <li key={a.assignment_id} className="rounded-2xl bg-card p-3" data-testid="assignment-row">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[14px] font-semibold text-foreground">{paperLabel(a)}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[14px] font-semibold text-foreground">{paperLabel(a)}</p>
+            <PaperStatusPill stage={stageOfAssignment()} />
+          </div>
           <p className="text-[12px] text-warm-meta">
             {a.remaining} {a.remaining === 1 ? 'question' : 'questions'} left · {!a.given_by_name || a.given_by_name === 'Automatic' ? 'Given automatically' : `Given by ${a.given_by_name}`}
             {a.assigned_at ? ` ${ago(a.assigned_at)}` : ''}
           </p>
+          {stuck ? (
+            <p className="mt-1 text-[13px] font-semibold text-destructive" data-testid="stuck-reason">
+              {stuck}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {myId && a.user_id !== myId ? (
@@ -500,8 +548,16 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         </div>
       </div>
       <AssignmentWhy api={api} scope={scope} checkerId={a.user_id} paperId={a.paper_id} />
+      <PaperTimelineDisclosure
+        className="mt-2"
+        queryKey={['hod', scope, 'timeline', a.paper_id]}
+        load={() => api.paperTimeline(a.paper_id)}
+        fallback={{ ...EMPTY_MOMENTS, given_at: a.assigned_at }}
+        stage={stageOfAssignment()}
+      />
     </li>
-  );
+    );
+  };
 
   return (
     <div className="space-y-8">
@@ -522,7 +578,21 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         </div>
       ) : null}
 
-      <section aria-labelledby="who-has-what">
+      {stageFilter ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-muted px-4 py-3" role="status" data-testid="stage-filter-note">
+          <span className="flex flex-wrap items-center gap-2 text-[14px] text-foreground">
+            Showing only <PaperStatusPill stage={stageFilter} />
+          </span>
+          <button type="button" onClick={clearStageFilter} className="tap-44 shrink-0 font-semibold underline">
+            Show all papers
+          </button>
+        </div>
+      ) : (
+        // The papers that are stuck, with the reason in plain words. Only on this screen: no extra number on the tab.
+        <AttentionGroup id="assign-attention" items={attention} />
+      )}
+
+      <section aria-labelledby="who-has-what" hidden={!showSection('checking')}>
         <h2 id="who-has-what" className="mb-2 text-[16px] font-bold text-foreground">
           Who has what
         </h2>
@@ -557,7 +627,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         )}
       </section>
 
-      <section aria-labelledby="papers-nobody-has">
+      <section aria-labelledby="papers-nobody-has" hidden={!showSection('ready')}>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h2 id="papers-nobody-has" className="text-[16px] font-bold text-foreground">
             Papers nobody has
@@ -611,7 +681,10 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
                     className="h-5 w-5 shrink-0 accent-[hsl(var(--brand))]"
                   />
                   <span className="min-w-0">
-                    <span className="block text-[14px] font-semibold text-foreground">{paperLabel(p)}</span>
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="block text-[14px] font-semibold text-foreground">{paperLabel(p)}</span>
+                      <PaperStatusPill stage={stageOfFree()} />
+                    </span>
                     <span className="block text-[12px] text-warm-meta">
                       {p.open_count} {p.open_count === 1 ? 'question' : 'questions'} waiting
                       {p.cls ? '' : ' · class not known'}
@@ -641,6 +714,13 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
                   />
                 </div>
                </div>
+               <PaperTimelineDisclosure
+                 className="mt-2"
+                 queryKey={['hod', scope, 'timeline', p.paper_id]}
+                 load={() => api.paperTimeline(p.paper_id)}
+                 fallback={EMPTY_MOMENTS}
+                 stage={stageOfFree()}
+               />
               </li>
               );
             })}
@@ -665,7 +745,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         )}
       </section>
 
-      <section aria-labelledby="papers-not-ready" data-testid="not-ready-section" className="mt-6">
+      <section aria-labelledby="papers-not-ready" data-testid="not-ready-section" className="mt-6" hidden={!showSection('not_ready')}>
         <h2 id="papers-not-ready" className="mb-1 text-[16px] font-bold text-foreground">
           Not ready to give out
         </h2>
@@ -683,11 +763,21 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
           <ul className="space-y-2">
             {(heldQ.data ?? []).map((p) => (
               <li key={p.paper_id} className="rounded-2xl bg-muted shadow-card p-3" data-testid="not-ready-paper">
-                <span className="block text-[14px] font-semibold text-foreground">{paperLabel(p)}</span>
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="block text-[14px] font-semibold text-foreground">{paperLabel(p)}</span>
+                  <PaperStatusPill stage={stageOfHeldBack()} />
+                </span>
                 <span className="block text-[12px] text-warm-meta">
                   {p.open_count} {p.open_count === 1 ? 'question' : 'questions'} waiting
                 </span>
                 <span className="mt-0.5 block text-[13px] text-foreground">{heldBackWhy(p)}</span>
+                <PaperTimelineDisclosure
+                  className="mt-2"
+                  queryKey={['hod', scope, 'timeline', p.paper_id]}
+                  load={() => api.paperTimeline(p.paper_id)}
+                  fallback={EMPTY_MOMENTS}
+                  stage={stageOfHeldBack()}
+                />
               </li>
             ))}
           </ul>

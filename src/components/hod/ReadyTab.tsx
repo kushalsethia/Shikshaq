@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { AttentionGroup, PaperStatusPill, PaperTimelineDisclosure } from '@/components/PaperStatus';
 import { EmptyNote, ListSkeleton, LoadError, ago, deskLink } from '@/components/hod/HodShared';
+import { EMPTY_MOMENTS, stageOfReady, waitingReason, type AttentionItem } from '@/lib/paper-status';
 import { PublishFlow } from '@/components/hod/PublishFlow';
 import { CheckChips, RouteTrail } from '@/components/hod/RouteTrail';
 import { actionToneClass } from '@/lib/checker-button-styles';
@@ -28,9 +30,16 @@ function ReadyList({ api, scope }: { api: HodApi; scope: string }) {
     return <EmptyNote>No paper is ready yet. When every question on a paper is settled, it waits here for your yes.</EmptyNote>;
   }
   const ok = list.filter((p) => p.all_ok).length;
+  const now = new Date();
+  // Papers held up: a check is not passing, or the paper has waited a week for a yes. The reason is said in words.
+  const attention: AttentionItem[] = list.flatMap((p) => {
+    const reason = waitingReason(p, now);
+    return reason ? [{ key: p.audit_paper_id, stage: stageOfReady(p), label: p.title, reason }] : [];
+  });
   return (
     <div>
-      <p className="mb-3 text-[13px] text-warm-secondary" data-testid="ready-summary">
+      <AttentionGroup id="ready-attention" items={attention} />
+      <p className="mb-3 mt-3 text-[13px] text-warm-secondary" data-testid="ready-summary">
         {list.length === 1 ? '1 paper is ready' : `${list.length} papers are ready`}, {ok === 0 ? 'none can go live yet' : ok === 1 ? '1 can go live now' : `${ok} can go live now`}. Open a paper to read it,
         run the checks and publish.
       </p>
@@ -39,7 +48,10 @@ function ReadyList({ api, scope }: { api: HodApi; scope: string }) {
           <li key={p.audit_paper_id} className="rounded-[18px] bg-muted shadow-card p-4" data-testid="ready-paper" data-ok={p.all_ok}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[15px] font-bold text-foreground">{p.title}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-[15px] font-bold text-foreground">{p.title}</p>
+                  <PaperStatusPill stage={stageOfReady(p)} />
+                </div>
                 <p className="mt-0.5 text-[12px] text-warm-meta">
                   {[p.school, p.cls ? `Class ${p.cls}` : null, p.board, p.exam, p.year].filter(Boolean).join(' · ')}
                 </p>
@@ -67,6 +79,13 @@ function ReadyList({ api, scope }: { api: HodApi; scope: string }) {
               {p.kind === 'retro' ? <span className="rounded-full bg-card px-2.5 py-1 text-[12px] text-warm-secondary">Already live: approving records it</span> : null}
             </div>
             <RouteTrail stage={stageOf.get(p.audit_paper_id) ?? 'ready'} className="mt-3" />
+            <PaperTimelineDisclosure
+              className="mt-3"
+              queryKey={['hod', scope, 'timeline', p.audit_paper_id]}
+              load={() => api.paperTimeline(p.audit_paper_id)}
+              fallback={{ ...EMPTY_MOMENTS, finished_at: p.queued_at }}
+              stage={stageOfReady(p)}
+            />
           </li>
         ))}
       </ul>
