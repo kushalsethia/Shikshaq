@@ -5,9 +5,11 @@ import { toast } from 'sonner';
 import { MathText } from '@/components/papers/math-text';
 import { OptionList } from '@/components/checker/OptionList';
 import { BackLink, EmptyNote, ListSkeleton, LoadError, Notice, QuestionPicture, ago, deskLink, quietButton } from '@/components/hod/HodShared';
+import { HodQuestionDiagrams, useHodDiagrams } from '@/components/hod/HodQuestionDiagrams';
 import { QuestionFixForm } from '@/components/hod/QuestionFixForm';
 import { RouteTrail } from '@/components/hod/RouteTrail';
 import { actionToneClass } from '@/lib/checker-button-styles';
+import { withoutShownFigureFlag } from '@/lib/checker-diagrams';
 import { adminFlagLines } from '@/lib/paper-edit';
 import type { RawOption } from '@/lib/checker-options';
 import type { HodApi } from '@/lib/hod-api';
@@ -62,7 +64,10 @@ function QuestionCard({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const label = labelOf(q);
-  const why = adminFlagLines(q.flag_reasons, null);
+  // The stored diagram of this question (owner, 13 Nov 2026: "diagram still missing"). Once one is on screen the
+  // "figure missing" tip is no longer true, so it is left out, as on the checker's screen.
+  const diagrams = useHodDiagrams(api, q.id);
+  const why = adminFlagLines(withoutShownFigureFlag(q.flag_reasons, diagrams.length > 0), null);
 
   async function run(action: () => Promise<unknown>, done?: string) {
     setBusy(true);
@@ -159,13 +164,10 @@ function QuestionCard({
             </ul>
           ) : null}
         </div>
-        <QuestionPicture
-          api={api}
-          paperId={q.paper_id}
-          path={q.snippet_path ?? q.page_path}
-          page={q.page}
-          className="min-w-0 lg:sticky lg:top-24 lg:self-start"
-        />
+        <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
+          <HodQuestionDiagrams items={diagrams} />
+          <QuestionPicture api={api} paperId={q.paper_id} path={q.snippet_path ?? q.page_path} page={q.page} className="min-w-0" />
+        </div>
       </div>
 
       {panel === 'back' || panel === 'aside' ? (
