@@ -24,7 +24,7 @@ import type { CheckerApi, CheckerQuestion } from '@/lib/checker-api';
 import { whatToCheck } from '@/lib/checker-kid-reasons';
 import { englishContext, passageHeading } from '@/lib/checker-english';
 import { assembleQuestionContext, wholeQuestionRows, type QuestionContext } from '@/lib/checker-context';
-import { focusedPartId, planCheckerPicture, planPartPictures, pictureHeading, PICTURE_MAY_MISS_PARTS, type PartPicture, type PicturePlan } from '@/lib/checker-pictures';
+import { focusedPartId, noPictureSummary, planCheckerPicture, planPartPictures, pictureHeading, PICTURE_MAY_MISS_PARTS, type PartPicture, type PicturePlan } from '@/lib/checker-pictures';
 import { planVerifiedPage, PAGE_HEADING, type PagePlan } from '@/lib/checker-page';
 import { describeLanes, unmappedCodes } from '@/lib/checker-lanes';
 import { lostTextSuggestion, LOST_TEXT_CONFIRM, LOST_TEXT_HEADING, LOST_TEXT_NOTE, LOST_TEXT_TITLE } from '@/lib/checker-lost-text';
@@ -1695,6 +1695,13 @@ export function VerifyScreen({
         const checkedPartId = partPictures?.find((p) => p.current)?.id ?? question.id;
         const partUrls: Record<string, string | null | undefined> = tilesOn ? { ...otherPartUrls, [checkedPartId]: cropShown } : {};
         const focusedUrl = tilesOn ? partUrls[focusId] : undefined;
+        // The checked part has no clipping and no page matched: the whole paper is its only picture. Then the part
+        // tiles and the whole-paper flip are ONE box, not two stacked boxes with the same title (owner, 13 Nov 2026:
+        // "why double if no clipping found"). Parts that have a picture keep their tile; the ones without get one line.
+        const oneBox = tilesOn && flipShown;
+        const partHasShownPicture = (p: PartPicture) => Boolean(p.path) && partUrls[p.id] !== null;
+        const shownParts = oneBox ? (partPictures ?? []).filter(partHasShownPicture) : [];
+        const missingPartLabels = oneBox ? (partPictures ?? []).filter((p) => !partHasShownPicture(p)).map((p) => p.label) : [];
         // Scrolls the left words and the right picture to the same part. A picture arriving late moves the tiles, so it re-aims.
         const loadedTiles = Object.values(partUrls).filter(Boolean).length;
         const leftRevealKey = contextRows.length > 0 ? `${question.id}|${focusId}` : '';
@@ -1727,7 +1734,7 @@ export function VerifyScreen({
         const enlargeButtonClass =
           'tap-44 rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-foreground transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus';
 
-        const partsBody = partPictures ? (
+        const partsBody = partPictures && !oneBox ? (
           <PartPictures
             parts={partPictures}
             urls={partUrls}
@@ -1838,6 +1845,30 @@ export function VerifyScreen({
             questionPage={pageNumberOf(question.source?.page)}
           />
         );
+        // The one box (see oneBox): a quiet line for the parts without a picture, the whole paper to flip through, and
+        // the pictures the other parts do have under it.
+        const oneBoxBody = oneBox ? (
+          <div className="flex min-w-0 flex-col gap-3" data-testid="one-photo-box">
+            {missingPartLabels.length > 0 ? (
+              <p className="text-[13px] leading-snug text-warm-secondary" data-testid="no-part-pictures-note">
+                {noPictureSummary(missingPartLabels)}
+              </p>
+            ) : null}
+            {flipBody}
+            {shownParts.length > 0 ? (
+              <div className="flex min-w-0 flex-col gap-2">
+                <p className="text-[12px] font-semibold text-warm-secondary">Printed pictures of the other parts</p>
+                <PartPictures
+                  parts={shownParts}
+                  urls={partUrls}
+                  focusId={focusId}
+                  onFocus={focusPart}
+                  onEnlarge={(src, alt) => setLightbox({ src, alt })}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null;
         // The same flip, opened by the verifier: it must not say "no page matched".
         const paperBody = (
           <PaperPageFlip
@@ -1871,7 +1902,7 @@ export function VerifyScreen({
 
                 {/* Right: the photo of the printed paper, in its own strong frame. */}
                 <div className="flex min-h-0 min-w-0 flex-col gap-3" data-testid="bento-right">
-                  {cropVisible ? (
+                  {cropVisible && !oneBox ? (
                     <PrintedFrame
                       tile
                       tabbed={false}
@@ -1924,10 +1955,10 @@ export function VerifyScreen({
                       tile
                       tabbed={false}
                       id="verify-panel-page"
-                      tourId={cropVisible ? undefined : 'picture'}
+                      tourId={cropVisible && !oneBox ? undefined : 'picture'}
                       label={pageViewerOn ? PAGE_HEADING : paperOpen ? 'The whole paper' : 'Photo of the printed paper'}
                       title={pageViewerOn ? PAGE_HEADING : paperOpen ? 'The whole paper' : pictureHeading(null)}
-                      panelClass="flex min-h-0 flex-[3_1_0%]"
+                      panelClass={cn('flex min-h-0', oneBox ? 'flex-1' : 'flex-[3_1_0%]')}
                       headerExtra={
                         paperOpen
                           ? paperToggleButton('bg-white px-3 py-1 text-[12px]')
@@ -1935,11 +1966,21 @@ export function VerifyScreen({
                             ? pageToggleButton('bg-white px-3 py-1 text-[12px]')
                             : paperToggle
                               ? paperToggleButton('bg-white px-3 py-1 text-[12px]')
-                              : null
+                              : oneBox && enlargeCrop
+                                ? (
+                                  <button type="button" onClick={enlargeCrop} className={enlargeButtonClass}>
+                                    Enlarge
+                                  </button>
+                                )
+                                : null
                       }
                     >
                       {pageViewerOn ? (
                         pageBody(true)
+                      ) : oneBox ? (
+                        <FadeScroll revealKey={rightRevealKey} revealSelector={FOCUSED_SELECTOR}>
+                          {oneBoxBody}
+                        </FadeScroll>
                       ) : (
                         <FadeScroll>{paperOpen ? paperBody : flipBody}</FadeScroll>
                       )}
@@ -1995,7 +2036,7 @@ export function VerifyScreen({
               {flipShown ? (
                 <div className="flex min-w-0 flex-col">
                   <p className="mb-1 text-[12px] font-semibold text-warm-secondary">{pictureHeading(null)}</p>
-                  {flipBody}
+                  {oneBox ? oneBoxBody : flipBody}
                 </div>
               ) : null}
               {paperOpen ? <div className="flex min-w-0 flex-col">{paperBody}</div> : null}
