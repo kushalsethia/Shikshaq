@@ -155,7 +155,7 @@ export const CHECKS: { key: CheckKey; label: string; short: string; fixHint: str
     key: 'pictures_present',
     label: 'Pictures are in place',
     short: 'Pictures present',
-    fixHint: 'A picture has not reached the site yet. Pictures go up when the owner says to upload them.',
+    fixHint: 'Pictures are copied to the site by themselves when the paper is opened here. If one is still missing, press Try again at the top of the paper.',
   },
   {
     key: 'header_complete',

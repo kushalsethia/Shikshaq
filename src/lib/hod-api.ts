@@ -1,6 +1,13 @@
 import { supabase } from '@/integrations/supabase/client';
 import { withTimeout } from '@/lib/checker-timeout';
-import { checkerPictureUrl, paperPagePictures, verifierQuestionDiagrams, type QuestionDiagram } from '@/lib/checker-api';
+import {
+  checkerPictureUrl,
+  isMissingFunctionError,
+  paperPagePictures,
+  verifierQuestionDiagrams,
+  type QuestionDiagram,
+} from '@/lib/checker-api';
+import type { StagePictureItem } from '@/lib/stage-pictures';
 import type { RawOption } from '@/lib/checker-options';
 import { paperLabel } from '@/lib/checker-progress';
 import { isVerifierGrade } from '@/lib/verifier-papers';
@@ -673,6 +680,32 @@ export interface HodApi {
   paperTimeline(auditPaperId: string): Promise<PaperMoments | null>;
   /** hod_paper_activity(): when each held paper's holder last did anything on it. null when the server cannot say; then only never-started papers can be called stuck. */
   paperActivity(): Promise<PaperActivity[] | null>;
+  /** hod_unstaged_pictures(): the ready pictures that have no public copy yet. null when the server cannot say (the function is not installed yet). */
+  unstagedPictures(auditPaperId: string): Promise<StagePictureItem[] | null>;
+  /** Copy one private picture to the public figures store with the HOD's own session. "Already there" counts as done. */
+  copyPictureToSite(item: StagePictureItem): Promise<void>;
+  /** hod_confirm_staged_picture(): the server checks the copies exist and records the public path; the version lock applies. */
+  confirmStagedPicture(questionId: string, version: number): Promise<void>;
+}
+
+/** The rows of hod_unstaged_pictures(), kept only when every field the copy needs is there. */
+export function normaliseStageItems(raw: unknown): StagePictureItem[] {
+  const out: StagePictureItem[] = [];
+  for (const r of rows(raw)) {
+    const o = obj(r);
+    const questionId = str(o.question_id);
+    const from = str(o.from_path);
+    const to = str(o.to_path);
+    if (!questionId || !from || !to) continue;
+    out.push({ question_id: questionId, question_version: num(o.question_version), from_path: from, to_path: to, is_first: o.is_first === true });
+  }
+  return out;
+}
+
+/** True when a storage upload failed only because the public copy is already there (a second tab, or a retry). */
+export function isAlreadyThere(error: { message?: string; statusCode?: string | number } | null | undefined): boolean {
+  if (!error) return false;
+  return String(error.statusCode ?? '') === '409' || /already exists|duplicate/i.test(error.message ?? '');
 }
 
 /** A desk call that has not answered in 60 seconds is cut off and fails like a lost connection. Without a limit,
@@ -845,6 +878,30 @@ export const realHodApi: HodApi = {
     } catch {
       return null;
     }
+  },
+  // Getting a ready picture onto the site by itself (20261113300000_auto_stage_pictures.sql). The first call answers null
+  // only when the server does not have the function yet; a dropped connection or a refusal throws and is shown as such.
+  async unstagedPictures(auditPaperId) {
+    const { data, error } = await withTimeout(
+      supabase.rpc('hod_unstaged_pictures' as never, { p_audit_paper_id: auditPaperId } as never),
+      HOD_CALL_TIMEOUT_MS,
+    );
+    if (error) {
+      if (isMissingFunctionError(error)) return null;
+      throw error;
+    }
+    return normaliseStageItems(data);
+  },
+  async copyPictureToSite(item) {
+    const down = await supabase.storage.from('audit-figures').download(item.from_path);
+    if (down.error || !down.data) throw down.error ?? new Error('The picture could not be read.');
+    const up = await supabase.storage
+      .from('paper-figures')
+      .upload(item.to_path, down.data, { contentType: down.data.type || 'image/png', upsert: false });
+    if (up.error && !isAlreadyThere(up.error as { message?: string; statusCode?: string | number })) throw up.error;
+  },
+  async confirmStagedPicture(questionId, version) {
+    await call('hod_confirm_staged_picture', { p_question_id: questionId, p_expected_version: version });
   },
 };
 
