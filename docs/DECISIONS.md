@@ -62,7 +62,11 @@ The owner is not a developer. Anything said to them is plain English.
 ## Checker experience (13 Nov 2026)
 
 - **A checker with nothing left sees a plain message and an "Ask HOD for more" button** that tells the HODs the
-  person is free. NOT BUILT YET (to-do #69; needs a small database table and function, written as a paste file).
+  person is free. IN A PULL REQUEST (to-do #69, 13 Nov 2026): the button is on the empty My papers screen and a "Waiting for papers"
+  list is on the HOD Assignments tab. One open ask per person, gone after 3 days or once they hold a paper again, an HOD can
+  clear one, 3 asks a day at most. It needs one database file pasted by the owner
+  (`supabase/migrations/20261113200000_ask_for_papers.sql`, same text as the paste file `PASTE_IN_SUPABASE_SQL_EDITOR_ASK_FOR_PAPERS_20261113.sql`
+  in the Shikshaq Papers folder); until then both places say "not switched on yet" and nothing breaks.
 - **A private progress screen for each volunteer, and a friendly leaderboard visible to the team only** (checkers
   and HODs, never the public). No certificates. NOT BUILT YET.
 - **Checkers' work and hand-out:** papers are given by the hand-out job; a checker holds at most 10 papers with work.

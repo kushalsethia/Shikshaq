@@ -16,6 +16,8 @@ import { CheckerSkeleton, Chip, Modal } from '@/components/checker/CheckerBits';
 import { VerifyScreen } from '@/components/checker/VerifyScreen';
 import { ReportProblemDialog, type ReportView } from '@/components/requests/ReportProblemDialog';
 import { realFixRequestsApi, type FixRequestsApi } from '@/lib/fix-requests-api';
+import { realPaperAsksApi, type PaperAsksApi } from '@/lib/paper-asks-api';
+import { AskForPapers } from '@/components/checker/AskForPapers';
 import { screenPath } from '@/lib/fix-requests';
 import { MathText } from '@/components/papers/math-text';
 import { isBlankBody } from '@/lib/checker-body';
@@ -81,12 +83,15 @@ export default function Checker() {
 export function CheckerPage({
   api,
   requestsApi = realFixRequestsApi,
+  asksApi = realPaperAsksApi,
   dummy = false,
   banner,
 }: {
   api: CheckerApi;
   /** Report a problem and My requests; the fake in dummy mode. */
   requestsApi?: FixRequestsApi;
+  /** The Ask my HOD for more papers button; the fake in dummy mode. */
+  asksApi?: PaperAsksApi;
   /** Dummy mode: no sign-in, no realtime, fake API. */
   dummy?: boolean;
   banner?: React.ReactNode;
@@ -297,7 +302,7 @@ export function CheckerPage({
           {paperId ? (
             <PaperOverview api={api} scope={scope} paperId={paperId} onBack={toList} onStart={() => verify(paperId)} onEdit={(qid) => editDone(paperId, qid)} />
           ) : (
-            <PaperList api={api} scope={scope} onOpen={open} onStart={verify} />
+            <PaperList api={api} asksApi={asksApi} scope={scope} onOpen={open} onStart={verify} />
           )}
         </BentoPanel>
       )}
@@ -384,11 +389,13 @@ export function CheckerPage({
 
 function PaperList({
   api,
+  asksApi,
   scope,
   onOpen,
   onStart,
 }: {
   api: CheckerApi;
+  asksApi: PaperAsksApi;
   scope: string;
   onOpen: (id: string) => void;
   onStart: (id: string) => void;
@@ -428,6 +435,7 @@ function PaperList({
             Papers are given out automatically to match your grade, your board and the subjects your HOD has set for you. Check back soon, or ask your
             HOD.
           </p>
+          <AskForPapers api={asksApi} scope={scope} />
         </div>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2" aria-label="My papers">
