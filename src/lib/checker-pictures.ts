@@ -159,6 +159,18 @@ export function noPictureLine(label: string): string {
 }
 
 /**
+ * One quiet line for every part that has no crop of its own, used when the whole paper is the only picture of
+ * the checked part (owner, 13 Nov 2026: "why double if no clipping found"): "No separate picture for (a), (b) and (c)."
+ * Empty text for an empty list. No dashes in the words.
+ */
+export function noPictureSummary(labels: string[]): string {
+  const clean = labels.map((l) => l.trim()).filter(Boolean);
+  if (clean.length === 0) return '';
+  const joined = clean.length === 1 ? clean[0] : `${clean.slice(0, -1).join(', ')} and ${clean[clean.length - 1]}`;
+  return `No separate picture for ${joined}.`;
+}
+
+/**
  * The right pane mirrors the left: one picture per row of the whole question, in
  * the same order. Each row uses its own crop (same rules as the single picture:
  * a doubtful crop is never shown). A stem with no crop of its own simply has no

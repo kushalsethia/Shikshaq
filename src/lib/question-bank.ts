@@ -98,6 +98,11 @@ export interface BankPaper {
   /** D66: a small note when the source paper itself was incomplete (missing
    *  pages, a cut-off scan, etc.) -- never a claim about question quality. */
   incompleteNote: string | null;
+  /** When the paper was published (bank_papers.created_at, an ISO timestamp).
+   *  Optional so older callers and fixtures that never set it keep compiling;
+   *  '' or missing means unknown. The "Latest papers" shelf orders by this, not
+   *  by exam year: a 2024 paper published today is the latest paper. */
+  addedAt?: string;
 }
 
 /* Several papers carry no year at all. The column is null in those cases;
@@ -111,7 +116,7 @@ export const hasYear = (y: string | null | undefined): boolean =>
 --------------------------------------------------------------------------- */
 
 const PAPER_COLUMNS =
-  'id, school, school_raw, is_board_paper, has_school, year, exam, cls, subject, board, question_count, marks, needs_review, allowed_time_minutes, general_instructions, incomplete_note';
+  'id, school, school_raw, is_board_paper, has_school, year, exam, cls, subject, board, question_count, marks, needs_review, allowed_time_minutes, general_instructions, incomplete_note, created_at';
 
 interface PaperRow {
   id: string;
@@ -130,6 +135,7 @@ interface PaperRow {
   allowed_time_minutes: number | null;
   general_instructions: string | null;
   incomplete_note: string | null;
+  created_at?: string | null;
 }
 
 const toPaper = (r: PaperRow): BankPaper => ({
@@ -155,6 +161,7 @@ const toPaper = (r: PaperRow): BankPaper => ({
   allowedTimeMinutes: r.allowed_time_minutes ?? null,
   generalInstructions: r.general_instructions ?? null,
   incompleteNote: r.incomplete_note ?? null,
+  addedAt: r.created_at ?? '',
 });
 
 let indexCache: Promise<BankPaper[]> | null = null;
@@ -262,6 +269,33 @@ export function loadPaperIndex(): Promise<BankPaper[]> {
       });
   }
   return indexCache;
+}
+
+/**
+ * The papers published most recently, newest publish first.
+ *
+ * loadPaperIndex() above is fetched once and kept for the whole session, so it
+ * can never show a paper that was published after the tab opened; and it is
+ * ordered by exam year, so a 2024 paper published today sits a hundred places
+ * down. The "Latest papers" shelf needs neither of those: it asks for just the
+ * newest few, fresh, ordered by bank_papers.created_at (when the paper went
+ * live; anon may read it). Papers published in the same batch share a
+ * timestamp, so year then id break the tie, which keeps the order stable.
+ *
+ * Same filters as every public read of the bank: published and question_count > 0.
+ */
+export async function fetchLatestPublishedPapers(limit = 12): Promise<BankPaper[]> {
+  const { data, error } = await supabase
+    .from('bank_papers')
+    .select(PAPER_COLUMNS)
+    .eq('is_published', true).gt('question_count', 0)
+    .order('created_at', { ascending: false })
+    .order('year', { ascending: false, nullsFirst: false })
+    .order('id', { ascending: true })
+    .limit(limit)
+    .returns<PaperRow[]>();
+  if (error) throw new Error(`latest papers: ${error.message}`);
+  return (data ?? []).map(toPaper);
 }
 
 /* A reader opens one paper, so it fetches one paper's questions. Memoised per

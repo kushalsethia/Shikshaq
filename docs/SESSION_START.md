@@ -50,13 +50,25 @@ Show these first, each in one line:
 select 'database size' as what, pg_size_pretty(pg_database_size(current_database())) as value
 union all select 'picture storage MB (bucket audit-figures only)',
   round(coalesce(sum((metadata->>'size')::bigint),0)/1048576.0)::text from storage.objects where bucket_id = 'audit-figures'
-union all select 'papers held over 7 days with no action from their checker',
+union all select 'papers a checker has left untouched for 7 days (questions still to do)',
   (select count(*) from public.checker_assignments a
     where a.status in ('queued','assigned') and a.assigned_at < now() - interval '7 days'
-      and not exists (select 1 from public.audit_review_log l
+      and public.verifier_has_work(a.audit_paper_id)
+      and not exists (select 1 from public.audit_review_log_counted l
                        where l.paper_id = a.audit_paper_id and l.actor_user_id = a.user_id
-                         and l.at > now() - interval '7 days'))::text;
+                         and l.at > now() - interval '7 days'))::text
+union all select 'papers whose checker finished, waiting 7+ days for an HOD to decide flagged questions',
+  (select count(*) from public.checker_assignments a
+    where a.status in ('queued','assigned') and a.assigned_at < now() - interval '7 days'
+      and not public.verifier_has_work(a.audit_paper_id))::text;
 ```
+
+Two different things, kept apart on purpose (found 13 Nov 2026, to-do #75). The first is a checker who has questions
+left and has gone quiet: the automatic 7-day return (`verifier_return_idle`, run every 2 minutes by the give-out timer)
+takes these back, so this number should stay 0. The second is a checker who has **finished** their part; the flagged
+questions that remain are the HOD's to decide ("Needs you" tab). The return leaves those alone on purpose (a paper
+waiting on the HOD is never taken back), so this number only falls when an HOD decides. On 13 Nov it was 0 and 32
+(57 flagged questions, 56 of them older than 7 days). Never call the second kind "stuck with the checker".
 
 - Database free allowance is **500 MB**. Over it, tell the owner and point at the trim plan in `docs/DECISIONS.md`.
 - The picture-storage cap used by the pipeline is **900 MB** across storage, with a 40 MB reserve (ceiling 860). The
