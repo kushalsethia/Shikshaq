@@ -392,7 +392,7 @@ export async function lookupWhatsAppLink(slug: string): Promise<{ failed: boolea
 /* ---------------------------------------------------------------------------
    Paging and chunking mechanics, lifted out of Browse.tsx.
 
-   docs/REDESIGN_STATUS.md flagged Browse's data layer as the one big open item
+   docs/archive/REDESIGN_STATUS.md flagged Browse's data layer as the one big open item
    and set the boundary for any extraction: move the MECHANICS (how many rows a
    page holds, how slugs are chunked, how the is_paused retry works) and leave
    the SEMANTICS (filterShikshaqRecords, applyServerPrefilters, SHIKSHAQ_COLUMNS)

@@ -1,5 +1,10 @@
 # Launch runbook
 
+> **History (13 Nov 2026).** This records the 26 September 2026 launch, when `shikshaq-2.0` was merged into `main`.
+> Since 5 Nov 2026 work happens on short branches from `main` and reaches it only as a pull request the owner
+> says "merge" to (see `CLAUDE.md`, "Remotes and branches"). The rollback tag, the post-deploy checks and the fact
+> that merging to `main` deploys to real users are still true; the branch names below are old.
+
 Merging `shikshaq-2.0` into `main` **is** the public launch. Vercel builds the
 live site from `main`, so the moment that push lands, real users get the
 redesign. There is no staging step between the two.
