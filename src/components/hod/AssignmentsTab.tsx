@@ -13,6 +13,7 @@ import {
   stageOfFree,
   stageOfHeldBack,
   stuckReason,
+  waitingForHodReason,
   type AttentionItem,
 } from '@/lib/paper-status';
 import { AssignmentWhy } from '@/components/hod/AssignmentWhy';
@@ -496,7 +497,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   /** Everything that is stuck, with the reason in plain words: papers nobody can be given yet, and papers a checker has left untouched. */
   const attention: AttentionItem[] = [
     ...(assignmentsQ.data ?? []).flatMap((a) => {
-      const reason = stuckReason(a, lookup, now);
+      const reason = stuckReason(a, lookup, now) ?? waitingForHodReason(a, now);
       return reason ? [{ key: `stuck-${a.assignment_id}`, stage: stageOfAssignment(), label: paperLabel(a), reason }] : [];
     }),
     ...(heldQ.data ?? []).map((p) => ({ key: `held-${p.paper_id}`, stage: stageOfHeldBack(), label: paperLabel(p), reason: heldBackWhy(p) })),
@@ -504,6 +505,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
 
   const row = (a: HodAssignment) => {
     const stuck = stuckReason(a, lookup, now);
+    const waitingForHod = waitingForHodReason(a, now);
     return (
     <li key={a.assignment_id} className="rounded-2xl bg-card p-3" data-testid="assignment-row">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -519,6 +521,11 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
           {stuck ? (
             <p className="mt-1 text-[13px] font-semibold text-destructive" data-testid="stuck-reason">
               {stuck}
+            </p>
+          ) : null}
+          {waitingForHod ? (
+            <p className="mt-1 text-[13px] font-semibold text-warm-meta" data-testid="waiting-for-hod-reason">
+              {waitingForHod}
             </p>
           ) : null}
         </div>

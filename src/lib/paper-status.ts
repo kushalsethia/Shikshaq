@@ -154,10 +154,13 @@ export function activityLookup(rows: PaperActivity[]): ActivityLookup {
  * have been worked on last night; saying "stuck" about it would be a false alarm.
  */
 export function stuckReason(
-  a: { paper_id: string; user_id: string; checker_name: string | null; assigned_at: string | null; started_at: string | null },
+  a: { paper_id: string; user_id: string; checker_name: string | null; assigned_at: string | null; started_at: string | null; remaining?: number },
   activity: ActivityLookup | null,
   now: Date,
 ): string | null {
+  // Nothing left for the checker to do: the rest waits for an HOD, so it is never the checker who is stuck
+  // (found 13 Nov 2026: 32 papers were blamed on checkers who had finished their part; see waitingForHodReason).
+  if (a.remaining === 0) return null;
   const who = a.checker_name?.trim() || 'The checker';
   let lastAction: string | null;
   let baseline: string | null;
@@ -172,6 +175,22 @@ export function stuckReason(
   const days = daysSince(baseline, now);
   if (days === null || days < STUCK_DAYS) return null;
   return lastAction ? `${who} has done nothing on this for ${dayWord(days)}.` : `${who} was given this ${dayWord(days)} ago and has not started it.`;
+}
+
+/**
+ * A paper a checker holds, with nothing left for the checker, for STUCK_DAYS days or more: the checker has finished their
+ * part and the questions still open wait for an HOD to decide (the "Needs you" tab). The 7-day automatic return leaves
+ * these alone on purpose, so this is the HOD's to clear, not the checker's fault. Null when it does not apply.
+ */
+export function waitingForHodReason(
+  a: { checker_name: string | null; assigned_at: string | null; remaining?: number },
+  now: Date,
+): string | null {
+  if (a.remaining !== 0) return null;
+  const days = daysSince(a.assigned_at, now);
+  if (days === null || days < STUCK_DAYS) return null;
+  const who = a.checker_name?.trim() || 'The checker';
+  return `${who} has finished their part. The questions that are left wait for an HOD to decide (open Needs you).`;
 }
 
 /** Why a paper waiting for a yes is held up, or null. A failing check or a long wait. */
