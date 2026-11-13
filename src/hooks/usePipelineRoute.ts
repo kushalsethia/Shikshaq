@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PipelineRoute, PipelineRouteApi } from '@/lib/pipeline-route';
 import { browserPollerEnv, createPoller, type Poller } from '@/lib/pipeline-route-poller';
 
-export const ROUTE_POLL_MS = 20_000;
+/* Once a minute. The route takes about 3 seconds on the database, so reading it every 20 seconds kept it busy a
+   sixth of the time for every open Pipeline page. Coming back to the tab, focusing the window and the Refresh
+   button still read straight away. */
+export const ROUTE_POLL_MS = 60_000;
 
 export interface PipelineRouteState {
   route: PipelineRoute | null;
@@ -16,7 +19,7 @@ export interface PipelineRouteState {
   refresh: () => void;
 }
 
-/** Reads the route now and every 20 seconds while the tab is visible. Keeps the previous numbers if a read fails. */
+/** Reads the route now and every minute while the tab is visible. Keeps the previous numbers if a read fails. */
 export function usePipelineRoute(api: PipelineRouteApi, intervalMs = ROUTE_POLL_MS): PipelineRouteState {
   const [route, setRoute] = useState<PipelineRoute | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);

@@ -1,3 +1,4 @@
+import { retryUnlessTimeout } from "@/lib/query-retry";
 import { LOCALITY_PAGE_PATHS } from "./content/locality-paths.generated";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -113,7 +114,8 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       refetchOnMount: false,
       refetchOnReconnect: false,
-      retry: 1, // Reduce retries on mobile
+      // One retry for a dropped connection, none for a read that was simply too slow (a retry would double the wait).
+      retry: retryUnlessTimeout,
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
     },

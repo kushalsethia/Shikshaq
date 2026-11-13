@@ -336,7 +336,7 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
     short: 'Every paper on its way from a PDF saved on the main computer to live.',
     purpose:
       "One picture of the whole route: PDFs saved on the main computer, read by the AI, pictures waiting, checking by students, needs you, ready to go live, live. HODs see the same route from the HOD desk. Use it to see where papers are piling up. The numbers are only as new as the desk's last sync, and the page says when that was.",
-    flow: 'Read only. The route checks again every 20 seconds. A stage that says ? has not been sent by the desk yet.',
+    flow: 'Read only. The route checks again every minute, and straight away when you come back to this page or press Refresh. A stage that says ? has not been sent by the desk yet.',
     buttons: [],
   },
   feedback: {
