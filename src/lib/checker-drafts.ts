@@ -194,6 +194,22 @@ export function saveDraft(scope: string, q: DraftQuestion, d: Drafts, storage: S
   }
 }
 
+/** Forget every kept draft in this tab. Done at sign-out: the next person on the tab must never be offered
+ *  the last person's typed words (the key has no user in it, only the question and its version). */
+export function clearAllDrafts(storage: Storage | null = store()): void {
+  if (!storage) return;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < storage.length; i += 1) {
+      const k = storage.key(i);
+      if (k && k.startsWith(DRAFT_PREFIX)) keys.push(k);
+    }
+    keys.forEach((k) => storage.removeItem(k));
+  } catch {
+    /* blocked storage: nothing was kept anyway */
+  }
+}
+
 export function clearDraft(scope: string, questionId: string, storage: Storage | null = store()): void {
   if (!storage) return;
   try {

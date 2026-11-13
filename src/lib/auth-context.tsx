@@ -5,6 +5,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getCache, setCache, clearAllCache, CACHE_TTL, getUserProfileCacheKey } from '@/utils/cache';
 import { logger } from '@/utils/logger';
 import { fetchProfileWithRetry } from '@/lib/profile-fetch';
+import { resetOutboxRegistry } from '@/lib/checker-outbox';
+import { clearAllDrafts } from '@/lib/checker-drafts';
+import { clearSavedDraft } from '@/lib/fix-requests';
 
 export interface UserProfile {
   role: string | null;
@@ -129,6 +132,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // cached profile and saved-teacher sets kept in localStorage.
           queryClient.clear();
           clearAllCache();
+          // Answers still waiting to be sent, and words typed but not saved, belong to the person who left.
+          resetOutboxRegistry();
+          clearAllDrafts();
+          clearSavedDraft();
           // Clear localStorage completely
           if (typeof window !== 'undefined') {
             const keys = Object.keys(localStorage);
@@ -498,4 +505,10 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+}
+
+/** Like useAuth, but returns nothing instead of throwing when there is no provider (tests, previews).
+ *  For a screen that only needs to know "is this me?" and works fine without the answer. */
+export function useOptionalAuth(): AuthContextType | undefined {
+  return useContext(AuthContext);
 }

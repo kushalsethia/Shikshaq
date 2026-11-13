@@ -62,6 +62,16 @@ set status = 'in_progress'
 where id = '<the id>' and status = 'approved';
 ```
 
+**2b. Started it, then found it is not clear or cannot be done: put it back**
+
+```sql
+update public.fix_requests
+set status = 'approved', claude_note = '<why it is not clear or cannot be done>'
+where id = '<the id>' and status = 'in_progress';
+```
+
+(Nothing in the table stops this move; without it a request would show "Being fixed" for good.)
+
 **3. Say one is finished, and what was done**
 
 ```sql
@@ -85,7 +95,9 @@ request number if there is one.
 | `raised_by`, `raised_by_name` | who sent it (the name as it was then; the id lets go if the account is deleted) |
 | `raised_as` | `member` or `hod` |
 | `kind` | `bug` or `edit` |
-| `title`, `details` | what the person wrote (title 3 to 120 letters, details up to 4000) |
+| `title`, `details` | what the person wrote (title 3 to 120 letters, details up to 4000; a title of only invisible characters is refused) |
+
+Limits on sending (in `request_submit`): 10 requests per person per 24 hours, and a member can have at most 20 waiting for an HOD at once. The HOD list shows the newest 200 in each group.
 | `page_path` | the screen it was sent from |
 | `status` | `waiting_for_hod`, `approved`, `rejected`, `in_progress`, `done` |
 | `decided_by`, `decided_at`, `decision_note` | the HOD's yes or no and their reason |

@@ -25,7 +25,7 @@ import {
   type Outcome,
 } from '@/lib/hod-bulk-assign';
 import { cn } from '@/lib/utils';
-import { formatGrade } from '@/lib/verifier-papers';
+import { formatGrade, loadGate } from '@/lib/verifier-papers';
 import {
   groupByVerifier,
   heldBackWhy,
@@ -442,7 +442,8 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
     return act(() => api.assignPaper(a.paper_id, toId), () => done, { give: { paperId: a.paper_id, userId: toId }, name: toName });
   }
 
-  if (assignmentsQ.isLoading || unassignedQ.isLoading || teamQ.isLoading) return <ListSkeleton label="Loading assignments" />;
+  // loadGate, not isLoading: offline pauses a read (isLoading stays false) and "Every paper has a verifier" must not show.
+  if (loadGate(assignmentsQ) === 'loading' || loadGate(unassignedQ) === 'loading' || loadGate(teamQ) === 'loading') return <ListSkeleton label="Loading assignments" />;
   if (assignmentsQ.isError) return <LoadError what="The assignments" onRetry={() => void assignmentsQ.refetch()} />;
   // Without the team every picker would be empty and read as "nobody to give it to".
   if (teamQ.isError) return <LoadError what="The list of verifiers" onRetry={() => void teamQ.refetch()} />;
@@ -674,7 +675,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         </p>
         {heldQ.isError ? (
           <LoadError what="The list of papers that are not ready" onRetry={() => void heldQ.refetch()} />
-        ) : heldQ.isLoading ? (
+        ) : loadGate(heldQ) === 'loading' ? (
           <ListSkeleton label="Loading papers that are not ready" />
         ) : (heldQ.data ?? []).length === 0 ? (
           <EmptyNote>Every paper with questions waiting has all its pictures and pages.</EmptyNote>

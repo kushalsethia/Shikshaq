@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { withTimeout } from '@/lib/checker-timeout';
 import { checkerPictureUrl, paperPagePictures } from '@/lib/checker-api';
 import type { RawOption } from '@/lib/checker-options';
 import { paperLabel } from '@/lib/checker-progress';
@@ -667,8 +668,14 @@ export interface HodApi {
   explainAssignment(checkerId: string, auditPaperId: string): Promise<AssignmentExplanation>;
 }
 
+/** A desk call that has not answered in 60 seconds is cut off and fails like a lost connection. Without a limit,
+ *  one hung call left the shared "busy" flag on for good and every Assign / Move button stayed dead until a reload. */
+const HOD_CALL_TIMEOUT_MS = 60_000;
+
 async function call(fn: string, args?: Record<string, unknown>): Promise<unknown> {
-  const { data, error } = await supabase.rpc(fn as never, (args ?? {}) as never);
+  // The request is not aborted (a desk action may still land on the server); the screen just stops waiting,
+  // and the HOD screen's own read-back shows what really happened.
+  const { data, error } = await withTimeout(supabase.rpc(fn as never, (args ?? {}) as never), HOD_CALL_TIMEOUT_MS);
   if (error) throw error;
   return data;
 }

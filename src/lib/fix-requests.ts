@@ -62,6 +62,8 @@ export type RequestKind = 'bug' | 'edit';
 export interface FixRequest {
   id: string;
   created_at: string | null;
+  /** Who sent it (the HOD lists return it; the screen uses it to stop an HOD deciding their own). */
+  raised_by?: string | null;
   /** Null when the list is the caller's own (their name is theirs), or when the account is gone. */
   raised_by_name: string | null;
   raised_as: 'member' | 'hod';
@@ -93,6 +95,7 @@ export function normaliseRequest(raw: unknown): FixRequest | null {
   return {
     id,
     created_at: str(r.created_at),
+    raised_by: str(r.raised_by),
     raised_by_name: str(r.raised_by_name),
     raised_as: r.raised_as === 'hod' ? 'hod' : 'member',
     kind,
