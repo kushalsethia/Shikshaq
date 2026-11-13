@@ -26,6 +26,7 @@ import {
   stageOfLive,
   stageOfReady,
   stuckReason,
+  waitingForHodReason,
   waitingReason,
 } from '@/lib/paper-status';
 
@@ -152,6 +153,27 @@ describe('paper status: stuck means nothing done for 7 days', () => {
 
   it('a paper missing from the server answer counts as nothing done since it was given', () => {
     expect(stuckReason(held, activityLookup([]), NOW)).toContain('has not started it');
+  });
+
+  it('a checker with nothing left to do is never called stuck: the rest waits for an HOD (13 Nov 2026: 32 papers were blamed wrongly)', () => {
+    const lookup = activityLookup([{ audit_paper_id: 'p1', user_id: 'u1', last_action_at: daysAgo(18) }]);
+    expect(stuckReason({ ...held, remaining: 0 }, lookup, NOW)).toBeNull();
+    expect(stuckReason({ ...held, remaining: 0 }, null, NOW)).toBeNull();
+    // With work left the old rule still applies, and a row without the number is judged as before.
+    expect(stuckReason({ ...held, remaining: 3 }, lookup, NOW)).toContain('has done nothing on this for 18 days');
+    expect(stuckReason(held, lookup, NOW)).toContain('has done nothing on this for 18 days');
+  });
+
+  it('waitingForHodReason: only for nothing left, held 7 days or more, and it blames nobody', () => {
+    const done = { checker_name: 'Asha', assigned_at: daysAgo(9), remaining: 0 };
+    expect(waitingForHodReason(done, NOW)).toBe('Asha has finished their part. The questions that are left wait for an HOD to decide (open Needs you).');
+    expect(waitingForHodReason({ ...done, assigned_at: daysAgo(7) }, NOW)).not.toBeNull();
+    expect(waitingForHodReason({ ...done, assigned_at: daysAgo(6) }, NOW)).toBeNull();
+    expect(waitingForHodReason({ ...done, remaining: 2 }, NOW)).toBeNull();
+    expect(waitingForHodReason({ checker_name: null, assigned_at: daysAgo(9) }, NOW)).toBeNull();
+    expect(waitingForHodReason({ ...done, assigned_at: null }, NOW)).toBeNull();
+    expect(waitingForHodReason({ ...done, checker_name: null }, NOW)).toContain('The checker has finished their part');
+    expect(waitingForHodReason(done, NOW)).not.toMatch(/nothing on this|not started/);
   });
 
   it('without the server answer, only a paper never started can be stuck (a started one might have been worked on last night)', () => {

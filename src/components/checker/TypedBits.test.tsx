@@ -398,7 +398,9 @@ describe('the verify screen lays the whole question out around the card', () => 
     expect(screen).not.toContain('max-h-[40vh]');
     // The left pane and the right pane each reveal the highlighted part (wide, and the phone's two tabs).
     expect(screen).toContain("const FOCUSED_SELECTOR = '[data-focused=\"true\"]'");
-    expect((screen.match(/revealKey=/g) ?? []).length).toBe(4);
+    // Four scroll areas, plus the single photo box shown when the whole paper is the only picture (13 Nov 2026), which
+    // also reveals the highlighted part's tile.
+    expect((screen.match(/revealKey=/g) ?? []).length).toBe(5);
   });
 
   it('a stand-alone question: the card, the tools, its diagram, then its passage and instructions', () => {

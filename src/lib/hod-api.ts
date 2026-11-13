@@ -1,6 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
 import { withTimeout } from '@/lib/checker-timeout';
-import { checkerPictureUrl, isMissingFunctionError, paperPagePictures } from '@/lib/checker-api';
+import {
+  checkerPictureUrl,
+  isMissingFunctionError,
+  paperPagePictures,
+  verifierQuestionDiagrams,
+  type QuestionDiagram,
+} from '@/lib/checker-api';
 import type { StagePictureItem } from '@/lib/stage-pictures';
 import type { RawOption } from '@/lib/checker-options';
 import { paperLabel } from '@/lib/checker-progress';
@@ -615,6 +621,8 @@ export interface HodApi {
   /** hod_send_back(): a question a student sent up goes back to the students. */
   sendBack(questionId: string, note: string): Promise<void>;
   pictureUrl(path: string): Promise<string | null>;
+  /** The stored diagram(s) of one question and of the shared stem above it (verifier_question_diagrams lets an HOD in). Never throws: empty when there is none. */
+  questionDiagrams(questionId: string): Promise<QuestionDiagram[]>;
   /** The public address of a figure already on the site (paper-figures bucket); no network call. */
   figureUrl(path: string): string | null;
   paperPages(paperId: string): Promise<PaperPage[]>;
@@ -771,6 +779,7 @@ export const realHodApi: HodApi = {
     await call('hod_send_back', { p_question_id: questionId, p_note: note });
   },
   pictureUrl: checkerPictureUrl,
+  questionDiagrams: verifierQuestionDiagrams,
   figureUrl(path) {
     const base = String(import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/+$/, '');
     return `${base}/storage/v1/object/public/paper-figures/${path.replace(/^\/+/, '')}`;
