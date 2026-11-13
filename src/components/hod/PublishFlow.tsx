@@ -1,4 +1,4 @@
-import { useId, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, X } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 import { HeaderEditor } from '@/components/hod/HeaderEditor';
 import { BackLink, ListSkeleton, LoadError, Notice, deskLink, quietButton } from '@/components/hod/HodShared';
 import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
-import { PaperSheet } from '@/components/hod/PaperSheet';
+import { PaperSheet, type PictureWork } from '@/components/hod/PaperSheet';
+import { STAGE_FAILED_WORDS, stagePictures, unstagedCount } from '@/lib/stage-pictures';
 import { CheckChips, RouteTrail } from '@/components/hod/RouteTrail';
 import { PaperStatusPill, PaperTimelineDisclosure } from '@/components/PaperStatus';
 import { EMPTY_MOMENTS, stageOfReady } from '@/lib/paper-status';
@@ -134,6 +135,40 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
   });
   const data = q.data;
   const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
+
+  // A picture the checkers kept is copied onto the site by itself when the paper is opened here (owner, 13 Nov: "not on
+  // the site yet shouldnt happen ... it can just show on the paper itself"). It runs once per open and when Try again is
+  // pressed; a paper that is already live or only waiting for a record is left alone.
+  const [pictureWork, setPictureWork] = useState<PictureWork>(null);
+  const [pictureTry, setPictureTry] = useState(0);
+  const needsPictures = data ? unstagedCount(data.questions) > 0 : false;
+  const canStage = Boolean(data) && (data?.paper.approval_state === 'awaiting' || data?.paper.approval_state === null) && !data?.paper.is_live && data?.paper.kind !== 'retro';
+  useEffect(() => {
+    if (!canStage || !needsPictures) return;
+    let cancelled = false;
+    setPictureWork('running');
+    void stagePictures(
+      {
+        list: (id) => api.unstagedPictures(id),
+        copy: (item) => api.copyPictureToSite(item),
+        confirm: (questionId, version) => api.confirmStagedPicture(questionId, version),
+      },
+      paperId,
+    ).then((out) => {
+      if (cancelled) return;
+      if (out.kind === 'failed') setPictureWork('failed');
+      else if (out.kind === 'unavailable') setPictureWork('unavailable');
+      else {
+        setPictureWork(null);
+        void q.refetch();
+        refresh();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canStage, needsPictures, paperId, pictureTry]);
 
   const onStepKey = (ev: KeyboardEvent<HTMLButtonElement>) => {
     const i = STEPS.findIndex((s) => s.key === step);
@@ -264,6 +299,23 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
         ) : null}
       </div>
 
+      {pictureWork ? (
+        <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-[14px] bg-muted p-3 text-[14px] text-foreground" data-testid="picture-work">
+          <p className="min-w-0 flex-1">
+            {pictureWork === 'running'
+              ? 'Getting the pictures ready for the site...'
+              : pictureWork === 'failed'
+                ? STAGE_FAILED_WORDS
+                : 'Copying pictures to the site is not switched on yet. The owner needs to paste the picture file in the database editor.'}
+          </p>
+          {pictureWork !== 'running' ? (
+            <button type="button" className={quietButton} onClick={() => setPictureTry((n) => n + 1)}>
+              Try again
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       <ol className="mb-4 flex flex-wrap gap-1 rounded-[20px] bg-muted shadow-card p-1 sm:inline-flex sm:rounded-full" aria-label="Steps to go live">
         {STEPS.map((s, i) => (
           <li key={s.key}>
@@ -288,7 +340,7 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
         {step === 'paper' ? (
           <>
             <p className="mb-3 text-[13px] text-warm-secondary">Read the paper the way a visitor will. Pictures and tables show as they will on the site.</p>
-            <PaperSheet preview={data} api={api} editable={!paper.is_live && waiting} onChanged={refresh} />
+            <PaperSheet preview={data} api={api} editable={!paper.is_live && waiting} onChanged={refresh} pictureWork={pictureWork} />
           </>
         ) : null}
 
@@ -328,7 +380,7 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
                 <section aria-label="The computer's version" className="mt-5 min-w-0" data-testid="details-computer-version">
                   <h3 className="mb-2 text-[14px] font-bold text-foreground">The computer's version</h3>
                   <div className="max-h-[70vh] overflow-y-auto rounded-2xl bg-muted shadow-card p-2">
-                    <PaperSheet preview={data} api={api} editable={!paper.is_live && waiting} onChanged={refresh} />
+                    <PaperSheet preview={data} api={api} editable={!paper.is_live && waiting} onChanged={refresh} pictureWork={pictureWork} />
                   </div>
                 </section>
               </div>
