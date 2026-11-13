@@ -23,6 +23,8 @@ import { BOARDS } from '@/lib/hod-api';
 import { CHIP, actionToneClass } from '@/lib/checker-button-styles';
 import { CHECKER_HELP_PATH, CHECKER_PRACTICE_PATH } from '@/lib/checker-onboarding';
 import { GIVEN_BY_HOD, paperLabel } from '@/lib/checker-progress';
+import { PaperStatusPill } from '@/components/PaperStatus';
+import { checkerCardLine, stageOfCheckerCard } from '@/lib/paper-status';
 import { requestSubjectsErrorMessage } from '@/lib/checker-errors';
 import {
   formatGrade,
@@ -434,11 +436,17 @@ function PaperList({
             return (
               <li key={p.paper_id} className="flex flex-col rounded-2xl bg-muted shadow-card p-4" data-testid="paper-card">
                 <div className="flex items-start justify-between gap-2">
-                  <h2 className="text-balance text-[15px] font-bold text-foreground">{paperLabel(p)}</h2>
+                  <div className="min-w-0">
+                    <h2 className="text-balance text-[15px] font-bold text-foreground">{paperLabel(p)}</h2>
+                    <PaperStatusPill stage={stageOfCheckerCard(p)} className="mt-1.5" />
+                  </div>
                   {p.given_by_hod ? (
                     <span className="shrink-0 rounded-full bg-brand-subtle px-2 py-0.5 text-[12px] font-semibold text-foreground">{GIVEN_BY_HOD}</span>
                   ) : null}
                 </div>
+                <p className="mt-2 text-[13px] text-foreground" data-testid="card-status-line">
+                  {checkerCardLine(p)}
+                </p>
                 <div className="mt-3">
                   <div className="mb-1 flex justify-between text-[13px] font-semibold tabular-nums text-warm-secondary">
                     <span>{prog.label}</span>

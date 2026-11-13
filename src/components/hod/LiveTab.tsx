@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { PaperStatusPill, PaperTimelineDisclosure } from '@/components/PaperStatus';
 import { HeaderEditor } from '@/components/hod/HeaderEditor';
+import { EMPTY_MOMENTS } from '@/lib/paper-status';
 import { EmptyNote, ListSkeleton, LoadError, Tile, ago, deskLink, quietButton } from '@/components/hod/HodShared';
 import { RouteTrail } from '@/components/hod/RouteTrail';
 import { CHIP, actionToneClass } from '@/lib/checker-button-styles';
@@ -90,12 +92,16 @@ function LiveRow({ p, api, onChanged }: { p: HodLivePaper; api: HodApi; onChange
             {waiting ? ` · ${waiting}` : ''}
           </p>
         </div>
-        <span
-          className={cn('shrink-0 rounded-full px-3 py-1 text-[12px] font-bold', p.is_published ? 'bg-mint text-foreground' : 'bg-destructive/10 text-destructive')}
-          data-testid="live-status"
-        >
-          {p.is_published ? 'Live' : 'Hidden'}
-        </span>
+        {p.is_published ? (
+          // The shared look: the same label every screen uses for a paper that is on the site.
+          <span className="shrink-0" data-testid="live-status">
+            <PaperStatusPill stage="live" />
+          </span>
+        ) : (
+          <span className="shrink-0 rounded-full bg-destructive/10 px-3 py-1 text-[12px] font-bold text-destructive" data-testid="live-status">
+            Hidden
+          </span>
+        )}
       </div>
       {!p.is_published && (p.hidden_reason || p.hidden_at) ? (
         <p className="mt-2 text-[13px] text-warm-secondary" data-testid="hidden-why">
@@ -104,6 +110,15 @@ function LiveRow({ p, api, onChanged }: { p: HodLivePaper; api: HodApi; onChange
         </p>
       ) : null}
       <RouteTrail stage="live" className="mt-3" />
+      {p.audit_paper_id ? (
+        <PaperTimelineDisclosure
+          className="mt-3"
+          queryKey={['hod', 'timeline', p.audit_paper_id]}
+          load={() => api.paperTimeline(p.audit_paper_id as string)}
+          fallback={EMPTY_MOMENTS}
+          stage="live"
+        />
+      ) : null}
 
       {/* On a phone the actions share a row while they fit and the rest take a full row,
           so no button is left alone on the left. From sm up they sit side by side. */}

@@ -10,6 +10,7 @@ import { nextTabKey } from '@/components/admin/AdminTabs';
 import { AssignmentsTab } from '@/components/hod/AssignmentsTab';
 import { AiTrustTab } from '@/components/hod/AiTrustTab';
 import { HistoryTab } from '@/components/hod/HistoryTab';
+import { HodStageStrip } from '@/components/hod/HodStageStrip';
 import { LoadError } from '@/components/hod/HodShared';
 import { LiveTab } from '@/components/hod/LiveTab';
 import { NeedsYouTab } from '@/components/hod/NeedsYouTab';
@@ -263,6 +264,9 @@ export function HodPage({
             ) : null}
           </div>
         </div>
+
+        {/* How many papers are at each stage; tapping one opens the list that holds them. */}
+        <HodStageStrip api={api} scope={scope} />
 
         {/* One row, never a wrap: when the tabs are wider than the card the row scrolls. */}
         <div

@@ -4,6 +4,7 @@ import { checkerPictureUrl, paperPagePictures } from '@/lib/checker-api';
 import type { RawOption } from '@/lib/checker-options';
 import { paperLabel } from '@/lib/checker-progress';
 import { isVerifierGrade } from '@/lib/verifier-papers';
+import { normaliseActivity, normaliseMoments, type PaperActivity, type PaperMoments } from '@/lib/paper-status';
 import type { PaperPage } from '@/lib/paper-pages';
 import { normaliseTrustRows, type TrustDecision, type TrustLevel, type TrustRow } from '@/lib/ai-trust';
 import {
@@ -666,6 +667,10 @@ export interface HodApi {
   aiTrustOverall(): Promise<AiTrustOverall>;
   /** explain_assignment(): why this paper suits (or does not suit) this verifier. */
   explainAssignment(checkerId: string, auditPaperId: string): Promise<AssignmentExplanation>;
+  /** hod_paper_timeline(): the dates of one paper's key moments. null when the server cannot say (the function is not installed yet). */
+  paperTimeline(auditPaperId: string): Promise<PaperMoments | null>;
+  /** hod_paper_activity(): when each held paper's holder last did anything on it. null when the server cannot say; then only never-started papers can be called stuck. */
+  paperActivity(): Promise<PaperActivity[] | null>;
 }
 
 /** A desk call that has not answered in 60 seconds is cut off and fails like a lost connection. Without a limit,
@@ -821,6 +826,22 @@ export const realHodApi: HodApi = {
   },
   async explainAssignment(checkerId, auditPaperId) {
     return normaliseExplanation(await call('explain_assignment', { p_checker: checkerId, p_audit_paper: auditPaperId }));
+  },
+  // The two reads below are optional: the server function may not be installed yet (PASTE_IN_SUPABASE_SQL_EDITOR_PAPER_STATUS_*.sql).
+  // A missing function or a dropped connection is not an error on screen; the lists fall back to what they already know.
+  async paperTimeline(auditPaperId) {
+    try {
+      return normaliseMoments(await call('hod_paper_timeline', { p_audit_paper: auditPaperId }));
+    } catch {
+      return null;
+    }
+  },
+  async paperActivity() {
+    try {
+      return normaliseActivity(await call('hod_paper_activity'));
+    } catch {
+      return null;
+    }
   },
 };
 

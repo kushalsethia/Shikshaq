@@ -289,6 +289,26 @@ export function createFakeHodApi(): FakeHodApi {
     async heldBackPapers() {
       return heldBack.map((x) => ({ ...x }));
     },
+    // Made-up key moments: loaded 20 days ago, pictures a day later, given out when the row says, nothing after that yet.
+    async paperTimeline(paperId) {
+      const given = assignments.find((x) => x.paper_id === paperId)?.assigned_at ?? null;
+      return {
+        loaded_at: ago(60 * 24 * 20),
+        pictures_at: ago(60 * 24 * 19),
+        given_at: given,
+        finished_at: null,
+        approved_at: null,
+        live_at: null,
+      };
+    },
+    // The first held paper looks untouched for 10 days (so the "Needs attention" group has one), the others were worked on an hour ago.
+    async paperActivity() {
+      return assignments.map((x, i) => ({
+        audit_paper_id: x.paper_id,
+        user_id: x.user_id,
+        last_action_at: i === 0 ? ago(60 * 24 * 10) : ago(60),
+      }));
+    },
     async assignPaper(paperId, userId) {
       if (api.silentGive) return; // says yes, does nothing
       // The real server lets an HOD name themselves without being a listed verifier.

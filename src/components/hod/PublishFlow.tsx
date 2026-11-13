@@ -8,6 +8,8 @@ import { BackLink, ListSkeleton, LoadError, Notice, deskLink, quietButton } from
 import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
 import { PaperSheet } from '@/components/hod/PaperSheet';
 import { CheckChips, RouteTrail } from '@/components/hod/RouteTrail';
+import { PaperStatusPill, PaperTimelineDisclosure } from '@/components/PaperStatus';
+import { EMPTY_MOMENTS, stageOfReady } from '@/lib/paper-status';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { actionToneClass } from '@/lib/checker-button-styles';
 import type { HodApi } from '@/lib/hod-api';
@@ -229,7 +231,10 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
       <div className="mb-4 rounded-[18px] bg-muted shadow-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="text-balance text-[18px] font-bold text-foreground">{paper.title}</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-balance text-[18px] font-bold text-foreground">{paper.title}</h2>
+              <PaperStatusPill stage={stageOfReady(paper)} />
+            </div>
             <p className="mt-0.5 text-[13px] text-warm-secondary">
               {[header.school, header.cls ? `Class ${header.cls}` : null, header.subject, header.board, header.year].filter(Boolean).join(' · ')}
             </p>
@@ -242,6 +247,13 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
           </p>
         </div>
         <RouteTrail stage="ready" className="mt-3" />
+        <PaperTimelineDisclosure
+          className="mt-3"
+          queryKey={['hod', scope, 'timeline', paper.audit_paper_id]}
+          load={() => api.paperTimeline(paper.audit_paper_id)}
+          fallback={{ ...EMPTY_MOMENTS, finished_at: paper.queued_at }}
+          stage={stageOfReady(paper)}
+        />
         <div className="mt-3">
           <CheckChips checks={data.checks} />
         </div>
