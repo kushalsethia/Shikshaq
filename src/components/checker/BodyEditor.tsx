@@ -81,7 +81,7 @@ function AutoTextarea({
       rows={1}
       aria-label={ariaLabel}
       className={cn(
-        'w-full resize-none overflow-hidden rounded-2xl bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-70',
+        'w-full resize-none overflow-hidden rounded-2xl bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-disabled',
         className,
       )}
     />
@@ -248,7 +248,7 @@ export function BodyEditor({
               onClick={toggleCode}
               disabled={disabled || (codeMode && fellBack)}
               data-testid="show-code"
-              className="tap-44 ml-auto rounded-[6px] px-1 py-0.5 text-[13px] font-medium text-warm-secondary underline underline-offset-2 transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"
+              className="tap-44 ml-auto rounded-[6px] px-1 py-0.5 text-[13px] font-medium text-warm-secondary underline underline-offset-2 transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-disabled"
             >
               {codeMode ? 'Show as maths' : 'Show code'}
             </button>
@@ -261,7 +261,7 @@ export function BodyEditor({
             type="button"
             onClick={toggleCode}
             disabled={disabled || (codeMode && fellBack)}
-            className="rounded-full bg-muted px-3 py-1 text-[12px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"
+            className="rounded-full bg-muted px-3 py-1 text-[12px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-disabled"
           >
             {codeMode ? 'Show as maths' : 'Show code'}
           </button>
@@ -286,7 +286,7 @@ export function BodyEditor({
             <button
               type="button"
               onClick={useWholeTextAsFormula}
-              className="tap-44 mt-2 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="tap-44 mt-2 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               Use the whole text as a formula
             </button>
@@ -344,7 +344,7 @@ export function BodyEditor({
                     }}
                     aria-label="Tap to edit this maths"
                     className={cn(
-                      'tap-44 w-full rounded-[12px] border-2 border-dashed border-brand/50 bg-brand-subtle px-3 py-2 text-left transition-transform duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-70',
+                      'tap-44 w-full rounded-[12px] border-2 border-dashed border-brand/50 bg-brand-subtle px-3 py-2 text-left transition-transform duration-150 active:scale-press-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-disabled',
                       picking && 'animate-pulse border-brand ring-2 ring-brand',
                     )}
                   >

@@ -37,7 +37,15 @@ little delight on the way.
 - Animate `opacity` and `transform` only. Never `transition: all`.
 - Stagger list and card entrances around 30 to 50 ms each, capped so a
   long list is never slow to finish.
-- Press: `scale(0.96)`. Hover lifts on cards are subtle (1 to 2 px, shadow).
+- Press (tactile pass, 12 Nov 2026): one recipe, three sizes, all from tokens:
+  a button squeezes to `scale-press` (.97), a small target (icon button, chip)
+  to `scale-press-small` (.94), a card or full-width row to `scale-press-card`
+  (.99), 150ms on the strong ease-out `cubic-bezier(.23, 1, .32, 1)`. The
+  numbers live in `src/index.css` (`--press-scale*`). Reduced motion: no
+  squeeze, a small dim instead. Hover lifts on cards are subtle (1 to 2 px, shadow).
+- Edges: a hairline ring plus a crisp 1px drop (`shadow-button`, `shadow-card`,
+  `shadow-solid` for a saturated fill). No wide soft blurs. See the "Tactile
+  layer" block in `src/index.css`.
 - `prefers-reduced-motion`: keep the fades, drop the movement.
 - **Fun, not noise.** Delight sits at moments of success: saving a
   teacher, first paper read, a search that finds results. Not on every

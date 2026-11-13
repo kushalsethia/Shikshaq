@@ -139,7 +139,7 @@ export function PreviewRoleToggle() {
               disabled={busy !== null}
               aria-pressed={active}
               onClick={() => become(role)}
-              className={`min-h-9 rounded-full px-3 text-[12px] font-bold transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
+              className={`min-h-9 rounded-full px-3 text-[12px] font-bold transition-colors disabled:opacity-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
                 active
                   ? 'bg-white text-fuchsia-950'
                   : 'bg-fuchsia-800/70 text-fuchsia-100 hover:bg-fuchsia-700'

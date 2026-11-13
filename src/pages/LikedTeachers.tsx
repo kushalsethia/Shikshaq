@@ -222,7 +222,7 @@ export default function LikedTeachers() {
                       type="button"
                       onClick={() => toggleLike(teacher.id)}
                       aria-label={`Remove ${teacher.name} from favourites`}
-                      className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-card transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-card transition-transform duration-tap active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       <Heart className="h-4 w-4 fill-destructive text-destructive" aria-hidden />
                     </button>

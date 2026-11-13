@@ -174,7 +174,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                        keeps showing what you said while you type the comment.
                        Before a choice they all sit at full strength — nothing is
                        being de-emphasised yet. */
-                    className={`flex min-h-11 flex-1 flex-col items-center gap-[10px] rounded-[20px] px-2 py-[16px] pb-[13px] transition-[background-color,opacity] duration-150 active:scale-[0.97] ${
+                    className={`flex min-h-11 flex-1 flex-col items-center gap-[10px] rounded-[20px] px-2 py-[16px] pb-[13px] transition-[background-color,opacity] duration-150 active:scale-press ${
                       isSelected
                         ? highlight
                           ? 'bg-brand-subtle ring-2 ring-brand'
@@ -211,7 +211,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                   placeholder="your.email@example.com"
                   value={guestEmail}
                   onChange={(e) => setGuestEmail(e.target.value)}
-                  className="h-14 w-full rounded-[16px] bg-card px-4 text-base text-foreground shadow-border outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+                  className="h-14 w-full rounded-[16px] bg-card px-4 text-base text-foreground shadow-border outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-focus"
                 />
               </div>
             )}

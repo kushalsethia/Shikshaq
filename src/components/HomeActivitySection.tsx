@@ -213,7 +213,7 @@ export function HomeActivitySection() {
               </p>
               <Link
                 to="/auth"
-                className="inline-flex h-11 items-center rounded-lg bg-brand px-4 text-sm font-medium text-brand-foreground transition-colors duration-150 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                className="inline-flex h-11 items-center rounded-lg bg-brand px-4 text-sm font-medium text-brand-foreground transition-colors duration-150 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
               >
                 Sign in
               </Link>
@@ -264,7 +264,7 @@ export function HomeActivitySection() {
                   <li key={`${item.type}-${item.id}`} className="flex min-w-0 items-center">
                     <Link
                       to={item.path}
-                      className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-warm-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
+                      className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-warm-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
                     >
                       <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-warm-muted">
                         <Icon className="h-4 w-4 text-warm-secondary" strokeWidth={1.75} aria-hidden="true" />
@@ -285,7 +285,7 @@ export function HomeActivitySection() {
                         onClick={() => toggleLike(item.id)}
                         aria-label={teacherLiked ? `Remove ${item.title} from favourites` : `Add ${item.title} to favourites`}
                         aria-pressed={teacherLiked}
-                        className="mr-2 flex h-11 w-11 flex-none items-center justify-center rounded-full transition-colors duration-150 hover:bg-warm-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        className="mr-2 flex h-11 w-11 flex-none items-center justify-center rounded-full transition-colors duration-150 hover:bg-warm-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                       >
                         <Heart
                           className={`h-4 w-4 transition-colors duration-150 ${

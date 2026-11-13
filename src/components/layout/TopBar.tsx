@@ -177,7 +177,7 @@ export function TopBar({ className }: { className?: string }) {
                   onClick={() => setMenuOpen((v) => !v)}
                   aria-label="Account menu"
                   aria-expanded={menuOpen}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-sm font-semibold text-background transition-colors duration-150 hover:bg-white/25 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-sm font-semibold text-background transition-colors duration-150 hover:bg-white/25 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
                 >
                   {initial}
                 </button>
@@ -198,9 +198,9 @@ export function TopBar({ className }: { className?: string }) {
                     />
                     <div
                       className={cn(
-                        "absolute right-0 top-full z-[51] mt-2 grid min-w-[220px] gap-1 rounded-2xl bg-card p-2 text-foreground shadow-border-hover",
-                        menuPresence.closing ? "animate-accordion-up" : "animate-fade-slide-up",
+                        "overlay-enter-menu absolute right-0 top-full z-[51] mt-2 grid min-w-[220px] origin-top-right gap-[2px] rounded-[8px] bg-card p-1 text-foreground shadow-menu",
                       )}
+                      data-state={menuPresence.closing ? "closed" : "open"}
                     >
                       <div className="truncate px-3 py-2 text-xs text-muted-foreground">{user.email}</div>
                       <hr className="border-border" />
@@ -242,7 +242,7 @@ export function TopBar({ className }: { className?: string }) {
                             window.location.href = "/";
                           }
                         }}
-                        className="flex min-h-[44px] items-center rounded-lg px-3 text-sm font-semibold text-destructive transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        className="flex min-h-11 items-center rounded-[6px] px-3 text-sm font-semibold text-destructive transition-colors duration-150 hover:bg-muted md:min-h-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       >
                         Sign out
                       </button>
@@ -269,7 +269,7 @@ function TopBarMenuLink({ to, icon: Icon, label, onClick, chip }: { to: string; 
     <Link
       to={to}
       onClick={onClick}
-      className="flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      className="flex min-h-11 items-center gap-2 rounded-[6px] px-3 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted md:min-h-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
       {chip ? (
         <span className={cn("flex h-7 w-7 flex-none items-center justify-center rounded-full", chip)}>

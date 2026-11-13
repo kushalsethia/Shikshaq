@@ -72,7 +72,7 @@ export function Team({ api, me }: { api: GamesApi; me: string }) {
           <label className="flex min-w-[220px] flex-1 flex-col gap-1">
             <span className="text-[12px] font-semibold text-warm-secondary">Their Google email</span>
             <input type="email" autoComplete="off" placeholder="name@example.com" value={email} onChange={(e) => { setEmail(e.target.value); setError(''); }}
-              className="h-11 w-full rounded-full bg-card px-4 text-base text-foreground placeholder:text-warm-label outline-none ring-1 ring-border focus-visible:ring-2 focus-visible:ring-brand sm:text-sm" />
+              className="h-11 w-full rounded-full bg-card px-4 text-base text-foreground placeholder:text-warm-label outline-none ring-1 ring-border focus-visible:ring-2 focus-visible:ring-focus sm:text-sm" />
           </label>
           <div className="flex flex-col gap-1">
             <label htmlFor="add-role" className="text-[12px] font-semibold text-warm-secondary">Role</label>

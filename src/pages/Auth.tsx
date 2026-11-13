@@ -652,7 +652,7 @@ export default function Auth() {
                 <button
                   type="button"
                   onClick={handleGoogleSignIn}
-                  className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-[10px] rounded-[18px] bg-background text-[15px] font-bold text-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98]"
+                  className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-[10px] rounded-[18px] bg-background text-[15px] font-bold text-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-press-card"
                 >
                   <GoogleIcon size={20} />
                   Continue with Google
@@ -709,7 +709,7 @@ export default function Auth() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[18px] bg-brand text-[15px] font-bold text-brand-foreground hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                  className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[18px] bg-brand text-[15px] font-bold text-brand-foreground hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-disabled disabled:hover:translate-y-0"
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                   {loading ? 'Updating password...' : 'Update Password'}
@@ -763,7 +763,7 @@ export default function Auth() {
                         type="button"
                         onClick={handleResendConfirmation}
                         disabled={resending}
-                        className="shikshaq-tap inline-flex min-h-11 items-center text-[14px] font-semibold text-indigo-link-on-dark disabled:opacity-60"
+                        className="shikshaq-tap inline-flex min-h-11 items-center text-[14px] font-semibold text-indigo-link-on-dark disabled:opacity-disabled"
                       >
                         {resending ? 'Sending...' : 'Send it again'}
                       </button>
@@ -816,7 +816,7 @@ export default function Auth() {
                             type="button"
                             onClick={handleMagicLink}
                             disabled={magicLoading}
-                            className="shikshaq-tap inline-flex min-h-11 items-center text-[14px] font-semibold text-indigo-link-on-dark disabled:opacity-60"
+                            className="shikshaq-tap inline-flex min-h-11 items-center text-[14px] font-semibold text-indigo-link-on-dark disabled:opacity-disabled"
                           >
                             {magicLoading ? 'Sending...' : 'Send it again'}
                           </button>
@@ -839,7 +839,7 @@ export default function Auth() {
                         type="button"
                         onClick={toggleMagicLinkMode}
                         disabled={magicLoading}
-                        className="shikshaq-tap mt-2 inline-flex min-h-11 items-center gap-1.5 text-[14px] font-semibold text-indigo-link-on-dark disabled:cursor-not-allowed disabled:opacity-60"
+                        className="shikshaq-tap mt-2 inline-flex min-h-11 items-center gap-1.5 text-[14px] font-semibold text-indigo-link-on-dark disabled:cursor-not-allowed disabled:opacity-disabled"
                       >
                         {magicLinkMode ? 'Or sign in with a password instead' : 'Or email me a sign-in link instead'}
                         <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -919,7 +919,7 @@ export default function Auth() {
                         type="button"
                         onClick={handleForgotPassword}
                         disabled={loading}
-                        className="shikshaq-tap flex min-h-12 flex-1 items-center justify-center gap-2 rounded-[18px] bg-brand text-sm font-semibold text-brand-foreground hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                        className="shikshaq-tap flex min-h-12 flex-1 items-center justify-center gap-2 rounded-[18px] bg-brand text-sm font-semibold text-brand-foreground hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-disabled disabled:hover:translate-y-0"
                       >
                         {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                         {loading ? 'Sending...' : 'Send Reset Link'}
@@ -952,7 +952,7 @@ export default function Auth() {
                   <button
                     type="submit"
                     disabled={magicLinkMode ? magicLoading : loading}
-                    className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[18px] bg-brand text-[15px] font-bold text-brand-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:active:scale-100"
+                    className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[18px] bg-brand text-[15px] font-bold text-brand-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-press-card disabled:cursor-not-allowed disabled:opacity-disabled disabled:hover:translate-y-0 disabled:active:scale-100"
                   >
                     {(magicLinkMode ? magicLoading : loading) && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                     {magicLinkMode

@@ -25,6 +25,7 @@ import { actionToneClass } from '@/lib/checker-button-styles';
 import { errorWords, overallProgress, overallRateText, overallStatus, overallUnlocks } from '@/lib/hod-publish';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { cn } from '@/lib/utils';
+import { BAR_WELL } from '@/lib/chart-styles';
 
 /* "AI trust": for each confidence level and each kind of AI decision, how
    often verifiers agreed with no change, against the bar (97% over the
@@ -44,7 +45,7 @@ function OverallCard({ api, scope }: { api: HodApi; scope: string }) {
   const o = q.data;
   const pct = Math.min(100, Math.round((o.checks_done / Math.max(1, o.threshold)) * 100));
   return (
-    <section aria-labelledby="trust-overall-title" className="mb-5 rounded-[18px] bg-muted p-4" data-testid="trust-overall" data-reached={o.reached}>
+    <section aria-labelledby="trust-overall-title" className="mb-5 rounded-[18px] bg-muted shadow-card p-4" data-testid="trust-overall" data-reached={o.reached}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 id="trust-overall-title" className="text-[15px] font-bold text-foreground">
@@ -62,7 +63,7 @@ function OverallCard({ api, scope }: { api: HodApi; scope: string }) {
         </span>
       </div>
       <div
-        className="mt-3 h-2.5 w-full rounded-full bg-card"
+        className={cn('mt-3 h-2.5 w-full rounded-full bg-card', BAR_WELL)}
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={o.threshold}
@@ -110,7 +111,7 @@ function Meter({ row }: { row: TrustRow }) {
         </span>
       </div>
       <div
-        className="relative h-2.5 w-full rounded-full bg-card"
+        className={cn('relative h-2.5 w-full rounded-full bg-card', BAR_WELL)}
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
@@ -135,7 +136,7 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
   const title = `${LEVEL_LABEL[cell.level]}, ${DECISION_LABEL[cell.decision]}`;
   if (!row) {
     return (
-      <div className="rounded-[18px] bg-muted p-4">
+      <div className="rounded-[18px] bg-muted shadow-card p-4">
         <p className="text-[15px] font-bold text-foreground">{title}</p>
         <p className="mt-0.5 text-[13px] text-warm-secondary">{DECISION_HINT[cell.decision]}</p>
         <p className="mt-2 text-[13px] text-warm-secondary">No data yet.</p>
@@ -166,7 +167,7 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-[18px] bg-muted p-4" data-testid="trust-cell" data-level={cell.level} data-decision={cell.decision}>
+    <div className="flex flex-col gap-3 rounded-[18px] bg-muted shadow-card p-4" data-testid="trust-cell" data-level={cell.level} data-decision={cell.decision}>
       <div>
         <p className="text-[15px] font-bold text-foreground">{title}</p>
         <p className="mt-0.5 text-[13px] leading-snug text-warm-secondary" data-testid="trust-hint">

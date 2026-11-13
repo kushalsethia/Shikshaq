@@ -808,7 +808,7 @@ export default function PaperResults() {
                   <button
                     type="button"
                     onClick={() => setBankShown((n) => n + BANK_STEP)}
-                    className={`inline-flex min-h-[44px] items-center justify-center rounded-full bg-foreground px-6 text-[14px] font-bold text-background transition-transform duration-tap ease-tap active:scale-[0.97] ${FOCUS}`}
+                    className={`inline-flex min-h-[44px] items-center justify-center rounded-full bg-foreground px-6 text-[14px] font-bold text-background transition-transform duration-tap ease-tap active:scale-press ${FOCUS}`}
                   >
                     Show {Math.min(BANK_STEP, bankMatches.length - bankShown).toLocaleString('en-IN')} more papers
                   </button>
@@ -870,7 +870,7 @@ export default function PaperResults() {
           type="button"
           onClick={scrollToTop}
           aria-label="Back to top"
-          className={`animate-card-reveal fixed bottom-24 right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-border transition-transform duration-tap ease-tap active:scale-[0.97] motion-reduce:animate-none lg:bottom-8 lg:right-8 ${FOCUS}`}
+          className={`animate-card-reveal fixed bottom-24 right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-border transition-transform duration-tap ease-tap active:scale-press motion-reduce:animate-none lg:bottom-8 lg:right-8 ${FOCUS}`}
         >
           <ArrowUp className="h-6 w-6" strokeWidth={2.25} aria-hidden="true" />
         </button>

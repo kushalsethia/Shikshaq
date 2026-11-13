@@ -60,11 +60,11 @@ function FieldRow({
     }
   }
 
-  const input = 'w-full rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand';
+  const input = 'w-full rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus';
   const describedBy = [hint || def.hint ? `${id}-hint` : null, error ? `${id}-err` : null, done && !dirty ? `${id}-ok` : null].filter(Boolean).join(' ') || undefined;
 
   return (
-    <form onSubmit={(ev) => void submit(ev)} className="rounded-2xl bg-muted p-3" data-testid="header-field" data-field={def.key}>
+    <form onSubmit={(ev) => void submit(ev)} className="rounded-2xl bg-muted shadow-card p-3" data-testid="header-field" data-field={def.key}>
       <label htmlFor={id} className="mb-1 block text-[13px] font-semibold text-foreground">
         {def.label}
         {def.required ? <span className="font-normal text-warm-meta"> (required)</span> : null}

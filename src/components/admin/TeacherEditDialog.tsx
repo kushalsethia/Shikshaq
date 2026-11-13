@@ -175,7 +175,7 @@ export function TeacherEditDialog({ teacher, saving, onSave, onClose, uploadHero
           href={profile}
           target="_blank"
           rel="noopener noreferrer"
-          className="mr-auto inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold text-brand-blue hover:bg-brand-blue-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="mr-auto inline-flex min-h-11 md:min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold text-brand-blue hover:bg-brand-blue-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           View public profile
           <ExternalLink className="h-3.5 w-3.5" aria-hidden />
@@ -373,7 +373,7 @@ export function TeacherEditDialog({ teacher, saving, onSave, onClose, uploadHero
                   <div className="flex items-center gap-2">
                     <label
                       htmlFor="heroImageUpload"
-                      className="flex min-h-10 cursor-pointer items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-foreground shadow-border transition-colors hover:bg-black/[.04]"
+                      className="flex min-h-11 md:min-h-10 cursor-pointer items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-foreground shadow-border transition-colors hover:bg-black/[.04]"
                     >
                       <Upload className="h-4 w-4" aria-hidden />
                       {uploading ? 'Uploading...' : 'Upload image'}

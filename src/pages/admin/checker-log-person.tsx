@@ -35,6 +35,7 @@ import {
 import { HistoryList } from '@/components/admin/approval/HistoryPanel';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
+import { BAR_WELL } from '@/lib/chart-styles';
 
 const DummyCheckerLogPerson = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminCheckerLogPersonDummy')) : null;
 
@@ -72,7 +73,7 @@ function CountBars({ counts, events }: { counts: LogDay['counts']; events: LogDa
           {shown.map((k) => (
             <div key={k} className="grid grid-cols-[84px_minmax(0,1fr)_36px] items-center gap-2">
               <dt className="text-[12px] font-semibold text-warm-secondary">{COUNT_LABELS[k]}</dt>
-              <div className="h-2.5 overflow-hidden rounded-full bg-card" aria-hidden>
+              <div className={cn('h-2.5 overflow-hidden rounded-full bg-card', BAR_WELL)} aria-hidden>
                 <div className={cn('h-full rounded-full', BAR_CLASS[k])} style={{ width: `${(counts[k] / max) * 100}%` }} />
               </div>
               <dd className="text-right text-[12px] font-bold tabular-nums text-foreground">{counts[k]}</dd>
@@ -105,7 +106,7 @@ function DayCard({
   const colon = sentence.indexOf(':');
   const total = totalOf(day.counts);
   return (
-    <li id={`day-${day.day}`} className="scroll-mt-4 rounded-[18px] bg-muted p-4">
+    <li id={`day-${day.day}`} className="scroll-mt-4 rounded-[18px] bg-muted shadow-card p-4">
       <p className="text-pretty text-[15px] leading-[1.5] text-foreground">
         <span className="font-extrabold">{sentence.slice(0, colon + 1)}</span>
         {sentence.slice(colon + 1)}
@@ -115,7 +116,7 @@ function DayCard({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="mt-2 inline-flex min-h-10 items-center gap-1 rounded-full px-1 text-[13px] font-semibold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mt-2 inline-flex min-h-11 md:min-h-10 items-center gap-1 rounded-full px-1 text-[13px] font-semibold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {open ? 'Hide the actions' : `See each action (${total})`}
         <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-150', open && 'rotate-180')} aria-hidden />
@@ -246,7 +247,7 @@ export function AdminCheckerLogPersonPage({
       <BentoPanel fill="card" className="px-[18px] py-[18px] lg:px-[18px] lg:py-[18px]" aria-busy={loading || undefined}>
         <Link
           to="/admin/checker-log"
-          className="tap-44 inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-brand-blue hover:text-brand-blue-deep"
+          className="tap-44 inline-flex min-h-11 md:min-h-10 items-center gap-1.5 text-[13px] font-semibold text-brand-blue hover:text-brand-blue-deep"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
           Everyone in the log

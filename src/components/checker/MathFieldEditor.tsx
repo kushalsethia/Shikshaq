@@ -131,7 +131,7 @@ export default function MathFieldEditor({ initialLatex, display, onDone, onCance
       role="dialog"
       aria-modal="true"
       aria-label="Edit this maths"
-      className="rounded-2xl border border-warm-hairline bg-card p-3 shadow-lg"
+      className="rounded-2xl bg-card p-3 shadow-card"
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation();
@@ -148,7 +148,7 @@ export default function MathFieldEditor({ initialLatex, display, onDone, onCance
             type="button"
             aria-label={b.aria}
             onClick={() => press(b)}
-            className="tap-44 min-w-[40px] rounded-xl bg-muted px-2.5 py-1.5 text-[15px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="tap-44 min-w-[40px] rounded-xl bg-muted px-2.5 py-1.5 text-[15px] font-semibold text-foreground transition-transform duration-150 active:scale-press-small focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             {b.label}
           </button>
@@ -167,14 +167,14 @@ export default function MathFieldEditor({ initialLatex, display, onDone, onCance
         <button
           type="button"
           onClick={done}
-          className="tap-44 rounded-full bg-brand px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          className="tap-44 rounded-full bg-brand px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           Done
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="tap-44 rounded-full bg-muted px-4 py-2 text-[13px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          className="tap-44 rounded-full bg-muted px-4 py-2 text-[13px] font-semibold text-warm-secondary transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           Cancel
         </button>

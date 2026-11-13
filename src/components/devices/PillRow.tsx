@@ -52,8 +52,8 @@ export function PillRow({ items, className, layout = 'stack' }: PillRowProps) {
                   'text-left transition-[transform,box-shadow] duration-hover',
                   item.color
                     ? 'outline-thick'
-                    : (item.onClick || item.href) && 'hover:-translate-y-0.5 shadow-border hover:shadow-border-hover active:scale-[0.97]',
-                  item.color && (item.onClick || item.href) && 'hover:-translate-y-0.5 active:scale-[0.97]'
+                    : (item.onClick || item.href) && 'hover:-translate-y-0.5 shadow-border hover:shadow-border-hover active:scale-press',
+                  item.color && (item.onClick || item.href) && 'hover:-translate-y-0.5 active:scale-press'
                 )}
                 style={{
                   background: item.color ?? 'hsl(var(--warm-muted, var(--muted)))',
@@ -89,8 +89,8 @@ export function PillRow({ items, className, layout = 'stack' }: PillRowProps) {
                 'text-left transition-[transform,box-shadow] duration-hover',
                 item.color
                   ? 'outline-thick'
-                  : (item.onClick || item.href) && 'hover:-translate-y-0.5 shadow-border hover:shadow-border-hover active:scale-[0.99]',
-                item.color && (item.onClick || item.href) && 'hover:-translate-y-0.5 active:scale-[0.99]'
+                  : (item.onClick || item.href) && 'hover:-translate-y-0.5 shadow-border hover:shadow-border-hover active:scale-press-card',
+                item.color && (item.onClick || item.href) && 'hover:-translate-y-0.5 active:scale-press-card'
               )}
               style={{
                 background: item.color ?? 'hsl(var(--warm-muted, var(--muted)))',

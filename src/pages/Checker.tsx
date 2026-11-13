@@ -46,6 +46,7 @@ import {
   withoutReopen,
   type PaperQuestionState,
 } from '@/lib/verifier-papers';
+import { BAR_WELL } from '@/lib/chart-styles';
 
 /* My papers: the verifier's home (Kid Mode). Three views, chosen by the URL:
 
@@ -430,7 +431,7 @@ function PaperList({
           {papers.map((p) => {
             const prog = paperCardProgress(p);
             return (
-              <li key={p.paper_id} className="flex flex-col rounded-2xl bg-muted p-4" data-testid="paper-card">
+              <li key={p.paper_id} className="flex flex-col rounded-2xl bg-muted shadow-card p-4" data-testid="paper-card">
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="text-balance text-[15px] font-bold text-foreground">{paperLabel(p)}</h2>
                   {p.given_by_hod ? (
@@ -446,7 +447,7 @@ function PaperList({
                     </span>
                   </div>
                   <div
-                    className="h-2.5 w-full overflow-hidden rounded-full bg-card"
+                    className={cn('h-2.5 w-full overflow-hidden rounded-full bg-card', BAR_WELL)}
                     role="progressbar"
                     aria-valuemin={0}
                     aria-valuemax={100}
@@ -575,7 +576,7 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
   }
 
   return (
-    <section aria-labelledby="my-details-title" className="rounded-2xl bg-muted p-4" data-testid="profile-card">
+    <section aria-labelledby="my-details-title" className="rounded-2xl bg-muted shadow-card p-4" data-testid="profile-card">
       <h2 id="my-details-title" className="text-[15px] font-bold text-foreground">
         My details
       </h2>
@@ -600,7 +601,7 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
               value={form.full_name}
               onChange={(e) => setForm({ ...form, full_name: e.target.value })}
               autoComplete="name"
-              className="min-h-[44px] rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="min-h-[44px] rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
             />
           </label>
           <label className="grid gap-1">
@@ -608,7 +609,7 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
             <select
               value={form.grade}
               onChange={(e) => setForm({ ...form, grade: e.target.value })}
-              className="min-h-[44px] rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="min-h-[44px] rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               {VERIFIER_GRADE_OPTIONS.map((o) => (
                 <option key={o.value ?? ''} value={o.value ?? ''}>
@@ -622,7 +623,7 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
             <input
               value={form.school}
               onChange={(e) => setForm({ ...form, school: e.target.value })}
-              className="min-h-[44px] rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="min-h-[44px] rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
             />
           </label>
           <label className="grid gap-1">
@@ -630,7 +631,7 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
             <select
               value={form.board}
               onChange={(e) => setForm({ ...form, board: e.target.value })}
-              className="min-h-[44px] rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="min-h-[44px] rounded-xl bg-card px-3 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               <option value="">Not given</option>
               {(form.board && !BOARDS.includes(form.board) ? [form.board, ...BOARDS] : BOARDS).map((b) => (
@@ -695,7 +696,7 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={2}
-            className="w-full rounded-xl bg-card p-3 text-[16px] outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="w-full rounded-xl bg-card p-3 text-[16px] outline-none focus-visible:ring-2 focus-visible:ring-focus"
           />
           <div className="mt-2 flex gap-2">
             <ActionButton tone="dark" onClick={() => void send()} disabled={busy}>
@@ -724,7 +725,7 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
 
 export function ProfileLoadError({ onRetry }: { onRetry: () => void }) {
   return (
-    <section aria-labelledby="my-details-title" className="rounded-2xl bg-muted p-4" data-testid="profile-card">
+    <section aria-labelledby="my-details-title" className="rounded-2xl bg-muted shadow-card p-4" data-testid="profile-card">
       <h2 id="my-details-title" className="text-[15px] font-bold text-foreground">
         My details
       </h2>
@@ -793,7 +794,7 @@ function PaperOverview({
       <button
         type="button"
         onClick={onBack}
-        className="tap-44 mb-3 rounded-full bg-muted px-4 py-2 text-[13px] font-semibold text-warm-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className="tap-44 mb-3 rounded-full bg-muted px-4 py-2 text-[13px] font-semibold text-warm-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       >
         Back to my papers
       </button>
@@ -823,7 +824,7 @@ function PaperOverview({
       ) : (
         <ol className="space-y-2" aria-label="Questions in this paper">
           {list.map((q, i) => (
-            <li key={q.id} className="rounded-2xl bg-muted p-3" data-testid="paper-question">
+            <li key={q.id} className="rounded-2xl bg-muted shadow-card p-3" data-testid="paper-question">
               <div className="mb-1 flex flex-wrap items-center gap-2 text-[12px] font-semibold">
                 <span className="text-foreground">Question {questionLabel(q, i)}</span>
                 {q.marks != null ? (
@@ -839,7 +840,7 @@ function PaperOverview({
                     onClick={() => onEdit(q.id)}
                     data-testid="edit-done-question"
                     aria-label={`Edit question ${questionLabel(q, i)}`}
-                    className="tap-44 ml-auto rounded-full bg-card px-3 py-1 text-[12px] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    className="tap-44 ml-auto rounded-full bg-card px-3 py-1 text-[12px] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                   >
                     Edit
                   </button>

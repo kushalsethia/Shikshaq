@@ -92,7 +92,7 @@ function PickVerifier({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         disabled={busy || options.length === 0}
-        className="min-h-11 w-0 min-w-0 flex-1 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand sm:w-auto sm:max-w-[14rem] sm:flex-none"
+        className="min-h-11 w-0 min-w-0 flex-1 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto sm:max-w-[14rem] sm:flex-none"
       >
         <option value="">{label}</option>
         {options.map((m) => {
@@ -199,7 +199,7 @@ export function BulkBar({
         <p id="bulk-bar-label" className="text-[14px] font-bold text-foreground">
           Assign {count} selected to
         </p>
-        <button type="button" disabled={running} onClick={onClear} className="tap-44 shrink-0 rounded-full bg-muted px-4 text-[14px] font-semibold text-warm-secondary disabled:opacity-50">
+        <button type="button" disabled={running} onClick={onClear} className="tap-44 shrink-0 rounded-full bg-muted px-4 text-[14px] font-semibold text-warm-secondary disabled:opacity-disabled">
           Clear
         </button>
       </div>
@@ -209,7 +209,7 @@ export function BulkBar({
           value={value}
           onChange={(e) => onValue(e.target.value)}
           disabled={running}
-          className="min-h-11 w-0 min-w-0 flex-1 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand sm:w-auto sm:max-w-[18rem] sm:flex-none sm:basis-72"
+          className="min-h-11 w-0 min-w-0 flex-1 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto sm:max-w-[18rem] sm:flex-none sm:basis-72"
         >
           <option value="">Choose a verifier</option>
           {options.map((o) => (
@@ -530,7 +530,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         ) : (
           <ul className="space-y-3">
             {groups.map((g) => (
-              <li key={g.user_id} className="rounded-[18px] bg-muted p-3" data-testid="verifier-load">
+              <li key={g.user_id} className="rounded-[18px] bg-muted shadow-card p-3" data-testid="verifier-load">
                 <p className="mb-2 px-1 text-[15px] font-bold text-foreground">
                   {g.name}
                   <span className="ml-2 text-[12px] font-normal text-warm-meta">
@@ -541,7 +541,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
               </li>
             ))}
             {idle.map((m) => (
-              <li key={m.user_id} className="rounded-[18px] bg-muted p-3">
+              <li key={m.user_id} className="rounded-[18px] bg-muted shadow-card p-3">
                 <p className="px-1 text-[15px] font-bold text-foreground">
                   {memberName(m)} <span className="ml-2 text-[12px] font-normal text-warm-meta">no papers yet</span>
                 </p>
@@ -596,7 +596,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
               return (
               <li
                 key={p.paper_id}
-                className={cn('rounded-2xl bg-muted p-3', ticked && 'ring-2 ring-brand')}
+                className={cn('rounded-2xl bg-muted shadow-card p-3', ticked && 'ring-2 ring-brand')}
                 data-testid="free-paper"
               >
                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
@@ -681,7 +681,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         ) : (
           <ul className="space-y-2">
             {(heldQ.data ?? []).map((p) => (
-              <li key={p.paper_id} className="rounded-2xl bg-muted p-3" data-testid="not-ready-paper">
+              <li key={p.paper_id} className="rounded-2xl bg-muted shadow-card p-3" data-testid="not-ready-paper">
                 <span className="block text-[14px] font-semibold text-foreground">{paperLabel(p)}</span>
                 <span className="block text-[12px] text-warm-meta">
                   {p.open_count} {p.open_count === 1 ? 'question' : 'questions'} waiting

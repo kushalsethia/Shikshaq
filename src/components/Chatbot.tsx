@@ -393,7 +393,7 @@ export function Chatbot() {
           ring on orange is not a ring. */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed ${chromeless ? 'bottom-[calc(24px_+_env(safe-area-inset-bottom))]' : 'bottom-[calc(88px_+_env(safe-area-inset-bottom))]'} lg:bottom-[calc(24px_+_env(safe-area-inset-bottom))] right-4 z-40 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-brand-foreground shadow-[0_10px_26px_rgba(0,0,0,.22)] hover:-translate-y-0.5 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-[transform,box-shadow,opacity] duration-200 ${
+        className={`fixed ${chromeless ? 'bottom-[calc(24px_+_env(safe-area-inset-bottom))]' : 'bottom-[calc(88px_+_env(safe-area-inset-bottom))]'} lg:bottom-[calc(24px_+_env(safe-area-inset-bottom))] right-4 z-40 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-brand-foreground shadow-[0_10px_26px_rgba(0,0,0,.22)] hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-[transform,box-shadow,opacity] duration-200 ${
           launcherVisible
             ? isScrolling && !isOpen
               ? 'opacity-30 scale-90 pointer-events-none'
@@ -413,9 +413,8 @@ export function Chatbot() {
           so it used to pop in and vanish instantly despite the transition class. */}
       {panelPresence.mounted && (
         <div
-          className={`fixed ${hasFloatingCta ? 'bottom-[240px] lg:bottom-[176px]' : 'bottom-40 lg:bottom-24'} left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 overflow-hidden bg-card rounded-bento shadow-pill flex flex-col origin-bottom-right ${
-            panelPresence.closing ? 'animate-accordion-up' : 'animate-fade-slide-up'
-          }`}
+          className={`fixed ${hasFloatingCta ? 'bottom-[240px] lg:bottom-[176px]' : 'bottom-40 lg:bottom-24'} left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 overflow-hidden bg-card rounded-bento shadow-modal flex flex-col origin-bottom-right overlay-enter-menu`}
+          data-state={panelPresence.closing ? 'closed' : 'open'}
         >
           {/* Header - Mobile: Larger, Desktop: Compact */}
           {/* Header per secondary-03-assistant.png: a dark slab with an orange

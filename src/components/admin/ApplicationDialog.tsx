@@ -54,7 +54,7 @@ function CopyButton({ text, what }: { text: string; what: string }) {
       type="button"
       onClick={() => void copyText(text, what)}
       aria-label={`Copy ${what.toLowerCase()}`}
-      className="relative ml-2 inline-flex min-h-10 items-center rounded-full bg-muted px-3 text-[12px] font-bold text-warm-secondary hover:bg-warm-hairline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="relative ml-2 inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-muted px-3 text-[12px] font-bold text-warm-secondary hover:bg-warm-hairline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       Copy
     </button>
@@ -268,7 +268,7 @@ export function ApplicationDialog({ app, position, prevId, nextId, reviewerName,
                     disabled={outreachBusy}
                     onClick={() => { if (!on) onTexted(app, o.key); }}
                     className={cn(
-                      'inline-flex min-h-10 items-center rounded-full px-3.5 text-[13px] transition-colors duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                      'inline-flex min-h-11 md:min-h-10 items-center rounded-full px-3.5 text-[13px] transition-colors duration-150 active:scale-press disabled:cursor-not-allowed disabled:opacity-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                       on ? 'bg-panel font-bold text-background' : 'bg-muted font-semibold text-warm-secondary hover:bg-warm-hairline',
                     )}
                   >

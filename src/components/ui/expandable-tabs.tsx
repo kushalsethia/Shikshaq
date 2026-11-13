@@ -72,7 +72,7 @@ export function ExpandableTabs({
            orange case was repeating on every scoped page. Applies in dark mode
            too: the active pill is painted accentBg there as well. */
         const accentInk = tab.accent === 'brand-blue' ? 'text-white' : 'text-brand-foreground';
-        const accentRing = tab.accent === 'brand-blue' ? 'focus-visible:ring-brand-blue' : 'focus-visible:ring-brand';
+        const accentRing = tab.accent === 'brand-blue' ? 'focus-visible:ring-brand-blue' : 'focus-visible:ring-focus';
 
         return (
           <li
@@ -96,7 +96,7 @@ export function ExpandableTabs({
               onMouseLeave={() => setPeekIndex((v) => (v === index ? null : v))}
               onFocus={() => !active && setPeekIndex(index)}
               onBlur={() => setPeekIndex((v) => (v === index ? null : v))}
-              className={`relative flex w-full items-center justify-center gap-1.5 overflow-hidden rounded-full transition-[background-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 ${accentRing} focus-visible:ring-offset-2 active:scale-[0.96] ${
+              className={`relative flex w-full items-center justify-center gap-1.5 overflow-hidden rounded-full transition-[background-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 ${accentRing} focus-visible:ring-offset-2 active:scale-press ${
                 /* Handoff T-008: active pill grows to 46px with 20px side
                    padding; inactive tabs keep the 44px hit target. */
                 active ? 'h-[46px] px-5' : 'h-11'

@@ -11,7 +11,8 @@ import { adminDestructiveBtnStyle, adminPrimaryBtnStyle, adminSecondaryBtnStyle 
             quiet        text-only, for a low-key action beside a primary
             destructive  tinted red, always last in reading order
    size     md  44px     the default
-            sm  40px     inside a row or a tight toolbar; never smaller
+            sm  40px     inside a row or a tight toolbar; never smaller.
+                         On a phone it is 44px too (every touch target is).
 
    `busy` disables the button and sets aria-busy, so a double tap cannot fire
    the action twice. */
@@ -20,7 +21,7 @@ export type AdminPillVariant = 'primary' | 'secondary' | 'quiet' | 'destructive'
 export type AdminPillSize = 'md' | 'sm';
 
 const QUIET =
-  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-transparent px-4 text-[13px] font-bold text-brand-blue transition-colors duration-150 hover:bg-brand-blue-subtle active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60';
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-transparent px-4 text-[13px] font-bold text-brand-blue transition-[color,background-color,transform] duration-150 hover:bg-brand-blue-subtle active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-disabled';
 
 const VARIANT: Record<AdminPillVariant, string> = {
   primary: adminPrimaryBtnStyle,
@@ -29,7 +30,7 @@ const VARIANT: Record<AdminPillVariant, string> = {
   destructive: adminDestructiveBtnStyle,
 };
 
-const SIZE: Record<AdminPillSize, string> = { md: 'min-h-11', sm: 'min-h-10' };
+const SIZE: Record<AdminPillSize, string> = { md: 'min-h-11', sm: 'min-h-11 md:min-h-10' };
 
 export function adminPillClass(variant: AdminPillVariant = 'secondary', size: AdminPillSize = 'md', className?: string): string {
   return cn(VARIANT[variant], SIZE[size], className);

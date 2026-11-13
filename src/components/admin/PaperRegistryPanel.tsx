@@ -34,6 +34,7 @@ import {
   type RegistryRow,
   type RegistrySummary,
 } from '@/lib/paper-registry';
+import { BAR_WELL } from '@/lib/chart-styles';
 
 /* "Papers: processed and not processed" on /admin/pipeline.
 
@@ -76,7 +77,7 @@ function Headline({ label, value, sub, tone, wide }: { label: string; value: num
   const toneClass =
     tone === 'alert' ? 'bg-rose-100 text-rose-950' : tone === 'good' ? 'bg-mint text-[#24603D]' : 'bg-muted text-foreground';
   return (
-    <div className={cn('min-w-0 rounded-2xl px-4 py-3', wide && 'col-span-2 sm:col-span-1', toneClass)}>
+    <div className={cn('min-w-0 rounded-2xl px-4 py-3 shadow-card', wide && 'col-span-2 sm:col-span-1', toneClass)}>
       <p className="text-[12px] font-semibold uppercase tracking-wide opacity-80">{label}</p>
       <p className="mt-1 text-2xl font-extrabold tabular-nums">{value.toLocaleString()}</p>
       <p className="mt-0.5 text-[13px] opacity-80">{sub}</p>
@@ -93,7 +94,7 @@ function StateLegend({ counts }: { counts: (s: ProcessedState) => number }) {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="inline-flex min-h-10 items-center gap-1 rounded-full px-1 text-[13px] font-bold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex min-h-11 md:min-h-10 items-center gap-1 rounded-full px-1 text-[13px] font-bold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         What each state means
         <ChevronDown className={cn('h-4 w-4 transition-transform duration-150 motion-reduce:transition-none', open && 'rotate-180')} aria-hidden />
@@ -321,7 +322,7 @@ export function PaperRegistryPanel({
 
         <div className="mt-4 px-[18px]">
           <div
-            className="flex h-3 w-full overflow-hidden rounded-full bg-muted"
+            className={cn('flex h-3 w-full overflow-hidden rounded-full bg-muted', BAR_WELL)}
             role="img"
             aria-label={segments.map((s) => `${stateLabel(s.state)} ${s.count}`).join(', ')}
           >
@@ -342,7 +343,7 @@ export function PaperRegistryPanel({
                   onClick={() => setStateFilter(on && stateFilter.length === 1 ? [] : [s])}
                   title={STATE_LOOK[s].hint}
                   className={cn(
-                    'relative inline-flex h-10 items-center gap-2 rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 before:absolute before:-inset-[2px] before:content-[""] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:opacity-50',
+                    'relative inline-flex h-11 md:h-10 items-center gap-2 rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 before:absolute before:-inset-[2px] before:content-[""] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-press disabled:opacity-disabled',
                     on ? 'bg-foreground text-background' : 'bg-muted text-foreground hover:bg-warm-hairline',
                   )}
                 >
@@ -390,7 +391,7 @@ export function PaperRegistryPanel({
           </span>
           {filtered ? (
             <button type="button" onClick={clearFilters}
-              className="tap-44 inline-flex min-h-10 items-center font-semibold text-brand underline-offset-2 hover:underline">
+              className="tap-44 inline-flex min-h-11 md:min-h-10 items-center font-semibold text-brand underline-offset-2 hover:underline">
               Clear filters
             </button>
           ) : null}

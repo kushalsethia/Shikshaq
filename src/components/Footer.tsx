@@ -103,7 +103,7 @@ const SUMMARY_RESET = '[&::-webkit-details-marker]:hidden';
 /* tap-44 rather than min-h-[44px]: the hit area stays 44px via the ::before
    overlay, but the painted row is only as tall as the text. At a full 44px
    each, the thirty subject links alone ran to more than 1300px of footer. */
-const FOOTER_LINK = 'tap-44 flex items-center py-[5px] text-sm text-white/85 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 rounded-lg';
+const FOOTER_LINK = 'tap-44 flex items-center py-[5px] text-sm text-white/85 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 rounded-lg';
 
 function sanitize(content: string) {
   if (/<[a-z][\s\S]*>/i.test(content)) {
@@ -672,7 +672,7 @@ export function Footer({ expandedContent, seamFill = 'background' }: FooterProps
               <a
                 href="mailto:ngo.aquaterra@gmail.com"
                 aria-label="Email Shikshaq"
-                className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
+                className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
               >
                 <Mail strokeWidth={1.8} aria-hidden />
               </a>
@@ -681,7 +681,7 @@ export function Footer({ expandedContent, seamFill = 'background' }: FooterProps
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Shikshaq on Instagram"
-                className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
+                className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
               >
                 <InstagramIcon />
               </a>
@@ -690,7 +690,7 @@ export function Footer({ expandedContent, seamFill = 'background' }: FooterProps
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Shikshaq on WhatsApp"
-                className={cn(iconDiscVariants({ tone: 'whatsapp', size: 44 }), 'active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
+                className={cn(iconDiscVariants({ tone: 'whatsapp', size: 44 }), 'active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
               >
                 <WhatsAppIcon />
               </a>

@@ -363,7 +363,7 @@ export function LegalReader({
             href={getWhatsAppLink('8240980312')}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-[14px] bg-whatsapp px-[18px] text-[15px] font-extrabold text-whatsapp-text transition-transform duration-150 active:scale-[0.97] sm:w-auto"
+            className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-[14px] bg-whatsapp px-[18px] text-[15px] font-extrabold text-whatsapp-text transition-transform duration-150 active:scale-press sm:w-auto"
           >
             <WhatsAppIcon className="h-[17px] w-[17px]" />
             WhatsApp us

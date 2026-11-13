@@ -1154,7 +1154,7 @@ export function VerifyScreen({
       data-tour="undo"
       aria-label="Undo last"
       title={undoTitle(canUndo, undoHeld)}
-      className="tap-44 order-3 inline-flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-full bg-muted text-[15px] font-bold text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50 md:order-none md:w-auto md:px-4"
+      className="tap-44 order-3 inline-flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-full bg-muted text-[15px] font-bold text-warm-secondary transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-disabled md:order-none md:w-auto md:px-4"
     >
       <Undo2 className={ACTION_ICON_CLASS} aria-hidden="true" />
       <span className="hidden md:inline">Undo last</span>
@@ -1181,7 +1181,7 @@ export function VerifyScreen({
           aria-label="Back to this paper's questions"
           title="Back to this paper's questions"
           data-testid="back-to-questions"
-          className="tap-44 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted text-warm-secondary transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          className="tap-44 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted text-warm-secondary transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           <ArrowLeft className="h-5 w-5" aria-hidden="true" />
         </button>
@@ -1442,7 +1442,7 @@ export function VerifyScreen({
                   value={keptTyping}
                   rows={4}
                   aria-label="What you typed earlier"
-                  className="mt-2 w-full rounded-[8px] bg-card p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  className="mt-2 w-full rounded-[8px] bg-card p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 />
                 <div className="mt-2">
                   <ActionButton tone="muted" onClick={() => setKeptTyping(null)}>
@@ -1569,7 +1569,7 @@ export function VerifyScreen({
                   onChange={(e) => setTypoNote(e.target.value)}
                   disabled={submitting}
                   placeholder="e.g. the paper printed 'teh' for 'the'"
-                  className="min-h-[44px] rounded-[10px] bg-muted px-3 py-2 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  className="min-h-[44px] rounded-[10px] bg-muted px-3 py-2 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 />
               </label>
             ) : null}
@@ -1598,7 +1598,7 @@ export function VerifyScreen({
               onSelect={(e) => onSplitCaret(e.currentTarget)}
               rows={5}
               aria-label="Tap where the second question starts"
-              className="w-full resize-none rounded-[8px] bg-muted p-3 text-[18px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="w-full resize-none rounded-[8px] bg-muted p-3 text-[18px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
             />
           </div>
         );
@@ -1725,7 +1725,7 @@ export function VerifyScreen({
             ? () => setLightbox({ src: cropShown, alt: cropAlt })
             : undefined;
         const enlargeButtonClass =
-          'tap-44 rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand';
+          'tap-44 rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-foreground transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus';
 
         const partsBody = partPictures ? (
           <PartPictures
@@ -1758,7 +1758,7 @@ export function VerifyScreen({
                   aria-label="Enlarge the printed question"
                   data-testid="enlarge-crop"
                   className={cn(
-                    'group relative flex cursor-zoom-in justify-center self-center rounded-[6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                    'group relative flex cursor-zoom-in justify-center self-center rounded-[6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                     fit ? 'min-h-0 flex-1 items-center overflow-hidden' : 'shrink-0',
                   )}
                 >
@@ -1787,7 +1787,7 @@ export function VerifyScreen({
             data-enter-passes="true"
             onClick={() => setShowPage((v) => !v)}
             className={cn(
-              'tap-44 rounded-full bg-brand-subtle px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+              'tap-44 rounded-full bg-brand-subtle px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
               className,
             )}
           >
@@ -1803,7 +1803,7 @@ export function VerifyScreen({
             data-testid="paper-toggle"
             onClick={() => setShowPaper((v) => !v)}
             className={cn(
-              'tap-44 rounded-full bg-brand-subtle px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+              'tap-44 rounded-full bg-brand-subtle px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
               className,
             )}
           >
@@ -2032,7 +2032,7 @@ export function VerifyScreen({
             // Floats over the page instead of pushing the question down
             // (no layout shift on every save).
             className={cn(
-              'fixed left-1/2 top-24 z-40 w-[min(92vw,28rem)] -translate-x-1/2 rounded-2xl px-4 py-3 text-center text-[14px] font-semibold text-foreground shadow-lg animate-in fade-in-0 duration-200',
+              'fixed left-1/2 top-24 z-40 w-[min(92vw,28rem)] -translate-x-1/2 rounded-2xl px-4 py-3 text-center text-[14px] font-semibold text-foreground shadow-popover overlay-enter-menu',
               notice.tone === 'ok' ? 'bg-mint' : 'bg-brand-subtle',
             )}
           >
@@ -2057,7 +2057,7 @@ export function VerifyScreen({
             value={lostWords}
             rows={4}
             aria-label="What you typed"
-            className="mt-2 max-h-[30vh] w-full rounded-[8px] bg-card p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="mt-2 max-h-[30vh] w-full rounded-[8px] bg-card p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
           />
           <div className="mt-2">
             <ActionButton tone="muted" onClick={() => setLostWords(null)}>
@@ -2202,7 +2202,7 @@ export function VerifyScreen({
                 aria-pressed={helpReason === r}
                 onClick={() => setHelpReason(r)}
                 className={cn(
-                  'tap-44 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                  'tap-44 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                   helpReason === r ? 'bg-brand text-foreground' : 'bg-muted text-warm-secondary',
                 )}
               >
@@ -2217,7 +2217,7 @@ export function VerifyScreen({
             placeholder="Or say it in your own words"
             rows={3}
             aria-label="What can't you fix"
-            className="w-full rounded-xl bg-muted p-3 text-[16px] outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="w-full rounded-xl bg-muted p-3 text-[16px] outline-none focus-visible:ring-2 focus-visible:ring-focus"
           />
           {error ? <p className="mt-2 text-[13px] text-destructive">{error}</p> : null}
           <div className="mt-3 flex gap-2">

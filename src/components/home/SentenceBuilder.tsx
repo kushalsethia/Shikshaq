@@ -71,7 +71,7 @@ function SlotChip({
         <button
           type="button"
           className={cn(
-            "inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-xl px-3 align-middle transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel active:scale-[0.97]",
+            "inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-xl px-3 align-middle transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel active:scale-press",
             "backdrop-blur-md backdrop-saturate-150 shadow-[0_1px_0_0_rgba(255,255,255,0.25)_inset,0_8px_20px_-8px_rgba(0,0,0,0.5)]",
             filled
               ? "bg-white/[0.16] text-background ring-1 ring-inset ring-white/30 hover:bg-white/[0.22]"

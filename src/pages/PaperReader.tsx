@@ -508,7 +508,7 @@ export default function PaperReader() {
                     <button
                       type="button"
                       onClick={openFullScreen}
-                      className={`tap-44 flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-semibold text-white transition-colors duration-tap ease-tap hover:bg-white/10 active:scale-[0.97] ${FOCUS_DARK}`}
+                      className={`tap-44 flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-semibold text-white transition-colors duration-tap ease-tap hover:bg-white/10 active:scale-press ${FOCUS_DARK}`}
                     >
                       <Maximize2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
                       Full screen
@@ -517,7 +517,7 @@ export default function PaperReader() {
                       href={fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`tap-44 flex h-9 items-center gap-2 rounded-full bg-brand-blue px-4 text-[13px] font-bold text-white transition-colors duration-tap ease-tap hover:bg-brand-blue-hover active:scale-[0.97] ${FOCUS_DARK}`}
+                      className={`tap-44 flex h-9 items-center gap-2 rounded-full bg-brand-blue px-4 text-[13px] font-bold text-white transition-colors duration-tap ease-tap hover:bg-brand-blue-hover active:scale-press ${FOCUS_DARK}`}
                     >
                       <ExternalLink className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
                       Open full PDF
@@ -603,7 +603,7 @@ export default function PaperReader() {
                   <button
                     type="button"
                     onClick={() => setGateOpen(true)}
-                    className={`flex min-h-12 items-center gap-2 rounded-full bg-brand-blue px-8 text-body font-semibold text-white shadow-glow-brand-blue transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 ${FOCUS}`}
+                    className={`flex min-h-12 items-center gap-2 rounded-full bg-brand-blue px-8 text-body font-semibold text-white shadow-glow-brand-blue transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-press motion-reduce:hover:translate-y-0 ${FOCUS}`}
                   >
                     <Lock className="h-4 w-4" strokeWidth={2.25} aria-hidden="true" />
                     Sign in to read this paper
@@ -664,7 +664,7 @@ export default function PaperReader() {
           </p>
           <Link
             to={`/all-tuition-teachers-in-kolkata?filter_subjects=${encodeURIComponent(paper.subject)}`}
-            className={`mt-3 inline-flex h-[46px] items-center rounded-full bg-panel px-5 text-[15px] font-bold text-[#FCFAF7] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] ${FOCUS_DARK}`}
+            className={`mt-3 inline-flex h-[46px] items-center rounded-full bg-panel px-5 text-[15px] font-bold text-[#FCFAF7] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-press ${FOCUS_DARK}`}
           >
             Browse {paper.subject} teachers
           </Link>

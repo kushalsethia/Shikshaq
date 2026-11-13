@@ -23,6 +23,10 @@ function StatusTile({ tone }: { tone: "success" | "error" }) {
   );
 }
 
+/* Tactile pass, stage 3: only the edge and the press changed. The dark pill, the 32px
+   status tile, one toast at a time, bottom centre, and every place a toast fires are the
+   site's own (Handoff O-010) and are untouched. The 34px soft blur under the pill became
+   the shared crisp popover shadow, and the action buttons squeeze when pressed. */
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
   // Handoff O-010: bottom-[150px] on routes with a bottom nav (never covers
@@ -48,7 +52,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         unstyled: true,
         classNames: {
           toast:
-            "group toast flex w-[356px] max-w-[calc(100vw_-_24px)] items-center gap-3 rounded-[20px] bg-panel p-[14px_16px] text-[14px] font-semibold text-[#FCFAF7] shadow-[0_14px_34px_rgba(0,0,0,.32)]",
+            "group toast flex w-[356px] max-w-[calc(100vw_-_24px)] items-center gap-3 rounded-[20px] bg-panel p-[14px_16px] text-[14px] font-semibold text-[#FCFAF7] shadow-popover",
           // sonner's own base stylesheet hard-sizes [data-icon] to 16x16 via
           // a zero-specificity :where() rule (for its default glyphs) — our
           // StatusTile is a 32x32 tile, so it was rendering clipped/
@@ -60,8 +64,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
           icon: "!w-8 !h-8 flex-none",
           description: "text-background/70",
           actionButton:
-            "!ml-auto !flex-none !h-9 !rounded-full !bg-white/[0.12] !px-3 !text-[13px] !font-bold !text-background",
-          cancelButton: "!ml-auto !flex-none !h-9 !rounded-full !bg-white/[0.12] !px-3 !text-[13px] !font-bold !text-background",
+            "!ml-auto !flex-none !h-9 !rounded-full !bg-white/[0.12] !px-3 !text-[13px] !font-bold !text-background active:!scale-press-small",
+          cancelButton: "!ml-auto !flex-none !h-9 !rounded-full !bg-white/[0.12] !px-3 !text-[13px] !font-bold !text-background active:!scale-press-small",
         },
       }}
       {...props}

@@ -27,6 +27,7 @@ import {
   type DetailsDraft,
 } from '@/lib/verifier-profile-edit';
 import { cn } from '@/lib/utils';
+import { TABLE_COLUMN_RULE, TABLE_FRAME, TABLE_HEAD_LABEL, TABLE_ROW_RULE } from '@/lib/table-styles';
 
 /* "Verifiers": how each verifier is doing (a table, plain words, scrolls
    sideways on a phone with the name held in place), and below it each
@@ -52,12 +53,12 @@ function cell(m: HodTeamMember, key: string) {
       return (
         <>
           {m.passed_as_is}
-          {r !== null ? <span className="ml-1 text-[12px] text-warm-meta">({r}%)</span> : null}
+          {r !== null ? <span className="ml-1 text-[12px] text-warm-secondary">({r}%)</span> : null}
         </>
       );
     }
     case 'last_active':
-      return m.last_active ? <span className="whitespace-nowrap">{ago(m.last_active)}</span> : <span className="text-warm-meta">Not yet</span>;
+      return m.last_active ? <span className="whitespace-nowrap">{ago(m.last_active)}</span> : <span className="text-warm-secondary">Not yet</span>;
     default:
       return <>{String(m[key as keyof HodTeamMember] ?? '')}</>;
   }
@@ -76,15 +77,15 @@ function AnalyticsTable({ team }: { team: HodTeamMember[] }) {
         <Tile label="Last 7 days" value={week} hint="Questions all verifiers dealt with in the last seven days." />
         <Tile label="Waiting to verify" value={waiting} hint="Questions in papers held by verifiers that nobody has settled yet." />
       </div>
-      <div className="overflow-x-auto rounded-2xl bg-muted" data-testid="team-table-wrap">
+      <div className={cn('overflow-x-auto', TABLE_FRAME)} data-testid="team-table-wrap">
         <table className="w-full min-w-[60rem] border-separate border-spacing-0 text-left text-[14px]" aria-label="Verifiers and how they are doing">
           <thead>
             <tr>
-              <th scope="col" className="sticky left-0 z-10 bg-muted px-4 py-3 text-[12px] font-bold uppercase tracking-[.04em] text-warm-secondary">
+              <th scope="col" className={cn('sticky left-0 z-10 bg-muted px-4 py-3', TABLE_HEAD_LABEL)}>
                 Verifier
               </th>
               {TEAM_COLUMNS.map((c) => (
-                <th key={c.key} scope="col" title={c.hint} className="px-3 py-3 text-[12px] font-bold uppercase tracking-[.04em] text-warm-secondary">
+                <th key={c.key} scope="col" title={c.hint} className={cn('px-3 py-3', TABLE_COLUMN_RULE, TABLE_HEAD_LABEL)}>
                   {c.label}
                 </th>
               ))}
@@ -92,13 +93,19 @@ function AnalyticsTable({ team }: { team: HodTeamMember[] }) {
           </thead>
           <tbody>
             {team.map((m) => (
-              <tr key={m.user_id} className={cn(!m.active && 'opacity-60')} data-testid="team-row">
-                <th scope="row" className="sticky left-0 z-10 border-t border-warm-hairline bg-muted px-4 py-3 font-semibold text-foreground">
+              <tr key={m.user_id} className={cn('group', !m.active && 'opacity-60')} data-testid="team-row">
+                <th
+                  scope="row"
+                  className={cn('sticky left-0 z-10 bg-muted px-4 py-3 font-semibold text-foreground transition-colors duration-150 group-hover:bg-warm-hairline', TABLE_ROW_RULE)}
+                >
                   <span className="block max-w-[11rem] truncate">{memberName(m)}</span>
-                  {m.active ? null : <span className="block text-[12px] font-normal text-warm-meta">Not active</span>}
+                  {m.active ? null : <span className="block text-[12px] font-normal text-warm-secondary">Not active</span>}
                 </th>
                 {TEAM_COLUMNS.map((c) => (
-                  <td key={c.key} className="border-t border-warm-hairline px-3 py-3 align-top tabular-nums text-foreground">
+                  <td
+                    key={c.key}
+                    className={cn('px-3 py-3 align-top tabular-nums text-warm-prose transition-colors duration-150 group-hover:bg-warm-hairline', TABLE_ROW_RULE, TABLE_COLUMN_RULE)}
+                  >
                     {cell(m, c.key)}
                   </td>
                 ))}
@@ -208,7 +215,7 @@ export function ProfileRow({ p, api, scope, choices }: { p: HodVerifierProfile; 
   }
 
   return (
-    <li className="rounded-2xl bg-muted p-4" data-testid="profile-row">
+    <li className="rounded-2xl bg-muted shadow-card p-4" data-testid="profile-row">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[15px] font-bold text-foreground">{name}</p>

@@ -2,6 +2,7 @@ import * as React from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 
 import { cn } from "@/lib/utils";
+import { POPOVER_SURFACE } from "@/lib/overlay-styles";
 
 const Popover = PopoverPrimitive.Root;
 
@@ -17,12 +18,10 @@ const PopoverContent = React.forwardRef<
       align={align}
       sideOffset={sideOffset}
       /* Handoff O-008/O-009: anchored popovers (never a full-screen
-         takeover) — rounded-[24px] bg-card, no border, a two-layer shadow
-         (hairline + drop) instead of the shadcn default border+shadow-md. */
-      className={cn(
-        "z-50 w-72 rounded-[24px] bg-card p-2 text-popover-foreground shadow-[0_0_0_1px_hsl(var(--border)),0_18px_44px_rgba(0,0,0,.18)] outline-none origin-[--radix-popover-content-transform-origin] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-        className,
-      )}
+         takeover), 24px corners, no border. Tactile pass: the edge is the
+         shared popover shadow (a ring and a crisp drop, no wide blur), and it
+         opens from its trigger in 150ms and closes in 120ms. */
+      className={cn(POPOVER_SURFACE, className)}
       {...props}
     />
   </PopoverPrimitive.Portal>

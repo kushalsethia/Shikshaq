@@ -178,7 +178,7 @@ function SheetQuestion({
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
-                className="inline-flex min-h-10 items-center rounded-full bg-card px-3.5 text-[13px] font-bold text-foreground transition-transform duration-150 hover:bg-warm-hairline active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-card px-3.5 text-[13px] font-bold text-foreground transition-transform duration-150 hover:bg-warm-hairline active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => {
                   setMode('fix');
                   setError(null);
@@ -190,7 +190,7 @@ function SheetQuestion({
               {q.scanner_junk ? (
                 <button
                   type="button"
-                  className="inline-flex min-h-10 items-center rounded-full bg-card px-3.5 text-[13px] font-bold text-warm-secondary transition-transform duration-150 hover:bg-warm-hairline active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-card px-3.5 text-[13px] font-bold text-warm-secondary transition-transform duration-150 hover:bg-warm-hairline active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => setMode(mode === 'aside' ? null : 'aside')}
                   aria-expanded={mode === 'aside'}
                   aria-label={`Leave question ${label} out`}
@@ -208,7 +208,7 @@ function SheetQuestion({
                   value={note}
                   onChange={(ev) => setNote(ev.target.value)}
                   disabled={busy}
-                  className="min-h-10 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  className="min-h-11 md:min-h-10 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 />
               </label>
               <div className="mt-2 flex gap-2">

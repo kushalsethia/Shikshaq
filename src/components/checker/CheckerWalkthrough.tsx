@@ -185,7 +185,7 @@ export function CheckerWalkthrough({
         aria-modal="true"
         aria-labelledby="checker-tour-title"
         data-testid="checker-walkthrough"
-        className="fixed z-[62] rounded-2xl bg-card p-4 shadow-lg animate-in fade-in-0 duration-200"
+        className="overlay-enter-modal fixed z-[62] rounded-2xl bg-card p-4 shadow-modal"
         style={{ top, left, width: cardW }}
       >
         <div className="mb-1 flex items-center justify-between gap-2">
@@ -195,7 +195,7 @@ export function CheckerWalkthrough({
           <button
             type="button"
             onClick={onClose}
-            className="tap-44 rounded-full px-3 py-1 text-[13px] font-semibold text-warm-secondary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="tap-44 rounded-full px-3 py-1 text-[13px] font-semibold text-warm-secondary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             Skip the tour
           </button>

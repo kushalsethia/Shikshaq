@@ -106,7 +106,7 @@ export function PageImageViewer({
               type="button"
               onClick={onEnlarge}
               data-testid="enlarge-page"
-              className="tap-44 ml-1 rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="tap-44 ml-1 rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-foreground transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               Enlarge
             </button>
@@ -174,7 +174,7 @@ function ZoomButton({
       className={cn(
         'tap-44 flex items-center justify-center rounded-full bg-white text-[20px] font-semibold leading-none text-foreground',
         small ? 'h-8 w-8' : 'h-11 w-11',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-40',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40',
       )}
     >
       {children}

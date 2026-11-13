@@ -161,7 +161,7 @@ export function QuestionVersions({
                     type="button"
                     aria-expanded={viewing === v.version}
                     onClick={() => setViewing((cur) => (cur === v.version ? null : v.version))}
-                    className="inline-flex min-h-10 items-center rounded-full bg-muted px-3.5 text-[13px] font-bold text-foreground transition-transform duration-150 hover:bg-warm-hairline active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-muted px-3.5 text-[13px] font-bold text-foreground transition-transform duration-150 hover:bg-warm-hairline active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {viewing === v.version ? 'Hide' : 'View'}
                   </button>
@@ -170,7 +170,7 @@ export function QuestionVersions({
                       type="button"
                       aria-expanded={diffFor === v.version}
                       onClick={() => setDiffFor((cur) => (cur === v.version ? null : v.version))}
-                      className="inline-flex min-h-10 items-center rounded-full bg-muted px-3.5 text-[13px] font-bold text-foreground transition-transform duration-150 hover:bg-warm-hairline active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-muted px-3.5 text-[13px] font-bold text-foreground transition-transform duration-150 hover:bg-warm-hairline active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {diffFor === v.version ? 'Hide changes' : 'What changed'}
                     </button>
@@ -183,7 +183,7 @@ export function QuestionVersions({
                         setNote('');
                         setWriteError(null);
                       }}
-                      className="inline-flex min-h-10 items-center rounded-full bg-panel px-3.5 text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className="inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-panel px-3.5 text-[13px] font-bold text-background transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       Restore this version
                     </button>
@@ -218,7 +218,7 @@ export function QuestionVersions({
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
                         maxLength={300}
-                        className="min-h-10 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        className="min-h-11 md:min-h-10 rounded-xl bg-card px-3 text-[16px] sm:text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
                       />
                     </label>
                     {writeError ? (
@@ -231,7 +231,7 @@ export function QuestionVersions({
                         type="button"
                         disabled={busy}
                         onClick={() => void restore(v.version)}
-                        className="inline-flex min-h-10 items-center rounded-full bg-panel px-4 text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.96] disabled:opacity-60"
+                        className="inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-panel px-4 text-[13px] font-bold text-background transition-transform duration-150 active:scale-press disabled:opacity-disabled"
                       >
                         {busy ? 'Restoring...' : `Restore version ${v.version}`}
                       </button>
@@ -239,7 +239,7 @@ export function QuestionVersions({
                         type="button"
                         disabled={busy}
                         onClick={() => setConfirming(null)}
-                        className="inline-flex min-h-10 items-center rounded-full bg-card px-4 text-[13px] font-semibold text-warm-secondary"
+                        className="inline-flex min-h-11 md:min-h-10 items-center rounded-full bg-card px-4 text-[13px] font-semibold text-warm-secondary"
                       >
                         Cancel
                       </button>

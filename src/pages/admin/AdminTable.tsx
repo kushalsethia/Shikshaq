@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TABLE_ROW_PRESS } from '@/lib/table-styles';
 import { InfoTip } from '@/components/admin/AdminHelp';
 import { AdminLoading } from '@/components/admin/AdminState';
 
@@ -96,7 +97,7 @@ export function AdminRowActions({ actions, stack = false, subject }: { actions: 
           onClick={action.onClick}
           disabled={action.disabled}
           className={cn(
-            'relative inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full px-[14px] text-[13px] font-bold before:absolute before:-inset-[2px] before:content-[""] transition-colors duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'relative inline-flex h-11 md:h-10 items-center justify-center whitespace-nowrap rounded-full px-[14px] text-[13px] font-bold before:absolute before:-inset-[2px] before:content-[""] transition-colors duration-150 active:scale-press disabled:cursor-not-allowed disabled:opacity-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             ACTION_TONE_CLASS[action.tone],
           )}
         >
@@ -184,11 +185,11 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
       <div className="hidden overflow-x-auto lg:grid" role="table" style={{ gridTemplateColumns: gridTemplate }}>
         <div
           role="row"
-          className="grid gap-3.5 px-[14px] py-3 shadow-[inset_0_-1px_0_#E7DFD5]"
+          className="grid gap-3.5 border-b-[0.5px] border-warm-hairline px-[14px] py-3"
           style={SUBGRID_ROW}
         >
           {columns.map((c) => (
-            <span role="columnheader" key={c.key} className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">
+            <span role="columnheader" key={c.key} className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[.06em] text-warm-secondary">
               {c.label}
               {c.hint ? <InfoTip text={c.hint} label={c.label} /> : null}
             </span>
@@ -204,8 +205,8 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
             key={row.id}
             role="row"
             className={cn(
-              'grid items-center gap-3.5 px-[14px] py-[12px] shadow-[inset_0_-1px_0_#F0EAE2] transition-colors duration-150 hover:bg-muted/40',
-              row.href && 'relative',
+              'grid items-center gap-3.5 border-b-[0.5px] border-warm-muted px-[14px] py-[12px] tabular-nums transition-colors duration-150 last:border-b-0 hover:bg-muted/40',
+              row.href && cn('relative', TABLE_ROW_PRESS),
             )}
             style={SUBGRID_ROW}
           >
@@ -236,7 +237,7 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
               </span>
             )}
             {hasHref ? (
-              <span role="cell" className="flex justify-end text-warm-label">
+              <span role="cell" className="flex justify-end text-warm-secondary">
                 {row.href ? <ChevronRight className="h-4 w-4" aria-hidden /> : null}
               </span>
             ) : null}
@@ -245,9 +246,9 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
       </div>
 
       {/* Mobile / tablet: a single-column list of row cards. */}
-      <div className="divide-y divide-warm-hairline lg:hidden">
+      <div className="divide-y-[0.5px] divide-warm-hairline lg:hidden">
         {rows.map((row) => (
-          <div key={row.id} className={cn('flex flex-col gap-3 px-[14px] py-4', row.href && 'relative')}>
+          <div key={row.id} className={cn('flex flex-col gap-3 px-[14px] py-4', row.href && cn('relative', TABLE_ROW_PRESS))}>
             <div className="flex min-w-0 items-start gap-2">
               <div className="min-w-0 flex-1 text-[15px] font-bold leading-[1.35] text-foreground" title={cellTitle(row.cells[0])}>
                 {row.href ? (
@@ -258,7 +259,7 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
                   row.cells[0]
                 )}
               </div>
-              {row.href ? <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-warm-label" aria-hidden /> : null}
+              {row.href ? <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-warm-secondary" aria-hidden /> : null}
             </div>
 
             {row.cells.length > 1 ? (
@@ -266,7 +267,7 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
                 {row.cells.slice(1).map((cell, i) => (
                   <div key={i} className="min-w-0">
                     {columns[i + 1] ? (
-                      <dt className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">
+                      <dt className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[.06em] text-warm-secondary">
                         {columns[i + 1].label}
                         {columns[i + 1].hint ? <InfoTip text={columns[i + 1].hint} label={columns[i + 1].label} /> : null}
                       </dt>

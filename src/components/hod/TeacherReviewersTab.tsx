@@ -108,7 +108,7 @@ export function TeacherReviewersSection({ api }: { api: TeacherReviewerAdminApi 
               setError(null);
             }}
             placeholder="name@example.com"
-            className="h-10 w-full rounded-full bg-muted px-4 text-[16px] sm:text-[13px] text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="h-11 md:h-10 w-full rounded-full bg-muted px-4 text-[16px] sm:text-[13px] text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-focus"
           />
         </label>
         <button
@@ -141,7 +141,7 @@ export function TeacherReviewersSection({ api }: { api: TeacherReviewerAdminApi 
         ) : (
           <ul className="space-y-3">
             {active.map((r) => (
-              <li key={r.user_id} className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] bg-muted p-4">
+              <li key={r.user_id} className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] bg-muted shadow-card p-4">
                 <div className="min-w-0">
                   <p className="truncate text-[14px] font-semibold text-foreground">{r.name || r.email || 'Unnamed account'}</p>
                   <p className="truncate text-[12px] text-warm-meta">

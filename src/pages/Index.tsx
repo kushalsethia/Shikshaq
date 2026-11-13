@@ -846,7 +846,7 @@ export default function Index() {
                     <Link
                       key={b}
                       to={`/past-papers/results?filter_boards=${encodeURIComponent(b)}`}
-                      className="flex h-[38px] shrink-0 items-center gap-[8px] whitespace-nowrap rounded-full bg-brand-blue-subtle px-3.5 text-[13px] font-semibold text-brand-blue-deep transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
+                      className="flex h-[38px] shrink-0 items-center gap-[8px] whitespace-nowrap rounded-full bg-brand-blue-subtle px-3.5 text-[13px] font-semibold text-brand-blue-deep transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
                     >
                       <span aria-hidden className="h-2 w-2 rounded-[2px] bg-brand-blue" />
                       {b} · {paperBoardCounts[b]}
@@ -979,7 +979,7 @@ export default function Index() {
                     to={teachersCta?.href ?? '/all-tuition-teachers-in-kolkata'}
                     aria-label="Find a teacher"
                     tabIndex={!teachersActive && !isDesktop ? -1 : undefined}
-                    className="tap-44 ml-2 flex h-[38px] w-[38px] items-center justify-center rounded-full bg-panel text-background transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
+                    className="tap-44 ml-2 flex h-[38px] w-[38px] items-center justify-center rounded-full bg-panel text-background transition-transform duration-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
                   >
                     <ArrowUpRight className="h-4 w-4" aria-hidden />
                   </Link>
@@ -1173,7 +1173,7 @@ export default function Index() {
 
             <Link
               to={teachersCta?.href ?? '/all-tuition-teachers-in-kolkata'}
-              className="flex h-11 items-center gap-2 whitespace-nowrap px-[22px] pt-[18px] text-body-secondary font-medium text-brand-blue transition-colors duration-tap hover:text-brand-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              className="flex h-11 items-center gap-2 whitespace-nowrap px-[22px] pt-[18px] text-body-secondary font-medium text-brand-blue transition-colors duration-tap hover:text-brand-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
             >
               {/* teachersCta drops the global stats.teachers count rather than
                   keep it beside a subject-specific label — "All 350 Maths
@@ -1244,7 +1244,7 @@ export default function Index() {
                   <Link
                     key={b}
                     to={`/all-tuition-teachers-in-kolkata?filter_boards=${encodeURIComponent(b)}`}
-                    className={`flex h-[52px] min-h-[44px] items-center justify-between gap-2 rounded-full px-[18px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-card-reveal ${BOARD_FILLS[b] ?? 'bg-muted text-foreground'} ${BOARD_TILT_CLASSES[i % BOARD_TILT_CLASSES.length]}`}
+                    className={`flex h-[52px] min-h-[44px] items-center justify-between gap-2 rounded-full px-[18px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-card-reveal ${BOARD_FILLS[b] ?? 'bg-muted text-foreground'} ${BOARD_TILT_CLASSES[i % BOARD_TILT_CLASSES.length]}`}
                   >
                     <span className="font-display text-[17px] font-bold">{b}</span>
                     <span className="text-[14px] tabular-nums opacity-80">
@@ -1277,7 +1277,7 @@ export default function Index() {
                 <li key={n}>
                   <Link
                     to={`/all-tuition-teachers-in-kolkata?filter_classes=${n}`}
-                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-muted transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-muted transition-transform duration-tap hover:-translate-y-0.5 active:scale-press-card shadow-button focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     <span className="font-display text-[16px] font-extrabold tabular-nums">{n}</span>
                   </Link>
@@ -1311,7 +1311,7 @@ export default function Index() {
                 </p>
                 <Link
                   to="/past-papers"
-                  className="mt-4 inline-flex h-[46px] items-center gap-2 whitespace-nowrap rounded-full bg-warm-card px-6 text-[14px] font-extrabold text-brand-blue-deep transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue"
+                  className="mt-4 inline-flex h-[46px] items-center gap-2 whitespace-nowrap rounded-full bg-warm-card px-6 text-[14px] font-extrabold text-brand-blue-deep transition-transform duration-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue"
                 >
                   Browse past papers
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -1577,7 +1577,7 @@ export default function Index() {
           <BentoPanel fill="card" className="!px-[22px] !py-[18px] lg:!px-8 lg:!py-8">
             <Link
               to="/recommend-teacher"
-              className="flex items-center gap-[14px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex items-center gap-[14px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <IconDisc tone="muted" size={44}>
                 <GraduationCap />

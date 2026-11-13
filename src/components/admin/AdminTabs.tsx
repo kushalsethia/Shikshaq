@@ -84,7 +84,7 @@ export function AdminTabs({
                 onClick={() => onChange(t.key)}
                 onKeyDown={onKeyDown}
                 className={cn(
-                  'relative inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 before:absolute before:-inset-1 before:content-[""] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'relative inline-flex min-h-11 md:min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 before:absolute before:-inset-1 before:content-[""] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   on ? 'bg-card text-foreground' : 'text-warm-secondary hover:text-foreground',
                 )}
               >

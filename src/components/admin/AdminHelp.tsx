@@ -62,7 +62,7 @@ export function AdminPageIntro({ page, className }: { page: AdminPageKey; classN
           aria-expanded={open}
           aria-controls={panelId}
           onClick={() => setOpen(!open)}
-          className="relative inline-flex min-h-10 shrink-0 items-center gap-1 rounded-full px-3 text-[13px] font-bold text-brand-blue transition-colors duration-150 hover:bg-card/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="relative inline-flex min-h-11 md:min-h-10 shrink-0 items-center gap-1 rounded-full px-3 text-[13px] font-bold text-brand-blue transition-colors duration-150 hover:bg-card/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Help
           <ChevronDown className={cn('h-4 w-4 transition-transform duration-150 motion-reduce:transition-none', open && 'rotate-180')} aria-hidden />

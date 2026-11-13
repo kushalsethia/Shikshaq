@@ -474,7 +474,7 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
             type="button"
             onClick={advance}
             className={cn(
-              'flex h-[clamp(48px,7.5vh,56px)] w-full items-center justify-center gap-2 rounded-full text-[16px] font-extrabold transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
+              'flex h-[clamp(48px,7.5vh,56px)] w-full items-center justify-center gap-2 rounded-full text-[16px] font-extrabold transition-transform duration-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
               step.chipBg,
               step.chipInk,
             )}

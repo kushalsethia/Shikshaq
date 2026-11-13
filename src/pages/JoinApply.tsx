@@ -100,7 +100,7 @@ function Pill({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[15px] transition-[background-color,color,transform] duration-150 active:scale-[0.97] ${
+      className={`inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[15px] transition-[background-color,color,transform] duration-150 active:scale-press ${
         selected ? (dynamicTint ? 'font-bold' : `font-bold ${tintClass ?? 'bg-panel text-background'}`) : 'bg-muted font-semibold text-warm-secondary'
       }`}
       style={selected && dynamicTint ? { background: dynamicTint.bg, color: dynamicTint.color } : undefined}
@@ -120,7 +120,7 @@ function NumberGridOption({ label, selected, onClick }: { label: string; selecte
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`flex h-11 items-center justify-center rounded-[14px] text-[15px] font-extrabold tabular-nums transition-colors duration-150 active:scale-[0.97] ${
+      className={`flex h-11 items-center justify-center rounded-[14px] text-[15px] font-extrabold tabular-nums transition-colors duration-150 active:scale-press ${
         selected ? 'bg-panel text-background' : 'bg-muted text-foreground'
       }`}
     >
@@ -1249,7 +1249,7 @@ export default function JoinApply() {
             <button
               type="button"
               onClick={goBack}
-              className="flex h-[54px] flex-none items-center rounded-full bg-muted px-[22px] text-[15px] font-bold text-foreground transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex h-[54px] flex-none items-center rounded-full bg-muted px-[22px] text-[15px] font-bold text-foreground transition-transform duration-tap active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               Back
             </button>

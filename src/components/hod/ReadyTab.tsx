@@ -36,7 +36,7 @@ function ReadyList({ api, scope }: { api: HodApi; scope: string }) {
       </p>
       <ul className="space-y-3">
         {list.map((p) => (
-          <li key={p.audit_paper_id} className="rounded-[18px] bg-muted p-4" data-testid="ready-paper" data-ok={p.all_ok}>
+          <li key={p.audit_paper_id} className="rounded-[18px] bg-muted shadow-card p-4" data-testid="ready-paper" data-ok={p.all_ok}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[15px] font-bold text-foreground">{p.title}</p>

@@ -226,7 +226,7 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
   return (
     <div>
       <BackLink to={deskLink('ready')}>Back to Ready to go live</BackLink>
-      <div className="mb-4 rounded-[18px] bg-muted p-4">
+      <div className="mb-4 rounded-[18px] bg-muted shadow-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
             <h2 className="text-balance text-[18px] font-bold text-foreground">{paper.title}</h2>
@@ -252,7 +252,7 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
         ) : null}
       </div>
 
-      <ol className="mb-4 flex flex-wrap gap-1 rounded-[20px] bg-muted p-1 sm:inline-flex sm:rounded-full" aria-label="Steps to go live">
+      <ol className="mb-4 flex flex-wrap gap-1 rounded-[20px] bg-muted shadow-card p-1 sm:inline-flex sm:rounded-full" aria-label="Steps to go live">
         {STEPS.map((s, i) => (
           <li key={s.key}>
             <button
@@ -262,7 +262,7 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
               onClick={() => setStep(s.key)}
               onKeyDown={onStepKey}
               className={cn(
-                'flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                'flex h-11 md:h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                 step === s.key ? 'bg-card text-foreground' : 'text-warm-secondary hover:text-foreground',
               )}
             >
@@ -315,7 +315,7 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
                 />
                 <section aria-label="The computer's version" className="mt-5 min-w-0" data-testid="details-computer-version">
                   <h3 className="mb-2 text-[14px] font-bold text-foreground">The computer's version</h3>
-                  <div className="max-h-[70vh] overflow-y-auto rounded-2xl bg-muted p-2">
+                  <div className="max-h-[70vh] overflow-y-auto rounded-2xl bg-muted shadow-card p-2">
                     <PaperSheet preview={data} api={api} editable={!paper.is_live && waiting} onChanged={refresh} />
                   </div>
                 </section>
@@ -326,7 +326,7 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
 
         {step === 'publish' ? (
           <>
-            <div className="rounded-[18px] bg-muted p-4">
+            <div className="rounded-[18px] bg-muted shadow-card p-4">
               <p className="text-[15px] font-bold text-foreground">{paper.title}</p>
               <ul className="mt-2 space-y-1 text-[14px] text-foreground">
                 <li>
@@ -383,7 +383,7 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
                 rows={2}
                 maxLength={500}
                 disabled={busy}
-                className="w-full rounded-xl bg-muted p-3 text-[16px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="w-full rounded-xl bg-muted p-3 text-[16px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-focus"
               />
             </label>
 

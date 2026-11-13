@@ -957,7 +957,7 @@ export default function TeacherProfile() {
                   type="button"
                   onClick={() => navigate(backHref)}
                   aria-label="Back to results"
-                  className="relative flex h-[40px] w-[40px] items-center justify-center rounded-full bg-background/10 transition-transform duration-150 before:absolute before:-inset-[2px] before:content-[''] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="relative flex h-[40px] w-[40px] items-center justify-center rounded-full bg-background/10 transition-transform duration-150 before:absolute before:-inset-[2px] before:content-[''] active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   <ArrowLeft size={18} className="text-background" aria-hidden="true" />
                 </button>
@@ -967,7 +967,7 @@ export default function TeacherProfile() {
                     onClick={handleHeartClick}
                     aria-label={liked ? 'Remove from favourites' : 'Save teacher'}
                     aria-pressed={liked}
-                    className="relative flex h-[40px] w-[40px] items-center justify-center rounded-full bg-background/10 transition-transform duration-150 before:absolute before:-inset-[2px] before:content-[''] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="relative flex h-[40px] w-[40px] items-center justify-center rounded-full bg-background/10 transition-transform duration-150 before:absolute before:-inset-[2px] before:content-[''] active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     <Heart size={18} className={liked ? 'fill-destructive text-destructive' : 'text-background/70'} aria-hidden="true" />
                   </button>
@@ -975,7 +975,7 @@ export default function TeacherProfile() {
                     type="button"
                     onClick={handleShareClick}
                     aria-label="Share teacher"
-                    className="relative flex h-[40px] w-[40px] items-center justify-center rounded-full bg-background/10 transition-transform duration-150 before:absolute before:-inset-[2px] before:content-[''] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="relative flex h-[40px] w-[40px] items-center justify-center rounded-full bg-background/10 transition-transform duration-150 before:absolute before:-inset-[2px] before:content-[''] active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     <Share2 size={18} className="text-background/70" aria-hidden="true" />
                   </button>

@@ -51,7 +51,7 @@ export function SignpostCluster({ plates, className, showPost = true }: Signpost
             className={cn(
               'signpost-plate relative z-10 ml-2 outline-thick font-display font-bold text-card-title',
               'transition-transform duration-hover',
-              (plate.onClick || plate.href) && 'hover:-translate-y-0.5 active:scale-[0.98]'
+              (plate.onClick || plate.href) && 'hover:-translate-y-0.5 active:scale-press-card'
             )}
             style={{
               background: plate.color ?? 'hsl(var(--brand))',

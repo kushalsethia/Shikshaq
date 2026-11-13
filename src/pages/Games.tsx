@@ -223,7 +223,7 @@ export function GamesPage({ api, dummy = false, banner, me }: {
             const count = x.key === 'approve' ? waiting : x.key === 'write' ? unseen : 0;
             return (
               <Link key={x.key} to={x.path} aria-current={x.key === here ? 'page' : undefined}
-                className={cn('flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                className={cn('flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                   x.key === here ? 'bg-card text-foreground' : 'text-warm-secondary hover:text-foreground')}>
                 {x.label}
                 {count > 0 && (

@@ -76,8 +76,8 @@ function MatchingGame({ g, onNext, compact }: { g: Matching } & Required<Props>)
   const tile = (side: 'left' | 'right', id: string) => {
     const n = matched.indexOf(id);
     return cn(
-      'w-full rounded-2xl border-2 border-transparent bg-card px-3 text-left text-foreground shadow-border transition-[background-color,border-color,transform] duration-150 active:scale-[0.98] disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
-      compact ? 'min-h-10 py-1.5 text-[13px]' : 'min-h-[52px] py-2.5 text-[15px]',
+      'w-full rounded-2xl border-2 border-transparent bg-card px-3 text-left text-foreground shadow-border transition-[background-color,border-color,transform] duration-150 active:scale-press-card disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+      compact ? 'min-h-11 md:min-h-10 py-1.5 text-[13px]' : 'min-h-[52px] py-2.5 text-[15px]',
       side === 'right' && 'font-bold',
       n >= 0 && `games-matched games-c${n % 6} shadow-none`,
       sel?.side === side && sel.id === id && 'border-brand-blue bg-brand-blue-subtle',
@@ -146,7 +146,7 @@ function FillGame({ g, onNext, compact }: { g: FillIn } & Required<Props>) {
                 type="text" aria-label="Answer" autoComplete="off" autoCapitalize="off" spellCheck={false}
                 className={cn(
                   // wrong to right (or back to typing) fades from one colour to the next
-                  'mx-1 inline-block h-10 max-w-full rounded-xl border px-2 text-center align-middle font-bold outline-none transition-[background-color,border-color,color] duration-300 ease-out focus-visible:ring-2 focus-visible:ring-brand',
+                  'mx-1 inline-block h-10 max-w-full rounded-xl border px-2 text-center align-middle font-bold outline-none transition-[background-color,border-color,color] duration-300 ease-out focus-visible:ring-2 focus-visible:ring-focus',
                   compact ? 'h-8 text-[14px]' : 'text-[17px]',
                   st === 'right' ? 'border-success bg-success-subtle-bg text-success-subtle-text'
                     : st === 'almost' ? 'border-brand bg-brand-subtle text-brand-deep'
@@ -206,8 +206,8 @@ function ChoiceGame({ g, onNext, compact }: { g: Choice } & Required<Props>) {
                       aria-pressed={chosen}
                       className={cn(
                         // a wrong pick fades to red and stays out; the right one fades to green
-                        'flex w-full items-center justify-between gap-2 rounded-2xl border-2 px-3 text-left font-semibold transition-[background-color,border-color,color,opacity,transform] duration-300 ease-out active:scale-[0.98] disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
-                        compact ? 'min-h-10 py-1.5 text-[13px]' : 'min-h-[52px] py-2.5 text-[15px]',
+                        'flex w-full items-center justify-between gap-2 rounded-2xl border-2 px-3 text-left font-semibold transition-[background-color,border-color,color,opacity,transform] duration-300 ease-out active:scale-press-card disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+                        compact ? 'min-h-11 md:min-h-10 py-1.5 text-[13px]' : 'min-h-[52px] py-2.5 text-[15px]',
                         chosen && right ? 'border-success bg-success-subtle-bg text-success-subtle-text'
                           : chosen ? 'border-destructive bg-destructive/10 text-foreground'
                           : finished ? 'border-transparent bg-card text-warm-secondary opacity-60'

@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { ACTION_FOOTER, SCRIM, SHEET_MOTION, SHEET_SURFACE } from "@/lib/overlay-styles";
 
 const Sheet = SheetPrimitive.Root;
 
@@ -19,28 +20,17 @@ const SheetOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
     /* Handoff O-001/rule 2: the one overlay spec for every sheet and dialog
-       in the product — a 45% near-black scrim, no blur by default. A blur
+       in the product -- a 45% near-black scrim, no blur by default. A blur
        costs a repaint on every scroll frame behind it and hides the context
        the sheet is about, so a surface that wants one opts in through
        `overlayClassName` rather than changing this for everything.
-       Handoff M-011: fades 0->1 over 500ms — explicit duration-500/ease-snap,
-       not tailwindcss-animate's shorter default, so the overlay finishes
-       fading in step with the panel it's behind rather than snapping to
-       full opacity first. */
-    className={cn(
-      /* bg-[#1B1A18]/45, NOT bg-panel/45. `panel` is defined as
-         var(--panel-dark), a literal hex, and Tailwind's `/opacity` modifier
-         cannot compute an alpha channel from a var() -- it silently emits no
-         declaration at all. This overlay therefore computed to
-         rgba(0, 0, 0, 0) and every sheet and dialog in the product has been
-         opening over an undimmed page since the rule was written. Measured,
-         not guessed. Same failure that once shipped the capture shield
-         invisible; the warm-* block carries a "no /opacity" warning for
-         exactly this reason and `panel` sits just below it without one.
-         A literal hex takes the modifier fine. */
-      "fixed inset-0 z-50 bg-[#1B1A18]/45 transition-opacity duration-500 ease-snap data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className,
-    )}
+       The literal #1B1A18 (SCRIM, src/lib/overlay-styles.ts), NOT bg-panel/45:
+       `panel` is var(--panel-dark), a raw hex Tailwind cannot compute an alpha
+       from, so that class silently emitted nothing and every sheet and dialog
+       opened over an undimmed page (measured, 2026). A literal hex takes the
+       modifier fine. Tactile pass, stage 3: it fades in 200ms with the shared
+       strong ease-out (it was 500ms), in step with the sheet it sits behind. */
+    className={cn(SCRIM, className)}
     {...props}
     ref={ref}
   />
@@ -48,28 +38,28 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
-  /* Handoff O-001 rule 6 / M-011: enter/exit is translateY + opacity over
-     500ms ease-snap, nothing springs or scales — duration-500 alone (no
-     asymmetric close-faster duration-300) matches that on both directions.
-     ease-snap, not Tailwind's ease-in-out — "anything a person waits on"
-     (sheet entry) uses the one settle curve (M-001). */
-  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-snap data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-500 data-[state=open]:duration-500",
+  /* Tactile pass, stage 3. A sheet is the overlay surface with the modal shadow;
+     the shadow's ring is its edge, so there is no border. It slides from its own
+     side: up in 320ms and down in 200ms from the bottom, 240 / 200 from a side,
+     solid the whole way (no fade). Motion lives in src/index.css ("Overlay
+     motion"), and a reader who asked for less motion gets a crossfade.
+     Handoff O-001 rule 6 (nothing springs or scales) still holds. */
+  "fixed z-50 gap-4 p-6",
   {
     variants: {
       side: {
-        top: "inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+        top: `inset-x-0 top-0 ${SHEET_SURFACE} ${SHEET_MOTION.top}`,
         /* Handoff O-001 rule 1: every bottom sheet is rounded-t-[30px]
-           bg-card, no border — the filter sheet (O-002) is the one
-           exception, and opts out via its own className override. Content
-           padding and the grab handle are NOT baked in here: several
-           callers (gate-sheet.tsx, etc.) already draw their own per S-012
-           and would double up — see SheetGrabHandle below for new callers,
-           and each existing caller's own comment for why it self-draws. */
-        bottom:
-          "inset-x-0 bottom-0 rounded-t-[30px] bg-card data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-        left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
-        right:
-          "inset-y-0 right-0 h-full w-3/4  border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
+           bg-card, no border (the site keeps its 30px, not the skill's 14px).
+           The filter sheet (O-002) is the one exception, and opts out via its
+           own className override. Content padding and the grab handle are NOT
+           baked in here: several callers (gate-sheet.tsx, etc.) already draw
+           their own per S-012 and would double up -- see SheetGrabHandle below
+           for new callers, and each existing caller's own comment for why it
+           self-draws. */
+        bottom: `inset-x-0 bottom-0 rounded-t-[30px] ${SHEET_SURFACE} ${SHEET_MOTION.bottom}`,
+        left: `inset-y-0 left-0 h-full w-3/4 sm:max-w-sm ${SHEET_SURFACE} ${SHEET_MOTION.left}`,
+        right: `inset-y-0 right-0 h-full w-3/4 sm:max-w-sm ${SHEET_SURFACE} ${SHEET_MOTION.right}`,
       },
     },
     defaultVariants: {
@@ -123,7 +113,7 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
                to regardless of what radius the sheet actually rendered
                at. left/right/top sheets have no rounded corner here to
                match, so the value is a no-op for them either way. */
-            "absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-[14px] opacity-70 ring-offset-background transition-opacity before:absolute before:-inset-0.5 before:content-[''] data-[state=open]:bg-secondary hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none",
+            "absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-[14px] opacity-70 ring-offset-background before:absolute before:-inset-0.5 before:content-[''] transition-[opacity,transform] duration-150 active:scale-press-small data-[state=open]:bg-secondary hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none",
           )}
         >
           <X className="h-4 w-4" />
@@ -151,7 +141,7 @@ const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 SheetHeader.displayName = "SheetHeader";
 
 const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
+  <div className={cn(ACTION_FOOTER, className)} {...props} />
 );
 SheetFooter.displayName = "SheetFooter";
 

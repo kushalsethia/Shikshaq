@@ -280,7 +280,7 @@ function GroupEditor({ api, group, loaded, keepOpen, onDirty, onSaved }: {
             return (
               <Accordion.Item key={c.key} value={c.key} className={cn('rounded-[20px] bg-muted transition-[background-color,box-shadow,opacity] duration-150', TONE[tone])}>
                 <Accordion.Header className="flex">
-                  <Accordion.Trigger className="group flex min-h-14 w-full items-start gap-3 rounded-[20px] px-4 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                  <Accordion.Trigger className="group flex min-h-14 w-full items-start gap-3 rounded-[20px] px-4 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-focus">
                     <span className="min-w-0 flex-1">
                       <span className={cn('block text-[15px] font-semibold text-foreground', c.deleted && 'text-warm-meta line-through')}>
                         <span className="tabular-nums">{c.chapter_no}.</span> {c.name}
@@ -445,7 +445,7 @@ function TopicItem({ value, open, quiet, topic, untopiced, actions, questions, o
   return (
     <Accordion.Item ref={ref} value={value} className={cn('rounded-[14px] bg-card transition-[background-color,box-shadow,opacity] duration-150', TONE[tone])}>
       <Accordion.Header className="flex">
-        <Accordion.Trigger className="group flex min-h-12 w-full items-start gap-2 rounded-[14px] px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        <Accordion.Trigger className="group flex min-h-12 w-full items-start gap-2 rounded-[14px] px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-focus">
           <span className="min-w-0 flex-1">
             <span className={cn('block text-[14px] text-foreground', topic?.deleted && 'text-warm-meta line-through')}>
               {topic ? <><span className="tabular-nums">Topic {topic.topic_no}:</span> {topic.name}</> : <span className="text-warm-secondary">Under no topic</span>}

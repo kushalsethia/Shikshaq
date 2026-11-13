@@ -37,7 +37,7 @@ export function MorePapers({ items, currentId }: { items: MorePapersItem[]; curr
           <li key={p.id} className="min-w-0">
             <Link
               to={`/past-papers/${p.id}`}
-              className="flex min-w-0 items-center gap-2.5 rounded-2xl bg-card p-3 transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex min-w-0 items-center gap-2.5 rounded-2xl bg-card p-3 transition-transform duration-tap hover:-translate-y-0.5 active:scale-press-card shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-muted">
                 <FileText className="h-4 w-4 text-warm-label" aria-hidden="true" />

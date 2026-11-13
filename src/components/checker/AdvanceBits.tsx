@@ -89,7 +89,7 @@ export function SaveStatusChip({
         onClick={onRetry}
         data-testid="outbox-retry"
         className={cn(
-          'tap-44 rounded-full bg-card text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+          'tap-44 rounded-full bg-card text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
           compact ? 'px-3 py-0.5' : 'ml-auto px-4 py-1.5',
         )}
       >

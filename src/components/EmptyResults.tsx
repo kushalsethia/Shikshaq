@@ -79,7 +79,7 @@ export function EmptyResults({ heading, message, options, action, icon, classNam
               key={`${option.label}-${i}`}
               type="button"
               onClick={option.onClick}
-              className={`signpost flex min-h-11 animate-card-reveal items-center bg-muted pl-4 text-sm font-medium text-foreground transition-colors duration-hover active:scale-[0.97] ${FOCUS}`}
+              className={`signpost flex min-h-11 animate-card-reveal items-center bg-muted pl-4 text-sm font-medium text-foreground transition-colors duration-hover active:scale-press ${FOCUS}`}
             >
               {option.label}
             </button>
@@ -88,7 +88,7 @@ export function EmptyResults({ heading, message, options, action, icon, classNam
             <button
               type="button"
               onClick={action.onClick}
-              className={`flex min-h-11 animate-card-reveal items-center rounded-lg px-6 text-sm font-medium transition-colors duration-hover active:scale-[0.97] ${actionTone} ${FOCUS}`}
+              className={`flex min-h-11 animate-card-reveal items-center rounded-lg px-6 text-sm font-medium transition-colors duration-hover active:scale-press ${actionTone} ${FOCUS}`}
             >
               {action.label}
             </button>

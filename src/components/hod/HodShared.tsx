@@ -6,6 +6,7 @@ import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
 import type { HodApi } from '@/lib/hod-api';
 import { actionToneClass } from '@/lib/checker-button-styles';
 import { cn } from '@/lib/utils';
+import { FIGURE_LABEL, FIGURE_NUMBER, FIGURE_TILE } from '@/lib/chart-styles';
 
 /* Small pieces the HOD tabs share. */
 
@@ -18,9 +19,9 @@ export function ago(iso: string | null): string {
 
 export function Tile({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
-    <div className="rounded-2xl bg-muted px-4 py-3" title={hint}>
-      <p className="text-[12px] font-semibold text-warm-secondary">{label}</p>
-      <p className="mt-0.5 text-[22px] font-bold tabular-nums text-foreground">{value}</p>
+    <div className={FIGURE_TILE} title={hint}>
+      <p className={FIGURE_LABEL}>{label}</p>
+      <p className={FIGURE_NUMBER}>{value}</p>
     </div>
   );
 }
@@ -150,7 +151,7 @@ export function deskLink(tab: string, paper?: string | null): string {
 /** One paper-row card used by Needs you and Ready: title line, meta line, trail, actions. */
 export function PaperRow({ children, ...rest }: { children: ReactNode } & React.HTMLAttributes<HTMLLIElement>) {
   return (
-    <li className="rounded-[18px] bg-muted p-4" {...rest}>
+    <li className="rounded-[18px] bg-muted shadow-card p-4" {...rest}>
       {children}
     </li>
   );
@@ -172,4 +173,4 @@ export function Notice({ children, tone = 'info' }: { children: ReactNode; tone?
 }
 
 /** A quiet button that reads on a grey card, a white panel and a printed sheet alike. */
-export const quietButton = cn(actionToneClass('muted'), 'bg-card text-foreground shadow-border');
+export const quietButton = cn(actionToneClass('muted'), 'bg-card text-foreground');

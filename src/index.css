@@ -96,16 +96,74 @@
 
     --radius: 0.75rem;
 
-    /* Layered shadow used in place of borders for depth — adapts to any
-       background since it's transparent. See make-interfaces-feel-better. */
-    --shadow-border:
-      0px 0px 0px 1px rgba(0, 0, 0, 0.06),
-      0px 1px 2px -1px rgba(0, 0, 0, 0.06),
-      0px 2px 4px 0px rgba(0, 0, 0, 0.04);
-    --shadow-border-hover:
-      0px 0px 0px 1px rgba(0, 0, 0, 0.08),
-      0px 1px 2px -1px rgba(0, 0, 0, 0.08),
-      0px 2px 4px 0px rgba(0, 0, 0, 0.06);
+    /* ---- Tactile layer (design pass, 12 Nov 2026) ----------------------------
+       One edge language for everything that can be pressed or that sits raised
+       on the page: a hairline RING plus a crisp 1px DROP. Never a wide soft
+       blur. The ring is an alpha of the ink, so it darkens whatever is beneath
+       it and reads the same on the cream page, a card or a grey panel.
+
+         button   ring .08 + drop .12   buttons, pills, chips, badges over photos
+         card     + one short 3px drop  raised cards (teacher, paper, subject, data)
+         lift     the card, a touch higher: hover on a fine pointer only
+         table, menu, popover, modal    stages 2 and 3 reuse these, same family
+
+       Light theme only: the site has no dark theme (color-scheme is pinned to
+       light below), so there is no dark twin of any of these. */
+    --shadow-ink: 31 31 31;           /* #1F1F1F, the page's own ink */
+    --shadow-button:
+      0 1px 2px 0 rgb(var(--shadow-ink) / 0.12),
+      0 0 0 1px rgb(var(--shadow-ink) / 0.08);
+    --shadow-button-hover:
+      0 1px 2px 0 rgb(var(--shadow-ink) / 0.16),
+      0 0 0 1px rgb(var(--shadow-ink) / 0.12);
+    --shadow-card:
+      0 0 0 1px rgb(var(--shadow-ink) / 0.07),
+      0 1px 2px 0 rgb(var(--shadow-ink) / 0.12),
+      0 3px 4px -2px rgb(var(--shadow-ink) / 0.08);
+    --shadow-card-lift:
+      0 0 0 1px rgb(var(--shadow-ink) / 0.09),
+      0 1px 2px 0 rgb(var(--shadow-ink) / 0.14),
+      0 6px 8px -4px rgb(var(--shadow-ink) / 0.14);
+    --shadow-table: 0 1px 2px 0 rgb(var(--shadow-ink) / 0.12);
+    --shadow-menu:
+      0 0 0 1px rgb(var(--shadow-ink) / 0.08),
+      0 1px 2px 0 rgb(var(--shadow-ink) / 0.12),
+      0 4px 8px -4px rgb(var(--shadow-ink) / 0.16);
+    --shadow-popover: var(--shadow-menu);
+    --shadow-modal:
+      0 0 0 1px rgb(var(--shadow-ink) / 0.07),
+      0 1px 2px 0 rgb(var(--shadow-ink) / 0.14),
+      0 6px 8px -4px rgb(var(--shadow-ink) / 0.14);
+
+    /* The edge colour of a SOLID fill (brand orange, indigo, WhatsApp, the
+       near-black pill, destructive red). Its edge is a darker shade of its own
+       colour, set per element with `[--tactile-edge:var(--brand-deep)]`, and
+       read by the `shadow-solid` utility (tailwind.config.ts). It is read at
+       the element, which is why it is not folded into a :root shadow variable:
+       a variable built here would resolve here and never see the override. */
+    --tactile-edge: 0 0% 12.2%;       /* default: the page's ink */
+    --whatsapp-edge: 142 64% 24%;
+
+    /* The depth the old token drew. Every `shadow-border` on the site (about 90
+       places: chips, badges over photos, white controls, cards) now draws the
+       tactile button edge, so the whole site moves together. */
+    --shadow-border: var(--shadow-button);
+    --shadow-border-hover: var(--shadow-button-hover);
+
+    /* One press recipe. A button squeezes to .97 in 150ms on the strong
+       ease-out; a small target (an icon button, a chip) squeezes a little more;
+       a card or a full-width row squeezes less. Transform only. In
+       prefers-reduced-motion these become 1 (see the end of this file) and the
+       press shows as a small dim instead of a movement. */
+    --press-scale: 0.97;
+    --press-scale-small: 0.94;
+    --press-scale-card: 0.99;
+    --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+    --disabled-opacity: 0.6;
+    /* Keyboard focus on every control: the page's own dark ring (9.5:1 on the
+       cream page, over the 3:1 non-text floor). The global :focus-visible rule
+       below draws it; shared recipes name it as `ring-focus`. */
+    --focus-ring: hsl(var(--ring));
 
     /* ---- Brand accent tokens (DESIGN_SYSTEM.md §2) ----------------------
        Accents, never surfaces. Max two accented elements per viewport.
@@ -256,6 +314,17 @@
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
     box-shadow: 0 0 0 4px rgb(255 255 255 / 0.9);
+  }
+
+  /* The shared focus colour on a dark or indigo slab. `ring-focus` reads
+     --focus-ring where it is used, so every control inside one of these
+     surfaces turns white (15.8:1 on the near-black slab, 6.4:1 on indigo)
+     instead of the page's dark ring (1.7:1 on the slab, 1.6:1 on indigo),
+     which would vanish. Cream, mint and orange keep the dark ring. Set on the
+     slab's children (they pass it down), not on the slab: a near-black PILL on
+     the cream page is also `bg-panel`, and its own ring must stay dark. */
+  :is(.bg-panel, .bg-brand-blue, .solid-dark, .glass-dark) > * {
+    --focus-ring: #fff;
   }
 
   /* Elements that opt into their own ring keep the plain outline rule. */
@@ -471,32 +540,73 @@
   }
 
   .teacher-card {
-    @apply relative overflow-hidden rounded-2xl bg-card transition-[transform,box-shadow] duration-300 hover:shadow-lg hover:-translate-y-1;
+    @apply relative overflow-hidden rounded-2xl bg-card shadow-card transition-[transform,box-shadow] duration-300 hover:shadow-card-lift hover:-translate-y-1;
   }
 
   /* PaperCard (src/components/PaperCard.tsx) — card hover is translateY(-3px)/.2s ease
-     per the design handoff motion rules, nothing else moves; press is scale(.97)/.15s ease. */
+     per the design handoff motion rules, nothing else moves; press is the card squeeze
+     (--press-scale-card) over 150ms on the strong ease-out. The tinted fill comes from
+     the subject palette, so only the edge (the card shadow) is set here. */
   .shikshaq-paper-card {
-    transition: transform 0.2s ease;
+    box-shadow: var(--shadow-card);
+    transition: transform 0.2s var(--ease-out-strong), box-shadow 0.2s var(--ease-out-strong);
   }
 
   @media (hover: hover) {
     .shikshaq-paper-card:hover {
       transform: translateY(-3px);
+      box-shadow: var(--shadow-card-lift);
     }
   }
 
   .shikshaq-paper-card:active {
-    transform: scale(0.97);
-    transition: transform 0.15s ease;
+    transform: scale(var(--press-scale-card));
+    transition: transform 0.15s var(--ease-out-strong);
   }
 
   .subject-badge {
     @apply inline-flex px-3 py-1 rounded-full text-xs font-medium;
   }
 
+  /* ---- Tactile safety net for hand-built buttons ---------------------------
+     Most buttons get their edge and press from a shared recipe (button.tsx,
+     checker-button-styles.ts, AdminConsole.tsx). The site also has a long tail
+     of one-off pills written inline. This catches those, and only those: a
+     <button> that has not already chosen a shadow or a press of its own.
+
+       edge   a rounded-full button on a quiet fill gets the button ring + drop;
+              on the near-black, orange or indigo fill, the solid edge in a
+              darker shade of that fill
+       press  any other <button> squeezes to the shared press scale. Drawn with
+              the individual `scale` property, so it never fights a hover lift
+              (which uses transform) and needs no per-button class
+
+     :where() keeps these at the lowest weight, so any class a button sets
+     itself wins. The press is on `button` only: links that look like buttons
+     already carry active:scale-press in their own classes. */
+  button:where(.rounded-full):where(.bg-muted, .bg-card, .bg-accent):not([class*="shadow-"]) {
+    box-shadow: var(--shadow-button);
+  }
+  button:where(.rounded-full):where(.bg-panel):not([class*="shadow-"]) {
+    box-shadow: 0 1px 2px 0 hsl(var(--tactile-edge) / 0.38), 0 0 0 1px hsl(var(--tactile-edge) / 0.26);
+  }
+  button:where(.rounded-full):where(.bg-brand):not([class*="shadow-"]) {
+    --tactile-edge: var(--brand-deep);
+    box-shadow: 0 1px 2px 0 hsl(var(--tactile-edge) / 0.38), 0 0 0 1px hsl(var(--tactile-edge) / 0.26);
+  }
+  button:where(.rounded-full):where(.bg-brand-blue):not([class*="shadow-"]) {
+    --tactile-edge: var(--brand-blue-deep);
+    box-shadow: 0 1px 2px 0 hsl(var(--tactile-edge) / 0.38), 0 0 0 1px hsl(var(--tactile-edge) / 0.26);
+  }
+  button:not(:disabled):not([class*="active:scale"]):not([class*="shikshaq-tap"]):active {
+    scale: var(--press-scale);
+  }
+  button:not([class*="transition"]) {
+    transition: scale var(--dur-press, 150ms) var(--ease-out-strong);
+  }
+
   .hero-cta {
-    @apply inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-full font-medium transition-[transform,box-shadow,background-color] duration-200 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97];
+    @apply inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-full font-medium shadow-solid transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 active:scale-press;
   }
 
   .step-number {
@@ -675,14 +785,14 @@
   }
 
   /* Tap-feedback for raw inline-style buttons/links where :active can't be
-     expressed via the style prop. Button press is scale(.97) over .15s ease
-     per the design handoff's binding motion rule. */
+     expressed via the style prop. Button press is the shared press recipe
+     (--press-scale over 150ms on the strong ease-out). */
   .shikshaq-tap {
-    transition: transform .15s ease;
+    transition: transform .15s var(--ease-out-strong);
   }
 
   .shikshaq-tap:active {
-    transform: scale(0.97);
+    transform: scale(var(--press-scale));
   }
 
   /* Hover/press tint for full-width inline-style list rows (search results,
@@ -836,6 +946,112 @@ input[type="date"].date-input-left,
   .animate-bob {
     animation: none !important;
   }
+}
+
+/* Tactile press, reduced motion. The press recipe is a squeeze (the --press-*
+   variables); a reader who asked for less movement gets no squeeze, only a small
+   dim while the finger is down. One switch for every control on the site,
+   because every press reads these variables. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --press-scale: 1;
+    --press-scale-small: 1;
+    --press-scale-card: 1;
+  }
+
+  [class*="active:scale-press"]:active,
+  .shikshaq-paper-card:active,
+  .shikshaq-tap:active {
+    opacity: 0.85;
+  }
+}
+
+/* Overlay motion (tactile design pass, stage 3, 12 Nov 2026). One place for how
+   every menu, popover, dialog and sheet arrives and leaves. Exits are faster
+   than entrances, everything is on the strong ease-out, and only opacity and the
+   transform properties `scale` and `translate` move (the separate `translate`
+   and `scale` properties stack on top of a centring `transform`, so a dialog
+   that centres itself with translate(-50%, -50%) keeps its place).
+
+     menu, popover, tooltip   in 150ms from scale .97 + fade, out 120ms; the
+                              origin is the trigger (Radix publishes it)
+     dialog                   in 240ms (16px rise + fade), out 200ms
+     phone / bottom sheet     up 320ms, down 200ms, solid the whole way
+     side panel               in 240ms, out 200ms
+     the dim behind           fades 200ms
+
+   Radix keeps a surface mounted until its exit animation ends, and the classes
+   below are keyed on its data-state, so the exit is seen. Surfaces that are not
+   Radix (hand-built dialogs) take the .overlay-enter-* twin, which plays on
+   mount only. Reduced motion: every one of them becomes a plain crossfade. */
+@keyframes overlay-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes overlay-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes overlay-menu-in { from { opacity: 0; scale: .97; } to { opacity: 1; scale: 1; } }
+@keyframes overlay-menu-out { from { opacity: 1; scale: 1; } to { opacity: 0; scale: .97; } }
+@keyframes overlay-modal-in { from { opacity: 0; translate: 0 16px; } to { opacity: 1; translate: 0 0; } }
+@keyframes overlay-modal-out { from { opacity: 1; translate: 0 0; } to { opacity: 0; translate: 0 16px; } }
+@keyframes overlay-sheet-bottom-in { from { translate: 0 100%; } to { translate: 0 0; } }
+@keyframes overlay-sheet-bottom-out { from { translate: 0 0; } to { translate: 0 100%; } }
+@keyframes overlay-sheet-top-in { from { translate: 0 -100%; } to { translate: 0 0; } }
+@keyframes overlay-sheet-top-out { from { translate: 0 0; } to { translate: 0 -100%; } }
+@keyframes overlay-sheet-left-in { from { translate: -100% 0; } to { translate: 0 0; } }
+@keyframes overlay-sheet-left-out { from { translate: 0 0; } to { translate: -100% 0; } }
+@keyframes overlay-sheet-right-in { from { translate: 100% 0; } to { translate: 0 0; } }
+@keyframes overlay-sheet-right-out { from { translate: 0 0; } to { translate: 100% 0; } }
+
+.overlay-scrim[data-state="open"] { animation: overlay-fade-in 200ms var(--ease-out-strong) both; }
+.overlay-scrim[data-state="closed"] { animation: overlay-fade-out 200ms var(--ease-out-strong) both; }
+.overlay-menu[data-state="open"],
+.overlay-menu[data-state="delayed-open"],
+.overlay-menu[data-state="instant-open"] { animation: overlay-menu-in 150ms var(--ease-out-strong) both; }
+.overlay-menu[data-state="closed"] { animation: overlay-menu-out 120ms var(--ease-out-strong) both; }
+.overlay-modal[data-state="open"] { animation: overlay-modal-in 240ms var(--ease-out-strong) both; }
+.overlay-modal[data-state="closed"] { animation: overlay-modal-out 200ms var(--ease-out-strong) both; }
+.overlay-sheet-bottom[data-state="open"] { animation: overlay-sheet-bottom-in 320ms var(--ease-out-strong) both; }
+.overlay-sheet-bottom[data-state="closed"] { animation: overlay-sheet-bottom-out 200ms var(--ease-out-strong) both; }
+.overlay-sheet-top[data-state="open"] { animation: overlay-sheet-top-in 240ms var(--ease-out-strong) both; }
+.overlay-sheet-top[data-state="closed"] { animation: overlay-sheet-top-out 200ms var(--ease-out-strong) both; }
+.overlay-sheet-left[data-state="open"] { animation: overlay-sheet-left-in 240ms var(--ease-out-strong) both; }
+.overlay-sheet-left[data-state="closed"] { animation: overlay-sheet-left-out 200ms var(--ease-out-strong) both; }
+.overlay-sheet-right[data-state="open"] { animation: overlay-sheet-right-in 240ms var(--ease-out-strong) both; }
+.overlay-sheet-right[data-state="closed"] { animation: overlay-sheet-right-out 200ms var(--ease-out-strong) both; }
+/* Mount-only twins for hand-built overlays that are not Radix. */
+.overlay-enter-scrim { animation: overlay-fade-in 200ms var(--ease-out-strong) both; }
+.overlay-enter-menu { animation: overlay-menu-in 150ms var(--ease-out-strong) both; }
+.overlay-enter-menu[data-state="closed"] { animation: overlay-menu-out 120ms var(--ease-out-strong) both; }
+.overlay-enter-modal { animation: overlay-modal-in 240ms var(--ease-out-strong) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-menu[data-state="open"],
+  .overlay-menu[data-state="delayed-open"],
+  .overlay-menu[data-state="instant-open"],
+  .overlay-modal[data-state="open"],
+  .overlay-sheet-bottom[data-state="open"],
+  .overlay-sheet-top[data-state="open"],
+  .overlay-sheet-left[data-state="open"],
+  .overlay-sheet-right[data-state="open"],
+  .overlay-enter-scrim,
+  .overlay-enter-menu,
+  .overlay-enter-modal {
+    animation-name: overlay-fade-in !important;
+    animation-duration: 180ms !important;
+    animation-timing-function: ease-out !important;
+  }
+  .overlay-menu[data-state="closed"],
+  .overlay-modal[data-state="closed"],
+  .overlay-sheet-bottom[data-state="closed"],
+  .overlay-sheet-top[data-state="closed"],
+  .overlay-sheet-left[data-state="closed"],
+  .overlay-sheet-right[data-state="closed"],
+  .overlay-enter-menu[data-state="closed"] {
+    animation-name: overlay-fade-out !important;
+    animation-duration: 150ms !important;
+    animation-timing-function: ease-out !important;
+  }
+  .overlay-scrim[data-state="open"] { animation-duration: 180ms !important; }
+  .overlay-scrim[data-state="closed"] { animation-duration: 150ms !important; }
+  /* The chevron of a menu trigger flips at once instead of turning. */
+  .overlay-chevron { transition: none !important; }
 }
 
 /* CRAFT.md §2: "prefers-reduced-motion: keep the fades, drop the movement."

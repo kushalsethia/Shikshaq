@@ -162,7 +162,7 @@ function ContactLink({ contact }: { contact: string }) {
   const href = contactHref(contact);
   if (!href) return <span className="text-warm-secondary">{contact || 'No contact given'}</span>;
   return (
-    <a href={href} className="inline-flex min-h-10 items-center font-bold text-brand-blue underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+    <a href={href} className="inline-flex min-h-11 md:min-h-10 items-center font-bold text-brand-blue underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
       {contact}
     </a>
   );

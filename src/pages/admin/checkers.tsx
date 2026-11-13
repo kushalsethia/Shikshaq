@@ -131,7 +131,7 @@ export function VerifierListBody({
       cells: [
         <div key="email" className="min-w-0">
           <p className="truncate font-semibold text-foreground">{r.full_name || r.email}</p>
-          {r.full_name ? <p className="truncate text-[12px] text-warm-label">{r.email}</p> : null}
+          {r.full_name ? <p className="truncate text-[12px] text-warm-secondary">{r.email}</p> : null}
         </div>,
         <AdminStatusPill key="details" status={DETAILS_TONE[s]} label={DETAILS_LABEL[s]} />,
         <span key="added" className="text-warm-meta">{formatDistanceToNow(new Date(r.added_at), { addSuffix: true })}</span>,

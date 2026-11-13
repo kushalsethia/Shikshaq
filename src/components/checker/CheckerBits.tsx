@@ -8,6 +8,7 @@ import { describeLanes, NOT_FOR_STUDENT_LINE } from '@/lib/checker-lanes';
 import type { WholeQuestionRow } from '@/lib/checker-context';
 import { canSplitAt, splitOrPlan, SPLIT_OR_NOTE } from '@/lib/checker-body';
 import { CHIP } from '@/lib/checker-button-styles';
+import { MODAL_ENTER, SCRIM_ENTER } from '@/lib/overlay-styles';
 
 /* Small pieces the verify screen and the page around it share: a signed
    picture link, the "how to check" guidance, the dialog shell, the whole-question
@@ -140,7 +141,7 @@ export function CheckGuidance({
           type="button"
           onClick={toggle}
           aria-expanded={!hidden}
-          className="tap-44 shrink-0 rounded-full px-2 py-1 text-[13px] font-medium text-warm-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          className="tap-44 shrink-0 rounded-full px-2 py-1 text-[13px] font-medium text-warm-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           {hidden ? 'Show tips' : 'Hide tips'}
         </button>
@@ -291,14 +292,14 @@ export function Modal({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={onClose}>
+    <div className={cn('fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center', SCRIM_ENTER)} onClick={onClose}>
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
         tabIndex={-1}
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-card p-5 outline-none"
+        className={cn('max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl p-5 outline-none', MODAL_ENTER)}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -349,7 +350,7 @@ export function ContextPart({
           : undefined
       }
       className={cn(
-        'mb-3 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+        'mb-3 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         row.isParent ? 'rounded-[6px]' : 'rounded-r-[6px] border-l-2 pl-3',
         row.isParent ? '' : focused ? 'border-brand' : 'border-warm-hairline',
         focused && 'bg-brand-subtle py-1 pr-2',

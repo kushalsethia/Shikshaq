@@ -2187,7 +2187,7 @@ export default function Browse({ manageSeo = true, pageContext, seo, locality }:
               ref={filtersButtonRef}
               type="button"
               onClick={() => setFilterSheetOpen(true)}
-              className="shikshaq-tap flex h-11 flex-none items-center gap-[8px] rounded-full bg-panel px-[16px] text-[14px] font-bold text-background transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
+              className="shikshaq-tap flex h-11 flex-none items-center gap-[8px] rounded-full bg-panel px-[16px] text-[14px] font-bold text-background transition-transform duration-tap active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
             >
               <SlidersHorizontal className="h-4 w-4 shrink-0" aria-hidden />
               Filters
@@ -2493,7 +2493,7 @@ export default function Browse({ manageSeo = true, pageContext, seo, locality }:
               <Link
                 key={area}
                 to={to}
-                className={cn(chipVariants({ tone: 'facet', size: 44 }), 'tap-44 active:scale-[0.97] hover:-translate-y-0.5')}
+                className={cn(chipVariants({ tone: 'facet', size: 44 }), 'tap-44 active:scale-press hover:-translate-y-0.5')}
               >
                 {area}
               </Link>

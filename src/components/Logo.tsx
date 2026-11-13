@@ -76,7 +76,7 @@ export function Logo({ className = '', showText = false, size = 'md', desktopSiz
       to="/"
       aria-label={ariaLabel}
       onClick={onClick}
-      className={`flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${className}`}
+      className={`flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${className}`}
     >
       <img
         src={logoImage}

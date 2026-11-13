@@ -153,7 +153,7 @@ export function RegionNotice({
               <button
                 type="button"
                 onClick={dismiss}
-                className="inline-flex min-h-11 items-center rounded-full bg-card px-4 text-[14px] font-bold text-brand-deep shadow-border transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex min-h-11 items-center rounded-full bg-card px-4 text-[14px] font-bold text-brand-deep shadow-border transition-transform duration-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 I'm looking for teachers in Kolkata
               </button>
@@ -161,7 +161,7 @@ export function RegionNotice({
                 <button
                   type="button"
                   onClick={() => { onWantRemote(); dismiss(); }}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[14px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[14px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   I'm fine with a remote teacher
                 </button>
@@ -169,7 +169,7 @@ export function RegionNotice({
                 <Link
                   to={`${BROWSE_PATH}?filter_modeOfTeaching=Online`}
                   onClick={dismiss}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[14px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[14px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   I'm fine with a remote teacher
                 </Link>
@@ -182,7 +182,7 @@ export function RegionNotice({
             rel="noopener noreferrer"
             className={PREVIEW_TOOLS
               ? 'mt-2 inline-flex min-h-11 items-center gap-2 text-[13px] font-semibold text-brand-deep underline underline-offset-2'
-              : 'mt-2.5 inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[14px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'}
+              : 'mt-2.5 inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[14px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'}
           >
             <WhatsAppIcon className={PREVIEW_TOOLS ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden={PREVIEW_TOOLS || undefined} />
             {PREVIEW_TOOLS ? 'Or ask a teacher directly on WhatsApp' : 'Ask about online classes'}

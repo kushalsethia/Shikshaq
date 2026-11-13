@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
    arbitrary *spacing* (`p-5`, `gap-7`, `[13px]` padding) — control height is a
    component dimension the spec fixes, not page rhythm. */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium ring-offset-background transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium ring-offset-background transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-disabled [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -30,25 +30,25 @@ const buttonVariants = cva(
            goes, since it is the least legible of the three and the only one
            doing nothing the lift does not already imply. */
         primary:
-          "rounded-full bg-brand text-brand-foreground shadow-border hover:bg-brand-hover hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
+          "rounded-full bg-brand text-brand-foreground shadow-solid [--tactile-edge:var(--brand-deep)] hover:bg-brand-hover hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
         indigo:
-          "rounded-full bg-brand-blue text-brand-blue-foreground shadow-border hover:bg-brand-blue-hover hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
+          "rounded-full bg-brand-blue text-brand-blue-foreground shadow-solid [--tactile-edge:var(--brand-blue-deep)] hover:bg-brand-blue-hover hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
         /* Rule 4: the WhatsApp green is #25D366 on #0B3D1F and appears nowhere
            else in the product. Do not add a second green. */
         whatsapp:
-          "rounded-full bg-whatsapp text-whatsapp-text shadow-border hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
+          "rounded-full bg-whatsapp text-whatsapp-text shadow-solid [--tactile-edge:var(--whatsapp-edge)] hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
         muted:
-          "rounded-full bg-muted text-warm-prose hover:bg-accent hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
-        dark: "rounded-full bg-panel text-background hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
+          "rounded-full bg-muted text-warm-prose shadow-button hover:bg-accent hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
+        dark: "rounded-full bg-panel text-background shadow-solid hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
 
         /* ---- stock shadcn variants (legacy, still in use) ---- */
-        default: "rounded-md bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "rounded-md bg-primary text-primary-foreground shadow-solid hover:bg-primary/90",
         destructive:
-          "rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "rounded-md bg-destructive text-destructive-foreground shadow-solid [--tactile-edge:var(--destructive)] hover:bg-destructive/90",
         outline:
           "rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         secondary:
-          "rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "rounded-md bg-secondary text-secondary-foreground shadow-button hover:bg-secondary/80",
         ghost: "rounded-md hover:bg-accent hover:text-accent-foreground",
         link: "rounded-md text-primary underline-offset-4 hover:underline",
       },
@@ -96,13 +96,12 @@ export interface ButtonProps
   busy?: boolean;
 }
 
-// Tactile press feedback. CRAFT.md §2 fixes press at scale(0.96) sitewide.
+// Tactile press feedback: the one shared press recipe (index.css --press-scale,
+// .97 in 150ms on the strong ease-out; tailwind.config.ts scale.press).
 // Disabled buttons already have pointer-events-none, so :active can't fire on them.
-/* motion-reduce:active:scale-100 — button.tsx was the one component still
-   animating without a reduced-motion escape. TeacherCard, Index, PastPapers
-   and expandable-tabs all carry the guard already, so a reader who asked the
-   OS for less motion got a still page with jumping buttons on it. */
-const tapScale = "active:scale-[0.96] motion-reduce:active:scale-100";
+// Reduced motion needs no class here: index.css sets the press scales to 1 and
+// swaps the squeeze for a small dim, for every control at once.
+const tapScale = "active:scale-press";
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (

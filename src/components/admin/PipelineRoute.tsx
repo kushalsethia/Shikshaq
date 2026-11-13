@@ -23,6 +23,7 @@ import {
   type StopId,
 } from '@/lib/pipeline-route';
 import { cn } from '@/lib/utils';
+import { BAR_WELL } from '@/lib/chart-styles';
 
 /* The papers route: the hero of the pipeline overview, for admins (the System
    tab of /admin) and HODs (/hod/pipeline).
@@ -55,7 +56,7 @@ const PANEL = 'px-0.5 py-5 lg:px-3.5 lg:py-8';
 /* The in-screen text action (Refresh). The same words as the "Show in the list"
    and "Open page" links on the stop cards: 40px tall, 13px semibold, warm grey. */
 const TEXT_ACTION =
-  'inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-warm-secondary transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60';
+  'inline-flex min-h-11 md:min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-warm-secondary transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-disabled';
 
 /** Where each stop sits from lg: row 1 the siding, rows 2 and 3 the route. */
 const PLACE: Partial<Record<StopId, string>> = {
@@ -89,7 +90,7 @@ export interface PipelineRouteViewProps {
 function ProgressStrip({ route, animate }: { route: Route; animate: boolean }) {
   const p = questionsProgress(route);
   return (
-    <section aria-label="Questions cleared" className="mx-[18px] mt-6 rounded-2xl bg-muted p-4" data-progress>
+    <section aria-label="Questions cleared" className="mx-[18px] mt-6 rounded-2xl bg-muted shadow-card p-4" data-progress>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-[14px] font-bold text-foreground">
           Questions:{' '}
@@ -103,7 +104,7 @@ function ProgressStrip({ route, animate }: { route: Route; animate: boolean }) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={p.percent}
-        className="mt-2 h-2.5 overflow-hidden rounded-full bg-card"
+        className={cn('mt-2 h-2.5 overflow-hidden rounded-full bg-card', BAR_WELL)}
       >
         <div
           className="h-full origin-left rounded-full bg-emerald-500 transition-transform duration-500 motion-reduce:transition-none"

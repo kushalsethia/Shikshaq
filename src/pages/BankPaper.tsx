@@ -145,7 +145,7 @@ function QuestionReport({
           type="button"
           onClick={submit}
           disabled={state === 'sending'}
-          className="inline-flex min-h-11 items-center rounded-full bg-brand px-4 text-[13px] font-bold text-brand-foreground transition-colors duration-150 hover:bg-brand-hover disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="inline-flex min-h-11 items-center rounded-full bg-brand px-4 text-[13px] font-bold text-brand-foreground transition-colors duration-150 hover:bg-brand-hover disabled:opacity-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           {state === 'sending' ? 'Sending…' : 'Send report'}
         </button>
@@ -1048,7 +1048,7 @@ export default function BankPaper() {
                 without its own page falls back to the filtered browse. */}
             <Link
               to={subjectTeacherPath(paper.subject)}
-              className="mt-3 inline-flex h-[46px] items-center rounded-full bg-panel px-5 text-[14px] font-bold text-card transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="mt-3 inline-flex h-[46px] items-center rounded-full bg-panel px-5 text-[14px] font-bold text-card transition-transform duration-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               Find {displaySubject} teachers
             </Link>

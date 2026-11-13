@@ -126,7 +126,7 @@ export function TeachersTab({ api, scope }: { api: TeacherReviewApi; scope: stri
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, email, phone or subject"
             aria-label="Search listed teachers"
-            className="h-11 w-full max-w-full rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="h-11 w-full max-w-full rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none focus-visible:ring-2 focus-visible:ring-focus"
           />
         </div>
       </div>

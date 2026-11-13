@@ -53,7 +53,7 @@ export function HistoryTab({ api, scope }: { api: HodApi; scope: string }) {
 
   const rowsAll = q.data?.pages.flat() ?? [];
   const view = historyView({ isLoading: q.isLoading, isError: q.isError, rowCount: rowsAll.length });
-  const select = 'min-h-10 rounded-full bg-muted px-3 text-[16px] sm:text-[13px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand';
+  const select = 'min-h-11 md:min-h-10 rounded-full bg-muted px-3 text-[16px] sm:text-[13px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus';
 
   return (
     <div>
@@ -91,7 +91,7 @@ export function HistoryTab({ api, scope }: { api: HodApi; scope: string }) {
         <>
           <ol className="space-y-3" aria-label="History, newest first">
             {rowsAll.map((r, i) => (
-              <li key={`${r.at}-${i}`} className="rounded-[18px] bg-muted p-4 text-[14px]" data-testid="history-row">
+              <li key={`${r.at}-${i}`} className="rounded-[18px] bg-muted shadow-card p-4 text-[14px]" data-testid="history-row">
                 <p className="text-foreground">
                   <span className="font-semibold">{r.actor_name ?? 'Someone'}</span>
                   {r.actor_role ? <span className="ml-1 text-[12px] text-warm-meta">({roleWord(r.actor_role)})</span> : null} {markUndone(historyText(r), r.undone)}

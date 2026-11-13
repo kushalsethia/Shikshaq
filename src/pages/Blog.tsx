@@ -47,7 +47,7 @@ function SubjectSection({ subject, lead, others, topics }: {
 
       <Link
         to={`${BLOG_PATH}/${lead.slug}`}
-        className="group mt-4 block rounded-2xl bg-brand-subtle p-6 transition-transform duration-hover hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 active:scale-[0.99] sm:p-8"
+        className="group mt-4 block rounded-2xl bg-brand-subtle p-6 transition-transform duration-hover hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 active:scale-press-card shadow-card sm:p-8"
       >
         <span className="text-label uppercase text-brand-deep">{lead.eyebrow}</span>
         <h3 className="mt-2 max-w-[24ch] font-display text-card-title-lg font-extrabold leading-[1.05] tracking-[-0.03em] text-brand-deep">
@@ -66,7 +66,7 @@ function SubjectSection({ subject, lead, others, topics }: {
             <li key={a.slug}>
               <Link
                 to={`${BLOG_PATH}/${a.slug}`}
-                className="group flex h-full flex-col rounded-2xl bg-muted p-5 transition-transform duration-hover hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98]"
+                className="group flex h-full flex-col rounded-2xl bg-muted p-5 transition-transform duration-hover hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-press-card shadow-card"
               >
                 <span className="text-label uppercase text-warm-label">{a.eyebrow}</span>
                 <span className="mt-1.5 block font-bold leading-[1.25] text-foreground">{a.title}</span>
@@ -83,7 +83,7 @@ function SubjectSection({ subject, lead, others, topics }: {
             <li key={a.slug}>
               <Link
                 to={`${BLOG_PATH}/${a.slug}`}
-                className="flex h-full flex-col rounded-2xl bg-muted p-5 transition-transform duration-hover hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98]"
+                className="flex h-full flex-col rounded-2xl bg-muted p-5 transition-transform duration-hover hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-press-card shadow-card"
               >
                 <span className="text-label uppercase text-warm-label">{a.eyebrow}</span>
                 <span className="mt-1.5 block font-bold leading-[1.25] text-foreground">{a.shortTitle}</span>

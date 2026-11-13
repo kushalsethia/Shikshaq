@@ -508,7 +508,7 @@ export default function About() {
             <BentoPanel fill="card" className="px-[22px] !py-[18px] lg:!py-8 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl">
               <Link
                 to="/recommend-teacher"
-                className="group flex items-center gap-[14px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="group flex items-center gap-[14px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <IconDisc tone="muted" size={44} className="transition-colors duration-150 group-hover:bg-brand-subtle group-hover:text-brand-deep">
                   <GraduationCap />

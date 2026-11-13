@@ -98,7 +98,7 @@ export function Revise({ questions, compact = false, written = false, heading, e
     else setPick({ chapter: chapter!.id, out: out.filter((t) => t !== k) });
   };
 
-  const pill = cn('rounded-full font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand', compact ? 'min-h-9 px-3 text-[12px]' : 'min-h-10 px-3.5 text-[13px]');
+  const pill = cn('rounded-full font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus', compact ? 'min-h-9 px-3 text-[12px]' : 'min-h-11 md:min-h-10 px-3.5 text-[13px]');
   const label = cn('font-semibold text-warm-secondary', compact ? 'text-[11px]' : 'text-[12px]');
   const box = cn('flex flex-col rounded-[24px] bg-muted', compact ? 'gap-3 p-3 sm:p-4' : 'gap-4 p-4 sm:p-6');
 
@@ -138,7 +138,7 @@ export function Revise({ questions, compact = false, written = false, heading, e
               {inSubject.map((c) => (
                 <li key={c.id}>
                   <button type="button" aria-pressed={c.id === chapter.id} onClick={() => open(c)}
-                    className={cn('flex h-full w-full flex-col items-start gap-0.5 rounded-2xl text-left transition-[background-color,transform] duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                    className={cn('flex h-full w-full flex-col items-start gap-0.5 rounded-2xl text-left transition-[background-color,transform] duration-150 active:scale-press-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                       compact ? 'p-3' : 'p-4',
                       c.id === chapter.id ? 'bg-panel text-background' : 'bg-card text-foreground shadow-border')}>
                     <span className={cn('text-[12px] font-semibold', c.id === chapter.id ? 'text-brand' : 'text-warm-meta')}>{c.no !== null ? `Chapter ${c.no}` : 'Chapter'}</span>
@@ -157,7 +157,7 @@ export function Revise({ questions, compact = false, written = false, heading, e
           <div className="flex flex-wrap gap-1.5">
             {chapter.topics.map((t) => (
               <label key={t.key} className={cn('flex cursor-pointer items-center gap-1.5 rounded-full font-semibold transition-colors duration-150 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand',
-                compact ? 'min-h-9 px-3 text-[12px]' : 'min-h-10 px-3.5 text-[13px]',
+                compact ? 'min-h-9 px-3 text-[12px]' : 'min-h-11 md:min-h-10 px-3.5 text-[13px]',
                 chosen.includes(t.key) ? 'bg-brand-blue-subtle text-brand-blue-deep' : 'bg-card text-warm-secondary')}>
                 <input type="checkbox" className="sr-only" checked={chosen.includes(t.key)} onChange={() => toggle(t.key)} />
                 {t.no !== null && <b>{t.no}</b>} {t.name} <span className="font-normal opacity-70">({t.count})</span>
@@ -173,7 +173,7 @@ export function Revise({ questions, compact = false, written = false, heading, e
             {GAME_TYPES.map((t) => (
               <button key={t} type="button" role="tab" aria-selected={t === type} disabled={!games[t]} onClick={() => setWant(t)}
                 title={whyNot(t, items, !!games[t]) ?? undefined}
-                className={cn('flex items-center rounded-full font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:text-warm-label disabled:line-through',
+                className={cn('flex items-center rounded-full font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:text-warm-label disabled:line-through',
                   compact ? 'h-8 px-2.5 text-[12px]' : 'h-9 px-3 text-[13px]',
                   t === type ? 'bg-muted text-foreground' : 'text-warm-secondary hover:text-foreground')}>
                 {GAME_NAMES[t]}

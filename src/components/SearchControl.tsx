@@ -51,7 +51,7 @@ const ACCENT = {
     solid: 'bg-brand text-brand-foreground hover:bg-brand-hover',
     subtle: 'bg-brand-subtle text-brand',
     text: 'text-brand',
-    ring: 'focus-visible:ring-brand',
+    ring: 'focus-visible:ring-focus',
   },
   papers: {
     solid: 'bg-brand-blue text-brand-blue-foreground hover:bg-brand-blue-hover',
@@ -675,16 +675,18 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   }, [facetKeys]);
 
   /* Dropdown surface: one shared shell for the facet panel and the suggestions
-     overlay. §5 -- shadow-border only, never border + shadow.
+     overlay. §5 -- shadow only, never border + shadow.
 
-     M21: was one 200ms duration both ways. CRAFT §2 wants an entrance in the
-     200-300ms band and an exit shorter/softer than that -- bumped the open to
-     300ms and the close now uses the `exit` token (130ms) instead of sharing
-     the entrance's timing. */
-  const dropdownShell = (closing: boolean) =>
-    `absolute left-0 right-0 top-[calc(100%+0.75rem)] z-20 rounded-2xl bg-card text-left shadow-border-hover transition-[opacity,translate] ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-      closing ? 'duration-exit opacity-0 -translate-y-1' : 'duration-300 opacity-100 translate-y-0'
-    } ${pinned ? 'max-h-[max(220px,calc(100vh-240px))] overflow-y-auto' : ''}`;
+     Tactile pass (stage 3): the edge is the shared menu shadow (a ring and a crisp
+     drop, it was the button-hover shadow), and it opens from its own top edge in
+     150ms from scale(.97) with a fade, closing in 120ms (useExitPresence keeps it
+     mounted for 160ms, so the exit is seen). That replaces the 300ms slide with the
+     overshooting ease. src/index.css, "Overlay motion". The corners stay 16px, the
+     site's own for a panel this size. Each place that uses it sets data-state. */
+  const dropdownShell = () =>
+    `overlay-enter-menu absolute left-0 right-0 top-[calc(100%+0.75rem)] z-20 origin-top rounded-2xl bg-card text-left shadow-menu ${
+      pinned ? 'max-h-[max(220px,calc(100vh-240px))] overflow-y-auto' : ''
+    }`;
 
   const sectionLabel = 'text-xs font-medium uppercase tracking-wide text-muted-foreground';
 
@@ -830,7 +832,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
             type="button"
             onClick={closeControl}
             aria-label="Close search"
-            className={`absolute -bottom-2 -right-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-card text-foreground shadow-border-hover transition-colors duration-150 hover:bg-muted active:scale-[0.96] ${FOCUS} focus-visible:ring-ring`}
+            className={`absolute -bottom-2 -right-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-card text-foreground shadow-border-hover transition-colors duration-150 hover:bg-muted active:scale-press ${FOCUS} focus-visible:ring-ring`}
           >
             <X className="h-5 w-5" strokeWidth={2.25} aria-hidden="true" />
           </button>
@@ -879,7 +881,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                     type="button"
                     onClick={() => setInlineOpenFacet((cur) => (cur === key ? null : key))}
                     aria-expanded={open}
-                    className={`flex h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring ${
+                    className={`flex h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-press ${FOCUS} focus-visible:ring-ring ${
                       selected ? accent.solid : `${accent.subtle} hover:opacity-90`
                     }`}
                   >
@@ -889,13 +891,13 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                   </button>
 
                   {open && (
-                    <div className="absolute left-0 top-[calc(100%+0.5rem)] z-30 min-w-[260px] max-w-[320px] rounded-2xl bg-card p-3 text-left shadow-border-hover">
+                    <div className="overlay-enter-menu absolute left-0 top-[calc(100%+0.5rem)] z-30 min-w-[260px] max-w-[320px] origin-top-left rounded-2xl bg-card p-3 text-left shadow-menu">
                       <div className="mb-2 flex items-center justify-between gap-3">
                         <span className={sectionLabel}>{FACET_LABELS[key]}</span>
                         <button
                           type="button"
                           onClick={() => setInlineOpenFacet(nextFacetAfter(key))}
-                          className={`flex h-9 flex-none items-center gap-1.5 rounded-full pl-4 pr-3 text-sm font-bold transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring ${accent.solid}`}
+                          className={`flex h-9 flex-none items-center gap-1.5 rounded-full pl-4 pr-3 text-sm font-bold transition-colors duration-150 active:scale-press ${FOCUS} focus-visible:ring-ring ${accent.solid}`}
                         >
                           {nextFacetAfter(key) ? 'Next' : 'Done'}
                           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -915,7 +917,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                                 type="button"
                                 aria-pressed={picked}
                                 onClick={() => setSelections((s) => ({ ...s, [key]: toggleValue(s[key], opt) }))}
-                                className={`flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] motion-safe:animate-pop ${FOCUS} focus-visible:ring-ring ${
+                                className={`flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-press motion-safe:animate-pop ${FOCUS} focus-visible:ring-ring ${
                                   picked ? accent.solid : 'bg-muted text-foreground hover:bg-accent'
                                 }`}
                               >
@@ -942,7 +944,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
             <button
               type="button"
               onClick={runSearch}
-              className={`hidden h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-5 text-sm font-bold transition-colors duration-150 active:scale-[0.96] xl:flex ${FOCUS} ${accent.solid} ${accent.ring}`}
+              className={`hidden h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-5 text-sm font-bold transition-colors duration-150 active:scale-press xl:flex ${FOCUS} ${accent.solid} ${accent.ring}`}
             >
               Search
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
@@ -1084,8 +1086,8 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                  itself is hidden. */
               className={`${inlineFacetsDesktop && !reveal ? 'xl:hidden' : ''} ${
                 heroDesk
-                  ? `flex h-[46px] flex-none items-center justify-center gap-2 rounded-full px-5 text-sm font-bold transition-colors duration-150 active:scale-[0.96] ${FOCUS} ${accent.solid} ${accent.ring}`
-                  : `flex h-11 flex-none items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-150 active:scale-[0.96] ${FOCUS} ${accent.solid} ${accent.ring} ${
+                  ? `flex h-[46px] flex-none items-center justify-center gap-2 rounded-full px-5 text-sm font-bold transition-colors duration-150 active:scale-press ${FOCUS} ${accent.solid} ${accent.ring}`
+                  : `flex h-11 flex-none items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-150 active:scale-press ${FOCUS} ${accent.solid} ${accent.ring} ${
                       narrow ? 'w-11' : 'px-4'
                     }`
               }`}
@@ -1142,7 +1144,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                     type="button"
                     onClick={() => setField(open ? 'q' : key)}
                     aria-expanded={open}
-                    className={`flex min-h-11 flex-none snap-start items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring ${
+                    className={`flex min-h-11 flex-none snap-start items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-press ${FOCUS} focus-visible:ring-ring ${
                       /* accent.subtle (idle) → accent.solid (has a value):
                          one mode-matched hue applied to the whole facet
                          cluster, not a per-chip neutral gray -- same "exactly
@@ -1176,7 +1178,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
 
           {/* Facet panel */}
           {panelPresence.mounted && displayField && (
-            <div className={`${dropdownShell(panelPresence.closing)} p-4 sm:p-6`}>
+            <div data-state={panelPresence.closing ? 'closed' : 'open'} className={`${dropdownShell()} p-4 sm:p-6`}>
               {/* Owner revision: auto-jumping to the next facet the instant
                   one value was picked didn't leave room to pick a second
                   value in the SAME facet first ("board" can be multi-select
@@ -1190,7 +1192,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                 <button
                   type="button"
                   onClick={() => setField(nextFacetAfter(displayField) ?? 'q')}
-                  className={`flex h-9 flex-none items-center gap-1.5 rounded-full pl-4 pr-3 text-sm font-bold transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring ${accent.solid}`}
+                  className={`flex h-9 flex-none items-center gap-1.5 rounded-full pl-4 pr-3 text-sm font-bold transition-colors duration-150 active:scale-press ${FOCUS} focus-visible:ring-ring ${accent.solid}`}
                 >
                   {nextFacetAfter(displayField) ? 'Next' : 'Done'}
                   <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1214,7 +1216,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                         type="button"
                         aria-pressed={picked}
                         onClick={() => setSelections((s) => ({ ...s, [displayField]: toggleValue(s[displayField], opt) }))}
-                        className={`flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] motion-safe:animate-pop ${FOCUS} focus-visible:ring-ring ${
+                        className={`flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-press motion-safe:animate-pop ${FOCUS} focus-visible:ring-ring ${
                           picked ? accent.solid : 'bg-muted text-foreground hover:bg-accent'
                         }`}
                       >
@@ -1236,7 +1238,8 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               id={listboxId}
               role="listbox"
               aria-label={mode === 'teachers' ? 'Teacher suggestions' : 'Past paper suggestions'}
-              className={`${dropdownShell(overlayPresence.closing)} overflow-hidden`}
+              data-state={overlayPresence.closing ? 'closed' : 'open'}
+              className={`${dropdownShell()} overflow-hidden`}
             >
               {displayOverlayResting && (
                 /* key={mode} cross-fades the whole resting shelf (facet-driven
@@ -1256,7 +1259,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                         aria-selected={activeOption?.id === chipOptionId(label)}
                         type="button"
                         onClick={() => pickPopular(label)}
-                        className={`flex min-h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring ${accent.subtle} ${highlightClass(chipOptionId(label))}`}
+                        className={`flex min-h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-press ${FOCUS} focus-visible:ring-ring ${accent.subtle} ${highlightClass(chipOptionId(label))}`}
                       >
                         {label}
                       </button>
@@ -1414,7 +1417,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                           <button
                             type="button"
                             onClick={() => changeMode(mode === 'teachers' ? 'papers' : 'teachers')}
-                            className={`mt-4 flex min-h-11 items-center rounded-lg px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring bg-muted text-foreground hover:bg-accent`}
+                            className={`mt-4 flex min-h-11 items-center rounded-lg px-4 text-sm font-medium transition-colors duration-150 active:scale-press ${FOCUS} focus-visible:ring-ring bg-muted text-foreground hover:bg-accent`}
                           >
                             Search {MODE_LABEL[mode === 'teachers' ? 'papers' : 'teachers']} instead
                           </button>

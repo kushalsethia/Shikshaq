@@ -27,7 +27,7 @@ import { roleGroups } from '@/lib/role-home';
 import { LINK_ICON, TEAM_STYLE } from '@/components/layout/team-style';
 import { Button } from '@/components/ui/button';
 
-const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2';
+const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2';
 
 /* Handoff O-007: real, live counts for the menu's two product-half cards
  * and the signed-in account row -- "counts are live or absent, never a
@@ -256,7 +256,7 @@ export function Navbar() {
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger
               aria-label="Open menu"
-              className={`flex h-11 w-11 flex-none items-center justify-center rounded-full transition-colors duration-150 active:scale-[0.97] ${
+              className={`flex h-11 w-11 flex-none items-center justify-center rounded-full transition-colors duration-150 active:scale-press ${
                 onTintBlock
                   ? 'text-background shadow-none hover:bg-white/10'
                   : 'text-foreground shadow-border hover:bg-muted'

@@ -26,7 +26,7 @@ export default function AdminPositionsDummy() {
           setDummyMode(false);
           window.location.assign('/admin?tab=people&section=positions&dummy=0');
         }}
-        className="ml-auto min-h-10 rounded-full bg-fuchsia-800 px-3 font-bold text-fuchsia-50 hover:bg-fuchsia-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        className="ml-auto min-h-11 md:min-h-10 rounded-full bg-fuchsia-800 px-3 font-bold text-fuchsia-50 hover:bg-fuchsia-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
       >
         Leave dummy mode
       </button>

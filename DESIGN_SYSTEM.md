@@ -137,7 +137,7 @@ next group. If a label sits as far from its input as from the next field, the gr
 - Radius: `rounded-lg` (controls, inputs, buttons), `rounded-2xl` (cards, panels),
   `rounded-full` (pills, avatars, icon buttons). Nothing else.
 - **Depth comes from `shadow-border`, not from `border` + `shadow` stacked.** Use the existing
-  `--shadow-border` token. A card should have either a hairline border or a shadow — never both.
+  `--shadow-border` token (since 12 Nov 2026 it is the tactile button edge: a ring plus a crisp 1px drop; cards use `shadow-card`). A card should have either a hairline border or a shadow — never both.
 - Hover elevation on cards: `hover:-translate-y-0.5` plus `shadow-border-hover`. Nothing more.
 
 ---
@@ -160,7 +160,7 @@ Everything else is banned in page/component code: no `float-subtle`, `glow-pulse
 
 Hover/press are transitions, not animations:
 - Hover: `transition-colors duration-150` (or `transition-transform` for cards)
-- Press: `active:scale-[0.97] transition-transform duration-150`
+- Press: `active:scale-press transition-transform duration-150` (cards `active:scale-press-card`, small targets `active:scale-press-small`; the numbers are `--press-scale*` in `src/index.css`)
 - Never animate anything infinitely. No decorative perpetual motion.
 
 ---

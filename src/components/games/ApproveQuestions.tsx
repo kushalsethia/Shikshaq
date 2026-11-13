@@ -173,7 +173,7 @@ export function ApproveQuestions({ api, onWaiting, canDownload }: { api: GamesAp
         {TABS.map((t) => (
           <button key={t.key} id={`games-tab-${t.key}`} type="button" role="tab" aria-selected={tab === t.key} aria-controls="games-approve-panel" tabIndex={tab === t.key ? 0 : -1}
             onClick={() => selectTab(t.key)} onKeyDown={onTabKeyDown}
-            className={cn('flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+            className={cn('flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
               tab === t.key ? 'bg-card text-foreground' : 'text-warm-secondary hover:text-foreground')}>
             {t.label}
             <span className={cn('inline-flex h-[19px] min-w-[19px] items-center justify-center rounded-full px-[5px] text-[11px] font-bold tabular-nums',

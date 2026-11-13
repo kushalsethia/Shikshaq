@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { actionToneClass } from '@/lib/checker-button-styles';
+import { TABLE_FRAME, TABLE_ROW_RULE } from '@/lib/table-styles';
+import { cn } from '@/lib/utils';
 import {
   CHECKER_HELP_EXTRAS,
   CHECKER_PATH,
@@ -69,13 +71,13 @@ export default function CheckerHelp() {
         <p className="mb-2 text-[13px] text-warm-secondary">
           One key, no Ctrl. They switch off while you are typing in a box.
         </p>
-        <div className="overflow-hidden rounded-2xl bg-muted" role="table" aria-label="Keyboard shortcuts" data-testid="checker-shortcuts">
+        <div className={cn('overflow-hidden', TABLE_FRAME)} role="table" aria-label="Keyboard shortcuts" data-testid="checker-shortcuts">
           {rows.map((r) => (
-            <div key={r.action} role="row" className="flex items-center justify-between gap-3 px-3 py-2.5 odd:bg-card/50">
+            <div key={r.action} role="row" className={cn('flex min-h-11 items-center justify-between gap-3 px-3 py-2.5 first:border-t-0', TABLE_ROW_RULE)}>
               <span role="cell" className="text-[14px] text-foreground">
                 {r.label}
               </span>
-              <kbd role="cell" className="rounded-lg bg-card px-2.5 py-1 text-[13px] font-semibold text-foreground shadow-sm">
+              <kbd role="cell" className="rounded-lg bg-card px-2.5 py-1 text-[13px] font-semibold tabular-nums text-foreground shadow-button">
                 {r.keys}
               </kbd>
             </div>
