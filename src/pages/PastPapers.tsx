@@ -206,36 +206,37 @@ export default function PastPapers() {
   /* Landing-page data. Migrated from useEffect+useState onto react-query:
      QueryClient was configured app-wide in App.tsx but useQuery appeared in no
      file, so every page hand-rolled its own loading/error/cancellation and
-     leaned on a separate localStorage TTL cache. The four queries and their
-     derivations are unchanged — only who owns the async state changed.
+     leaned on a separate localStorage TTL cache. The papers-table reads
+     are now one request; the derivations are unchanged — only who owns the async state changed.
 
      staleTime is generous: a paper catalogue changes rarely, and remounting
-     this route should not refetch four times. */
+     this route should not refetch. */
   const landing = useQuery({
     queryKey: ['past-papers', 'landing'],
     enabled: !hasFilters,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const [schoolsRes, recentRes, subjectsRes, countRes, readRes] = await Promise.all([
-        supabase.from('papers').select('school,board').eq('is_published', true),
-        supabase.from('papers').select('id,title,school,subject,class,board,exam_type,year,created_at').eq('is_published', true).order('created_at', { ascending: false }).limit(6),
-        supabase.from('papers').select('subject').eq('is_published', true),
-        supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
-        /* Most-read joins the batch. It shares no input with the four above
-           and nothing derives from it, so awaiting it afterwards was a free
-           serial round trip before the shelf could render. */
+      /* One read of the published papers table, not four. The school and board
+         rows, the subject rows, the newest six and the total all come out of the
+         same rows (newest first), with the exact total counted in the same
+         request. Most-read shares no input with it, so it runs alongside. */
+      const [papersRes, readRes] = await Promise.all([
+        supabase.from('papers')
+          .select('id,title,school,subject,class,board,exam_type,year,created_at', { count: 'exact' })
+          .eq('is_published', true)
+          .order('created_at', { ascending: false }),
         supabase.from('paper_read_stats').select('paper_id, title, school, read_count')
           .order('read_count', { ascending: false }).limit(3),
       ]);
 
-      const firstError = schoolsRes.error || recentRes.error || subjectsRes.error || countRes.error;
-      if (firstError) throw firstError;
+      if (papersRes.error) throw papersRes.error;
+      const paperRows = (papersRes.data || []) as unknown as Paper[];
 
       const boardCounts: Record<string, number> = {};
-      (schoolsRes.data || []).forEach((p) => { boardCounts[p.board] = (boardCounts[p.board] || 0) + 1; });
+      paperRows.forEach((p) => { boardCounts[p.board] = (boardCounts[p.board] || 0) + 1; });
 
       const subjectCounts: Record<string, number> = {};
-      (subjectsRes.data || []).forEach((p) => { subjectCounts[p.subject] = (subjectCounts[p.subject] || 0) + 1; });
+      paperRows.forEach((p) => { subjectCounts[p.subject] = (subjectCounts[p.subject] || 0) + 1; });
 
       /* Most read (pages.md §4 section 6). Reads come from paper_read_stats,
          a public aggregate view — individual reads stay behind RLS in
@@ -250,11 +251,11 @@ export default function PastPapers() {
            schoolStats memo below), so a raw spelling that only differs
            between the table and the bank still merges into one label
            instead of producing two rows. */
-        schoolRows: (schoolsRes.data || []) as { school: string; board: string }[],
+        schoolRows: paperRows.map((p) => ({ school: p.school, board: p.board })),
         boardCounts,
         subjectCounts,
-        recentPapers: (recentRes.data || []) as Paper[],
-        totalPapers: countRes.count ?? 0,
+        recentPapers: paperRows.slice(0, 6),
+        totalPapers: papersRes.count ?? paperRows.length,
         mostRead: ((readRows || []) as MostReadPaper[]).filter((r) => r.read_count > 0),
       };
     },

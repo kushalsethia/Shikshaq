@@ -49,7 +49,7 @@ beforeEach(() => {
 /* The nav RPC (applications, reviews) and the HOD desk RPC (the three HOD
    numbers) answer separately, so each test sets both. */
 const NAV_OK = { applications: 4, reviews: 2, ready: 99, admin_queue: 99 };
-const DESK_OK = { ready: 6, needs_you_questions: 41, student_uploads_pending: 3 };
+const DESK_OK = { ready: 9, ready_ok: 6, needs_you_questions: 41, student_uploads_pending: 3 };
 function setRpc(nav: { data: unknown; error: unknown } | 'throw', desk: { data: unknown; error: unknown } | 'throw') {
   rpc.mockImplementation((fn: string) => {
     const answer = fn === 'hod_desk_counts' ? desk : nav;
@@ -85,7 +85,7 @@ describe('fetchAdminCounts', () => {
   });
 
   it('keeps a real zero as a zero, not as failed', async () => {
-    setRpc({ data: NAV_OK, error: null }, { data: { ready: 0, needs_you_questions: 0, student_uploads_pending: 0 }, error: null });
+    setRpc({ data: NAV_OK, error: null }, { data: { ready: 0, ready_ok: 0, needs_you_questions: 0, student_uploads_pending: 0 }, error: null });
     const r = await fetchAdminCounts();
     expect(r.counts).toMatchObject({ paperApprovals: 0, adminQueue: 0, submissions: 0 });
     expect(r.failed).toEqual([]);

@@ -81,7 +81,7 @@ async function hodDeskNumbers(): Promise<Pick<AdminSectionCounts, 'paperApproval
   try {
     const desk = await realHodApi.deskCounts();
     const out: Pick<AdminSectionCounts, 'paperApprovals' | 'adminQueue' | 'submissions'> = {};
-    if (typeof desk.ready === 'number') out.paperApprovals = desk.ready;
+    if (typeof desk.ready_ok === 'number') out.paperApprovals = desk.ready_ok;
     if (typeof desk.needs_you_questions === 'number') out.adminQueue = desk.needs_you_questions;
     if (typeof desk.student_uploads_pending === 'number') out.submissions = desk.student_uploads_pending;
     return out;
