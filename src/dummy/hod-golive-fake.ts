@@ -14,6 +14,7 @@
 import type { AiTrustOverall, AssignmentExplanation, HodCheck, HodDeskCounts, HodLivePaper, HodNeedsQuestion, HodNeedsYouPaper, HodPreview, HodReadyPaper, HodStudentUpload, HodTrailRow, PreviewHeader, PreviewQuestion, TrailStage, UploadStatus } from '@/lib/hod-publish';
 import { CHECKS, allChecksPass, fieldProblem, PUBLISH_FIELDS, LIVE_FIELDS, normaliseChecks } from '@/lib/hod-publish';
 import { dummyPageDataUrl, dummyPictureDataUrl } from '@/dummy/checker-fixtures';
+import type { StagePictureItem } from '@/lib/stage-pictures';
 
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
 
@@ -393,6 +394,9 @@ export interface GoLiveFake {
     aiTrustOverall(): Promise<AiTrustOverall>;
     explainAssignment(checkerId: string, paperId: string): Promise<AssignmentExplanation>;
     figureUrl(path: string): string | null;
+    unstagedPictures(id: string): Promise<StagePictureItem[] | null>;
+    copyPictureToSite(item: StagePictureItem): Promise<void>;
+    confirmStagedPicture(questionId: string, version: number): Promise<void>;
   };
 }
 
@@ -855,6 +859,28 @@ export function createGoLiveFake(record: (what: string) => void, ckNames: (id: s
     },
     figureUrl(path) {
       return dummyPictureDataUrl(path);
+    },
+    // Getting a ready picture onto the site by itself: the same three steps as the real desk (list, copy, confirm).
+    async unstagedPictures(id) {
+      const p = find(id);
+      return real(p)
+        .filter((x) => x.state === 'passed' && x.has_picture && !x.picture_staged)
+        .map((x) => ({
+          question_id: x.id,
+          question_version: x.version,
+          from_path: `${p.id}/${x.id}.png`,
+          to_path: `staged/${p.id}/${x.id}_1.png`,
+          is_first: true,
+        }));
+    },
+    async copyPictureToSite(item) {
+      record(`copy ${item.to_path}`);
+    },
+    async confirmStagedPicture(questionId, version) {
+      const { q } = findQ(questionId);
+      if (q.version !== version) throw pgError('Someone changed this question while you had it open, so nothing was saved. It has been refreshed.', '40001');
+      q.picture_staged = true;
+      record(`staged ${questionId}`);
     },
   };
 

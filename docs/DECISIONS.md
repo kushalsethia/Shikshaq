@@ -38,6 +38,11 @@ The owner is not a developer. Anything said to them is plain English.
 - **An HOD's yes is enough to put a fully checked paper live. No admin step is needed.** The four safety checks
   still run. BUILT: `hod_approve_paper` already publishes. The admin button now runs the same checks
   (`admin_approve_paper`, applied live 13 Nov 2026), except for old record-only papers (`approval_kind = 'retro'`).
+- **A ready picture is copied to the public site by the HOD's own browser when the paper is opened for approval
+  (to-do #76).** No "not on the site yet" warning, no failed pictures check for a picture that is simply ready. BUILT,
+  waiting for the owner to paste `PASTE_IN_SUPABASE_SQL_EDITOR_AUTO_STAGE_PICTURES_20261113.sql`. Chosen over an
+  edge function (none exists) and a laptop-only copy (needs the laptop on). The safety checks still refuse a paper
+  whose picture is not really on the site.
 - **HODs see everything.** No per-subject limits for HODs. STANDING (the earlier idea of HOD subject limits is
   dropped).
 

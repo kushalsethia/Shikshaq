@@ -33,8 +33,18 @@ function labelOf(q: Pick<PreviewQuestion, 'display_number' | 'number_path'>): st
   return q.display_number ?? q.number_path ?? '?';
 }
 
-/** A picture the checkers kept that has not reached the site yet: shown from the private bucket, with a plain note. */
-function UnstagedPicture({ api, path, label }: { api: Pick<HodApi, 'pictureUrl'>; path: string | null; label: string }) {
+/** What the desk is doing about ready pictures that have no public copy yet (see PublishFlow). */
+export type PictureWork = 'running' | 'failed' | 'unavailable' | null;
+
+/** The words under a ready picture that has no public copy yet. Never red: the picture is fine, it is only being copied. */
+export function pictureNote(work: PictureWork | undefined): string {
+  if (work === 'running') return 'Getting this picture ready for the site...';
+  if (work === 'failed') return 'This picture could not be copied to the site just now. Use Try again at the top of the paper.';
+  return 'This picture is ready. It is copied to the site when the paper is opened here.';
+}
+
+/** A picture the checkers kept: shown from the private store exactly as it will look, with a small plain note. */
+function UnstagedPicture({ api, path, label, work }: { api: Pick<HodApi, 'pictureUrl'>; path: string | null; label: string; work?: PictureWork }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!path) return;
@@ -48,10 +58,12 @@ function UnstagedPicture({ api, path, label }: { api: Pick<HodApi, 'pictureUrl'>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path]);
   return (
-    <div className="mt-2 rounded-[12px] bg-destructive/10 p-2" data-testid="unstaged-picture">
-      <p className="mb-1 text-[13px] font-semibold text-destructive">The picture for question {label} is not on the site yet.</p>
-      {url ? <img src={url} alt={`Picture for question ${label}, not on the site yet`} className="max-h-[240px] w-auto max-w-full rounded-[10px] bg-white p-1" /> : null}
-    </div>
+    <figure className="mt-2.5" data-testid="unstaged-picture">
+      {url ? <img src={url} alt={`Figure for question ${label}`} loading="lazy" decoding="async" className="max-h-[300px] w-auto max-w-full rounded-[12px] bg-card p-2 shadow-border" /> : null}
+      <figcaption className="mt-1 text-[12px] text-warm-secondary" role={work === 'failed' ? 'status' : undefined}>
+        {pictureNote(work)}
+      </figcaption>
+    </figure>
   );
 }
 
@@ -62,7 +74,9 @@ function SheetQuestion({
   paperId,
   editable,
   onChanged,
+  pictureWork,
 }: {
+  pictureWork?: PictureWork;
   q: PreviewQuestion;
   depth: number;
   api: HodApi;
@@ -165,7 +179,7 @@ function SheetQuestion({
               />
             </figure>
           ) : null}
-          {unstaged ? <UnstagedPicture api={api} path={q.figure_storage_path} label={label} /> : null}
+          {unstaged ? <UnstagedPicture api={api} path={q.figure_storage_path} label={label} work={pictureWork} /> : null}
           {q.state === 'open' ? (
             <p className="mt-2 text-[13px] text-foreground">
               This one still needs a decision.{' '}
@@ -242,12 +256,15 @@ export function PaperSheet({
   api,
   editable,
   onChanged,
+  pictureWork,
 }: {
   preview: HodPreview;
   api: HodApi;
   /** Questions can be fixed or put back only while the paper is not live. */
   editable: boolean;
   onChanged: () => void;
+  /** What the desk is doing about ready pictures without a public copy yet; shown as a small neutral note. */
+  pictureWork?: PictureWork;
 }) {
   const { paper, questions, counts } = preview;
   const h = paper.header;
@@ -361,7 +378,7 @@ export function PaperSheet({
                 </li>
               );
             }
-            return <SheetQuestion key={q.id} q={q} depth={depths.get(q.id) ?? 0} api={api} paperId={paper.audit_paper_id} editable={editable} onChanged={onChanged} />;
+            return <SheetQuestion key={q.id} q={q} depth={depths.get(q.id) ?? 0} api={api} paperId={paper.audit_paper_id} editable={editable} onChanged={onChanged} pictureWork={pictureWork} />;
           })}
         </ol>
       </article>
