@@ -277,7 +277,7 @@ export default function Auth() {
     const result = signupSchema.safeParse(formData);
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
+      result.error.issues.forEach((err) => {
         if (err.path[0]) {
           fieldErrors[err.path[0] as string] = err.message;
         }
@@ -337,7 +337,7 @@ export default function Auth() {
     const result = signinSchema.safeParse(formData);
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
+      result.error.issues.forEach((err) => {
         if (err.path[0]) {
           fieldErrors[err.path[0] as string] = err.message;
         }
@@ -424,7 +424,7 @@ export default function Auth() {
 
     const result = emailSchema.safeParse(formData.email);
     if (!result.success) {
-      setErrors({ email: result.error.errors[0].message });
+      setErrors({ email: result.error.issues[0].message });
       setLoading(false);
       return;
     }
@@ -454,7 +454,7 @@ export default function Auth() {
 
     const passwordResult = passwordSchema.safeParse(formData.newPassword);
     if (!passwordResult.success) {
-      setErrors({ newPassword: passwordResult.error.errors[0].message });
+      setErrors({ newPassword: passwordResult.error.issues[0].message });
       setLoading(false);
       return;
     }
