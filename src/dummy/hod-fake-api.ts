@@ -430,6 +430,9 @@ export function createFakeHodApi(): FakeHodApi {
     async pictureUrl(path) {
       return dummyPageDataUrl(path) ?? dummyPictureDataUrl(path);
     },
+    async questionDiagrams() {
+      return [];
+    },
     async paperPages(paperId): Promise<PaperPage[]> {
       if (paperId === P.nopic) return [];
       return [1, 2, 3, 4].map((n) => ({ page: n, object_path: `pages/${paperId}/${n}.jpg` }));
