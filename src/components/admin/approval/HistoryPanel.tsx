@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bot, ChevronDown, Cog, GraduationCap, UserRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SLOW_WORDS } from '@/lib/checker-timeout';
 import { historyLine, shownChanges, type ActorKind } from '@/lib/history-labels';
 import type { ApprovalApi, HistoryEvent } from '@/lib/admin-approval-shape';
 import { ChangeList } from '@/components/admin/approval/ChangeView';
@@ -140,7 +141,7 @@ export function PaperHistoryPanel({
   if (error) {
     return (
       <div role="alert" className="rounded-2xl bg-muted shadow-card p-4 text-[13px] text-foreground">
-        The history did not load. Check your internet and try again.
+        The history did not load. {SLOW_WORDS}
         <button type="button" onClick={() => void load()} className="tap-44 ml-2 font-semibold text-brand-blue">
           Try again
         </button>

@@ -110,8 +110,8 @@ describe('copy', () => {
     expect(NO_ACCOUNT_EXPLAINED).toMatch(/different email/);
   });
 
-  it('calls them verifiers, never students or checkers, in the admin guides', () => {
+  it('calls them checkers, never students or verifiers, in the admin guides', () => {
     const words = JSON.stringify([addVerifierSteps('https://x.test'), NO_ACCOUNT_EXPLAINED, addHodSteps('https://x.test'), HOD_NOTE]);
-    expect(words.replace(/https:\/\/x\.test\/\w+/g, '')).not.toMatch(/student|checker/i);
+    expect(words.replace(/https:\/\/x\.test\/\w+/g, '')).not.toMatch(/student|verifier/i);
   });
 });

@@ -19,7 +19,7 @@ describe('HOD desk tabs', () => {
       'Requests',
       'Live papers',
       'Assignments',
-      'Verifiers',
+      'Checkers',
       'History',
       'AI trust',
       'Reviewers',

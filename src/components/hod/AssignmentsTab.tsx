@@ -40,6 +40,7 @@ import {
 } from '@/lib/hod-bulk-assign';
 import { cn } from '@/lib/utils';
 import { formatGrade, loadGate } from '@/lib/verifier-papers';
+import { reasonWords } from '@/lib/checker-timeout';
 import {
   groupByVerifier,
   heldBackWhy,
@@ -225,7 +226,7 @@ export function BulkBar({
           disabled={running}
           className="min-h-11 w-0 min-w-0 flex-1 rounded-xl bg-muted px-3 text-[16px] sm:text-[14px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto sm:max-w-[18rem] sm:flex-none sm:basis-72"
         >
-          <option value="">Choose a verifier</option>
+          <option value="">Choose a checker</option>
           {options.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
@@ -277,7 +278,7 @@ export function SelectAllRow({ listLength, selectedCount, onChange }: { listLeng
 }
 
 const heldNow = (list: HodAssignment[]): HeldPaper[] =>
-  list.map((a) => ({ paper_id: a.paper_id, user_id: a.user_id, name: a.checker_name ?? 'Unnamed verifier' }));
+  list.map((a) => ({ paper_id: a.paper_id, user_id: a.user_id, name: a.checker_name ?? 'Unnamed checker' }));
 
 export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   const qc = useQueryClient();
@@ -327,7 +328,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   const whyIdle = (id: string): string | null => {
     const p = profileOf(id);
     if (!profilesQ.data || !p) return null;
-    if (p.expired) return 'Their details have expired, so no new papers are given to them. Update them on Verifiers.';
+    if (p.expired) return 'Their details have expired, so no new papers are given to them. Update them on Checkers.';
     return null;
   };
 
@@ -362,8 +363,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
       refresh();
       return true;
     } catch (err) {
-      const raw = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : '';
-      const reason = raw || 'That did not work. Try again.';
+      const reason = reasonWords(err, 'That did not work. Try again.');
       setRefusal(reason);
       // The banner sits at the top of the tab, which may be scrolled out of view
       // from a row far down the list, so say it where the HOD is looking as well.
@@ -378,7 +378,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
 
   const nameOf = (id: string) => {
     const m = verifiers.find((c) => c.user_id === id);
-    return m ? memberName(m) : 'that verifier';
+    return m ? memberName(m) : 'that checker';
   };
 
   /** Auto assign all: the server returns only a count, so who got what is read back from the lists. */
@@ -386,7 +386,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
     const waiting = unassignedQ.data?.length ?? 0;
     const ok = await confirm({
       title: waiting > 0 ? `Hand out ${waiting > UNASSIGNED_SHOWN ? `${UNASSIGNED_SHOWN}+` : waiting} free ${waiting === 1 ? 'paper' : 'papers'} now?` : 'Hand out the free papers now?',
-      description: 'Each paper goes to one verifier, never above their grade. You will see how many went to whom and how many are left. Taking a paper back is one tap on its row.',
+      description: 'Each paper goes to one checker, never above their grade. You will see how many went to whom and how many are left. Taking a paper back is one tap on its row.',
       confirmLabel: 'Auto assign all',
     });
     if (!ok) return;
@@ -412,8 +412,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
       setOutcome(summariseAutoAssign({ gave, perPerson, left, leftIsAtLeast }));
       refresh();
     } catch (err) {
-      const raw = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : '';
-      setRefusal(raw || 'That did not work. Try again.');
+      setRefusal(reasonWords(err, 'That did not work. Try again.'));
       refresh();
     } finally {
       setGiving(false);
@@ -453,7 +452,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
 
   async function unassign(a: HodAssignment) {
     const ok = await confirm({
-      title: `Take ${paperLabel(a)} back from ${a.checker_name ?? 'this verifier'}?`,
+      title: `Take ${paperLabel(a)} back from ${a.checker_name ?? 'this checker'}?`,
       description: 'The paper goes back to the pool and can be given out again. Work already done on it stays.',
       confirmLabel: 'Unassign',
     });
@@ -464,7 +463,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   /** Moving a paper takes it from its holder, so ask first, naming who loses it (like Unassign does). */
   async function reassign(a: HodAssignment, toId: string, toName: string, done: string): Promise<boolean> {
     const ok = await confirm({
-      title: `Move ${paperLabel(a)} from ${a.checker_name ?? 'this verifier'} to ${toName}?`,
+      title: `Move ${paperLabel(a)} from ${a.checker_name ?? 'this checker'} to ${toName}?`,
       description: `${a.checker_name ?? 'They'} will no longer have this paper. Work already done on it stays.`,
       confirmLabel: 'Move it',
     });
@@ -476,7 +475,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
   if (loadGate(assignmentsQ) === 'loading' || loadGate(unassignedQ) === 'loading' || loadGate(teamQ) === 'loading') return <ListSkeleton label="Loading assignments" />;
   if (assignmentsQ.isError) return <LoadError what="The assignments" onRetry={() => void assignmentsQ.refetch()} />;
   // Without the team every picker would be empty and read as "nobody to give it to".
-  if (teamQ.isError) return <LoadError what="The list of verifiers" onRetry={() => void teamQ.refetch()} />;
+  if (teamQ.isError) return <LoadError what="The list of checkers" onRetry={() => void teamQ.refetch()} />;
 
   const groups = groupByVerifier(assignmentsQ.data ?? []);
   const idle = verifiers.filter((m) => !groups.some((g) => g.user_id === m.user_id));
@@ -541,7 +540,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
             </button>
           ) : null}
           <PickVerifier
-            label="Move to another verifier"
+            label="Move to another checker"
             buttonLabel="Move"
             busy={busy}
             options={verifiers.filter((m) => m.user_id !== a.user_id)}
@@ -570,7 +569,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
     <div className="space-y-8">
       {profilesQ.isError ? (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-muted px-4 py-3 text-[14px] text-foreground" data-testid="profiles-error">
-          <span>Grades and details did not load, so the pickers cannot grey out verifiers who are below a paper's class. The server still checks each move.</span>
+          <span>Grades and details did not load, so the pickers cannot grey out checkers who are below a paper's class. The server still checks each move.</span>
           <button type="button" onClick={() => void profilesQ.refetch()} className="tap-44 font-semibold text-brand-blue">
             Try again
           </button>
@@ -650,8 +649,8 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
           </button>
         </div>
         <p className="mb-2 text-[13px] text-warm-secondary">
-          Papers go to verifiers automatically, a whole paper to one verifier and never above their grade. A verifier with no grade recorded can get any
-          paper. A paper whose class is not known can go to any verifier. A paper with nothing done on it for 7 days comes back
+          Papers go to checkers automatically, a whole paper to one checker and never above their grade. A checker with no grade recorded can get any
+          paper. A paper whose class is not known can go to any checker. A paper with nothing done on it for 7 days comes back
           here by itself.
         </p>
         <div ref={outcomeRef} className="mb-2 scroll-mb-24">
@@ -660,7 +659,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         {unassignedQ.isError ? (
           <LoadError what="The list of free papers" onRetry={() => void unassignedQ.refetch()} />
         ) : free.length === 0 ? (
-          <EmptyNote>Every paper with questions waiting has a verifier.</EmptyNote>
+          <EmptyNote>Every paper with questions waiting has a checker.</EmptyNote>
         ) : (
           <>
           <SelectAllRow
@@ -745,7 +744,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
           ) : null}
           {moreFree ? (
             <p className="mt-2 rounded-2xl bg-muted px-4 py-3 text-[13px] text-warm-secondary" data-testid="free-more">
-              More papers than these have no verifier. This list shows the first {UNASSIGNED_SHOWN}, in subject and class order. Give some out and the rest come into view.
+              More papers than these have no checker. This list shows the first {UNASSIGNED_SHOWN}, in subject and class order. Give some out and the rest come into view.
             </p>
           ) : null}
           </>
@@ -757,7 +756,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
           Not ready to give out
         </h2>
         <p className="mb-2 text-[13px] text-warm-secondary">
-          These papers have questions waiting, but some pictures or printed pages are not stored yet. They cannot be given to a verifier, by hand or
+          These papers have questions waiting, but some pictures or printed pages are not stored yet. They cannot be given to a checker, by hand or
           automatically, until every picture and every page is in. They move up to the list above by themselves.
         </p>
         {heldQ.isError ? (

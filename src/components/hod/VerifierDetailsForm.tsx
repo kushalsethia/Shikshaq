@@ -138,9 +138,9 @@ export function VerifierDetailsForm(props: VerifierDetailsFormProps) {
 
       <fieldset className="mt-4" disabled={busy}>
         <legend className="text-[13px] font-semibold text-foreground">Preferred subjects</legend>
-        <p className="mt-0.5 text-[12px] text-warm-meta">Only you set these. Pick the subjects this verifier should be given papers in.</p>
+        <p className="mt-0.5 text-[12px] text-warm-meta">Only you set these. Pick the subjects this checker should be given papers in.</p>
         {choices.length === 0 ? (
-          <p className="mt-2 text-[13px] text-warm-secondary">No subjects to choose from yet. They appear once verifiers hold papers.</p>
+          <p className="mt-2 text-[13px] text-warm-secondary">No subjects to choose from yet. They appear once checkers hold papers.</p>
         ) : (
           <div className="mt-2 flex max-h-44 flex-wrap gap-x-4 gap-y-2 overflow-y-auto" data-testid="subject-choices">
             {choices.map((s, i) => {

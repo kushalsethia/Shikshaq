@@ -74,7 +74,7 @@ export function AdminTeamPage({
   dummy?: boolean;
   banner?: ReactNode;
 }) {
-  usePageMeta('Verifier progress | Shikshaq Admin', 'How many questions each verifier checked, and how the papers are moving.');
+  usePageMeta('Checker progress | Shikshaq Admin', 'How many questions each checker checked, and how the papers are moving.');
   const { user, profile } = useAuth();
   const actorName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'Signed-in admin';
   const [range, setRange] = useState<Range>('7d');
@@ -159,7 +159,7 @@ export function AdminTeamPage({
         <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
         <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
           <div className="px-[18px]">
-            <AdminLoading shape="table" label="Loading the verifier progress" />
+            <AdminLoading shape="table" label="Loading the checker progress" />
           </div>
         </BentoPanel>
         <AdminAuditNote />
@@ -177,7 +177,7 @@ export function AdminTeamPage({
       {banner}
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-        <AdminPanelHeader title="Verifier progress" meta={(view === 'list' || view === 'empty') && stats.length > 0 ? activeWords(stats) : undefined} />
+        <AdminPanelHeader title="Checker progress" meta={(view === 'list' || view === 'empty') && stats.length > 0 ? activeWords(stats) : undefined} />
 
         <div className="mb-3 px-[18px]">
           <AdminFilterChips
@@ -272,11 +272,11 @@ export function TeamBody({
   const heldLabel = heldRange ? RANGE_LABEL[heldRange] : null;
   const totals = totalsOf(stats);
   const maxChecked = Math.max(1, ...stats.map((r) => r.questions_checked));
-  if (view === 'skeleton') return <AdminLoading shape="table" label="Loading the verifier progress" />;
+  if (view === 'skeleton') return <AdminLoading shape="table" label="Loading the checker progress" />;
   if (view === 'error') {
     return (
       <div className="px-[18px]">
-        <AdminError what="the verifier progress" onRetry={onRetry} />
+        <AdminError what="the checker progress" onRetry={onRetry} />
       </div>
     );
   }
@@ -375,13 +375,13 @@ function LookupBox({ value, onChange, onLookup }: { value: string; onChange: (v:
 export function VerifierStatsList({ stats, maxChecked }: { stats: TeamStatsRow[]; maxChecked: number }) {
   const [openId, setOpenId] = useState<string | null>(null);
   return (
-    <div className="px-[18px]" role="table" aria-label="Verifier progress">
+    <div className="px-[18px]" role="table" aria-label="Checker progress">
       <div
         role="row"
         className={cn('hidden gap-3.5 px-[14px] py-[10px] border-b-[0.5px] border-warm-hairline lg:grid', COLS)}
       >
-        <span role="columnheader" className="text-[11px] font-bold uppercase tracking-[.06em] text-warm-secondary">Verifier</span>
-        <HeaderCell label="Checked" hint="Questions this verifier looked at in this range." />
+        <span role="columnheader" className="text-[11px] font-bold uppercase tracking-[.06em] text-warm-secondary">Checker</span>
+        <HeaderCell label="Checked" hint="Questions this checker looked at in this range." />
         <HeaderCell label="Passed" hint="Marked right as printed, with no change." />
         <HeaderCell label="Fixed" hint="Changed to match the printed page." />
         <HeaderCell label="Changed by admin" hint="Their decision was later changed by an admin." />

@@ -135,7 +135,7 @@ export function AdminGuardErrorState({ onRetry }: { onRetry: () => void }) {
       <div className={`mx-auto w-full max-w-sm p-8 text-center ${adminPanelStyle}`}>
         <p className="text-[16px] font-semibold text-foreground">Couldn't verify your access</p>
         <p className="mt-2 text-[14px] text-warm-prose">
-          We weren't able to confirm your admin permissions. Check your connection and try again.
+          We weren't able to confirm your admin permissions. This is taking longer than it should. Try again in a minute.
         </p>
         <button type="button" onClick={onRetry} className={`mt-5 ${adminPrimaryBtnStyle}`}>
           Try again
