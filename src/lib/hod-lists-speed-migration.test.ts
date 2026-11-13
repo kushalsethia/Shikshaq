@@ -2,12 +2,12 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-/* 20261113300000_hod_lists_speed.sql cannot run in CI (no database), so its load-bearing lines are pinned here.
+/* 20261113310000_hod_lists_speed.sql cannot run in CI (no database), so its load-bearing lines are pinned here.
    The HOD lists were cut off at 8 seconds because an expensive per-question check ran on every open question and only
    then dropped the papers somebody already holds. The speed comes from narrowing to the right papers FIRST; the doors
    (HOD only, closed to signed-out visitors) and the output columns must not change. */
 
-const raw = readFileSync('supabase/migrations/20261113300000_hod_lists_speed.sql', 'utf8');
+const raw = readFileSync('supabase/migrations/20261113310000_hod_lists_speed.sql', 'utf8');
 const sql = raw
   .split('\n')
   .filter((line) => !line.trim().startsWith('--'))
