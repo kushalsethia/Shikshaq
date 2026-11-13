@@ -84,7 +84,7 @@ export default function RecommendTeacher() {
 
     const result = recommendSchema.safeParse(formData);
     if (!result.success) {
-      setError(result.error.errors[0]?.message || "Please enter the teacher's name");
+      setError(result.error.issues[0]?.message || "Please enter the teacher's name");
       return;
     }
 
