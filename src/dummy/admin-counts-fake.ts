@@ -29,7 +29,7 @@ async function fixtureCounts(): Promise<AdminSectionCounts> {
   return {
     approvals: applications.filter((a) => a.status === 'pending').length,
     reviews: reviews.pendingReviews + reviews.pendingRecommendations,
-    paperApprovals: desk.ready,
+    paperApprovals: desk.ready_ok,
     adminQueue: desk.needs_you_questions,
     submissions: desk.student_uploads_pending,
   };

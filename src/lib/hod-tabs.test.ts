@@ -43,13 +43,20 @@ describe('HOD desk tabs', () => {
   it('puts count badges on Needs you, Ready and Student uploads only, from hod_desk_counts', () => {
     const c = normaliseDeskCounts({ needs_you: 9, needs_you_questions: 204, ready: 2, ready_ok: 0, student_uploads_pending: 3, live: 1506, hidden: 5 });
     expect(tabBadge('needs-you', c)).toBe(204);
-    expect(tabBadge('ready', c)).toBe(2);
+    expect(tabBadge('ready', c)).toBe(0);
     expect(tabBadge('uploads', c)).toBe(3);
     expect(tabBadge('live', c)).toBe(0);
     expect(tabBadge('history', c)).toBe(0);
     expect(tabBadge('ready', null)).toBe(0);
     expect(tabBadgeLabel('needs-you', c)).toBe('204 questions waiting for you');
-    expect(tabBadgeLabel('ready', c)).toBe('2 papers ready, 0 can go live now');
+    expect(tabBadgeLabel('ready', c)).toBe('0 papers can go live now, 2 blocked');
+  });
+
+  it('counts only the papers that can really go live on the Ready tab, not the blocked ones', () => {
+    const c = normaliseDeskCounts({ ready: 85, ready_ok: 26 });
+    expect(tabBadge('ready', c)).toBe(26);
+    expect(tabBadgeLabel('ready', c)).toBe('26 papers can go live now, 59 blocked');
+    expect(tabBadgeLabel('ready', normaliseDeskCounts({ ready: 1, ready_ok: 1 }))).toBe('1 paper can go live now');
   });
 
   it('puts the requests waiting for the HOD on the Requests tab, from their own count', () => {

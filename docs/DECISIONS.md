@@ -110,3 +110,14 @@ The owner is not a developer. Anything said to them is plain English.
 - Pull requests 105 to 111 are merged; PR 112 (zod) is open, and the paper-status work is being built.
 - The checking copy of paper `b392ed` is clean; live changes only after student checkers pass all 29 questions.
 - Maths papers stay frozen (no check, approve, fix or re-split) unless the owner asks.
+
+## Owner decisions owed (found in the 13 Nov 2026 fault hunt)
+
+- **A paper that goes live has no page of its own for search engines, and is not in the sitemap, until the site is
+  redeployed.** The pages and the sitemap are made at build time. The app itself shows the new paper at once (the
+  Latest papers shelf reads it live), so students are fine; only search engines wait. **Recommendation: a daily
+  redeploy** (a Vercel deploy hook, called once a day by a scheduled GitHub Action), so every paper published
+  that day is searchable by the next morning, with nobody having to remember. Cost: one extra build a day. Note
+  that `CLAUDE.md` says deploy hooks were "not available to us"; the owner would need to create the hook in the
+  Vercel project settings and save its address as a GitHub secret. NOT BUILT, deliberately: the owner decides
+  first. Until then, redeploy by hand after a publishing day.

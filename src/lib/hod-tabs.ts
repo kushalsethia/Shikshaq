@@ -51,7 +51,8 @@ export function tabBadge(key: string, counts: HodDeskCounts | null | undefined, 
     case 'needs-you':
       return counts.needs_you_questions;
     case 'ready':
-      return counts.ready;
+      // Only the papers that can really go live. The blocked ones are listed inside the tab with their reasons.
+      return counts.ready_ok;
     case 'uploads':
       return counts.student_uploads_pending;
     default:
@@ -69,8 +70,9 @@ export function tabBadgeLabel(key: string, counts: HodDeskCounts | null | undefi
       return n === 1 ? '1 question waiting for you' : `${n} questions waiting for you`;
     }
     case 'ready': {
-      const n = counts.ready;
-      return `${n} ${n === 1 ? 'paper' : 'papers'} ready, ${counts.ready_ok} can go live now`;
+      const ok = counts.ready_ok;
+      const blocked = Math.max(0, counts.ready - ok);
+      return `${ok} ${ok === 1 ? 'paper can' : 'papers can'} go live now${blocked > 0 ? `, ${blocked} blocked` : ''}`;
     }
     case 'uploads': {
       const n = counts.student_uploads_pending;
