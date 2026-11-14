@@ -126,3 +126,14 @@ Nothing here is dropped yet. Each item is listed so a later tidy-up can remove i
   verdict-and-next call. No SQL function calls it either (`supabase/migrations/20261011190000_close_legacy_checker_rpcs.sql`
   already revoked it from the public, anon and signed-in roles). Several old migration tests still read its text, so
   remove the function, the wrapper and those tests together, in one change that the owner pastes.
+
+## Owner decisions owed (found in the 13 Nov 2026 fault hunt)
+
+- **A paper that goes live has no page of its own for search engines, and is not in the sitemap, until the site is
+  redeployed.** The pages and the sitemap are made at build time. The app itself shows the new paper at once (the
+  Latest papers shelf reads it live), so students are fine; only search engines wait. **Recommendation: a daily
+  redeploy** (a Vercel deploy hook, called once a day by a scheduled GitHub Action), so every paper published
+  that day is searchable by the next morning, with nobody having to remember. Cost: one extra build a day. Note
+  that `CLAUDE.md` says deploy hooks were "not available to us"; the owner would need to create the hook in the
+  Vercel project settings and save its address as a GitHub secret. NOT BUILT, deliberately: the owner decides
+  first. Until then, redeploy by hand after a publishing day.

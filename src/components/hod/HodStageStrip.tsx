@@ -26,7 +26,8 @@ export function HodStageStrip({ api, scope }: { api: HodApi; scope: string }) {
     ready: freeQ.data ? Math.min(freeQ.data.length, UNASSIGNED_SHOWN) : null,
     // A paper goes whole to one checker, so the rows are the papers; counted by id in case that ever changes.
     checking: mineQ.data ? new Set(mineQ.data.map((a) => a.paper_id)).size : null,
-    waiting: deskQ.data ? deskQ.data.ready : null,
+    // Only the papers that pass all four checks; the blocked ones are listed, with reasons, in Ready to go live.
+    waiting: deskQ.data ? deskQ.data.ready_ok : null,
     live: deskQ.data ? deskQ.data.live : null,
   };
   const capped: Partial<Record<PaperStage, boolean>> = {

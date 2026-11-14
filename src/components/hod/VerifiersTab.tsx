@@ -6,7 +6,7 @@ import { EmptyNote, ListSkeleton, LoadError, Tile, ago } from '@/components/hod/
 import { VerifierDetailsForm } from '@/components/hod/VerifierDetailsForm';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { actionToneClass } from '@/lib/checker-button-styles';
-import { UNASSIGNED_SHOWN } from '@/lib/hod-desk';
+import { UNASSIGNED_SHOWN, verifierSetupLine } from '@/lib/hod-desk';
 import { formatGrade, formatValidUntil, parseSubjectList } from '@/lib/verifier-papers';
 import {
   memberName,
@@ -317,6 +317,8 @@ export function VerifiersTab({ api, scope }: { api: HodApi; scope: string }) {
   if (team.length === 0) return <EmptyNote>There are no checkers yet. An admin adds them under Admin, People, Checkers.</EmptyNote>;
   const profiles = sortProfiles(profilesQ.data ?? []);
   const needing = profiles.filter((p) => profileFlag(p) !== null).length;
+  // Never the green "Everyone is set up" while the details failed to load: that read as good news above a red error.
+  const setupLine = verifierSetupLine(needing, profiles.length, profilesQ.isError);
   const choices = subjectChoices({
     held: [...team.flatMap((m) => m.subjects), ...(subjectsQ.data ?? []).map((s) => s.name)],
     waiting: (waitingQ.data ?? []).map((u) => u.subject ?? '').filter(Boolean),
@@ -337,7 +339,7 @@ export function VerifiersTab({ api, scope }: { api: HodApi; scope: string }) {
           Details and subjects
         </h2>
         <p className="mb-2 text-[13px] text-warm-secondary">
-          {needing > 0 ? `${needing} need${needing === 1 ? 's' : ''} your attention and are listed first.` : 'Everyone is set up.'} Checkers can fill in their own
+          {setupLine ? `${setupLine} ` : ''}Checkers can fill in their own
           details and you can change them. Only you set preferred subjects; a checker can ask and you approve here.
         </p>
         {profilesQ.isError ? (

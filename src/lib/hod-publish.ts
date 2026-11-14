@@ -194,8 +194,49 @@ export function normaliseChecks(raw: unknown): HodCheck[] {
   return CHECKS.map((c) => {
     const r = byKey.get(c.key);
     if (!r) return { key: c.key, label: c.label, ok: false, detail: 'This check did not load. Refresh the page.' };
-    return { key: c.key, label: str(r.label) ?? c.label, ok: r.ok === true, detail: str(r.detail) ?? '' };
+    return { key: c.key, label: str(r.label) ?? c.label, ok: r.ok === true, detail: plainCheckDetail(c.key, str(r.detail) ?? '') };
   });
+}
+
+/**
+ * The question numbers of the questions with scanner marks, in words. The database names a question it could not
+ * number "?", which read as "question ?, ?" on screen. Each unnumbered one is counted instead:
+ * ["3", "?", "?"] is "question 3 and 2 questions with no number".
+ */
+export function junkNumbersText(numbers: Array<string | null | undefined>): string {
+  const known = numbers.map((n) => (n ?? '').trim()).filter((n) => n !== '' && n !== '?');
+  const unknown = numbers.length - known.length;
+  const parts: string[] = [];
+  if (known.length > 0) parts.push(`${known.length === 1 ? 'question' : 'questions'} ${known.join(', ')}`);
+  if (unknown > 0) parts.push(unknown === 1 ? '1 question with no number' : `${unknown} questions with no number`);
+  return parts.join(' and ');
+}
+
+/**
+ * The scanner check's sentence comes from the database as "... scanner marks (question 3, ?, ?)". Say it plainly
+ * when a number is missing. Any other check, or a sentence without that shape, is passed through as written.
+ */
+export function plainCheckDetail(key: string, detail: string): string {
+  if (key !== 'scanner_junk_gone') return detail;
+  return detail.replace(/\(questions? ([^)]*)\)/, (whole, list: string) => {
+    if (!list.includes('?')) return whole;
+    return `(${junkNumbersText(list.split(',').map((x) => x.trim()))})`;
+  });
+}
+
+/** Why a paper cannot go live yet, one plain sentence per failed check, from the check's own words. */
+export function blockedReasons(checks: HodCheck[]): string[] {
+  return failedChecks(checks).map((c) => (c.detail.trim() !== '' ? `${c.label}: ${c.detail}` : c.label));
+}
+
+/** The line above the Ready list: how many can go live, and how many are blocked. */
+export function readySummaryText(total: number, ok: number): string {
+  const blocked = Math.max(0, total - ok);
+  if (total === 0) return 'No paper is ready yet.';
+  if (ok === 0) return blocked === 1 ? 'None can go live yet. 1 paper is blocked.' : `None can go live yet. ${blocked} papers are blocked.`;
+  const live = ok === 1 ? '1 paper can go live now' : `${ok} papers can go live now`;
+  if (blocked === 0) return `${live}.`;
+  return `${live}. ${blocked === 1 ? '1 other is' : `${blocked} others are`} blocked, with the reason under each.`;
 }
 
 /** True only when all four checks are there and every one is ok. This is what enables Publish. */
