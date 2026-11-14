@@ -17,6 +17,7 @@ import {
   type AttentionItem,
 } from '@/lib/paper-status';
 import { AssignmentWhy } from '@/components/hod/AssignmentWhy';
+import { WhoHasWhat } from '@/components/hod/WhoHasWhat';
 import { WaitingForPapers } from '@/components/hod/WaitingForPapers';
 import { realPaperAsksApi, type PaperAsksApi } from '@/lib/paper-asks-api';
 import { PROFILES_KEY, TEAM_KEY } from '@/components/hod/VerifiersTab';
@@ -515,57 +516,40 @@ export function AssignmentsTab({ api, scope, asksApi = realPaperAsksApi }: { api
     ...(heldQ.data ?? []).map((p) => ({ key: `held-${p.paper_id}`, stage: stageOfHeldBack(), label: paperLabel(p), reason: heldBackWhy(p) })),
   ];
 
-  const row = (a: HodAssignment) => {
-    const stuck = stuckReason(a, lookup, now);
-    const waitingForHod = waitingForHodReason(a, now);
-    return (
-    <li key={a.assignment_id} className="rounded-2xl bg-card p-3" data-testid="assignment-row">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[14px] font-semibold text-foreground">{paperLabel(a)}</p>
-            <PaperStatusPill stage={stageOfAssignment()} />
-          </div>
-          <p className="text-[12px] text-warm-meta">
-            {a.remaining} {a.remaining === 1 ? 'question' : 'questions'} left · {!a.given_by_name || a.given_by_name === 'Automatic' ? 'Given automatically' : `Given by ${a.given_by_name}`}
-            {a.assigned_at ? ` ${ago(a.assigned_at)}` : ''}
-          </p>
-          {stuck ? (
-            <p className="mt-1 text-[13px] font-semibold text-destructive" data-testid="stuck-reason">
-              {stuck}
-            </p>
-          ) : null}
-          {waitingForHod ? (
-            <p className="mt-1 text-[13px] font-semibold text-warm-meta" data-testid="waiting-for-hod-reason">
-              {waitingForHod}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {myId && a.user_id !== myId ? (
-            <button
-              type="button"
-              disabled={busy}
-              className={actionToneClass('brand')}
-              onClick={() => void reassign(a, myId, 'you', 'Moved to you. Open it from My papers.')}
-            >
-              Take it myself
-            </button>
-          ) : null}
-          <PickVerifier
-            label="Move to another checker"
-            buttonLabel="Move"
-            busy={pickersBusy}
-            options={verifiers.filter((m) => m.user_id !== a.user_id)}
-            paperClass={a.cls}
-            profileOf={profileOf}
-            onPick={(uid) => reassign(a, uid, nameOf(uid), `Moved to ${nameOf(uid)}.`)}
-          />
-          <button type="button" disabled={busy} onClick={() => void unassign(a)} className={actionToneClass('muted')}>
-            Unassign
-          </button>
-        </div>
-      </div>
+  /** Why a paper is flagged: nothing done for 7 days, or the checker finished and an HOD must decide. */
+  const reasonsOf = (a: HodAssignment) => ({ stuck: stuckReason(a, lookup, now), waiting: waitingForHodReason(a, now) });
+
+  /** The buttons for one opened paper: take it, move it, hand it back. Shown only when the paper is opened. */
+  const renderActions = (a: HodAssignment) => (
+    <>
+      {myId && a.user_id !== myId ? (
+        <button
+          type="button"
+          disabled={busy}
+          className={actionToneClass('brand')}
+          onClick={() => void reassign(a, myId, 'you', 'Moved to you. Open it from My papers.')}
+        >
+          Take it myself
+        </button>
+      ) : null}
+      <PickVerifier
+        label="Move to another checker"
+        buttonLabel="Move"
+        busy={pickersBusy}
+        options={verifiers.filter((m) => m.user_id !== a.user_id)}
+        paperClass={a.cls}
+        profileOf={profileOf}
+        onPick={(uid) => reassign(a, uid, nameOf(uid), `Moved to ${nameOf(uid)}.`)}
+      />
+      <button type="button" disabled={busy} onClick={() => void unassign(a)} className={actionToneClass('muted')}>
+        Unassign
+      </button>
+    </>
+  );
+
+  /** "Why this paper?" and "Where this paper has been", also only when the paper is opened. */
+  const renderMore = (a: HodAssignment) => (
+    <>
       <AssignmentWhy api={api} scope={scope} checkerId={a.user_id} paperId={a.paper_id} />
       <PaperTimelineDisclosure
         className="mt-2"
@@ -574,9 +558,8 @@ export function AssignmentsTab({ api, scope, asksApi = realPaperAsksApi }: { api
         fallback={{ ...EMPTY_MOMENTS, given_at: a.assigned_at }}
         stage={stageOfAssignment()}
       />
-    </li>
-    );
-  };
+    </>
+  );
 
   return (
     <div className="space-y-8">
@@ -623,40 +606,23 @@ export function AssignmentsTab({ api, scope, asksApi = realPaperAsksApi }: { api
         ) : assignmentsGate === 'error' ? (
           <LoadError what="The assignments" onRetry={() => void assignmentsQ.refetch()} />
         ) : groups.length === 0 && teamGate === 'loading' ? (
-          <ListSkeleton label="Loading the verifiers" />
+          <ListSkeleton label="Loading the checkers" />
         ) : groups.length === 0 && idle.length === 0 && teamGate !== 'error' ? (
           <EmptyNote>No paper is assigned to anyone right now.</EmptyNote>
         ) : (
-          <ul className="space-y-3">
-            {groups.map((g) => (
-              <li key={g.user_id} className="rounded-[18px] bg-muted shadow-card p-3" data-testid="verifier-load">
-                <p className="mb-2 px-1 text-[15px] font-bold text-foreground">
-                  {g.name}
-                  <span className="ml-2 text-[12px] font-normal text-warm-meta">
-                    {g.papers.length} {g.papers.length === 1 ? 'paper' : 'papers'}
-                  </span>
-                </p>
-                <ul className="space-y-2">{g.papers.map(row)}</ul>
-              </li>
-            ))}
-            {idle.map((m) => (
-              <li key={m.user_id} className="rounded-[18px] bg-muted shadow-card p-3">
-                <p className="px-1 text-[15px] font-bold text-foreground">
-                  {memberName(m)} <span className="ml-2 text-[12px] font-normal text-warm-meta">no papers yet</span>
-                </p>
-                {whyIdle(m.user_id) ? (
-                  <p className="mt-0.5 px-1 text-[13px] text-warm-secondary" data-testid="idle-reason">
-                    {whyIdle(m.user_id)}
-                  </p>
-                ) : null}
-              </li>
-            ))}
+          <>
+            <WhoHasWhat
+              scope={scope}
+              assignments={assignmentsQ.data ?? []}
+              idle={idle.map((m) => ({ user_id: m.user_id, name: memberName(m), why: whyIdle(m.user_id) }))}
+              reasonsOf={reasonsOf}
+              renderActions={renderActions}
+              renderMore={renderMore}
+            />
             {teamGate === 'error' ? (
-              <li>
-                <LoadError what="The list of checkers" onRetry={() => void teamQ.refetch()} />
-              </li>
+              <LoadError what="The list of checkers" onRetry={() => void teamQ.refetch()} />
             ) : null}
-          </ul>
+          </>
         )}
       </section>
 

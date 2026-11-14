@@ -169,7 +169,8 @@ describe('the wiring on every screen', () => {
     expect(src).toContain('stuckReason(a, lookup, now)');
     // A checker who has finished their part is not blamed: the row and the Needs attention group say it waits for an HOD.
     expect(src).toContain('waitingForHodReason(a, now)');
-    expect(src).toContain('data-testid="waiting-for-hod-reason"');
+    // The per-person list now lives in WhoHasWhat, which draws the reason lines it is handed.
+    expect(read('src/components/hod/WhoHasWhat.tsx')).toContain('data-testid="waiting-for-hod-reason"');
     expect(src).toContain('<AttentionGroup id="assign-attention"');
     expect(src).toContain('showSection(');
     expect(src).toContain('Show all papers');
