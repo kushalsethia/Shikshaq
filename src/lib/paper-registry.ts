@@ -72,7 +72,7 @@ export const STATE_LOOK: Record<ProcessedState, StateLook> = {
   },
   ai_checked: {
     label: 'Checked by the AI',
-    hint: 'The AI pass is done. Verifiers and admins still have questions to clear.',
+    hint: 'The AI pass is done. Checkers and admins still have questions to clear.',
     bar: 'bg-blue-500',
     pill: 'bg-blue-100 text-blue-900',
     dot: 'bg-blue-600',

@@ -126,7 +126,7 @@ describe('hod_team mapping', () => {
   it('names a person by name, else email, else a fallback', () => {
     expect(memberName(m[0])).toBe('a@example.com');
     expect(memberName({ name: 'Asha', email: null })).toBe('Asha');
-    expect(memberName({ name: null, email: null })).toBe('Unnamed verifier');
+    expect(memberName({ name: null, email: null })).toBe('Unnamed checker');
   });
 
   it('works out the share passed as is', () => {
@@ -250,7 +250,7 @@ describe('hod_action_history mapping', () => {
     ]);
     expect(h).toHaveLength(1);
     expect(h[0].actor_name).toBe('Meena');
-    expect(roleWord('checker')).toBe('Verifier');
+    expect(roleWord('checker')).toBe('Checker');
     expect(roleWord('hod')).toBe('HOD');
     expect(roleWord('admin')).toBe('Admin');
   });

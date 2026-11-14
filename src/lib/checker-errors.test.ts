@@ -9,6 +9,7 @@ import {
   PAPER_GONE_TITLE,
   requestSubjectsErrorMessage,
 } from './checker-errors';
+import { RequestTimeoutError, SLOW_ACTION_WORDS, SLOW_WORDS } from './checker-timeout';
 
 describe('requestSubjectsErrorMessage', () => {
   it('shows the server\'s own sentence when a subject has no papers (tracker bug, 2 Nov 2026)', () => {
@@ -23,9 +24,10 @@ describe('requestSubjectsErrorMessage', () => {
   });
 
   it('keeps the generic line for a network failure or an empty refusal', () => {
-    for (const e of [new TypeError('Failed to fetch'), { code: '22023', message: '   ' }, null]) {
-      expect(requestSubjectsErrorMessage(e)).toBe('Could not send that. Try again in a moment.');
+    for (const e of [{ code: '22023', message: '   ' }, null]) {
+      expect(requestSubjectsErrorMessage(e)).toBe('Could not send that. Try again in a minute.');
     }
+    expect(requestSubjectsErrorMessage(new TypeError('Failed to fetch'))).toBe(SLOW_ACTION_WORDS);
   });
 });
 
@@ -71,10 +73,19 @@ describe('checkerErrorAdvice', () => {
     expect(a.message).toMatch(/Ask the HOD/);
   });
 
-  it('falls back to the internet message for a network failure', () => {
-    const a = checkerErrorAdvice(new TypeError('Failed to fetch'));
+  it('says it is taking longer for a slow or lost request, and never blames the internet', () => {
+    for (const e of [new TypeError('Failed to fetch'), new RequestTimeoutError(), { code: '57014', message: 'canceling statement due to statement timeout' }]) {
+      const a = checkerErrorAdvice(e);
+      expect(a.moveOn).toBe(false);
+      expect(a.message).toBe(SLOW_ACTION_WORDS);
+      expect(a.message).not.toMatch(/internet|statement|57014/i);
+    }
+  });
+
+  it('gives a calm line for any other unknown failure', () => {
+    const a = checkerErrorAdvice({ code: 'XX000', message: 'relation "audit_questions" does not exist' });
     expect(a.moveOn).toBe(false);
-    expect(a.message).toMatch(/internet/);
+    expect(a.message).toBe('That did not save this time. Try again in a minute.');
   });
 
   it('never shows a raw error, code or SQL text', () => {
@@ -88,6 +99,11 @@ describe('checkerErrorAdvice', () => {
       expect(m).not.toMatch(/42501|XX000|relation|audit_|null|boom/);
       expect(m).not.toMatch(/[–—]/);
     }
+  });
+
+  it('the load-failure note is the shared slow wording, not "check your internet"', () => {
+    expect(LOAD_FAILED_NOTE).toBe(SLOW_WORDS);
+    expect(LOAD_FAILED_NOTE).not.toMatch(/internet/i);
   });
 
   it('has load-failure copy with no dashes', () => {

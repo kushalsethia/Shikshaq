@@ -171,7 +171,8 @@ describe('undo: wording and shortcut', () => {
     expect(undoErrorMessage({ code: '22023', message: 'Your last answer was more than 30 minutes ago, so it can no longer be undone.' })).toBe(
       'Your last answer was more than 30 minutes ago, so it can no longer be undone.',
     );
-    expect(undoErrorMessage(new TypeError('Failed to fetch'))).toMatch(/Could not undo that/);
+    expect(undoErrorMessage(new TypeError('Failed to fetch'))).toMatch(/taking longer/);
+    expect(undoErrorMessage(new Error('boom'))).toBe('Could not undo that. Try again in a minute.');
     expect(UNDONE_NOTE).toBe('Undone. Here is that question again.');
   });
 

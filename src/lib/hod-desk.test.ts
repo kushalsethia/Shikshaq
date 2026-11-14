@@ -105,7 +105,8 @@ describe('Assignments: moving a paper away from someone is confirmed', () => {
     expect(src).not.toMatch(/act\(\(\) => api\.assignPaper\(a\.paper_id, (myId|uid)/);
   });
   it('a failed team or grades load is shown, not read as an empty team', () => {
-    expect(src).toMatch(/teamQ\.isError/);
+    // The team has its own error line inside Who has what (and the pickers stay off), instead of replacing the whole tab.
+    expect(src).toMatch(/teamGate === 'error'/);
     expect(src).toMatch(/profilesQ\.isError/);
   });
 });
@@ -121,8 +122,8 @@ describe('History', () => {
   });
   it('sends the role words the server uses', () => {
     expect(HISTORY_ROLES.map((r) => r.value)).toEqual(['', 'admin', 'hod', 'verifier']);
-    expect(roleWord('verifier')).toBe('Verifier');
-    expect(roleWord('checker')).toBe('Verifier');
+    expect(roleWord('verifier')).toBe('Checker');
+    expect(roleWord('checker')).toBe('Checker');
   });
 });
 

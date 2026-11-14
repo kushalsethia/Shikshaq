@@ -175,7 +175,7 @@ describe('auto assign: the result in plain words', () => {
   it('says so when nothing is left', () => {
     const o = summariseAutoAssign({ gave: 1, perPerson: [{ name: 'Asha', count: 1 }], left: 0 });
     expect(o.tone).toBe('good');
-    expect(o.lines).toContain('No paper is left without a verifier.');
+    expect(o.lines).toContain('No paper is left without a checker.');
   });
 
   it('says at least when the list is longer than the screen asks for', () => {

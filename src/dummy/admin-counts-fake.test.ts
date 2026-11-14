@@ -21,7 +21,7 @@ describe('dummy nav counts agree with the pages they lead to', () => {
     expect(tabs).toBeGreaterThan(0);
     const { counts, failed } = await fakeCounts();
     expect(hodBadge({ counts, failed })).toEqual({ kind: 'n', n: tabs });
-    expect(counts.paperApprovals).toBe(desk.ready);
+    expect(counts.paperApprovals).toBe(desk.ready_ok);
     expect(counts.adminQueue).toBe(desk.needs_you_questions);
     expect(counts.submissions).toBe(desk.student_uploads_pending);
   });

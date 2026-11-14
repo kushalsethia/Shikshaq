@@ -1,3 +1,4 @@
+import { refreshHod } from '@/lib/hod-refresh';
 import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, X } from 'lucide-react';
@@ -24,6 +25,7 @@ import {
   errorWords,
   failedChecks,
   headerText,
+  junkNumbersText,
   leftOutText,
   marksMismatch,
   type HodPreview,
@@ -103,7 +105,7 @@ function CheckList({ preview, go, paperId }: { preview: HodPreview; go: (s: Step
               ) : null}
               {c.key === 'scanner_junk_gone' && !c.ok && junk.length > 0 ? (
                 <p className="mt-1 text-[13px] text-warm-secondary">
-                  Marked: {junk.map((q) => `question ${q.display_number ?? q.number_path ?? '?'}`).join(', ')}.
+                  Marked: {junkNumbersText(junk.map((q) => q.display_number ?? q.number_path))}.
                 </p>
               ) : null}
             </div>
@@ -134,7 +136,7 @@ export function PublishFlow({ api, scope, paperId }: { api: HodApi; scope: strin
     enabled: !published,
   });
   const data = q.data;
-  const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
+  const refresh = () => refreshHod(qc, scope, 'publish');
 
   // A picture the checkers kept is copied onto the site by itself when the paper is opened here (owner, 13 Nov: "not on
   // the site yet shouldnt happen ... it can just show on the paper itself"). It runs once per open and when Try again is

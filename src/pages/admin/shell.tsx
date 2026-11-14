@@ -164,7 +164,7 @@ function AccountMenu({ email }: { email: string }) {
       if (error) throw error;
     } catch {
       // Stay on the page: going home while still signed in would look like it worked.
-      toast.error('Could not sign you out. Check your connection and try again.');
+      toast.error('Could not sign you out. Try again in a minute.');
       return;
     }
     navigate('/');

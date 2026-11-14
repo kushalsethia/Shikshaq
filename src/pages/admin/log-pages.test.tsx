@@ -64,7 +64,7 @@ describe('audit page states', () => {
 
   it('lists the entries with one absolute time format and no audit footer', () => {
     const html = wrap(<AuditPanel rows={[AUDIT_ROW]} loadError={false} onRetry={noop} searchQuery="" onSearch={noop} />);
-    expect(text(html)).toContain('Added a verifier');
+    expect(text(html)).toContain('Added a checker');
     expect(text(html)).toContain('Priya Sharma');
     expect(text(html)).toMatch(/\d{1,2} \w{3}(?: \d{4})?, \d{1,2}:\d{2} (am|pm)/);
     expect(text(html)).not.toContain('Open audit log');
@@ -81,7 +81,7 @@ describe('audit page states', () => {
   it('names the actions the Verifiers page records, and never shows a snake_case code', () => {
     expect(describeAction({ action: 'grant_hod', target_type: 'hod' }).verb).toBe('Made someone an HOD');
     expect(describeAction({ action: 'revoke_hod', target_type: 'hod' }).verb).toBe('Removed an HOD');
-    expect(describeAction({ action: 'grant_checker', target_type: 'checker' }).verb).toBe('Added a verifier');
+    expect(describeAction({ action: 'grant_checker', target_type: 'checker' }).verb).toBe('Added a checker');
     const unknown = describeAction({ action: 'hold_batch', target_type: 'paper_batch' });
     expect(unknown.verb).toBe('Put a batch of papers on hold');
     expect(unknown.verb).not.toContain('_');

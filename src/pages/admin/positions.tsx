@@ -114,7 +114,7 @@ export function AdminPositionsPage({
   dummy?: boolean;
   banner?: ReactNode;
 }) {
-  usePageMeta('Positions | Shikshaq Admin', 'Who is an admin, HOD, verifier or teacher reviewer, and how to add, change or remove them.');
+  usePageMeta('Positions | Shikshaq Admin', 'Who is an admin, HOD, checker or teacher reviewer, and how to add, change or remove them.');
   const { user, profile } = useAuth();
   const actorName = dummy ? 'admin@example.com' : profile?.full_name || user?.email || 'Signed-in admin';
   const uid = useId();

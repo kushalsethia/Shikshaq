@@ -35,7 +35,7 @@ export function summaryLine(t: TeamTotals): string {
 /** "2 of 3 verifiers checked a question": the header line. Active means checked at least one question in the range; the other listed verifiers are shown too, with zeros. */
 export function activeWords(stats: TeamStatsRow[]): string {
   const active = stats.filter((r) => r.questions_checked > 0).length;
-  return `${active} of ${plural(stats.length, 'verifier', 'verifiers')} checked a question`;
+  return `${active} of ${plural(stats.length, 'checker', 'checkers')} checked a question`;
 }
 
 /** What a paper's progress says: nothing assigned when it has no questions, otherwise "2 open · 90% done". */

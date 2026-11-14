@@ -6,6 +6,7 @@ import { PaperPageFlip } from '@/components/checker/PaperPageFlip';
 import type { HodApi } from '@/lib/hod-api';
 import { actionToneClass } from '@/lib/checker-button-styles';
 import { cn } from '@/lib/utils';
+import { SLOW_WORDS } from '@/lib/checker-timeout';
 import { FIGURE_LABEL, FIGURE_NUMBER, FIGURE_TILE } from '@/lib/chart-styles';
 
 /* Small pieces the HOD tabs share. */
@@ -43,7 +44,7 @@ export function ListSkeleton({ rows = 3, label }: { rows?: number; label: string
 export function LoadError({ onRetry, what }: { onRetry: () => void; what: string }) {
   return (
     <div role="alert" className="rounded-2xl bg-destructive/10 px-4 py-4 text-[14px] text-foreground">
-      <p>{what} did not load.</p>
+      <p>{what} did not load. {SLOW_WORDS}</p>
       <button type="button" onClick={onRetry} className="tap-44 mt-1 font-semibold text-brand-blue">
         Try again
       </button>

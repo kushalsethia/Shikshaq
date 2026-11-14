@@ -24,6 +24,7 @@ import { realHodApi, type HodApi } from '@/lib/hod-api';
 import { resolveTabKey, tabBadge, tabBadgeLabel } from '@/lib/hod-tabs';
 import type { TeacherReviewerAdminApi } from '@/lib/teacher-review-api';
 import { realFixRequestsApi, type FixRequestsApi } from '@/lib/fix-requests-api';
+import type { PaperAsksApi } from '@/lib/paper-asks-api';
 import { requestsCountsKey, waitingCount } from '@/lib/fix-requests';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
@@ -69,6 +70,8 @@ export interface HodTabProps {
   reviewerApi?: TeacherReviewerAdminApi;
   /** The requests tab; the real one when left out (dummy mode passes a fake). */
   requestsApi?: FixRequestsApi;
+  /** The "Waiting for papers" list on Assignments; the real one when left out (dummy mode passes a fake). */
+  asksApi?: PaperAsksApi;
 }
 
 export interface HodTabDef {
@@ -86,8 +89,8 @@ export const TABS: HodTabDef[] = [
   { key: 'requests', label: 'Requests', hint: 'Problems and changes people have asked for. Say yes or no to what checkers send in, or send your own.', Component: RequestsTab },
   { key: 'live', label: 'Live papers', hint: 'Every paper in the library. Hide, restore or change its details.', Component: LiveTab },
   { key: 'assignments', label: 'Assignments', hint: 'Who holds which paper, and papers nobody holds.', Component: AssignmentsTab },
-  { key: 'verifiers', label: 'Verifiers', hint: 'How each verifier is doing, their details and preferred subjects.', Component: VerifiersTab },
-  { key: 'history', label: 'History', hint: 'What HODs, admins and verifiers did.', Component: HistoryTab },
+  { key: 'verifiers', label: 'Checkers', hint: 'How each checker is doing, their details and preferred subjects.', Component: VerifiersTab },
+  { key: 'history', label: 'History', hint: 'What HODs, admins and checkers did.', Component: HistoryTab },
   { key: 'ai-trust', label: 'AI trust', hint: 'How many checks it takes before the AI is trusted, and how often people agree with it.', Component: AiTrustTab },
   { key: 'teacher-reviewers', label: 'Reviewers', hint: 'Who is on the teachers team: add or remove people who approve and edit teachers.', Component: TeacherReviewersTab },
 ];
@@ -99,6 +102,7 @@ export function HodPage({
   dummyRoles,
   reviewerApi,
   requestsApi,
+  asksApi,
 }: {
   api: HodApi;
   dummy?: boolean;
@@ -107,8 +111,9 @@ export function HodPage({
   dummyRoles?: { isAdmin: boolean; isChecker: boolean };
   reviewerApi?: TeacherReviewerAdminApi;
   requestsApi?: FixRequestsApi;
+  asksApi?: PaperAsksApi;
 }) {
-  usePageMeta('HOD desk | Shikshaq', 'Settle questions, check papers and put them live, and see how each verifier is doing.');
+  usePageMeta('HOD desk | Shikshaq', 'Settle questions, check papers and put them live, and see how each checker is doing.');
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const scope = dummy ? 'dummy' : 'live';
@@ -312,7 +317,7 @@ export function HodPage({
         ) : null}
 
         <div role="tabpanel" id="hod-panel" aria-labelledby={`hod-tab-${active.key}`}>
-          <active.Component api={api} scope={scope} canSwitchTrust={isAdmin} reviewerApi={reviewerApi} requestsApi={requestsApi} />
+          <active.Component api={api} scope={scope} canSwitchTrust={isAdmin} reviewerApi={reviewerApi} requestsApi={requestsApi} asksApi={asksApi} />
         </div>
       </BentoPanel>
     </BentoStack>

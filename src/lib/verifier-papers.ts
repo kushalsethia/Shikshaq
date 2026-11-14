@@ -78,6 +78,28 @@ export function normaliseMyPapers(raw: unknown): MyPaper[] {
   return out;
 }
 
+/**
+ * The paper's row after one answer the server has just taken, worked out here so the checking screen does not read
+ * the whole list of papers (verifier_my_papers) again after every answer. Pass and fix finish a question; a skip
+ * keeps it on the paper, marked skipped; asking for help hands it to the HOD. The list is read for real when the
+ * paper runs out of questions, on Undo and on coming back to My papers, so a small drift here never lasts.
+ */
+export function papersAfterVerdict(
+  rows: MyPaper[] | undefined,
+  paperId: string,
+  kind: 'pass' | 'fix' | 'skip' | 'ask_help',
+): MyPaper[] | undefined {
+  if (!rows) return rows;
+  return rows.map((p) => {
+    if (p.paper_id !== paperId) return p;
+    if (kind === 'skip') return { ...p, skipped: Math.min(p.skipped + 1, p.remaining) };
+    const remaining = Math.max(0, p.remaining - 1);
+    const next = { ...p, remaining, skipped: Math.min(p.skipped, remaining) };
+    if (kind === 'ask_help') return { ...next, with_hod: p.with_hod + 1 };
+    return { ...next, done: p.done + 1, paper_passed: p.paper_passed + 1 };
+  });
+}
+
 export interface PaperCardProgress {
   /** "4 of 12 done". */
   label: string;
@@ -172,7 +194,7 @@ export const QUESTION_STATE_LABEL: Record<PaperQuestionState, string> = {
   done: 'Done',
   with_hod: 'With the HOD',
   set_aside: 'Set aside',
-  not_for_verifiers: 'Not for verifiers',
+  not_for_verifiers: 'Not for checkers',
 };
 
 export interface PaperQuestion {
@@ -239,7 +261,7 @@ export function stateSummary(list: Pick<PaperQuestion, 'state'>[]): string {
   if (c.done) parts.push(`${c.done} done`);
   if (c.with_hod) parts.push(`${c.with_hod} with the HOD`);
   if (c.set_aside) parts.push(`${c.set_aside} set aside`);
-  if (c.not_for_verifiers) parts.push(`${c.not_for_verifiers} not for verifiers`);
+  if (c.not_for_verifiers) parts.push(`${c.not_for_verifiers} not for checkers`);
   return parts.join(', ');
 }
 

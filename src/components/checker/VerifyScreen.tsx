@@ -92,7 +92,7 @@ import { ACTION_ICON_CLASS } from '@/lib/checker-button-styles';
 import { CheckerWalkthrough } from '@/components/checker/CheckerWalkthrough';
 import { CHECKER_PRACTICE_PATH, CHECKER_TOUR_PARAM, hasSeenWalkthrough, markWalkthroughSeen } from '@/lib/checker-onboarding';
 import { paperLabel, paperProgress } from '@/lib/checker-progress';
-import { loadGate, skippedNote } from '@/lib/verifier-papers';
+import { loadGate, papersAfterVerdict, skippedNote, type MyPaper } from '@/lib/verifier-papers';
 import { IncomingCard, PaperStrip, SaveStatusChip } from '@/components/checker/AdvanceBits';
 import { useCheckerOutbox } from '@/components/checker/useCheckerOutbox';
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
@@ -620,7 +620,9 @@ export function VerifyScreen({
   // current, and move on if someone else changes the question I have open.
   const refreshCounters = useLiveRefresh(() => {
     qc.invalidateQueries({ queryKey: ['checker-my-stats', scope] });
-    qc.invalidateQueries({ queryKey: ['verifier-papers', scope] });
+    // The list of papers is not read on every bit of activity (my own answers cause activity too): it is marked out
+    // of date and read when it is next needed.
+    qc.invalidateQueries({ queryKey: ['verifier-papers', scope], refetchType: 'none' });
   });
   usePaperReviewChannel({
     enabled: !dummy,
@@ -723,7 +725,10 @@ export function VerifyScreen({
     const ackAt = Date.now();
     clearDraft(scope, entry.questionId);
     qc.invalidateQueries({ queryKey: ['checker-my-stats', scope] });
-    qc.invalidateQueries({ queryKey: ['verifier-papers', scope] });
+    // The progress bar moves by working the row out here, not by reading the whole list of papers after every
+    // answer (verifier_my_papers is slow). The real read happens when the paper runs out, on Undo and on My papers.
+    qc.setQueryData<MyPaper[]>(['verifier-papers', scope], (rows) => papersAfterVerdict(rows, entry.paperId, entry.kind));
+    qc.invalidateQueries({ queryKey: ['verifier-papers', scope], refetchType: 'none' });
     qc.invalidateQueries({ queryKey: ['verifier-paper-questions', scope, paperId] });
     const inc = entry.payload.includeSkipped ?? includeSkippedRef.current;
     const decision = decideAck({
@@ -739,6 +744,8 @@ export function VerifyScreen({
       // The question just answered stays hidden; its lease on `next` runs out by itself.
       return;
     }
+    // Nothing more to show, or the answer did not say: now the list is read for real.
+    if (decision.kind === 'fetch' || decision.kind === 'end') qc.invalidateQueries({ queryKey: ['verifier-papers', scope] });
     if (decision.kind === 'fetch') {
       void loadNext(entry.questionId, inc).then((ok) => {
         if (ok && entry.kind === 'skip' && qc.getQueryData(keyFor(inc)) === null) setSkippedLastAt(ackAt);

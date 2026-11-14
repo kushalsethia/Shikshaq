@@ -110,7 +110,7 @@ describe('the Admin page', () => {
   it('opens on People when no tab is asked for', () => {
     const html = page('/admin');
     expect(html).toMatch(/id="admin-tab-people"[^>]*aria-selected="true"/);
-    for (const label of ['Verifiers', 'HODs', 'Teacher reviewers', 'Progress']) expect(text(html)).toContain(label);
+    for (const label of ['Checkers', 'HODs', 'Teacher reviewers', 'Progress']) expect(text(html)).toContain(label);
   });
 
   it('shows the four tabs and none of the old groups', () => {

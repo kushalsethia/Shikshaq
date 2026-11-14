@@ -19,8 +19,8 @@ export interface PositionCopy {
 
 export const POSITIONS: PositionCopy[] = [
   { key: 'admin', label: 'Admin', plural: 'Admins', does: 'Runs the site: people, teachers and logs. Can also open the HOD desk.' },
-  { key: 'hod', label: 'HOD', plural: 'HODs', does: 'Leads the verifiers and publishes papers on the HOD desk.' },
-  { key: 'verifier', label: 'Verifier', plural: 'Verifiers', does: 'Checks questions on the checking screen.' },
+  { key: 'hod', label: 'HOD', plural: 'HODs', does: 'Leads the checkers and publishes papers on the HOD desk.' },
+  { key: 'verifier', label: 'Checker', plural: 'Checkers', does: 'Checks questions on the checking screen.' },
   { key: 'reviewer', label: 'Teacher reviewer', plural: 'Teacher reviewers', does: 'Approves and edits teachers on the teacher review page.' },
 ];
 

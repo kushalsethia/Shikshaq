@@ -214,7 +214,7 @@ export function shortcutRows(): { action: CheckerAction; label: string; keys: st
 
 export function addVerifierSteps(origin: string): string[] {
   return [
-    'The verifier signs up on the Shikshaq site with their own email address.',
+    'The checker signs up on the Shikshaq site with their own email address.',
     'Type that same email in the search box below. Their name appears. Press Add.',
     `Send them the link to ${origin}${CHECKER_PATH}. The first time they open it, a short walkthrough shows them around, and there is a practice round they can try.`,
   ];
@@ -229,11 +229,11 @@ export const HOD_PATH = '/hod';
 
 export function addHodSteps(origin: string): string[] {
   return [
-    'The person signs up on the Shikshaq site with their own email address, the same way a verifier does.',
-    'Search for them below by name or email and press Make HOD. One HOD leads every verifier.',
-    `Send them the link to ${origin}${HOD_PATH}. It shows the questions verifiers sent up, how each verifier is doing, and who holds which paper.`,
+    'The person signs up on the Shikshaq site with their own email address, the same way a checker does.',
+    'Search for them below by name or email and press Make HOD. One HOD leads every checker.',
+    `Send them the link to ${origin}${HOD_PATH}. It shows the questions checkers sent up, how each checker is doing, and who holds which paper.`,
   ];
 }
 
 export const HOD_NOTE =
-  'An HOD does not need to be a verifier. Removing an HOD only takes away the HOD desk; their earlier decisions stay. Admins can always open the HOD desk.';
+  'An HOD does not need to be a checker. Removing an HOD only takes away the HOD desk; their earlier decisions stay. Admins can always open the HOD desk.';

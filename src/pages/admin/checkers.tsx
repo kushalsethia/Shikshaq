@@ -75,10 +75,10 @@ export function sectionPart(view: CheckersView, embedded: boolean): 'both' | 'ho
    section mounts this page, so a fixed title would show "Verifiers" on the HODs
    section too. Pure, so each section's title is checked on its own. */
 export function checkersPageMeta(view: CheckersView, part: 'both' | 'hods' | 'reviewers'): { title: string; description: string } {
-  if (view === 'verifiers') return { title: 'Verifiers | Shikshaq Admin', description: 'Who can verify papers, and their details.' };
+  if (view === 'verifiers') return { title: 'Checkers | Shikshaq Admin', description: 'Who can verify papers, and their details.' };
   if (part === 'reviewers') return { title: 'Teacher reviewers | Shikshaq Admin', description: 'Who can approve and edit teachers without being an admin.' };
-  if (part === 'hods') return { title: 'HODs | Shikshaq Admin', description: 'Who leads the verifiers and uses the HOD desk.' };
-  return { title: 'HODs and teacher reviewers | Shikshaq Admin', description: 'Who leads the verifiers, and who approves and edits teachers.' };
+  if (part === 'hods') return { title: 'HODs | Shikshaq Admin', description: 'Who leads the checkers and uses the HOD desk.' };
+  return { title: 'HODs and teacher reviewers | Shikshaq Admin', description: 'Who leads the checkers, and who approves and edits teachers.' };
 }
 type View = CheckersView;
 
@@ -107,10 +107,10 @@ export function VerifierListBody({
   openingId?: string | null;
 }) {
   const view = loadView({ settled: rows !== null || error, error, count: rows?.length ?? 0 });
-  if (view === 'error') return <AdminError what="the verifier list" onRetry={onRetry} className="mx-[18px]" />;
-  if (view === 'skeleton') return <AdminLoading shape="table" label="Loading the verifiers" />;
+  if (view === 'error') return <AdminError what="the checker list" onRetry={onRetry} className="mx-[18px]" />;
+  if (view === 'skeleton') return <AdminLoading shape="table" label="Loading the checkers" />;
   if (view === 'empty') {
-    return <AdminEmpty title="There are no verifiers yet" hint="Search for someone above and add them." />;
+    return <AdminEmpty title="There are no checkers yet" hint="Search for someone above and add them." />;
   }
   const list = rows ?? [];
   const byId = profilesById(profiles);
@@ -118,7 +118,7 @@ export function VerifierListBody({
   const sorted = sortByDetails(list, stateOf);
 
   const columns: AdminTableColumn[] = [
-    { key: 'email', label: 'Verifier', width: '1.6fr', hint: TIPS['col.checker'] },
+    { key: 'email', label: 'Checker', width: '1.6fr', hint: TIPS['col.checker'] },
     { key: 'details', label: 'Details', width: '0.9fr', hint: DETAILS_HINT },
     { key: 'added', label: 'Added', width: '1fr', hint: TIPS['col.added'] },
     { key: 'today', label: 'Checks today', width: '0.6fr', hint: TIPS['col.today'] },
@@ -151,7 +151,7 @@ export function VerifierListBody({
   });
   return (
     <>
-      {error ? <AdminError what="the latest verifier list" onRetry={onRetry} detail="The list below may be out of date." className="mx-[18px] mb-3" /> : null}
+      {error ? <AdminError what="the latest checker list" onRetry={onRetry} detail="The list below may be out of date." className="mx-[18px] mb-3" /> : null}
       <AdminTable columns={columns} rows={tableRows} />
     </>
   );
@@ -283,13 +283,13 @@ export function AdminCheckersPage({
       throw new Error(
         error instanceof Error && /no account|not found/i.test(error.message)
           ? PEOPLE_NO_ACCOUNT
-          : 'Could not add that verifier. Check the email and try again.',
+          : 'Could not add that checker. Check the email and try again.',
       );
     }
     sonnerToast.success(
       embedded
-        ? `${email} is now a verifier. Add their details on the HOD desk so papers match their grade.`
-        : `${email} is now a verifier. Add their details so papers match their grade.`,
+        ? `${email} is now a checker. Add their details on the HOD desk so papers match their grade.`
+        : `${email} is now a checker. Add their details so papers match their grade.`,
     );
     if (user) {
       void recordAdminAction({
@@ -308,9 +308,9 @@ export function AdminCheckersPage({
 
   async function handleRemove(row: CheckerAdminRow) {
     const ok = await confirm({
-      title: `Remove ${row.email} as a verifier?`,
+      title: `Remove ${row.email} as a checker?`,
       description: 'They will no longer be able to open the verifying screen. This does not undo any question they already verified.',
-      confirmLabel: 'Remove verifier',
+      confirmLabel: 'Remove checker',
     });
     if (!ok) return;
 
@@ -330,7 +330,7 @@ export function AdminCheckersPage({
       }
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error removing checker:', error);
-      sonnerToast.error(writeErrorWords(error, 'Failed to remove that verifier. Nothing was changed.'));
+      sonnerToast.error(writeErrorWords(error, 'Failed to remove that checker. Nothing was changed.'));
     }
   }
 
@@ -360,7 +360,7 @@ export function AdminCheckersPage({
         <AdminHeader nav={nav} signedInEmail={dummy ? 'admin@example.com' : user?.email ?? actorName} />
         <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
           <div className="px-[18px]">
-            <AdminLoading shape="table" label="Loading the verifiers" />
+            <AdminLoading shape="table" label="Loading the checkers" />
           </div>
         </BentoPanel>
         <AdminAuditNote />
@@ -383,12 +383,12 @@ export function AdminCheckersPage({
         )}
         <ViewFrame
           embedded={embedded}
-          label="Verifiers, or HODs and reviewers"
+          label="Checkers, or HODs and reviewers"
           value={view}
           onChange={setView}
           className="px-[18px]"
           tabs={[
-            { key: 'verifiers', label: 'Verifiers', count: rowsError && rows === null ? null : rows?.length || undefined },
+            { key: 'verifiers', label: 'Checkers', count: rowsError && rows === null ? null : rows?.length || undefined },
             {
               key: 'hods',
               label: 'HODs and reviewers',
@@ -398,16 +398,16 @@ export function AdminCheckersPage({
         >
           <div className={embedded ? undefined : '-mx-[18px]'} aria-busy={busy || undefined}>
             {view === 'verifiers' ? (
-              <section aria-label="Verifiers">
+              <section aria-label="Checkers">
                 <AddStudentGuide />
                 <AdminPanelHeader
-                  title="Verifiers"
+                  title="Checkers"
                   subtitle={needDetailsText(needs) || undefined}
-                  meta={rows ? `${rows.length} ${rows.length === 1 ? 'verifier' : 'verifiers'}` : undefined}
+                  meta={rows ? `${rows.length} ${rows.length === 1 ? 'checker' : 'checkers'}` : undefined}
                 />
                 <PeoplePicker
                   label="Find a person to add"
-                  ariaLabel="Search by name or email to add a verifier"
+                  ariaLabel="Search by name or email to add a checker"
                   resultsLabel="People found"
                   tip="checkers.search"
                   tipLabel="the search"
@@ -415,7 +415,7 @@ export function AdminCheckersPage({
                   onAdd={handleAdd}
                   actionLabel={(u) => (u.is_checker ? 'Turn back on' : 'Add')}
                   isAlready={(u) => Boolean(u.is_checker && u.checker_active && (rows ?? []).some((r) => r.user_id === u.user_id))}
-                  alreadyLabel="Already a verifier"
+                  alreadyLabel="Already a checker"
                 />
                 <VerifierListBody
                   rows={rows}
@@ -454,13 +454,13 @@ export function AdminCheckersPage({
         onOpenChange={(o) => {
           if (!o) setDetailsFor(null);
         }}
-        title={detailsFor ? `Details for ${detailsFor.label}` : 'Verifier details'}
+        title={detailsFor ? `Details for ${detailsFor.label}` : 'Checker details'}
         size="md"
       >
         {detailsFor ? (
           <div data-testid="verifier-details-panel">
             <p className="mb-3 text-pretty text-[13px] leading-[1.5] text-warm-secondary">
-              A verifier can also fill in their own details. With no details, or no grade, they still get papers with no class limit, as if they were in Class 12. Once a grade is saved, papers are never given above it. Expired details get no new papers until you renew them.
+              A checker can also fill in their own details. With no details, or no grade, they still get papers with no class limit, as if they were in Class 12. Once a grade is saved, papers are never given above it. Expired details get no new papers until you renew them.
             </p>
             <VerifierProfileForm
               key={detailsFor.user_id}

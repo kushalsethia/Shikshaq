@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { CheckerPage } from '@/pages/Checker';
 import { createFakeFixRequestsApi } from '@/dummy/fix-requests-fake-api';
+import { createFakePaperAsksApi } from '@/dummy/paper-asks-fake-api';
 import { createFakeCheckerApi, type DummySimulation } from '@/dummy/checker-fake-api';
 import { setDummyMode } from '@/lib/dummy-mode';
 import { AdminDebugContext } from '@/lib/admin-debug';
@@ -26,6 +27,7 @@ const SIMULATIONS: { value: DummySimulation; label: string }[] = [
 export default function CheckerDummy() {
   const [api] = useState(createFakeCheckerApi);
   const [requestsApi] = useState(() => createFakeFixRequestsApi('member'));
+  const [asksApi] = useState(createFakePaperAsksApi);
   const [sim, setSim] = useState<DummySimulation>('none');
   // Previews the admin debug chips without an admin sign-in.
   const [debugOn, setDebugOn] = useState(false);
@@ -81,6 +83,7 @@ export default function CheckerDummy() {
         onClick={() => {
           api.reset();
           requestsApi.reset();
+          asksApi.reset();
           setSim('none');
           refetchAll();
         }}
@@ -104,7 +107,7 @@ export default function CheckerDummy() {
 
   return (
     <AdminDebugContext.Provider value={{ on: debugOn, canToggle: true, toggle: () => setDebugOn((v) => !v) }}>
-      <CheckerPage api={api} requestsApi={requestsApi} dummy banner={banner} />
+      <CheckerPage api={api} requestsApi={requestsApi} asksApi={asksApi} dummy banner={banner} />
     </AdminDebugContext.Provider>
   );
 }

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { writeErrorWords } from '@/lib/admin-approval-shape';
+import { SLOW_WORDS } from '@/lib/checker-timeout';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
@@ -97,7 +98,7 @@ export function AdminActivityPage({
         setError(
           code === '42501'
             ? writeErrorWords(e, '')
-            : 'Could not load the activity. Check your internet and try again.',
+            : `Could not load the activity. ${SLOW_WORDS}`,
         );
       }
     },

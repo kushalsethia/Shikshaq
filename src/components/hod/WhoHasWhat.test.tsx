@@ -124,7 +124,7 @@ describe('Who has what: the wiring', () => {
   it('the tab hands in every action it had before', () => {
     expect(tab).toContain('<WhoHasWhat');
     const actions = tab.slice(tab.indexOf('const renderActions'), tab.indexOf('const renderMore'));
-    for (const word of ['Take it myself', 'Move to another verifier', 'Unassign']) expect(actions).toContain(word);
+    for (const word of ['Take it myself', 'Move to another checker', 'Unassign']) expect(actions).toContain(word);
     expect(tab).toContain('<AssignmentWhy');
     expect(tab).toContain('PaperTimelineDisclosure');
   });

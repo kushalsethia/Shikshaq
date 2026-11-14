@@ -1,3 +1,4 @@
+import { refreshHod } from '@/lib/hod-refresh';
 import { useRef, useState } from 'react';
 import { errorWords } from '@/lib/hod-publish';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -6,7 +7,7 @@ import { EmptyNote, ListSkeleton, LoadError, Tile, ago } from '@/components/hod/
 import { VerifierDetailsForm } from '@/components/hod/VerifierDetailsForm';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { actionToneClass } from '@/lib/checker-button-styles';
-import { UNASSIGNED_SHOWN } from '@/lib/hod-desk';
+import { UNASSIGNED_SHOWN, verifierSetupLine } from '@/lib/hod-desk';
 import { formatGrade, formatValidUntil, parseSubjectList } from '@/lib/verifier-papers';
 import {
   memberName,
@@ -72,17 +73,17 @@ function AnalyticsTable({ team }: { team: HodTeamMember[] }) {
   return (
     <div>
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Tile label="Active verifiers" value={activeCount} />
-        <Tile label="Done today" value={today} hint="Questions all verifiers dealt with today." />
-        <Tile label="Last 7 days" value={week} hint="Questions all verifiers dealt with in the last seven days." />
-        <Tile label="Waiting to verify" value={waiting} hint="Questions in papers held by verifiers that nobody has settled yet." />
+        <Tile label="Active checkers" value={activeCount} />
+        <Tile label="Done today" value={today} hint="Questions all checkers dealt with today." />
+        <Tile label="Last 7 days" value={week} hint="Questions all checkers dealt with in the last seven days." />
+        <Tile label="Waiting to verify" value={waiting} hint="Questions in papers held by checkers that nobody has settled yet." />
       </div>
       <div className={cn('overflow-x-auto', TABLE_FRAME)} data-testid="team-table-wrap">
-        <table className="w-full min-w-[60rem] border-separate border-spacing-0 text-left text-[14px]" aria-label="Verifiers and how they are doing">
+        <table className="w-full min-w-[60rem] border-separate border-spacing-0 text-left text-[14px]" aria-label="Checkers and how they are doing">
           <thead>
             <tr>
               <th scope="col" className={cn('sticky left-0 z-10 bg-muted px-4 py-3', TABLE_HEAD_LABEL)}>
-                Verifier
+                Checker
               </th>
               {TEAM_COLUMNS.map((c) => (
                 <th key={c.key} scope="col" title={c.hint} className={cn('px-3 py-3', TABLE_COLUMN_RULE, TABLE_HEAD_LABEL)}>
@@ -126,7 +127,7 @@ function errorText(err: unknown): string {
 export function ProfileRow({ p, api, scope, choices }: { p: HodVerifierProfile; api: HodApi; scope: string; choices: string[] }) {
   const qc = useQueryClient();
   const { confirm, confirmDialog } = useConfirm();
-  const name = p.full_name ?? p.name ?? p.email ?? 'Unnamed verifier';
+  const name = p.full_name ?? p.name ?? p.email ?? 'Unnamed checker';
   const formId = `verifier-details-${p.user_id}`;
   const [open, setOpen] = useState(false);
   const [justOpened, setJustOpened] = useState(false);
@@ -140,7 +141,7 @@ export function ProfileRow({ p, api, scope, choices }: { p: HodVerifierProfile; 
   const toggleRef = useRef<HTMLButtonElement>(null);
   const flag = profileFlag(p);
   const grade = gradeNotSetLine(p);
-  const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
+  const refresh = () => refreshHod(qc, scope, 'verifiers');
 
   /** Opening always starts from what is saved, so a half-typed draft from last time is not shown as if it were saved. */
   function openForm() {
@@ -306,17 +307,22 @@ export function ProfileRow({ p, api, scope, choices }: { p: HodVerifierProfile; 
 export function VerifiersTab({ api, scope }: { api: HodApi; scope: string }) {
   const teamQ = useQuery({ queryKey: TEAM_KEY(scope), queryFn: () => api.team(), staleTime: 15_000, refetchOnMount: true });
   const profilesQ = useQuery({ queryKey: PROFILES_KEY(scope), queryFn: () => api.profiles(), staleTime: 15_000, refetchOnMount: true });
-  /** Only feeds the subject boxes; if it fails the boxes simply offer fewer subjects. */
-  const waitingQ = useQuery({ queryKey: WAITING_KEY(scope), queryFn: () => api.unassignedPapers(UNASSIGNED_SHOWN + 1), staleTime: 10_000, refetchOnMount: true });
+  /** Only a hint for the subject boxes (which subjects have papers waiting); if it is missing the boxes simply offer
+   *  fewer subjects. The desk's strip of counts already reads this same list, so this never makes a call of its own
+   *  (it is the slowest list on the desk, up to 7 seconds on a cold start): it takes what the strip has, and does not
+   *  read it again on opening the tab or retry it. */
+  const waitingQ = useQuery({ queryKey: WAITING_KEY(scope), queryFn: () => api.unassignedPapers(UNASSIGNED_SHOWN + 1), staleTime: 5 * 60_000, refetchOnMount: false, retryOnMount: false, retry: false });
   /** The full subject list for the boxes (hod_list_subjects); if it fails the boxes fall back to what the desk holds. */
   const subjectsQ = useQuery({ queryKey: SUBJECTS_KEY(scope), queryFn: () => api.subjects(), staleTime: 5 * 60_000 });
 
-  if (teamQ.isLoading || profilesQ.isLoading) return <ListSkeleton label="Loading verifiers" />;
-  if (teamQ.isError) return <LoadError what="The verifiers" onRetry={() => void teamQ.refetch()} />;
+  if (teamQ.isLoading || profilesQ.isLoading) return <ListSkeleton label="Loading checkers" />;
+  if (teamQ.isError) return <LoadError what="The checkers" onRetry={() => void teamQ.refetch()} />;
   const team = teamQ.data ?? [];
-  if (team.length === 0) return <EmptyNote>There are no verifiers yet. An admin adds them under Admin, People, Verifiers.</EmptyNote>;
+  if (team.length === 0) return <EmptyNote>There are no checkers yet. An admin adds them under Admin, People, Checkers.</EmptyNote>;
   const profiles = sortProfiles(profilesQ.data ?? []);
   const needing = profiles.filter((p) => profileFlag(p) !== null).length;
+  // Never the green "Everyone is set up" while the details failed to load: that read as good news above a red error.
+  const setupLine = verifierSetupLine(needing, profiles.length, profilesQ.isError);
   const choices = subjectChoices({
     held: [...team.flatMap((m) => m.subjects), ...(subjectsQ.data ?? []).map((s) => s.name)],
     waiting: (waitingQ.data ?? []).map((u) => u.subject ?? '').filter(Boolean),
@@ -337,11 +343,11 @@ export function VerifiersTab({ api, scope }: { api: HodApi; scope: string }) {
           Details and subjects
         </h2>
         <p className="mb-2 text-[13px] text-warm-secondary">
-          {needing > 0 ? `${needing} need${needing === 1 ? 's' : ''} your attention and are listed first.` : 'Everyone is set up.'} Verifiers can fill in their own
-          details and you can change them. Only you set preferred subjects; a verifier can ask and you approve here.
+          {setupLine ? `${setupLine} ` : ''}Checkers can fill in their own
+          details and you can change them. Only you set preferred subjects; a checker can ask and you approve here.
         </p>
         {profilesQ.isError ? (
-          <LoadError what="The verifier details" onRetry={() => void profilesQ.refetch()} />
+          <LoadError what="The checker details" onRetry={() => void profilesQ.refetch()} />
         ) : (
           <ul className="space-y-3">
             {profiles.map((p) => (

@@ -343,7 +343,7 @@ describe('outbox: a request that hangs fails like a lost connection (finding D)'
     await time.advance(1);
     expect(box.state().sending).toBe(false);
     expect(box.state().failing).toBe(true);
-    expect(box.state().lastError).toMatch(/took longer/);
+    expect(box.state().lastError).toMatch(/taking longer/);
     expect(box.hasQuestion('q1')).toBe(true); // never lost
 
     await time.advance(1000); // the ordinary retry wait

@@ -54,11 +54,11 @@ export const ADMIN_TABS: AdminTabCopy[] = [
   {
     key: 'people',
     label: 'People',
-    hint: 'Positions, verifiers, HODs, teacher reviewers and how far the verifiers have got.',
+    hint: 'Positions, checkers, HODs, teacher reviewers and how far the checkers have got.',
     summary: 'The people who work on the site: who holds each position, who checks papers, who leads them, who reviews teachers, and how much each has done.',
     sections: [
       { key: 'positions', label: 'Positions', page: 'positions' },
-      { key: 'verifiers', label: 'Verifiers', page: 'checkers' },
+      { key: 'verifiers', label: 'Checkers', page: 'checkers' },
       { key: 'hods', label: 'HODs', page: 'hods' },
       { key: 'reviewers', label: 'Teacher reviewers', page: 'reviewers' },
       { key: 'progress', label: 'Progress', page: 'team' },
@@ -78,8 +78,8 @@ export const ADMIN_TABS: AdminTabCopy[] = [
   {
     key: 'logs',
     label: 'Logs',
-    hint: 'Who changed what: questions, verifier work and admin actions.',
-    summary: 'A read-only record of who changed what: questions, verifier work and admin actions.',
+    hint: 'Who changed what: questions, checker work and admin actions.',
+    summary: 'A read-only record of who changed what: questions, checker work and admin actions.',
     sections: [
       { key: 'question-changes', label: 'Question changes', page: 'activity' },
       { key: 'checker-activity', label: 'Checker activity', page: 'checker-log' },
@@ -187,7 +187,7 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
     path: '/hod?tab=needs-you',
     short: 'Questions the checking could not settle, waiting for a person to decide.',
     purpose:
-      'Questions that neither the AI nor a verifier could settle land here. Each shows the picture of the page it came from and, in words, why it was flagged. Decide each one: it is right, it needs a fix, or it should be set aside.',
+      'Questions that neither the AI nor a checker could settle land here. Each shows the picture of the page it came from and, in words, why it was flagged. Decide each one: it is right, it needs a fix, or it should be set aside.',
     flow: 'Work down a paper at a time. Every decision is logged and can be undone from the paper history.',
     buttons: [
       { label: 'Pass', does: 'Says the question is correct as it stands. It then counts as checked.' },
@@ -199,7 +199,7 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
     key: 'positions',
     label: 'Positions',
     path: '/admin?tab=people&section=positions',
-    short: 'Everyone who is an admin, HOD, verifier or teacher reviewer. Add an email, change a position or remove one.',
+    short: 'Everyone who is an admin, HOD, checker or teacher reviewer. Add an email, change a position or remove one.',
     purpose:
       'One list of who holds each position. Type an email and pick a position to add someone, even if they have not signed up yet: they get it the first time they sign in with Google using that email. Change moves a person from one position to another in one step. You cannot remove or change your own admin position, and the owner account cannot be removed.',
     flow: 'Type an email, pick a position, press Add. Use Change or Remove on a row to adjust it later.',
@@ -211,11 +211,11 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
   },
   checkers: {
     key: 'checkers',
-    label: 'Verifiers',
+    label: 'Checkers',
     path: '/admin?tab=people&section=verifiers',
     short: 'People allowed to check questions. Search for a person to add them, or remove one.',
     purpose:
-      'The verifiers are the people allowed to open the checking screen. To add someone, search by their name or email. They must have signed up on Shikshaq first. Removing someone stops their access but keeps everything they already checked. Their grade, school and board are filled in on the HOD desk, where you can also see how each verifier is doing and which papers they hold.',
+      'The checkers are the people allowed to open the checking screen. To add someone, search by their name or email. They must have signed up on Shikshaq first. Removing someone stops their access but keeps everything they already checked. Their grade, school and board are filled in on the HOD desk, where you can also see how each checker is doing and which papers they hold.',
     flow: 'Search, press Add next to the right person, then open the HOD desk to fill in their details.',
     buttons: [
       { label: 'Add', does: 'Lets that person open the checking screen. They need to reload the site once.' },
@@ -227,9 +227,9 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
     key: 'hods',
     label: 'HODs',
     path: '/admin?tab=people&section=hods',
-    short: 'People who lead the verifiers and use the HOD desk. Only admins can add or remove them.',
+    short: 'People who lead the checkers and use the HOD desk. Only admins can add or remove them.',
     purpose:
-      'An HOD is a Head of Department. They settle questions the verifiers could not, give out papers and watch how the team is doing, all on the HOD desk. Admins can open the HOD desk too, so you do not need to add yourself.',
+      'An HOD is a Head of Department. They settle questions the checkers could not, give out papers and watch how the team is doing, all on the HOD desk. Admins can open the HOD desk too, so you do not need to add yourself.',
     flow: 'Search for a person, press Make HOD, and ask them to reload the site once.',
     buttons: [
       { label: 'Make HOD', does: 'Lets that person open the HOD desk.' },
@@ -295,9 +295,9 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
     key: 'activity',
     label: 'Question changes',
     path: '/admin?tab=logs&section=question-changes',
-    short: 'Every change a verifier, admin or the AI made to a question.',
+    short: 'Every change a checker, admin or the AI made to a question.',
     purpose:
-      'Every change a verifier, admin or the AI made to a question, newest first. Open History on a row to see its versions or undo a change.',
+      'Every change a checker, admin or the AI made to a question, newest first. Open History on a row to see its versions or undo a change.',
     flow: 'Scroll the newest changes. Open History on a row to see its versions or undo a change.',
     buttons: [{ label: 'History', does: 'Shows the versions of that question, and lets you undo a change.' }],
   },
@@ -305,9 +305,9 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
     key: 'checker-log',
     label: 'Checker activity',
     path: '/admin?tab=logs&section=checker-activity',
-    short: 'What each verifier did, day by day.',
+    short: 'What each checker did, day by day.',
     purpose:
-      'A record of every action your verifiers took: who, how many questions, and what they did with them. Use it to see who is active and to look into a single decision.',
+      'A record of every action your checkers took: who, how many questions, and what they did with them. Use it to see who is active and to look into a single decision.',
     flow: 'One line per person or machine. Open a name to read their days.',
     buttons: [{ label: 'Open a person', does: "Shows that person's actions, newest first." }],
   },
@@ -322,10 +322,10 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
   },
   team: {
     key: 'team',
-    label: 'Verifier progress',
+    label: 'Checker progress',
     path: '/admin?tab=people&section=progress',
-    short: 'How many questions each verifier checked, and how the papers are moving.',
-    purpose: 'How many questions each verifier checked, and how the papers are moving. To give out papers or change a verifier, use the HOD desk.',
+    short: 'How many questions each checker checked, and how the papers are moving.',
+    purpose: 'How many questions each checker checked, and how the papers are moving. To give out papers or change a checker, use the HOD desk.',
     flow: 'Read only. Nothing here changes anything.',
     buttons: [],
   },
@@ -336,7 +336,7 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
     short: 'Every paper on its way from a PDF saved on the main computer to live.',
     purpose:
       "One picture of the whole route: PDFs saved on the main computer, read by the AI, pictures waiting, checking by students, needs you, ready to go live, live. HODs see the same route from the HOD desk. Use it to see where papers are piling up. The numbers are only as new as the desk's last sync, and the page says when that was.",
-    flow: 'Read only. The route checks again every 20 seconds. A stage that says ? has not been sent by the desk yet.',
+    flow: 'Read only. The route checks again every minute, and straight away when you come back to this page or press Refresh. A stage that says ? has not been sent by the desk yet.',
     buttons: [],
   },
   feedback: {
