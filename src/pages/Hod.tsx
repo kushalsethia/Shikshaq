@@ -24,6 +24,7 @@ import { realHodApi, type HodApi } from '@/lib/hod-api';
 import { resolveTabKey, tabBadge, tabBadgeLabel } from '@/lib/hod-tabs';
 import type { TeacherReviewerAdminApi } from '@/lib/teacher-review-api';
 import { realFixRequestsApi, type FixRequestsApi } from '@/lib/fix-requests-api';
+import type { PaperAsksApi } from '@/lib/paper-asks-api';
 import { requestsCountsKey, waitingCount } from '@/lib/fix-requests';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
@@ -69,6 +70,8 @@ export interface HodTabProps {
   reviewerApi?: TeacherReviewerAdminApi;
   /** The requests tab; the real one when left out (dummy mode passes a fake). */
   requestsApi?: FixRequestsApi;
+  /** The "Waiting for papers" list on Assignments; the real one when left out (dummy mode passes a fake). */
+  asksApi?: PaperAsksApi;
 }
 
 export interface HodTabDef {
@@ -99,6 +102,7 @@ export function HodPage({
   dummyRoles,
   reviewerApi,
   requestsApi,
+  asksApi,
 }: {
   api: HodApi;
   dummy?: boolean;
@@ -107,6 +111,7 @@ export function HodPage({
   dummyRoles?: { isAdmin: boolean; isChecker: boolean };
   reviewerApi?: TeacherReviewerAdminApi;
   requestsApi?: FixRequestsApi;
+  asksApi?: PaperAsksApi;
 }) {
   usePageMeta('HOD desk | Shikshaq', 'Settle questions, check papers and put them live, and see how each checker is doing.');
   const { user, loading: authLoading } = useAuth();
@@ -312,7 +317,7 @@ export function HodPage({
         ) : null}
 
         <div role="tabpanel" id="hod-panel" aria-labelledby={`hod-tab-${active.key}`}>
-          <active.Component api={api} scope={scope} canSwitchTrust={isAdmin} reviewerApi={reviewerApi} requestsApi={requestsApi} />
+          <active.Component api={api} scope={scope} canSwitchTrust={isAdmin} reviewerApi={reviewerApi} requestsApi={requestsApi} asksApi={asksApi} />
         </div>
       </BentoPanel>
     </BentoStack>

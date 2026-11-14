@@ -17,6 +17,8 @@ import {
   type AttentionItem,
 } from '@/lib/paper-status';
 import { AssignmentWhy } from '@/components/hod/AssignmentWhy';
+import { WaitingForPapers } from '@/components/hod/WaitingForPapers';
+import { realPaperAsksApi, type PaperAsksApi } from '@/lib/paper-asks-api';
 import { PROFILES_KEY, TEAM_KEY } from '@/components/hod/VerifiersTab';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { refreshHod } from '@/lib/hod-refresh';
@@ -281,7 +283,7 @@ export function SelectAllRow({ listLength, selectedCount, onChange }: { listLeng
 const heldNow = (list: HodAssignment[]): HeldPaper[] =>
   list.map((a) => ({ paper_id: a.paper_id, user_id: a.user_id, name: a.checker_name ?? 'Unnamed checker' }));
 
-export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
+export function AssignmentsTab({ api, scope, asksApi = realPaperAsksApi }: { api: HodApi; scope: string; asksApi?: PaperAsksApi }) {
   const qc = useQueryClient();
   const { user } = useAuth();
   /** The HOD's own id, for "Assign to me". In dummy mode there is no sign-in, so a fixed fake id stands in. */
@@ -608,6 +610,9 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         // The papers that are stuck, with the reason in plain words. Only on this screen: no extra number on the tab.
         <AttentionGroup id="assign-attention" items={attention} />
       )}
+
+      {/* Checkers who finished everything and asked for more. Shown on every filter: it is about people, not papers. */}
+      <WaitingForPapers api={asksApi} scope={scope} />
 
       <section aria-labelledby="who-has-what" hidden={!showSection('checking')}>
         <h2 id="who-has-what" className="mb-2 text-[16px] font-bold text-foreground">
