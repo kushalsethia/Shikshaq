@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { SLOW_WORDS } from '@/lib/checker-timeout';
 import { AdminPillButton } from '@/components/admin/AdminPillButton';
 
 /* The three non-success states every async admin surface needs (CRAFT 4):
@@ -91,7 +92,7 @@ export function AdminError({
       <div className="min-w-0">
         <p className="text-[15px] font-bold text-destructive">{errorSentence(what)}</p>
         <p className="mt-0.5 text-[13px] leading-[1.5] text-warm-secondary">
-          {detail ?? 'Nothing was changed. Check your connection and try again.'}
+          {detail ?? SLOW_WORDS}
         </p>
       </div>
       <AdminPillButton variant="secondary" size="sm" onClick={onRetry} className="shrink-0">

@@ -186,7 +186,7 @@ export function normaliseTeam(raw: unknown): HodTeamMember[] {
 }
 
 export function memberName(m: Pick<HodTeamMember, 'name' | 'email'>): string {
-  return m.name ?? m.email ?? 'Unnamed verifier';
+  return m.name ?? m.email ?? 'Unnamed checker';
 }
 
 export interface TeamColumn {
@@ -208,7 +208,7 @@ export const TEAM_COLUMNS: TeamColumn[] = [
   { key: 'passed_as_is', label: 'Passed as is', hint: 'Questions they said looked right without changing anything.' },
   { key: 'edited', label: 'Fixed', hint: 'Questions where they changed the words, number or marks.' },
   { key: 'escalated', label: 'Sent to HOD', hint: 'Questions they asked the HOD about.' },
-  { key: 'skipped', label: 'Skipped', hint: 'Questions they skipped. They wait on the paper until the verifier goes back to them.' },
+  { key: 'skipped', label: 'Skipped', hint: 'Questions they skipped. They wait on the paper until the checker goes back to them.' },
   { key: 'skipped_done', label: 'Later corrected', hint: 'Questions they skipped that were later dealt with, by them or by someone else.' },
   { key: 'overturned', label: 'Fixed by others', hint: 'Questions they passed that someone else later fixed.' },
   { key: 'last_active', label: 'Last active', hint: 'When they last checked a question.' },
@@ -389,13 +389,13 @@ export const HISTORY_ROLES: { value: string; label: string }[] = [
   { value: '', label: 'Everyone' },
   { value: 'admin', label: 'Admins' },
   { value: 'hod', label: 'HODs' },
-  { value: 'verifier', label: 'Verifiers' },
+  { value: 'verifier', label: 'Checkers' },
 ];
 
 /** "Admin", "HOD", "Verifier" for a role value; the raw value for any other. */
 export function roleWord(role: string | null): string {
   // hod_action_history labels a verifier 'verifier'; 'checker' is the older word.
-  if (role === 'verifier' || role === 'checker') return 'Verifier';
+  if (role === 'verifier' || role === 'checker') return 'Checker';
   if (role === 'hod') return 'HOD';
   if (role === 'admin') return 'Admin';
   return role ?? '';
@@ -537,7 +537,7 @@ export function groupByVerifier(list: HodAssignment[]): VerifierLoad[] {
   for (const a of list) {
     let g = map.get(a.user_id);
     if (!g) {
-      g = { user_id: a.user_id, name: a.checker_name ?? 'Unnamed verifier', papers: [] };
+      g = { user_id: a.user_id, name: a.checker_name ?? 'Unnamed checker', papers: [] };
       map.set(a.user_id, g);
     }
     g.papers.push(a);

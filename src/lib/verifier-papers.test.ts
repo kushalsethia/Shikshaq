@@ -125,7 +125,7 @@ describe('verifier_paper_questions mapping', () => {
 
   it('counts and summarises states, leaving out zeros', () => {
     expect(stateCounts(qs).to_verify).toBe(1);
-    expect(stateSummary(qs)).toBe('1 to verify, 1 done, 1 with the HOD, 1 not for verifiers');
+    expect(stateSummary(qs)).toBe('1 to verify, 1 done, 1 with the HOD, 1 not for checkers');
     expect(stateSummary([])).toBe('');
   });
 

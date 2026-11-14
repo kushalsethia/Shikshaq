@@ -178,12 +178,12 @@ export function AdminCheckerLogPage({
                 hint={
                   rows.length
                     ? 'Try Everyone to see all of the log.'
-                    : 'Give someone verifier access on the Verifiers page to get started.'
+                    : 'Give someone checker access on the Checkers page to get started.'
                 }
                 action={
                   rows.length
                     ? { label: 'Show everyone', onClick: () => setFilter('all') }
-                    : { label: 'Open Verifiers', onClick: () => navigate('/admin/checkers') }
+                    : { label: 'Open Checkers', onClick: () => navigate('/admin/checkers') }
                 }
               />
             )}

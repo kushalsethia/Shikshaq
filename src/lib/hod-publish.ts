@@ -13,6 +13,7 @@
 
 import { normaliseOptions, type ReviewOption } from '@/lib/admin-approval-shape';
 import { marksTextInvalid } from '@/lib/hod-desk';
+import { isSlowError, SLOW_WORDS } from '@/lib/checker-timeout';
 
 const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() !== '' ? v : null);
 const num = (v: unknown): number => {
@@ -1067,8 +1068,11 @@ export function reasonMark(ok: boolean | null): string {
 /**
  * The server's own sentence, shown as written (the backend raises plain English). A stale
  * version (40001) gets a plain line of ours; anything with no message gets the fallback.
+ * A slow or hung request (our timeout, the database's statement timeout, a dropped fetch) gets the
+ * shared "taking longer" words from checker-timeout.ts, never the raw text.
  */
 export function errorWords(err: unknown, fallback = 'That did not go through. Nothing was changed. Try again.'): string {
+  if (isSlowError(err)) return SLOW_WORDS;
   if (!err || typeof err !== 'object') return fallback;
   const e = err as { code?: unknown; message?: unknown };
   if (e.code === '42501') return 'Your account is not set up for the HOD desk, so nothing was changed. Ask an admin to add you.';

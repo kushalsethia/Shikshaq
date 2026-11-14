@@ -49,9 +49,9 @@ describe('papers window', () => {
 
   it('says how many of the listed verifiers checked a question, and lists the idle ones too', () => {
     expect(activeWords([row({ questions_checked: 5 }), row({ questions_checked: 0 }), row({ questions_checked: 2 })])).toBe(
-      '2 of 3 verifiers checked a question',
+      '2 of 3 checkers checked a question',
     );
-    expect(activeWords([row({ questions_checked: 0 })])).toBe('0 of 1 verifier checked a question');
+    expect(activeWords([row({ questions_checked: 0 })])).toBe('0 of 1 checker checked a question');
   });
 
   it('says nothing assigned for a paper with no questions, and open and done otherwise', () => {

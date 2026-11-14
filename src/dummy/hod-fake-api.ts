@@ -228,7 +228,7 @@ export function createFakeHodApi(): FakeHodApi {
     // 20261008100000: no details or no grade = no class limit.
     if (!p || p.missing || p.grade === null) return null;
     const need = cls ? GRADE_OF[cls] : undefined;
-    if (need && need > p.grade) return `This paper is Class ${need}; the verifier is in ${formatGrade(p.grade)}`;
+    if (need && need > p.grade) return `This paper is Class ${need}; the checker is in ${formatGrade(p.grade)}`;
     return null;
   }
 
@@ -250,7 +250,7 @@ export function createFakeHodApi(): FakeHodApi {
 
   const goLive = createGoLiveFake(
     (what) => log.push(what),
-    (id) => checkers.find((c) => c.user_id === id)?.name ?? 'This verifier',
+    (id) => checkers.find((c) => c.user_id === id)?.name ?? 'This checker',
   );
 
   const api: FakeHodApi = {
@@ -313,7 +313,7 @@ export function createFakeHodApi(): FakeHodApi {
       if (api.silentGive) return; // says yes, does nothing
       // The real server lets an HOD name themselves without being a listed verifier.
       const who = userId === 'dummy-me' ? { name: 'You' } : checkers.find((c) => c.user_id === userId && c.active);
-      if (!who) throw pgError('That person is not an active verifier');
+      if (!who) throw pgError('That person is not an active checker');
       const prev = assignments.find((x) => x.paper_id === paperId);
       const free = unassigned.find((x) => x.paper_id === paperId);
       if (prev && prev.user_id === userId) return;
@@ -400,7 +400,7 @@ export function createFakeHodApi(): FakeHodApi {
     },
     async setPreferred(userId, subjects) {
       const cur = profiles[userId];
-      if (!cur) throw pgError('That person is not a verifier');
+      if (!cur) throw pgError('That person is not a checker');
       // Approving a request clears it.
       profiles[userId] = { ...cur, preferred_subjects: subjects, requested_subjects: [], requested_at: null };
       log.push(`preferred ${cur.name} ${subjects.join('|')}`);

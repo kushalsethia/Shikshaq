@@ -11,7 +11,7 @@ import { checkersPageMeta, sectionPart } from '@/pages/admin/checkers';
 
 describe('the verifiers page title follows the section on screen', () => {
   it('the Verifiers section says Verifiers', () => {
-    expect(checkersPageMeta('verifiers', sectionPart('verifiers', true)).title).toBe('Verifiers | Shikshaq Admin');
+    expect(checkersPageMeta('verifiers', sectionPart('verifiers', true)).title).toBe('Checkers | Shikshaq Admin');
   });
 
   it('the HODs section inside Admin says HODs, not Verifiers', () => {

@@ -59,14 +59,14 @@ const noop = () => {};
 describe('verifier list', () => {
   it('shows the error with Try again, and never the empty copy, when the read failed', () => {
     const out = html(<VerifierListBody rows={null} error profiles={null} onRetry={noop} onDetails={noop} onRemove={noop} />);
-    expect(text(out)).toContain('The verifier list did not load.');
+    expect(text(out)).toContain('The checker list did not load.');
     expect(out).toContain('Try again');
-    expect(out).not.toContain('There are no verifiers yet');
+    expect(out).not.toContain('There are no checkers yet');
   });
 
   it('says there are none only after a read that worked and found nobody', () => {
     const out = html(<VerifierListBody rows={[]} error={false} profiles={[]} onRetry={noop} onDetails={noop} onRemove={noop} />);
-    expect(text(out)).toContain('There are no verifiers yet');
+    expect(text(out)).toContain('There are no checkers yet');
     expect(out).not.toContain('did not load');
   });
 
@@ -227,7 +227,7 @@ const teamProps = {
 describe('verifier progress page body', () => {
   it('shows an error panel with Try again, not "Nobody checked", when the first read failed', () => {
     const out = html(<TeamBody {...teamProps} settled loadError stats={[]} progress={[]} />);
-    expect(text(out)).toContain('The verifier progress did not load.');
+    expect(text(out)).toContain('The checker progress did not load.');
     expect(out).toContain('Try again');
     expect(text(out)).not.toContain('Nobody');
     expect(text(out)).not.toContain('No papers in the pipeline');
@@ -248,7 +248,7 @@ describe('verifier progress page body', () => {
 
   it('shows five columns, folds the rest into a More line, and has no empty-label column', () => {
     const out = html(<VerifierStatsList stats={[stat({})]} maxChecked={10} />);
-    for (const h of ['Verifier', 'Checked', 'Passed', 'Fixed', 'Changed by admin']) expect(out).toContain(h);
+    for (const h of ['Checker', 'Checked', 'Passed', 'Fixed', 'Changed by admin']) expect(out).toContain(h);
     expect(out).not.toContain('Overturned');
     expect(out).not.toContain('Time per question');
     expect(out).toContain('aria-expanded="false"');

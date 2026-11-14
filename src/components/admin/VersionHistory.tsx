@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { SLOW_WORDS } from '@/lib/checker-timeout';
 import { DebugId } from '@/components/DebugId';
 import { DebugFacts } from '@/components/admin/DebugFacts';
 import type { ActivityApi, VersionRow, VersionedTable } from '@/lib/activity-api';
@@ -48,7 +49,7 @@ export function VersionHistory({
       setRows(await api.versionHistory(table, rowId));
     } catch {
       setRows(null);
-      setError('Could not load the history. Check your internet and try again.');
+      setError(`Could not load the history. ${SLOW_WORDS}`);
     }
   }, [api, table, rowId]);
 

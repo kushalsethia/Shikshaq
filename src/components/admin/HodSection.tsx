@@ -64,7 +64,7 @@ export function HodListBody({
   if (hods === null && error) return <AdminError what="the HOD list" onRetry={onRetry} className="mx-[18px]" />;
   if (hods === null) return <div className="mx-[18px] h-14 rounded-2xl bg-muted" aria-hidden />;
   const columns: AdminTableColumn[] = [
-    { key: 'who', label: 'HOD', width: '1.6fr', hint: 'A person who leads the verifiers.' },
+    { key: 'who', label: 'HOD', width: '1.6fr', hint: 'A person who leads the checkers.' },
     { key: 'added', label: 'Added', width: '1fr', hint: 'When they became an HOD.' },
   ];
   const rows: AdminTableRow[] = active.map((h) => ({
@@ -247,7 +247,7 @@ export function HodSection({
           <HodGuide />
           <AdminPanelHeader
             title="HODs"
-            subtitle="They lead the verifiers and use the HOD desk."
+            subtitle="They lead the checkers and use the HOD desk."
             meta={hods ? `${activeHods.length} ${activeHods.length === 1 ? 'HOD' : 'HODs'}` : undefined}
           />
           <PeoplePicker

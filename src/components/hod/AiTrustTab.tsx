@@ -178,12 +178,12 @@ function Cell({ cell, canSwitch, api, scope }: { cell: TrustCell; canSwitch: boo
         <span className="text-[34px] font-bold leading-none tabular-nums text-foreground" aria-label={`Agreed ${formatRate(row.rate)}`}>
           {row.rate === null ? '-' : formatRate(row.rate)}
         </span>
-        <span className="text-[13px] text-warm-secondary">verifiers agreed, no change</span>
+        <span className="text-[13px] text-warm-secondary">checkers agreed, no change</span>
       </div>
       <p className="text-[13px] tabular-nums text-foreground">{checksNeeded(row)}</p>
       <Meter row={row} />
       <p className="text-[13px] text-warm-secondary">
-        Waiting with verifiers: <span className="font-semibold tabular-nums text-foreground">{row.waiting}</span>
+        Waiting with checkers: <span className="font-semibold tabular-nums text-foreground">{row.waiting}</span>
       </p>
       <span className={cn('inline-flex w-fit rounded-full px-3 py-1 text-[12px] font-bold', CHIP_TONE[status.kind])} data-testid="trust-status">
         {status.label}

@@ -2,12 +2,14 @@
  * What a paper checker is told when a save fails, and whether the page
  * should move on to the next question.
  *
- * Every failure used to read "Could not save that. Check your internet and
- * try again." That was wrong for the commonest real failure: the question's
+ * Every failure used to blame the internet (now plain "taking longer" wording
+ * from checker-timeout.ts). That was wrong for the commonest real failure: the question's
  * 10-minute lease ran out while a student read a long passage, the server
  * refused with 42501 "not currently assigned to you", and "try again" failed
  * the same way forever. Pure, so it is tested without a login.
  */
+
+import { isSlowError, SLOW_ACTION_WORDS, SLOW_WORDS } from '@/lib/checker-timeout';
 
 export interface CheckerErrorAdvice {
   message: string;
@@ -86,14 +88,15 @@ export function checkerErrorAdvice(err: unknown): CheckerErrorAdvice {
       moveOn: false,
     };
   }
-  return { message: 'Could not save that. Check your internet and try again.', moveOn: false };
+  // A slow or hung request and any other unknown failure: never blame the internet, never show raw text.
+  return { message: isSlowError(err) ? SLOW_ACTION_WORDS : 'That did not save this time. Try again in a minute.', moveOn: false };
 }
 
 /** The message when the next question could not be fetched at all. Before,
  *  a failed fetch fell through to "All done for now", which told a checker
  *  the queue was empty when it was not. */
 export const LOAD_FAILED_TITLE = 'Could not load the next question';
-export const LOAD_FAILED_NOTE = 'Check your internet, then try again.';
+export const LOAD_FAILED_NOTE = SLOW_WORDS;
 
 export type NextLoadProblem = 'none' | 'paper_gone' | 'no_access' | 'failed';
 
@@ -133,7 +136,7 @@ export function undoErrorMessage(err: unknown): string {
   if (code === '42501' || /not authorized/i.test(text)) {
     return 'Your account cannot check papers right now. Sign in again, or ask an admin.';
   }
-  return 'Could not undo that. Check your internet and try again.';
+  return isSlowError(err) ? SLOW_ACTION_WORDS : 'Could not undo that. Try again in a minute.';
 }
 
 /**
@@ -149,7 +152,7 @@ export function requestSubjectsErrorMessage(err: unknown): string {
   if (code === '42501' || /not authorized/i.test(text)) {
     return 'Your account cannot check papers right now. Sign in again, or ask an admin.';
   }
-  return 'Could not send that. Try again in a moment.';
+  return isSlowError(err) ? SLOW_ACTION_WORDS : 'Could not send that. Try again in a minute.';
 }
 
 /**
@@ -164,5 +167,5 @@ export function reopenErrorMessage(err: unknown): string {
   if (code === '42501' || /not authorized|not on a paper you hold/i.test(text)) {
     return 'That question is not on a paper you hold, so it cannot be edited here.';
   }
-  return 'Could not open that question to edit. Check your internet and try again.';
+  return isSlowError(err) ? SLOW_ACTION_WORDS : 'Could not open that question to edit. Try again in a minute.';
 }

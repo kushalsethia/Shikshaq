@@ -46,5 +46,5 @@ export function needDetailsCount(states: DetailsState[]): number {
 /** "2 verifiers still need details", "1 verifier still needs details", or "". */
 export function needDetailsText(n: number): string {
   if (n <= 0) return '';
-  return n === 1 ? '1 verifier still needs details' : `${n} verifiers still need details`;
+  return n === 1 ? '1 checker still needs details' : `${n} checkers still need details`;
 }

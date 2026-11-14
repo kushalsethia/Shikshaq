@@ -307,7 +307,7 @@ const HOD_TAB_NAMES: Record<string, string> = {
   requests: 'Requests',
   live: 'Live papers',
   assignments: 'Assignments',
-  verifiers: 'Verifiers',
+  checkers: 'Checkers',
   history: 'History',
   'ai-trust': 'AI trust',
   'teacher-reviewers': 'Reviewers',

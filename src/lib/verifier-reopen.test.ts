@@ -120,7 +120,8 @@ describe('reopenErrorMessage', () => {
     const a = reopenErrorMessage({ code: '42501', message: 'That question is not on a paper you hold' });
     const b = reopenErrorMessage(new Error('Failed to fetch'));
     expect(a).toMatch(/not on a paper you hold/);
-    expect(b).toMatch(/internet/);
+    expect(b).toMatch(/taking longer/);
+    expect(reopenErrorMessage(new Error('boom'))).toBe('Could not open that question to edit. Try again in a minute.');
     expect(a + b).not.toMatch(/[–—]/);
   });
 });
