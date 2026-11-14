@@ -105,6 +105,45 @@ describe('QuestionRow', () => {
   });
 });
 
+describe('QuestionRow on a phone and on a wider screen', () => {
+  const out = renderToStaticMarkup(
+    <QuestionRow id="a" number="3" marks={4} aside={<button>flag</button>}>
+      <p>the words</p>
+    </QuestionRow>,
+  );
+
+  it('keeps the same reading order at every width: number, words, marks, flag', () => {
+    const order = [out.indexOf('paper-question-number'), out.indexOf('the words'), out.indexOf('paper-question-marks'), out.indexOf('flag')];
+    expect([...order].sort((x, y) => x - y)).toEqual(order);
+  });
+
+  it('under sm, number and marks share one line above and the words take the full width', () => {
+    expect(out).toContain('grid-cols-[1fr_auto]');
+    expect(out).toContain('col-span-2 row-start-2');
+    expect(out).toContain('col-start-1 row-start-1');
+    expect(out).toContain('col-start-2 row-start-1');
+  });
+
+  it('from sm up, the number hangs in the margin and the marks sit on the right', () => {
+    expect(out).toContain('sm:grid-cols-[minmax(2.25rem,max-content)_minmax(0,1fr)_auto]');
+    expect(out).toContain('sm:col-start-2');
+    expect(out).toContain('sm:col-start-3');
+  });
+
+  it('a question with no number still puts its words in the first column from sm up', () => {
+    const bare = renderToStaticMarkup(<QuestionRow id="a" number={null} marks={2}>x</QuestionRow>);
+    expect(bare).toContain('sm:grid-cols-[minmax(0,1fr)_auto]');
+    expect(bare).toContain('sm:col-start-1');
+    expect(bare).toContain('sm:col-start-2');
+  });
+
+  it('the sheet is narrower in its side padding on a phone', () => {
+    const sheet = renderToStaticMarkup(<PaperSurface>x</PaperSurface>);
+    expect(sheet).toContain('px-3.5');
+    expect(sheet).toContain('sm:px-10');
+  });
+});
+
 describe('the small pieces', () => {
   it('draws an option with its own printed letter without adding a marker, and adds a dot otherwise', () => {
     const out = renderToStaticMarkup(<OptionList keyPrefix="q" options={['a. Dominion status', 'Delhi']} />);

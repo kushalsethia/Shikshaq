@@ -24,7 +24,7 @@ export function PaperSurface({ children }: { children: ReactNode }) {
     <article
       aria-label="Question paper"
       data-testid="paper-surface"
-      className="mx-auto mt-4 w-full max-w-3xl rounded-[12px] bg-card px-4 py-6 shadow-[0_18px_40px_rgba(0,0,0,.45)] ring-1 ring-black/5 sm:px-10 sm:py-10"
+      className="-mx-2 mt-4 w-auto max-w-3xl rounded-[12px] bg-card px-3.5 py-6 shadow-[0_18px_40px_rgba(0,0,0,.45)] ring-1 ring-black/5 sm:mx-auto sm:w-full sm:px-10 sm:py-10"
     >
       {children}
     </article>
@@ -117,12 +117,17 @@ export function OrDivider() {
   );
 }
 
-/** One question: its number hangs in the margin, its marks sit in brackets on
- *  the right, and what it holds (instructions, words, options, picture) fills
- *  the middle. `marks` is null when the paper already prints its own "[3]"
- *  inside the words, so the same number never shows twice. `aside` is the
- *  small control that sits under the marks (the report flag); `below` spans
- *  the full row (the report form, once opened). */
+/** One question. From the `sm` breakpoint up it is laid out as printed: the
+ *  number hangs in the left margin, the marks sit in brackets on the right, and
+ *  what the question holds (instructions, words, options, picture) fills the
+ *  middle. On a phone the margin would eat a third of the line, so the number
+ *  and the marks share one small line above the question (number left, marks
+ *  and the report flag right) and the words, options and pictures take the
+ *  full width of the sheet. `marks` is null when the paper already prints its
+ *  own "[3]" inside the words, so the same number never shows twice. `aside`
+ *  is the small control beside the marks (the report flag); `below` spans the
+ *  full row (the report form, once opened). The DOM order is always number,
+ *  words, marks, so a screen reader reads it the same at every width. */
 export function QuestionRow({
   id,
   depth = 0,
@@ -149,21 +154,27 @@ export function QuestionRow({
       className="min-w-0 animate-card-blur-in py-2.5 font-paper text-foreground motion-reduce:animate-none"
     >
       <div
-        className={`grid gap-x-2.5 sm:gap-x-3 ${
+        className={`grid items-start gap-x-3 ${
           number
-            ? 'grid-cols-[minmax(1.75rem,max-content)_minmax(0,1fr)_auto] sm:grid-cols-[minmax(2.25rem,max-content)_minmax(0,1fr)_auto]'
-            : 'grid-cols-[minmax(0,1fr)_auto]'
+            ? 'grid-cols-[1fr_auto] sm:grid-cols-[minmax(2.25rem,max-content)_minmax(0,1fr)_auto]'
+            : 'grid-cols-[1fr_auto] sm:grid-cols-[minmax(0,1fr)_auto]'
         }`}
       >
         {number ? (
-          <span className="text-[15px] font-bold leading-[1.6] tabular-nums" data-testid="paper-question-number">
+          <span className="col-start-1 row-start-1 text-[15px] font-bold leading-[1.6] tabular-nums" data-testid="paper-question-number">
             {number}
           </span>
         ) : null}
-        <div className="min-w-0">{children}</div>
-        <div className="-mr-2 flex flex-col items-end">
+        <div className={`col-span-2 row-start-2 min-w-0 sm:row-start-1 ${number ? 'sm:col-span-1 sm:col-start-2' : 'sm:col-span-1 sm:col-start-1'}`}>
+          {children}
+        </div>
+        <div
+          className={`-my-2.5 col-start-2 row-start-1 flex flex-row items-center justify-end sm:my-0 sm:-mr-2 sm:flex-col sm:items-end ${
+            number ? 'sm:col-start-3' : 'sm:col-start-2'
+          }`}
+        >
           {marks !== null ? (
-            <span className="whitespace-nowrap pr-2 text-[14px] font-semibold leading-[1.7] tabular-nums" data-testid="paper-question-marks">
+            <span className="whitespace-nowrap text-[14px] font-semibold leading-[1.7] tabular-nums sm:pr-2" data-testid="paper-question-marks">
               <span aria-hidden="true">[{marks}]</span>
               <span className="sr-only">{marks === 1 ? '1 mark' : `${marks} marks`}</span>
             </span>
