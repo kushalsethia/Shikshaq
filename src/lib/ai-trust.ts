@@ -41,7 +41,7 @@ export function trustExplainer(minChecked = 100, minRate = 0.97, spotCheckEvery 
   return (
     'Each card is one kind of AI decision at one confidence level. "AI said it was right" means the AI kept the question as read. ' +
     '"AI fixed it" means the AI corrected the words, number or marks, usually a scanning misread. ' +
-    'Verifiers check every one, and the big number is how often they agreed with no change. ' +
+    'Checkers check every one, and the big number is how often they agreed with no change. ' +
     `A card stops going to people only after it reaches ${Math.round(minRate * 100)}% over at least ${minChecked} checks and an admin switches it on. ` +
     `Even then, 1 in ${spotCheckEvery} is still checked. A question the AI says probably has an issue always goes to a person. ` +
     `On each card the black mark on the bar is the ${Math.round(minRate * 100)}% line it has to reach.`

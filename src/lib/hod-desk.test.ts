@@ -122,8 +122,8 @@ describe('History', () => {
   });
   it('sends the role words the server uses', () => {
     expect(HISTORY_ROLES.map((r) => r.value)).toEqual(['', 'admin', 'hod', 'verifier']);
-    expect(roleWord('verifier')).toBe('Verifier');
-    expect(roleWord('checker')).toBe('Verifier');
+    expect(roleWord('verifier')).toBe('Checker');
+    expect(roleWord('checker')).toBe('Checker');
   });
 });
 

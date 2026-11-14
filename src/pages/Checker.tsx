@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { cn } from '@/lib/utils';
+import { isSlowError, SLOW_ACTION_WORDS, SLOW_WORDS } from '@/lib/checker-timeout';
 import { realCheckerApi, type CheckerApi } from '@/lib/checker-api';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
@@ -193,8 +194,8 @@ export function CheckerPage({
     return (
       <BentoStack className="min-h-screen bg-muted">
         <BentoPanel fill="card" edge="top" className="mx-auto max-w-lg py-24 text-center">
-          <h1 className="text-balance text-xl font-bold text-foreground">You are not a verifier yet</h1>
-          <p className="mt-2 text-[14px] text-warm-secondary">Ask an admin or an HOD to add your account as a verifier.</p>
+          <h1 className="text-balance text-xl font-bold text-foreground">You are not a checker yet</h1>
+          <p className="mt-2 text-[14px] text-warm-secondary">Ask an admin or an HOD to add your account as a checker.</p>
           <Link to="/past-papers" className="tap-44 mt-4 inline-flex items-center rounded-full bg-muted px-5 text-[15px] font-bold text-foreground">
             Browse past papers
           </Link>
@@ -405,7 +406,7 @@ function PaperList({
   if (papersQuery.isError) {
     return (
       <div role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
-        Could not load your papers. Check your connection and try again.
+        Could not load your papers. {SLOW_WORDS}
         <div className="mt-2">
           <ActionButton tone="muted" onClick={() => void papersQuery.refetch()}>
             Try again
@@ -557,7 +558,7 @@ function ProfileCard({ api, scope }: { api: CheckerApi; scope: string }) {
       // fetch", which is not for a student.
       const e = err as { code?: unknown; message?: unknown } | null;
       const plain = e && e.code === '22023' && typeof e.message === 'string' ? e.message.trim() : '';
-      setFormError(plain || 'Could not save that. Check your internet and try again in a moment.');
+      setFormError(plain || (isSlowError(err) ? SLOW_ACTION_WORDS : 'That did not save this time. Try again in a minute.'));
     } finally {
       setBusy(false);
     }
@@ -739,7 +740,7 @@ export function ProfileLoadError({ onRetry }: { onRetry: () => void }) {
         My details
       </h2>
       <p role="alert" className="mt-2 rounded-xl bg-destructive/10 px-3 py-2 text-[13px] text-destructive" data-testid="profile-load-error">
-        Could not load your details. They have not been changed. Check your connection and try again.
+        Could not load your details. They have not been changed. {SLOW_WORDS}
       </p>
       <div className="mt-3">
         <ActionButton tone="muted" onClick={onRetry}>
@@ -823,7 +824,7 @@ function PaperOverview({
         <CheckerSkeleton />
       ) : questionsQuery.isError ? (
         <div role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
-          <p>Could not load this paper. Check your connection, or it may not be yours any more.</p>
+          <p>Could not load this paper. {SLOW_WORDS} If it keeps failing, it may not be yours any more.</p>
           <button type="button" className="tap-44 mt-2 rounded-full bg-card px-4 py-1.5 text-[13px] font-semibold text-foreground" onClick={() => void questionsQuery.refetch()}>
             Try again
           </button>

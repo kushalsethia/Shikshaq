@@ -3,6 +3,8 @@
    tested without a screen. Nothing here talks to the database: the caller hands
    in the assign function (api.assignPaper). */
 
+import { reasonWords } from '@/lib/checker-timeout';
+
 /** At most this many papers go in one bulk assign. */
 export const MAX_BULK = 50;
 /** How many assign calls run at the same time. */
@@ -64,8 +66,7 @@ export interface BulkResult extends BulkItem {
 }
 
 function reasonOf(err: unknown): string {
-  const m = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message).trim() : '';
-  return m || 'That did not work.';
+  return reasonWords(err, 'That did not work.');
 }
 
 /**
@@ -190,7 +191,7 @@ export function summariseAutoAssign(input: {
   }
   if (left !== null) {
     if (left === 0) {
-      lines.push('No paper is left without a verifier.');
+      lines.push('No paper is left without a checker.');
     } else {
       const count = leftIsAtLeast ? `At least ${papers(left)}` : papers(left);
       lines.push(`${count} could not be given out by the rules, so ${left === 1 && !leftIsAtLeast ? 'it is' : 'they are'} still listed below. You can assign them yourself.`);

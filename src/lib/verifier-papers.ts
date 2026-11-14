@@ -194,7 +194,7 @@ export const QUESTION_STATE_LABEL: Record<PaperQuestionState, string> = {
   done: 'Done',
   with_hod: 'With the HOD',
   set_aside: 'Set aside',
-  not_for_verifiers: 'Not for verifiers',
+  not_for_verifiers: 'Not for checkers',
 };
 
 export interface PaperQuestion {
@@ -261,7 +261,7 @@ export function stateSummary(list: Pick<PaperQuestion, 'state'>[]): string {
   if (c.done) parts.push(`${c.done} done`);
   if (c.with_hod) parts.push(`${c.with_hod} with the HOD`);
   if (c.set_aside) parts.push(`${c.set_aside} set aside`);
-  if (c.not_for_verifiers) parts.push(`${c.not_for_verifiers} not for verifiers`);
+  if (c.not_for_verifiers) parts.push(`${c.not_for_verifiers} not for checkers`);
   return parts.join(', ');
 }
 

@@ -9,6 +9,7 @@
  */
 
 import { normaliseRotation, type PageRotation } from '@/lib/page-rotation';
+import { SLOW_WORDS } from '@/lib/checker-timeout';
 
 export interface PaperPage {
   /** 1-based page number of the printed paper. */
@@ -113,4 +114,4 @@ export const WHOLE_PAPER_NOTE = 'Flip through the pages until you find the quest
 export const NO_PAGES_TITLE = 'This paper has no page pictures yet';
 // Shown to verifiers AND to the HOD, so it must not tell the HOD to "ask the HOD".
 export const NO_PAGES_NOTE = 'There is nothing to compare the words with. If you are not sure the words are right, do not pass it.';
-export const PAGES_FAILED_NOTE = 'The page pictures could not be loaded. Check your internet and try again.';
+export const PAGES_FAILED_NOTE = `The page pictures did not load. ${SLOW_WORDS}`;

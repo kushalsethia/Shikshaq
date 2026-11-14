@@ -88,3 +88,13 @@ export function historyView(s: { isLoading: boolean; isError: boolean; rowCount:
   if (s.rowCount > 0) return 'rows';
   return s.isError ? 'error' : 'empty';
 }
+
+/**
+ * The first sentence above the verifier details. "Everyone is set up" is only said when the details really loaded
+ * and every verifier is set up; while the details failed to load (or there is nobody to count) it says nothing.
+ */
+export function verifierSetupLine(needing: number, total: number, loadFailed: boolean): string {
+  if (loadFailed) return '';
+  if (needing > 0) return `${needing} need${needing === 1 ? 's' : ''} your attention and are listed first.`;
+  return total > 0 ? 'Everyone is set up.' : '';
+}

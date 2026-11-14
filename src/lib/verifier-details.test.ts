@@ -58,7 +58,7 @@ describe('join and order', () => {
   it('counts and words the verifiers who still need details', () => {
     expect(needDetailsCount(['missing', 'expired', 'ready', 'unknown'])).toBe(2);
     expect(needDetailsText(0)).toBe('');
-    expect(needDetailsText(1)).toBe('1 verifier still needs details');
-    expect(needDetailsText(3)).toBe('3 verifiers still need details');
+    expect(needDetailsText(1)).toBe('1 checker still needs details');
+    expect(needDetailsText(3)).toBe('3 checkers still need details');
   });
 });

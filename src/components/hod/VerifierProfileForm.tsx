@@ -47,7 +47,7 @@ export function VerifierProfileForm({
   const label = 'flex flex-col gap-1 text-[13px] font-semibold text-foreground';
 
   return (
-    <form onSubmit={submit} className="rounded-2xl bg-muted shadow-card p-4" data-testid="profile-form" aria-label="Verifier details">
+    <form onSubmit={submit} className="rounded-2xl bg-muted shadow-card p-4" data-testid="profile-form" aria-label="Checker details">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className={label}>
           Name

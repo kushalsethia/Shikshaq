@@ -25,6 +25,7 @@ import {
   errorWords,
   failedChecks,
   headerText,
+  junkNumbersText,
   leftOutText,
   marksMismatch,
   type HodPreview,
@@ -104,7 +105,7 @@ function CheckList({ preview, go, paperId }: { preview: HodPreview; go: (s: Step
               ) : null}
               {c.key === 'scanner_junk_gone' && !c.ok && junk.length > 0 ? (
                 <p className="mt-1 text-[13px] text-warm-secondary">
-                  Marked: {junk.map((q) => `question ${q.display_number ?? q.number_path ?? '?'}`).join(', ')}.
+                  Marked: {junkNumbersText(junk.map((q) => q.display_number ?? q.number_path))}.
                 </p>
               ) : null}
             </div>

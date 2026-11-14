@@ -17,6 +17,11 @@ The owner is not a developer. Anything said to them is plain English.
 ## People and purpose (13 Nov 2026)
 
 - **Checkers are student volunteers.** Their screens are encouraging, quick and forgiving. STANDING.
+- **On screen the word is "checker", never "verifier".** Code names, routes (`/checker`, `?tab=verifiers`), database
+  names and test ids keep "verifier" on purpose; only what people read changed. BUILT (13 Nov 2026).
+- **A slow or hung request never blames the person's internet and never shows database text.** The one set of words
+  is `SLOW_WORDS` / `SLOW_ACTION_WORDS` in `src/lib/checker-timeout.ts` ("This is taking longer than it should. Try
+  again in a minute. Nothing is lost."). Use them, do not write new ones. BUILT (13 Nov 2026).
 - **The paper library is for students practising, teachers setting work, and tuition centres and schools.** Not
   for parents choosing a teacher. STANDING.
 - **Priority is balance** between correctness, speed and coverage; no strong preference. **Check order: whatever is
@@ -110,3 +115,25 @@ The owner is not a developer. Anything said to them is plain English.
 - Pull requests 105 to 111 are merged; PR 112 (zod) is open, and the paper-status work is being built.
 - The checking copy of paper `b392ed` is clean; live changes only after student checkers pass all 29 questions.
 - Maths papers stay frozen (no check, approve, fix or re-split) unless the owner asks.
+
+## Dead code to remove later (13 Nov 2026)
+
+Nothing here is dropped yet. Each item is listed so a later tidy-up can remove it on purpose.
+
+- **Database function `checker_next_question()`.** Nothing calls it. The only trace in the site code is the wrapper
+  `checkerNextQuestion` in `src/lib/checker-api.ts` (also the `nextQuestion` slot of the `CheckerApi` type and the dummy
+  copy), and no screen uses that slot; the checking screens use the per-paper `verifier_next_in_paper` and the
+  verdict-and-next call. No SQL function calls it either (`supabase/migrations/20261011190000_close_legacy_checker_rpcs.sql`
+  already revoked it from the public, anon and signed-in roles). Several old migration tests still read its text, so
+  remove the function, the wrapper and those tests together, in one change that the owner pastes.
+
+## Owner decisions owed (found in the 13 Nov 2026 fault hunt)
+
+- **A paper that goes live has no page of its own for search engines, and is not in the sitemap, until the site is
+  redeployed.** The pages and the sitemap are made at build time. The app itself shows the new paper at once (the
+  Latest papers shelf reads it live), so students are fine; only search engines wait. **Recommendation: a daily
+  redeploy** (a Vercel deploy hook, called once a day by a scheduled GitHub Action), so every paper published
+  that day is searchable by the next morning, with nobody having to remember. Cost: one extra build a day. Note
+  that `CLAUDE.md` says deploy hooks were "not available to us"; the owner would need to create the hook in the
+  Vercel project settings and save its address as a GitHub secret. NOT BUILT, deliberately: the owner decides
+  first. Until then, redeploy by hand after a publishing day.

@@ -120,7 +120,7 @@ export function createFakeCheckerApi(): FakeCheckerApi {
   const hodDone = new Set<string>();
   let requested: string[] = [];
   let myDetails: VerifierProfile = {
-    full_name: 'Dummy Verifier',
+    full_name: 'Dummy Checker',
     grade: 10,
     school: 'Dummy School',
     board: 'ICSE',

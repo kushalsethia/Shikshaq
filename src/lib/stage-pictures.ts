@@ -14,6 +14,7 @@
    Nothing here edits a question's words. A question that fails is left as it was and the whole run says so. */
 
 import { errorWords } from '@/lib/hod-publish';
+import { SLOW_WORDS } from '@/lib/checker-timeout';
 
 export interface StagePictureItem {
   question_id: string;
@@ -44,7 +45,7 @@ export type StageOutcome =
 /** How many times the list is read again after a round that did not finish everything. */
 export const STAGE_ROUNDS = 3;
 
-export const STAGE_FAILED_WORDS = 'Some pictures could not be copied to the site just now. Check your connection and try again.';
+export const STAGE_FAILED_WORDS = `Some pictures could not be copied to the site just now. ${SLOW_WORDS}`;
 
 /** The list as one group per question, in the order the database sent them. */
 export function groupByQuestion(items: StagePictureItem[]): StagePictureItem[][] {

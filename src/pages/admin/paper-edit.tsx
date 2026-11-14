@@ -25,6 +25,7 @@ import { VersionHistory } from '@/components/admin/VersionHistory';
 import { realActivityApi } from '@/lib/activity-api';
 import { editorStateFromRow } from '@/lib/paper-edit-revert';
 import { useBusyActions } from '@/lib/busy-guard';
+import { isSlowError, SLOW_ACTION_WORDS } from '@/lib/checker-timeout';
 import {
   adminPaperDraft,
   adminSaveDraftQuestion,
@@ -752,7 +753,7 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
         }
         return;
       }
-      dispatch({ type: 'save_fail', error: err?.message || 'Could not save. Check your connection.' });
+      dispatch({ type: 'save_fail', error: isSlowError(err) ? SLOW_ACTION_WORDS : err?.message || 'That did not save this time. Try again in a minute.' });
     }
   }, [id, onSaved, reloadQuestion]);
 
