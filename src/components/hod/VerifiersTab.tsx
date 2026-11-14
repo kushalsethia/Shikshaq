@@ -1,3 +1,4 @@
+import { refreshHod } from '@/lib/hod-refresh';
 import { useRef, useState } from 'react';
 import { errorWords } from '@/lib/hod-publish';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -140,7 +141,7 @@ export function ProfileRow({ p, api, scope, choices }: { p: HodVerifierProfile; 
   const toggleRef = useRef<HTMLButtonElement>(null);
   const flag = profileFlag(p);
   const grade = gradeNotSetLine(p);
-  const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
+  const refresh = () => refreshHod(qc, scope, 'verifiers');
 
   /** Opening always starts from what is saved, so a half-typed draft from last time is not shown as if it were saved. */
   function openForm() {
@@ -306,8 +307,11 @@ export function ProfileRow({ p, api, scope, choices }: { p: HodVerifierProfile; 
 export function VerifiersTab({ api, scope }: { api: HodApi; scope: string }) {
   const teamQ = useQuery({ queryKey: TEAM_KEY(scope), queryFn: () => api.team(), staleTime: 15_000, refetchOnMount: true });
   const profilesQ = useQuery({ queryKey: PROFILES_KEY(scope), queryFn: () => api.profiles(), staleTime: 15_000, refetchOnMount: true });
-  /** Only feeds the subject boxes; if it fails the boxes simply offer fewer subjects. */
-  const waitingQ = useQuery({ queryKey: WAITING_KEY(scope), queryFn: () => api.unassignedPapers(UNASSIGNED_SHOWN + 1), staleTime: 10_000, refetchOnMount: true });
+  /** Only a hint for the subject boxes (which subjects have papers waiting); if it is missing the boxes simply offer
+   *  fewer subjects. The desk's strip of counts already reads this same list, so this never makes a call of its own
+   *  (it is the slowest list on the desk, up to 7 seconds on a cold start): it takes what the strip has, and does not
+   *  read it again on opening the tab or retry it. */
+  const waitingQ = useQuery({ queryKey: WAITING_KEY(scope), queryFn: () => api.unassignedPapers(UNASSIGNED_SHOWN + 1), staleTime: 5 * 60_000, refetchOnMount: false, retryOnMount: false, retry: false });
   /** The full subject list for the boxes (hod_list_subjects); if it fails the boxes fall back to what the desk holds. */
   const subjectsQ = useQuery({ queryKey: SUBJECTS_KEY(scope), queryFn: () => api.subjects(), staleTime: 5 * 60_000 });
 

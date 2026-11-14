@@ -19,6 +19,7 @@ import {
 import { AssignmentWhy } from '@/components/hod/AssignmentWhy';
 import { PROFILES_KEY, TEAM_KEY } from '@/components/hod/VerifiersTab';
 import { useConfirm } from '@/components/ui/use-confirm';
+import { refreshHod } from '@/lib/hod-refresh';
 import { useAuth } from '@/lib/auth-context';
 import { actionToneClass } from '@/lib/checker-button-styles';
 import { capUnassigned, UNASSIGNED_SHOWN } from '@/lib/hod-desk';
@@ -332,7 +333,8 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
     return null;
   };
 
-  const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
+  /** Re-reads only what handing papers out can change (not the counts or the team, which take seconds). */
+  const refresh = (alreadyFresh: readonly string[] = []) => refreshHod(qc, scope, 'assignments', alreadyFresh);
   /** A fresh read of who holds what: the database's own answer, not the screen's memory. */
   const readAssignments = () => qc.fetchQuery({ queryKey: ASSIGNMENTS_KEY(scope), queryFn: () => api.assignments(), staleTime: 0 });
   const verifiers = (teamQ.data ?? []).filter((m) => m.active);
@@ -347,20 +349,23 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
     setRefusal(null);
     try {
       const r = await fn();
+      // The read-back below is itself a fresh read of who holds what, so that list is not read again straight after.
+      let fresh: string[] = [];
       if (verify) {
         const list = await readAssignments().catch(() => null);
+        if (list) fresh = ['assignments'];
         if (list && !didLand(list, verify.give)) {
           const message = notLandedMessage(verify.name);
           setRefusal(message);
           toast.error(message, { duration: 10_000 });
-          refresh();
+          refresh(fresh);
           return false;
         }
         toast.success(list ? done(r) : `${done(r)} ${UNCHECKED_NOTE}`);
       } else {
         toast.success(done(r));
       }
-      refresh();
+      refresh(fresh);
       return true;
     } catch (err) {
       const reason = reasonWords(err, 'That did not work. Try again.');
@@ -410,7 +415,8 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         // The hand-out itself worked; only the read-back failed, so say only what the server said.
       }
       setOutcome(summariseAutoAssign({ gave, perPerson, left, leftIsAtLeast }));
-      refresh();
+      // When the read-back worked, both lists were just read, so they are not read again.
+      refresh(perPerson ? ['assignments', 'unassigned'] : []);
     } catch (err) {
       setRefusal(reasonWords(err, 'That did not work. Try again.'));
       refresh();
@@ -429,12 +435,14 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
     setRefusal(null);
     setOutcome(null);
     setProgress({ done: 0, total: items.length });
+    let fresh: string[] = [];
     try {
       const results = await runBulkAssign(items, (paperId) => api.assignPaper(paperId, toId), {
         onProgress: (done, total) => setProgress({ done, total }),
       });
       // The server said yes or no per paper; the database is asked as well, and a "yes" that did not land is not counted.
       const list = await readAssignments().catch(() => null);
+      if (list) fresh = ['assignments'];
       const checked = checkBulk(results, list, toId, targetName);
       setOutcome(checked.outcome);
       if (checked.alert) {
@@ -446,7 +454,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
     } finally {
       setProgress(null);
       setBusy(false);
-      refresh();
+      refresh(fresh);
     }
   }
 
@@ -471,14 +479,17 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
     return act(() => api.assignPaper(a.paper_id, toId), () => done, { give: { paperId: a.paper_id, userId: toId }, name: toName });
   }
 
+  // Each section shows as its own data arrives; nothing waits for the slowest call.
   // loadGate, not isLoading: offline pauses a read (isLoading stays false) and "Every paper has a verifier" must not show.
-  if (loadGate(assignmentsQ) === 'loading' || loadGate(unassignedQ) === 'loading' || loadGate(teamQ) === 'loading') return <ListSkeleton label="Loading assignments" />;
-  if (assignmentsQ.isError) return <LoadError what="The assignments" onRetry={() => void assignmentsQ.refetch()} />;
-  // Without the team every picker would be empty and read as "nobody to give it to".
-  if (teamQ.isError) return <LoadError what="The list of checkers" onRetry={() => void teamQ.refetch()} />;
+  const assignmentsGate = loadGate(assignmentsQ);
+  const freeGate = loadGate(unassignedQ);
+  const teamGate = loadGate(teamQ);
+  /** Without the team every picker would be empty and read as "nobody to give it to", so they wait for it. */
+  const pickersBusy = busy || teamGate !== 'ready';
 
   const groups = groupByVerifier(assignmentsQ.data ?? []);
-  const idle = verifiers.filter((m) => !groups.some((g) => g.user_id === m.user_id));
+  /** Verifiers who hold nothing. Only known once both the team and the assignments are in. */
+  const idle = teamGate === 'ready' ? verifiers.filter((m) => !groups.some((g) => g.user_id === m.user_id)) : [];
   const { shown: free, more: moreFree } = capUnassigned(unassignedQ.data ?? []);
   /** The ticked papers still on the list, in list order (a paper given out meanwhile drops out by itself). */
   const chosen = free.filter((p) => selected.has(p.paper_id));
@@ -542,7 +553,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
           <PickVerifier
             label="Move to another checker"
             buttonLabel="Move"
-            busy={busy}
+            busy={pickersBusy}
             options={verifiers.filter((m) => m.user_id !== a.user_id)}
             paperClass={a.cls}
             profileOf={profileOf}
@@ -602,7 +613,13 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         <h2 id="who-has-what" className="mb-2 text-[16px] font-bold text-foreground">
           Who has what
         </h2>
-        {groups.length === 0 && idle.length === 0 ? (
+        {assignmentsGate === 'loading' ? (
+          <ListSkeleton label="Loading who has what" />
+        ) : assignmentsGate === 'error' ? (
+          <LoadError what="The assignments" onRetry={() => void assignmentsQ.refetch()} />
+        ) : groups.length === 0 && teamGate === 'loading' ? (
+          <ListSkeleton label="Loading the verifiers" />
+        ) : groups.length === 0 && idle.length === 0 && teamGate !== 'error' ? (
           <EmptyNote>No paper is assigned to anyone right now.</EmptyNote>
         ) : (
           <ul className="space-y-3">
@@ -629,6 +646,11 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
                 ) : null}
               </li>
             ))}
+            {teamGate === 'error' ? (
+              <li>
+                <LoadError what="The list of checkers" onRetry={() => void teamQ.refetch()} />
+              </li>
+            ) : null}
           </ul>
         )}
       </section>
@@ -656,7 +678,9 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
         <div ref={outcomeRef} className="mb-2 scroll-mb-24">
           <OutcomePanel outcome={outcome} onDismiss={() => setOutcome(null)} />
         </div>
-        {unassignedQ.isError ? (
+        {freeGate === 'loading' ? (
+          <ListSkeleton label="Loading free papers" />
+        ) : unassignedQ.isError ? (
           <LoadError what="The list of free papers" onRetry={() => void unassignedQ.refetch()} />
         ) : free.length === 0 ? (
           <EmptyNote>Every paper with questions waiting has a checker.</EmptyNote>
@@ -711,7 +735,7 @@ export function AssignmentsTab({ api, scope }: { api: HodApi; scope: string }) {
                   <PickVerifier
                     label="Assign to"
                     buttonLabel="Assign"
-                    busy={busy}
+                    busy={pickersBusy}
                     options={verifiers}
                     paperClass={p.cls}
                     profileOf={profileOf}

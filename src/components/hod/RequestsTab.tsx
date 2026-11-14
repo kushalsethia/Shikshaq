@@ -1,3 +1,4 @@
+import { refreshHod } from '@/lib/hod-refresh';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -55,7 +56,7 @@ export function RequestsSection({ api, scope, isAdmin = false }: { api: FixReque
   const listQ = useQuery({ queryKey: REQUESTS_LIST_KEY(scope, group), queryFn: () => api.list(group), staleTime: 0, refetchOnMount: true });
   const numbers = groupCounts(countsQ.data);
   const current = REQUEST_GROUPS.find((g) => g.key === group) ?? REQUEST_GROUPS[0];
-  const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
+  const refresh = () => refreshHod(qc, scope, 'requests');
 
   return (
     <section aria-labelledby="requests-heading" data-testid="requests-tab">

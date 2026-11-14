@@ -1,3 +1,4 @@
+import { refreshHod } from '@/lib/hod-refresh';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -212,7 +213,7 @@ export function LiveTab({ api, scope }: { api: HodApi; scope: string }) {
   const subjects = useMemo(() => distinctValues(rows, (r) => r.subject), [rows]);
   const classes = useMemo(() => distinctValues(rows, (r) => r.cls), [rows]);
   const filtered = useMemo(() => filterLivePapers(rows, filter), [rows, filter]);
-  const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
+  const refresh = () => refreshHod(qc, scope, 'live');
   const applied = filter.status !== 'all' || filter.subject !== '' || filter.cls !== '' || filter.q.trim() !== '';
 
   const set = (patch: Partial<LiveFilter>) => {

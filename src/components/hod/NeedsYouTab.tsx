@@ -1,3 +1,4 @@
+import { refreshHod } from '@/lib/hod-refresh';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -286,7 +287,7 @@ function PaperQuestions({ api, scope, paperId, paper }: { api: HodApi; scope: st
   const [undoing, setUndoing] = useState<string | null>(null);
   const [undoError, setUndoError] = useState<string | null>(null);
 
-  const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
+  const refresh = () => refreshHod(qc, scope, 'needs-you');
 
   const server = useMemo(() => q.data ?? [], [q.data]);
   const merged = useMemo(() => {

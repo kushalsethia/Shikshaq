@@ -1,3 +1,4 @@
+import { refreshHod } from '@/lib/hod-refresh';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -171,7 +172,7 @@ export function UploadsTab({ api, scope }: { api: HodApi; scope: string }) {
   const qc = useQueryClient();
   const [status, setStatus] = useState<UploadStatus>('pending');
   const q = useQuery({ queryKey: UPLOADS_KEY(scope, status), queryFn: () => api.studentUploads(status), staleTime: 0, refetchOnMount: true });
-  const refresh = () => void qc.invalidateQueries({ queryKey: ['hod', scope] });
+  const refresh = () => refreshHod(qc, scope, 'uploads');
   return (
     <div>
       <div role="group" aria-label="Show uploads" className="mb-4 flex flex-wrap gap-1.5">

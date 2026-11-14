@@ -1,3 +1,4 @@
+import { refreshHod } from '@/lib/hod-refresh';
 import { useId, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { actionToneClass } from '@/lib/checker-button-styles';
@@ -72,7 +73,8 @@ export function RequestForm({
       clearSavedDraft();
       setDraft(EMPTY_DRAFT);
       void qc.invalidateQueries({ queryKey: [REQUESTS_QUERY_ROOT, scope] });
-      void qc.invalidateQueries({ queryKey: ['hod', scope] });
+      // The HOD's Requests tab and its badge; nothing else on the desk changes when a request is raised.
+      refreshHod(qc, scope, 'requests');
       onSent();
     } catch (err) {
       setError(requestErrorWords(err));

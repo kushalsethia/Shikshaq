@@ -278,7 +278,7 @@ export function PipelineRouteView({
   );
 }
 
-/** The route, connected to the refresh loop: reads now, then every 20 seconds while the tab is visible. */
+/** The route, connected to the refresh loop: reads now, then every minute while the tab is visible. */
 export function PipelineRoute({
   api,
   audience = 'admin',
