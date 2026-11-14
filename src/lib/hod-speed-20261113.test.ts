@@ -133,7 +133,7 @@ describe('Assignments: each section shows as its own data arrives', () => {
     expect(src).toContain('<ListSkeleton label="Loading papers that are not ready" />');
     expect(src).toContain('what="The assignments"');
     expect(src).toContain('what="The list of free papers"');
-    expect(src).toContain('what="The list of verifiers"');
+    expect(src).toContain('what="The list of checkers"');
   });
 
   it('the pickers wait for the team, so an empty list is never read as nobody to give it to', () => {
