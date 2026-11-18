@@ -188,7 +188,10 @@ function seedPapers(): FP[] {
         pile: 'escalated',
         escalated_by_name: 'Nikhil K',
         escalated_at: minutesAgo(70),
-        reason: 'There is no question here',
+        reason: 'Two questions are joined and the second is cut off',
+        // A student asked for the AI to read this one again; the HOD has not answered yet (the Yes / No card shows).
+        ai_redo_state: 'requested',
+        ai_redo_reason: 'Two questions are joined and the second is cut off',
       }),
     ],
   };
