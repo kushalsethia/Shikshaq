@@ -38,7 +38,8 @@ describe('20261119400000_hod_live_copy_requests.sql', () => {
 
   it('closes every one to visitors the day it is written, and opens it to signed-in people', () => {
     for (const f of FIVE) {
-      const esc = f.replace(/[()]/g, '\\$&');
+      // Every regex special character is escaped, backslash included.
+      const esc = f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       expect(sql).toMatch(new RegExp(`revoke all on function public\\.${esc} from public, anon, authenticated`));
       expect(sql).toMatch(new RegExp(`grant execute on function public\\.${esc} to authenticated`));
     }
