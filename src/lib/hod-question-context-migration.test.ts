@@ -83,10 +83,11 @@ describe('hod_question_context migration', () => {
     expect(bodyOf('hod_question_context')).not.toMatch(/\bsource\b/i);
   });
 
-  it('ends with five check lines, each saying ok when right', () => {
-    const checks = raw.split('\n').filter((l) => /^select case when/i.test(l));
-    expect(checks.length).toBe(5);
-    for (const c of checks) expect(c).toContain("'ok'");
+  it('ends with ONE check table of five lines (the SQL editor shows only the last result), each saying ok when right', () => {
+    const tail = raw.slice(raw.lastIndexOf('-- Check it'));
+    expect((tail.match(/then 'ok'/g) ?? []).length).toBe(5);
+    expect((tail.match(/union all/gi) ?? []).length).toBe(4);
+    expect((tail.match(/^select /gim) ?? []).length).toBe(5);
   });
 
   it('is one transaction', () => {

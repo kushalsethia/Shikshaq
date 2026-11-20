@@ -238,9 +238,18 @@ grant execute on function public.checker_question_context(uuid) to authenticated
 
 commit;
 
--- Check it (all five should say ok):
-select case when pg_get_functiondef('public.checker_question_context(uuid)'::regprocedure) like '%aq.id = v_root)%' then 'ok' else 'OLD VERSION STILL THERE' end as "5 the checker's whole-question function includes the lead-in";
-select case when to_regprocedure('public.hod_question_context(uuid)') is not null then 'ok' else 'MISSING' end as "1 the function exists";
-select case when not has_function_privilege('anon', 'public.hod_question_context(uuid)', 'EXECUTE') then 'ok' else 'ANON CAN RUN IT' end as "2 logged-out visitors cannot run it";
-select case when has_function_privilege('authenticated', 'public.hod_question_context(uuid)', 'EXECUTE') then 'ok' else 'NOT GRANTED' end as "3 signed-in people can run it (it checks HOD inside)";
-select case when exists (select 1 from pg_proc p where p.oid = 'public.hod_question_context(uuid)'::regprocedure and p.prosecdef and p.proconfig::text like '%search_path%') then 'ok' else 'CHECK' end as "4 it runs with a fixed search path";
+-- Check it: five lines, each should say ok.
+select 'the new function exists' as check_line,
+       case when to_regprocedure('public.hod_question_context(uuid)') is not null then 'ok' else 'WRONG' end as result
+union all
+select 'logged-out visitors cannot run it',
+       case when not has_function_privilege('anon', 'public.hod_question_context(uuid)', 'execute') then 'ok' else 'WRONG' end
+union all
+select 'signed-in people can run it (it checks HOD inside)',
+       case when has_function_privilege('authenticated', 'public.hod_question_context(uuid)', 'execute') then 'ok' else 'WRONG' end
+union all
+select 'it runs with a fixed search path',
+       case when exists (select 1 from pg_proc p where p.oid = 'public.hod_question_context(uuid)'::regprocedure and p.prosecdef and p.proconfig::text like '%search_path%') then 'ok' else 'WRONG' end
+union all
+select 'the checker whole-question function now includes the lead-in',
+       case when pg_get_functiondef('public.checker_question_context(uuid)'::regprocedure) like '%or aq.id = v_root)%' then 'ok' else 'WRONG' end;
