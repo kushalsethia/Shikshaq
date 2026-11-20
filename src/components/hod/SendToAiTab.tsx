@@ -5,6 +5,7 @@ import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { MathText } from '@/components/papers/math-text';
 import { EmptyNote, ListSkeleton, LoadError, ago, deskLink, quietButton } from '@/components/hod/HodShared';
+import { WholeQuestion } from '@/components/hod/WholeQuestion';
 import { actionToneClass } from '@/lib/checker-button-styles';
 import type { HodApi } from '@/lib/hod-api';
 import { refreshHod } from '@/lib/hod-refresh';
@@ -138,6 +139,7 @@ function Card({ item, api, scope }: { item: HodAiRedoItem; api: HodApi; scope: s
         {item.reason ? `${item.asked_by_name ?? 'A student'} said: ${item.reason}` : `${item.asked_by_name ?? 'A student'} gave no reason.`}
         {item.note ? ` The HOD added: ${item.note}` : ''}
       </p>
+      <WholeQuestion api={api} questionId={item.id} />
       <div className="mb-2 rounded-2xl bg-card px-4 py-2">
         {item.body ? <MathText text={item.body} className="line-clamp-4 text-[14px] leading-relaxed text-foreground" /> : <p className="text-[14px] text-warm-secondary">This question has no words.</p>}
       </div>

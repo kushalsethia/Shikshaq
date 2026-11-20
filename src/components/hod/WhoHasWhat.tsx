@@ -53,6 +53,7 @@ export function WhoHasWhat({
   reasonsOf,
   renderActions,
   renderMore,
+  renderPersonActions,
 }: {
   scope: string;
   assignments: HodAssignment[];
@@ -62,6 +63,8 @@ export function WhoHasWhat({
   renderActions: (a: HodAssignment) => ReactNode;
   /** "Why this paper?" and "Where this paper has been". */
   renderMore: (a: HodAssignment) => ReactNode;
+  /** Buttons for one whole person once they are opened, for example "Move all their papers to...". */
+  renderPersonActions?: (person: { user_id: string; name: string; papers: HodAssignment[] }) => ReactNode;
 }) {
   const [query, setQuery] = useState('');
   const [chips, setChips] = useState<ChipKey[]>([]);
@@ -214,6 +217,11 @@ export function WhoHasWhat({
                 </button>
                 {open ? (
                   <div id={panel} className="px-2 pb-3">
+                    {renderPersonActions && p.papers.length > 0 ? (
+                      <div className="mb-2 flex flex-wrap items-center gap-2 px-1" data-testid="person-actions">
+                        {renderPersonActions({ user_id: p.user_id, name: p.name, papers: p.papers })}
+                      </div>
+                    ) : null}
                     <ul className="space-y-1.5">
                       {shown.visible.map((a) => {
                         const flags = reasonsOf(a);

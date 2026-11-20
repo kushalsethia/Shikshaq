@@ -12,6 +12,8 @@
  */
 
 import { normaliseOptions, type ReviewOption } from '@/lib/admin-approval-shape';
+import type { ContextRow } from '@/lib/checker-context';
+import type { RawOption } from '@/lib/checker-options';
 import { marksTextInvalid } from '@/lib/hod-desk';
 import { isSlowError, SLOW_WORDS } from '@/lib/checker-timeout';
 import { isNotSwitchedOn } from '@/lib/paper-asks';
@@ -344,6 +346,39 @@ export interface HodNeedsQuestion {
   escalated_by_name: string | null;
   escalated_at: string | null;
   reason: string | null;
+}
+
+/** One row of the whole question a part belongs to (hod_question_context): the stem and every part, in paper order. */
+export interface HodContextRow extends ContextRow {
+  /** Already passed by a checker or an HOD. */
+  passed: boolean;
+  /** Left out so the paper can go live. */
+  set_aside: boolean;
+}
+
+/** The rows of hod_question_context. Words are passed through untouched; a row with no id is dropped. */
+export function normaliseContextRows(raw: unknown): HodContextRow[] {
+  const out: HodContextRow[] = [];
+  for (const x of asRows(raw)) {
+    const r = obj(x);
+    const id = str(r.id);
+    if (!id) continue;
+    out.push({
+      id,
+      ord: num(r.ord),
+      display_number: str(r.display_number),
+      number_path: str(r.number_path),
+      body: typeof r.body === 'string' ? r.body : '',
+      options: Array.isArray(r.options) ? (r.options as RawOption[]) : null,
+      source: null,
+      is_current: r.is_current === true,
+      is_parent: r.is_parent === true,
+      depth: num(r.depth),
+      passed: r.passed === true,
+      set_aside: r.set_aside === true,
+    });
+  }
+  return out;
 }
 
 export type AiRedoState = 'requested' | 'approved' | 'redone';

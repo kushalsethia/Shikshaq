@@ -11,7 +11,8 @@
  * server's sentence; hiding needs a reason; rejecting an upload needs a note.
  */
 
-import type { AiTrustOverall, AssignmentExplanation, HodAiRedoItem, HodCheck, HodDeskCounts, HodLivePaper, HodNeedsQuestion, HodNeedsYouPaper, HodPreview, HodReadyPaper, HodStudentUpload, HodTrailRow, OverrideMark, PreviewHeader, PreviewQuestion, TrailStage, UploadStatus } from '@/lib/hod-publish';
+import type { RawOption } from '@/lib/checker-options';
+import type { AiTrustOverall, AssignmentExplanation, HodAiRedoItem, HodCheck, HodContextRow, HodDeskCounts, HodLivePaper, HodNeedsQuestion, HodNeedsYouPaper, HodPreview, HodReadyPaper, HodStudentUpload, HodTrailRow, OverrideMark, PreviewHeader, PreviewQuestion, TrailStage, UploadStatus } from '@/lib/hod-publish';
 import { CHECKS, OVERRIDE_MAX_REASON, OVERRIDE_MIN_REASON, allChecksPass, fieldProblem, PUBLISH_FIELDS, LIVE_FIELDS, normaliseChecks } from '@/lib/hod-publish';
 import { dummyPageDataUrl, dummyPictureDataUrl } from '@/dummy/checker-fixtures';
 import type { StagePictureItem } from '@/lib/stage-pictures';
@@ -383,6 +384,7 @@ export interface GoLiveFake {
     paperTrail(): Promise<HodTrailRow[]>;
     needsYouPapers(): Promise<HodNeedsYouPaper[]>;
     needsYouQuestions(id: string): Promise<HodNeedsQuestion[]>;
+    questionContext(id: string): Promise<HodContextRow[]>;
     setQuestionState(id: string, state: 'pass' | 'set_aside' | 'reopen', note?: string): Promise<string>;
     editQuestion(id: string, version: number, changes: Record<string, unknown>, note?: string): Promise<number>;
     sendBack(id: string, note: string): Promise<void>;
@@ -623,6 +625,41 @@ export function createGoLiveFake(record: (what: string) => void, ckNames: (id: s
     async needsYouQuestions(id) {
       const p = find(id);
       return p.questions.filter((x) => x.kind === 'question' && waitingYou(x)).map((x) => toNeeds(p, x));
+    },
+    async questionContext(id) {
+      // Same rule as the database function: the top row of the group (whatever its kind, so the lead-in shows) and
+      // every real question under it, in paper order. A question that stands alone answers with nothing.
+      const { p, q } = findQ(id);
+      const kidsOf = (parent: string) => p.questions.filter((x) => x.parent_id === parent && x.kind === 'question');
+      let root = q;
+      for (let i = 0; i < 10 && root.parent_id; i += 1) {
+        const up = p.questions.find((x) => x.id === root.parent_id);
+        if (!up) break;
+        root = up;
+      }
+      if (root.id === q.id && kidsOf(q.id).length === 0) return [];
+      const rows: HodContextRow[] = [];
+      const walk = (n: FQ, depth: number) => {
+        if (n.kind === 'question' || n.id === root.id) {
+          rows.push({
+            id: n.id,
+            ord: n.ord,
+            display_number: n.display_number,
+            number_path: null,
+            body: n.body,
+            options: Array.isArray(n.options) ? (n.options as RawOption[]) : null,
+            source: null,
+            is_current: n.id === q.id,
+            is_parent: n.id === root.id,
+            depth,
+            passed: n.state === 'passed',
+            set_aside: n.state === 'set_aside',
+          });
+        }
+        for (const c of kidsOf(n.id)) walk(c, depth + 1);
+      };
+      walk(root, 0);
+      return rows.sort((a, b) => a.ord - b.ord);
     },
     async setQuestionState(id, state, note) {
       const { p, q: x } = findQ(id);

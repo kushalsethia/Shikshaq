@@ -138,7 +138,8 @@ describe('Assignments: each section shows as its own data arrives', () => {
 
   it('the pickers wait for the team, so an empty list is never read as nobody to give it to', () => {
     expect(src).toContain("const pickersBusy = busy || teamGate !== 'ready'");
-    expect((src.match(/busy=\{pickersBusy\}/g) ?? []).length).toBe(2);
+    // Three pickers, all waiting for the team: Move to another checker, Assign to, and (20 Nov 2026) Move all their papers to.
+    expect((src.match(/busy=\{pickersBusy\}/g) ?? []).length).toBe(3);
   });
 });
 

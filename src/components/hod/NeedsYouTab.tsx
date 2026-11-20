@@ -8,6 +8,7 @@ import { OptionList } from '@/components/checker/OptionList';
 import { BackLink, EmptyNote, ListSkeleton, LoadError, Notice, QuestionPicture, ago, deskLink, quietButton } from '@/components/hod/HodShared';
 import { HodQuestionDiagrams, useHodDiagrams } from '@/components/hod/HodQuestionDiagrams';
 import { QuestionFixForm } from '@/components/hod/QuestionFixForm';
+import { WholeQuestion } from '@/components/hod/WholeQuestion';
 import { RouteTrail } from '@/components/hod/RouteTrail';
 import { actionToneClass } from '@/lib/checker-button-styles';
 import { withoutShownFigureFlag } from '@/lib/checker-diagrams';
@@ -144,6 +145,7 @@ function QuestionCard({
               <MathText text={q.instructions} className="text-[14px] italic leading-relaxed text-warm-secondary" />
             </div>
           ) : null}
+          <WholeQuestion api={api} questionId={q.id} defaultOpen={Boolean(q.parent_id)} />
           {panel === 'fix' ? (
             <QuestionFixForm
               target={{ body: q.body, display_number: q.display_number, marks: q.marks, options: q.options_raw }}
