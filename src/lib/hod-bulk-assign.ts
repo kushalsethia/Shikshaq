@@ -65,6 +65,34 @@ export interface BulkResult extends BulkItem {
   error?: string;
 }
 
+// ----------------------------------------------------------- moving a person's papers
+
+/**
+ * The papers to move when an HOD moves everything one checker holds (owner, 20 Nov 2026: "allow me to move around
+ * assignments of the papers"): at most `max`, in the order shown, with how many are left behind.
+ */
+export function movePlan<T extends { paper_id: string }>(
+  papers: readonly T[],
+  label: (p: T) => string,
+  max = MAX_BULK,
+): { items: BulkItem[]; left: number } {
+  const items = papers.slice(0, max).map((p) => ({ paperId: p.paper_id, label: label(p) }));
+  return { items, left: Math.max(0, papers.length - items.length) };
+}
+
+/** The question the HOD is asked before everything moves, in plain words. */
+export function moveAllWords(count: number, from: string, to: string, left: number): { title: string; description: string } {
+  const what = count === 1 ? 'the paper' : `all ${count} papers`;
+  const them = count === 1 ? 'it' : 'them';
+  return {
+    title: `Move ${what} from ${from} to ${to}?`,
+    description:
+      `${from} will no longer have ${them}. Work already done on ${them} stays. ` +
+      `${to} may be refused some of them (for example a paper above their grade); each one is shown at the end.` +
+      (left > 0 ? ` Only the first ${count} move now; ${left} more stay with ${from} until you do it again.` : ''),
+  };
+}
+
 function reasonOf(err: unknown): string {
   return reasonWords(err, 'That did not work.');
 }

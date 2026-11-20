@@ -30,6 +30,8 @@ import { checkBulk, didLand, notLandedMessage, UNCHECKED_NOTE, type IntendedGive
 import { paperLabel } from '@/lib/checker-progress';
 import {
   MAX_BULK,
+  moveAllWords,
+  movePlan,
   newlyHeld,
   progressText,
   pruneSelected,
@@ -430,8 +432,8 @@ export function AssignmentsTab({ api, scope, asksApi = realPaperAsksApi }: { api
   }
 
   /** Gives every ticked paper to one person with the existing one-paper call, four at a time. */
-  async function bulkAssign(items: { paperId: string; label: string }[]) {
-    const toId = bulkTarget;
+  async function bulkAssign(items: { paperId: string; label: string }[], target: string = bulkTarget, opts: { move?: boolean } = {}) {
+    const toId = target;
     if (!toId || items.length === 0) return;
     const targetName = toId === myId ? 'you' : nameOf(toId);
     setBusy(true);
@@ -448,12 +450,14 @@ export function AssignmentsTab({ api, scope, asksApi = realPaperAsksApi }: { api
       if (list) fresh = ['assignments'];
       const checked = checkBulk(results, list, toId, targetName);
       setOutcome(checked.outcome);
+      // A move is started from the "Who has what" list, far above the panel that shows the result: say it here too.
+      if (opts.move && !checked.alert) toast.success(checked.outcome.headline);
       if (checked.alert) {
         setRefusal(checked.alert);
         toast.error(checked.alert, { duration: 10_000 });
       }
       // Papers that were refused or did not land stay ticked, so the same choice can be retried or changed.
-      setSelected(new Set(checked.results.filter((r) => !r.ok).map((r) => r.paperId)));
+      if (!opts.move) setSelected(new Set(checked.results.filter((r) => !r.ok).map((r) => r.paperId)));
     } finally {
       setProgress(null);
       setBusy(false);
@@ -480,6 +484,22 @@ export function AssignmentsTab({ api, scope, asksApi = realPaperAsksApi }: { api
     });
     if (!ok) return false;
     return act(() => api.assignPaper(a.paper_id, toId), () => done, { give: { paperId: a.paper_id, userId: toId }, name: toName });
+  }
+
+  /**
+   * Moves everything one checker holds to another (owner, 20 Nov 2026: "allow me to move around assignments of the
+   * papers"). It asks first, naming who loses them, then runs the existing one-paper move over every paper, four at a
+   * time, and reads the assignments back to check each one really landed (the same check as a bulk give).
+   */
+  async function moveAll(person: { user_id: string; name: string; papers: HodAssignment[] }, toId: string): Promise<boolean> {
+    const { items, left } = movePlan(person.papers, (a) => paperLabel(a));
+    if (items.length === 0 || toId === person.user_id) return false;
+    const toName = toId === myId ? 'you' : nameOf(toId);
+    const words = moveAllWords(items.length, person.name, toName, left);
+    const ok = await confirm({ title: words.title, description: words.description, confirmLabel: 'Move them' });
+    if (!ok) return false;
+    await bulkAssign(items, toId, { move: true });
+    return true;
   }
 
   // Each section shows as its own data arrives; nothing waits for the slowest call.
@@ -618,6 +638,17 @@ export function AssignmentsTab({ api, scope, asksApi = realPaperAsksApi }: { api
               reasonsOf={reasonsOf}
               renderActions={renderActions}
               renderMore={renderMore}
+              renderPersonActions={(person) => (
+                <PickVerifier
+                  label={`Move all ${person.papers.length === 1 ? 'their paper' : `${person.papers.length} papers`} to...`}
+                  buttonLabel="Move all"
+                  busy={pickersBusy}
+                  options={verifiers.filter((m) => m.user_id !== person.user_id)}
+                  paperClass={null}
+                  profileOf={profileOf}
+                  onPick={(uid) => moveAll(person, uid)}
+                />
+              )}
             />
             {teamGate === 'error' ? (
               <LoadError what="The list of checkers" onRetry={() => void teamQ.refetch()} />
