@@ -165,6 +165,19 @@ export function CheckerPage({
     refetchOnMount: 'always',
   });
 
+  // Papers finished (owner, 20 Nov 2026: tasks are given in papers, so the question counts alone were
+  // "lowkey confusing"). The key starts with the question counts' key, so every place that refreshes those
+  // counts after an answer refreshes this one too. If checker_my_paper_stats is not in the database yet, the
+  // papers pill is simply left out: no retry, no error.
+  const paperStatsQuery = useQuery({
+    queryKey: ['checker-my-stats', scope, 'papers'],
+    queryFn: api.myPaperStats,
+    enabled: allowed === true,
+    staleTime: 30 * 1000,
+    refetchOnMount: 'always',
+    retry: false,
+  });
+
   if (accessFailed) {
     return (
       <BentoStack className="min-h-screen bg-muted">
@@ -220,13 +233,25 @@ export function CheckerPage({
   // the page's small controls moved into the screen's top tile.
   const verifyView = Boolean(paperId && verifying);
 
-  const countsText = statsQuery.data ? `Today ${statsQuery.data.today_count} · Total ${statsQuery.data.total_count}` : 'Counting...';
+  const countsText = statsQuery.data
+    ? `Questions: ${statsQuery.data.today_count} today · ${statsQuery.data.total_count} total`
+    : 'Counting...';
+  const papersText = paperStatsQuery.data
+    ? `Papers: ${paperStatsQuery.data.papers_today} today · ${paperStatsQuery.data.papers_total} total`
+    : null;
   const counts = statsQuery.isError && !statsQuery.data ? null : (
-    <span
-      className={cn('rounded-full bg-muted px-3 py-1 text-[13px] font-semibold', statsQuery.data ? 'tabular-nums text-warm-secondary' : 'text-warm-meta')}
-      data-testid="my-counts"
-    >
-      {countsText}
+    <span className="inline-flex flex-wrap items-center gap-1.5" data-testid="my-counts">
+      <span
+        className={cn('rounded-full bg-muted px-3 py-1 text-[13px] font-semibold', statsQuery.data ? 'tabular-nums text-warm-secondary' : 'text-warm-meta')}
+        data-testid="my-question-counts"
+      >
+        {countsText}
+      </span>
+      {papersText ? (
+        <span className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold tabular-nums text-warm-secondary" data-testid="my-paper-counts">
+          {papersText}
+        </span>
+      ) : null}
     </span>
   );
 

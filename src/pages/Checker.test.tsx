@@ -84,10 +84,22 @@ describe('the verify screen Menu (one button in the top tile)', () => {
     expect(menu).toMatch(/setMenuOpen\(false\);\s+toList\(\);/);
   });
 
-  it('the day counts keep their testid and show Today and Total', () => {
+  it('the day counts keep their testid and say today and total, for questions AND for papers (20 Nov 2026)', () => {
     expect(src).toContain('data-testid="my-counts"');
-    expect(src).toContain('Today ${statsQuery.data.today_count}');
-    expect(src).toContain('Total ${statsQuery.data.total_count}');
+    expect(src).toContain('Questions: ${statsQuery.data.today_count} today');
+    expect(src).toContain('${statsQuery.data.total_count} total');
+    expect(src).toContain('Papers: ${paperStatsQuery.data.papers_today} today');
+    expect(src).toContain('${paperStatsQuery.data.papers_total} total');
+  });
+
+  it('the papers count refreshes with the question counts and stays quiet if the database part is missing', () => {
+    // Its key starts with the question counts' key, so every invalidate of ['checker-my-stats', scope] reaches it.
+    expect(src).toContain("queryKey: ['checker-my-stats', scope, 'papers']");
+    const q = src.slice(src.indexOf('const paperStatsQuery'), src.indexOf('if (accessFailed)'));
+    expect(q).toContain('retry: false');
+    expect(q).toContain("refetchOnMount: 'always'");
+    // No papers number yet (loading, or the function is not in the database): the pill is left out.
+    expect(src).toContain('papersText ? (');
   });
 
   it('the global site header is switched off for the verify screen by the shell', () => {

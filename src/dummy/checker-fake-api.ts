@@ -104,6 +104,9 @@ export function createFakeCheckerApi(): FakeCheckerApi {
   };
   let today = 0;
   let total = 41;
+  // Papers finished (every question on the paper done): the demo's version of checker_my_paper_stats.
+  let papersToday = 0;
+  let papersTotal = 12;
   let arrivals = 0;
   // Which paper each question belongs to, who has been through how many, and
   // which paper is the checker's current one.
@@ -198,6 +201,8 @@ export function createFakeCheckerApi(): FakeCheckerApi {
       prefs ={ subjects: null, classes: null, chosen: false };
       today = 0;
       total = 41;
+      papersToday = 0;
+      papersTotal = 12;
       api.simulate = 'none';
     },
 
@@ -627,6 +632,11 @@ export function createFakeCheckerApi(): FakeCheckerApi {
       return { today_count: today, total_count: total };
     },
 
+    async myPaperStats() {
+      await gate();
+      return { papers_today: papersToday, papers_total: papersTotal };
+    },
+
     async leaderboard(): Promise<LeaderboardRow[]> {
       await gate();
       const rows = [
@@ -698,6 +708,11 @@ export function createFakeCheckerApi(): FakeCheckerApi {
     queue = queue.filter((x) => x.id !== id);
     today++;
     total++;
+    // The last open question of a paper is done: the paper counts as finished.
+    if (q && !queue.some((x) => paperKey(x) === paperKey(q))) {
+      papersToday++;
+      papersTotal++;
+    }
   }
 
   /** The verdict, then the next question and its context; the delay is already paid by the caller. */

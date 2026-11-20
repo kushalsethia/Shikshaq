@@ -245,6 +245,20 @@ export async function checkerMyStats(): Promise<CheckerStats> {
   return rpcRow<CheckerStats>(data) ?? { today_count: 0, total_count: 0 };
 }
 
+/** Papers this checker has finished (assignment closed as done), today (India time) and in all.
+ *  checker_my_paper_stats, 20261120100000. Owner, 20 Nov 2026: tasks are given in papers, so the
+ *  question counts alone were "lowkey confusing". */
+export interface CheckerPaperStats {
+  papers_today: number;
+  papers_total: number;
+}
+
+export async function checkerMyPaperStats(): Promise<CheckerPaperStats> {
+  const { data, error } = await supabase.rpc('checker_my_paper_stats' as never);
+  if (error) throw error;
+  return rpcRow<CheckerPaperStats>(data) ?? { papers_today: 0, papers_total: 0 };
+}
+
 export interface LeaderboardRow {
   rank: number;
   first_name: string;
@@ -623,6 +637,7 @@ export interface CheckerApi {
   markOrSeparator: typeof checkerMarkOrSeparator;
   checkedTodayCount: typeof checkerCheckedTodayCount;
   myStats: typeof checkerMyStats;
+  myPaperStats: typeof checkerMyPaperStats;
   leaderboard: typeof checkerLeaderboard;
   getPreferences: typeof checkerGetPreferences;
   setPreferences: typeof checkerSetPreferences;
@@ -658,6 +673,7 @@ export const realCheckerApi: CheckerApi = {
   markOrSeparator: checkerMarkOrSeparator,
   checkedTodayCount: checkerCheckedTodayCount,
   myStats: checkerMyStats,
+  myPaperStats: checkerMyPaperStats,
   leaderboard: checkerLeaderboard,
   getPreferences: checkerGetPreferences,
   setPreferences: checkerSetPreferences,
