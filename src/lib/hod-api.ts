@@ -15,6 +15,8 @@ import { normaliseActivity, normaliseMoments, type PaperActivity, type PaperMome
 import type { PaperPage } from '@/lib/paper-pages';
 import { normaliseTrustRows, type TrustDecision, type TrustLevel, type TrustRow } from '@/lib/ai-trust';
 import {
+  normaliseContextRows,
+  type HodContextRow,
   normaliseDeskCounts,
   normaliseExplanation,
   normaliseLivePapers,
@@ -649,6 +651,8 @@ export interface HodApi {
   needsYouPapers(): Promise<HodNeedsYouPaper[]>;
   /** hod_needs_you_questions(): the open questions on one paper, in order. */
   needsYouQuestions(auditPaperId: string): Promise<HodNeedsQuestion[]>;
+  /** hod_question_context(): the whole question a part belongs to (the lead-in and every part, in order, the asked-about part marked). Empty when the question stands alone. */
+  questionContext(questionId: string): Promise<HodContextRow[]>;
   /** hod_set_question_state(): 'pass' | 'set_aside' (needs a note) | 'reopen'. Returns the new state. */
   setQuestionState(questionId: string, state: 'pass' | 'set_aside' | 'reopen', note?: string): Promise<string>;
   /** hod_edit_question(): a versioned edit; returns the new version. Only the changed keys are sent. */
@@ -825,6 +829,15 @@ export const realHodApi: HodApi = {
   },
   async needsYouQuestions(auditPaperId) {
     return normaliseNeedsQuestions(await call('hod_needs_you_questions', { p_audit_paper_id: auditPaperId }));
+  },
+  async questionContext(questionId) {
+    try {
+      return normaliseContextRows(await call('hod_question_context', { p_question_id: questionId }));
+    } catch (err) {
+      // Until the database file that adds this function is pasted, the card just shows the one part it always showed.
+      if (isMissingFunctionError(err)) return [];
+      throw err;
+    }
   },
   async setQuestionState(questionId, state, note) {
     const out = await call('hod_set_question_state', { p_question_id: questionId, p_state: state, p_note: note ?? null });
