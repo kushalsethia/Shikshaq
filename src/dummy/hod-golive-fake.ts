@@ -547,6 +547,7 @@ export function createGoLiveFake(record: (what: string) => void, ckNames: (id: s
     instructions: x.instructions,
     body: x.body,
     options: (x.options ?? []).map((o) => ({ label: null, text: String(o) })),
+    options_raw: x.options ?? null,
     marks: x.marks,
     figure_path: x.picture_staged ? x.figure_path : null,
     figure_storage_path: x.figure_storage_path,
@@ -652,6 +653,7 @@ export function createGoLiveFake(record: (what: string) => void, ckNames: (id: s
       if (typeof changes.body === 'string') x.body = changes.body;
       if (typeof changes.display_number === 'string') x.display_number = changes.display_number;
       if ('marks' in changes) x.marks = (changes.marks as number | null) ?? null;
+      if ('options' in changes) x.options = Array.isArray(changes.options) ? (changes.options as unknown[]) : null;
       // A fixed question loses its scanner-junk mark when the junk words are gone.
       if (typeof changes.body === 'string' && !/camscanner|scanned with|scanned by/i.test(changes.body)) x.scanner_junk = false;
       x.version += 1;
