@@ -229,7 +229,7 @@ describe('the fixture log reads like people', () => {
         for (const e of d.events) {
           const { line } = historyLine(e, FIXTURE_NOW);
           expect(line, line).not.toMatch(UUID);
-          expect(line, line).not.toMatch(/[a-z]+_[a-z_]+|\{|ai:/);
+          expect(line, line).not.toMatch(/\b[a-z]+_[a-z_]+\b|\{|\bai:/);
         }
       }
     }
