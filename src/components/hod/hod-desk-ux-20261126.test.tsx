@@ -114,7 +114,8 @@ describe('B1: the number on the Assignments tab', () => {
   it('reads the same list (and key) as the strip and the tab, so it costs no extra call', () => {
     const src = read('src/pages/Hod.tsx');
     expect(src).toContain('queryKey: UNASSIGNED_KEY(scope)');
-    expect(src).toContain('tabBadgeText(t.key, tabBadge(t.key, countsQ.data, requestsWaiting, freePapers))');
+    expect(src).toContain("const badge = t.key === 'assignments' ? freePapers : tabBadge(t.key, countsQ.data, requestsWaiting);");
+    expect(src).toContain('tabBadgeText(t.key, badge)');
   });
 });
 
